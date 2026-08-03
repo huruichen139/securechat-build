@@ -1,0 +1,36 @@
+{
+  "HVIGOR": {
+    "IS_INCREMENTAL": true,
+    "IS_DAEMON": false,
+    "IS_PARALLEL": true,
+    "IS_HVIGORFILE_TYPE_CHECK": false,
+    "IS_EXECUTION_OHPM_BY_HVIGOR": false,
+    "BUILD_ANALYSIS_MODE": "normal",
+    "TASK_TIME": {},
+    "CUSTOM_TASK_TIME": {},
+    "CUSTOM_PLUGIN_TIME": {},
+    "APIS": [],
+    "CONFIG_EXPERIMENT": {
+      "ENABLE_MODULE_SKIP": false,
+      "ENABLE_CPP_FUNCTION_LEVEL_INCREMENTAL": false
+    },
+    "CONFIG_PROPERTIES": {},
+    "BUILD_ID": "202608031237430410",
+    "ERROR_MESSAGE": [
+      {
+        "CODE": "00306003",
+        "MESSAGE": "Invalid project path. Current path does not match: %s",
+        "SOLUTIONS": [
+          "Please modify the project path to ensure that it only contains letters, digits, hyphens (-), underscores (_), periods (.), english parentheses (()), spaces, or the @ symbol"
+        ],
+        "TIMESTAMP": "1785731867458"
+      },
+      {
+        "CODE": "00306003",
+        "STACK": "00306003 Specification Limit Violation\n...\n    at OhosLogger.printErrorExit (***\\tools\\hvigor\\hvigor\\src\\base\\log\\hv***g.js:1:5087)\n    at ProjectInspection.projectPathInspection (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\tasks\\inspection\\pr***n.js:1:550)\n    at ProjectInspection.doInspection (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\tasks\\inspection\\pr***n.js:1:348)\n    at AppPlugin.doProjectInspection (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\plugin\\common\\ab***n.js:1:1608)\n    at StageInitializationStrategy.createAppPlugin (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\plugin\\strategy\\st***y.js:1:991)\n    at AppPluginBuilder.createPlugin (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\plugin\\builder\\ap***r.js:1:1610)\n    at AppPluginBuilder.build (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\plugin\\builder\\ab***r.js:1:756)\n    at PluginFactory.getAppPlugin (***\\tools\\hvigor\\hvigor-ohos-plugin\\src\\plugin\\factory\\pl***y.js:1:481)\n    at appTasks (***\\tools\\hvigor\\hvigor-ohos-plugin\\in***x.js:1:652)\n    at bindSystemPlugins (***\\tools\\hvigor\\hvigor\\src\\base\\internal\\lifecycle\\co***n.js:1:6298)",
+        "PROJECT_CONFIG": {}
+      }
+    ],
+    "TOTAL_TIME": 4482439800
+  }
+}

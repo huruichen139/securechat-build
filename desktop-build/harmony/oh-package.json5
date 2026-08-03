@@ -1,0 +1,7 @@
+// SecureChat project package
+{
+  "modelVersion": "5.0.0",
+  "description": "SecureChat HarmonyOS app",
+  "dependencies": {},
+  "devDependencies": {}
+}

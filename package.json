@@ -1,0 +1,24 @@
+{
+  "name": "secure-chatroom",
+  "version": "1.0.0",
+  "description": "Secure encrypted chatroom (Node backend + web frontend)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "start:bootstrap": "node server/bootstrap.js",
+    "build:server": "pkg --config pkg.config.json --target host --output server/dist/SecureChat-Server.exe server/bootstrap.js"
+  },
+  "author": "SecureChat",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^9.0.3",
+    "sql.js": "^1.12.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0"
+  }
+}

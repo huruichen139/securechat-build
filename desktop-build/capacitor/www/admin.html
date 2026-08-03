@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SecureChat 管理员后台</title>
+<link rel="stylesheet" href="styles.css?v=admin-i18n-20260802-1" />
+<script>
+  // 所有正式请求强制使用 HTTPS 公网入口。
+  (function () {
+    var host = location.hostname || '';
+    window.SERVER_HOST = 'https://mc.32768.top:8888';
+  })();
+</script>
+</head>
+<body class="admin-body">
+
+<div class="admin-topbar">
+  <div class="admin-brand"><span data-i18n="app">SecureChat</span> · <span data-i18n="admin">管理员后台</span></div>
+  <div class="admin-top-actions">
+    <span id="adminMe" class="admin-me">未登录</span>
+    <button id="refreshBtn" class="admin-btn" data-i18n="refresh">刷新</button>
+    <button id="autoBtn" class="admin-btn" data-i18n="autoRefresh">自动刷新: 开</button>
+    <button id="logoutBtn" class="admin-btn danger" data-i18n="logout">退出</button>
+    <a class="admin-link" href="index.html" data-i18n="backToSite">返回主站</a>
+  </div>
+</div>
+
+<!-- 未登录遮罩 -->
+<div id="loginMask" class="admin-loginmask">
+  <div class="admin-logincard">
+    <h2 data-i18n="adminLogin">管理员登录</h2>
+    <p class="admin-hint">此页面仅限系统管理员账号登录。普通用户无法进入后台。</p>
+    <!-- 登录模式切换 -->
+    <div class="admin-login-tabs">
+      <button id="loginTabPwd" class="admin-login-tab active" type="button" onclick="adminSwitchLoginMode('pwd')">账号密码</button>
+      <button id="loginTabCode" class="admin-login-tab" type="button" onclick="adminSwitchLoginMode('code')">邮箱验证码</button>
+    </div>
+
+    <!-- 账号密码登录 -->
+    <div id="loginPwdBox" class="admin-login-box">
+      <label for="loginUser" data-i18n="username">用户名</label>
+      <input id="loginUser" class="admin-login-input" type="text" autocomplete="username" placeholder="请输入用户名或邮箱" onkeydown="if(event.key==='Enter')document.getElementById('loginGo').click()" />
+      <label for="loginPass" data-i18n="password">密码</label>
+      <input id="loginPass" class="admin-login-input" type="password" autocomplete="current-password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')document.getElementById('loginGo').click()" />
+      <button id="loginGo" class="admin-btn primary" data-i18n="login">登录</button>
+    </div>
+
+    <!-- 邮箱验证码登录 -->
+    <div id="loginCodeBox" class="admin-login-box" style="display:none">
+      <label for="loginEmail">邮箱</label>
+      <input id="loginEmail" class="admin-login-input" type="email" autocomplete="email" placeholder="请输入注册邮箱" onkeydown="if(event.key==='Enter')document.getElementById('sendCodeBtn').click()" />
+      <div class="admin-code-row">
+        <input id="loginCode" class="admin-login-input admin-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码" onkeydown="if(event.key==='Enter')document.getElementById('codeLoginGo').click()" />
+        <button id="sendCodeBtn" class="admin-btn" type="button">发送验证码</button>
+      </div>
+      <button id="codeLoginGo" class="admin-btn primary">验证码登录</button>
+    </div>
+    <p id="loginErr" class="admin-err"></p>
+  </div>
+</div>
+
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+   <div class="admin-side-brand"><span class="admin-brand-mark">S</span><strong data-i18n="app">SecureChat</strong><small data-i18n="admin">管理控制台</small></div>
+    <nav class="admin-nav" aria-label="后台分区">
+      <button class="admin-nav-item active" data-admin-section="overview"><span data-i18n="overview">概览</span><small data-i18n="systemOverview">系统状态</small></button>
+      <button class="admin-nav-item" data-admin-section="users"><span data-i18n="users">用户</span><small data-i18n="userStats">账号与在线</small></button>
+      <button class="admin-nav-item" data-admin-section="social"><span data-i18n="social">社交</span><small data-i18n="feedbackList">好友与群组</small></button>
+      <button class="admin-nav-item" data-admin-section="messages"><span data-i18n="messages">消息</span><small>通信统计</small></button>
+      <button class="admin-nav-item" data-admin-section="feedback"><span data-i18n="feedback">反馈</span><small>问题与建议</small></button>
+      <button class="admin-nav-item" data-admin-section="storage"><span data-i18n="storage">存储</span><small>数据空间</small></button>
+      <button class="admin-nav-item" data-admin-section="security"><span data-i18n="security">安全</span><small>权限与配置</small></button>
+      <button class="admin-nav-item" data-admin-section="versions"><span data-i18n="versions">版本</span><small>发布与安装包</small></button>
+    </nav>
+    <div class="admin-side-bottom"><span class="admin-live-dot"></span><span data-i18n="serviceOnline">服务在线</span></div>
+  </aside>
+ <main class="admin-workspace">
+<!-- 实时计数条 -->
+<div id="realtimeBar" class="admin-realtime" style="display:none">
+  <span class="rt-item">在线 <b id="rtOnline">0</b></span>
+  <span class="rt-item">历史峰值 <b id="rtPeak">0</b></span>
+  <span class="rt-item">上一分钟 发 <b id="rtSent">0</b> / 收 <b id="rtRecv">0</b></span>
+  <span class="rt-item">峰值/分钟 <b id="rtPeakMsg">0</b></span>
+  <span class="rt-item rt-time">服务器时间 <b id="rtTime">--</b></span>
+</div>
+
+<div id="adminMain" class="admin-main" style="display:none">
+
+  <!-- 概览卡片 -->
+   <section id="adminSectionOverview" class="admin-section admin-section-active" data-admin-panel="overview">
+    <h3 data-i18n="systemOverview">系统概览</h3>
+    <div id="sysGrid" class="admin-grid"></div>
+  </section>
+
+  <!-- 用户 -->
+   <section id="adminSectionUsers" class="admin-section" data-admin-panel="users">
+    <h3 data-i18n="userStats">用户统计</h3>
+    <div id="userGrid" class="admin-grid"></div>
+    <div class="admin-inline-tools"><input id="adminUserSearch" class="admin-search" placeholder="搜索在线用户名、昵称、UID或邮箱" /><button id="clearUserSearch" class="admin-btn" data-i18n="close">清除</button></div>
+    <h4 class="admin-subh4"><span data-i18n="online">在线用户</span> <span id="onlineCountTag" class="admin-tag"></span></h4>
+    <div id="onlineList" class="admin-tablewrap">
+      <table class="admin-table">
+        <thead><tr><th>ID</th><th data-i18n="username">用户名</th><th data-i18n="nickname">昵称</th><th>UID</th><th data-i18n="email">邮箱</th></tr></thead>
+        <tbody id="onlineTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 好友 & 群组 -->
+   <section id="adminSectionSocial" class="admin-section" data-admin-panel="social">
+    <h3><span data-i18n="friends">好友</span> / <span data-i18n="groups">群组</span></h3>
+    <div id="socialGrid" class="admin-grid"></div>
+    <h4 class="admin-subh4">Top 群组</h4>
+    <div class="admin-tablewrap">
+      <table class="admin-table">
+        <thead><tr><th>ID</th><th data-i18n="groups">群名</th><th>群主ID</th><th data-i18n="add">成员数</th></tr></thead>
+        <tbody id="groupsTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 消息 -->
+   <section id="adminSectionMessages" class="admin-section" data-admin-panel="messages">
+    <h3 data-i18n="messages">消息</h3>
+    <div id="msgGrid" class="admin-grid"></div>
+  </section>
+
+  <!-- 反馈 -->
+   <section id="adminSectionFeedback" class="admin-section" data-admin-panel="feedback">
+    <h3><span data-i18n="feedback">反馈</span> <span id="feedbackTag" class="admin-tag"></span></h3>
+    <div id="fbGrid" class="admin-grid"></div>
+    <h4 class="admin-subh4" data-i18n="feedbackList">反馈列表（最新在前）</h4>
+    <div id="fbList" class="admin-fblist"></div>
+  </section>
+
+  <!-- 存储 -->
+   <section id="adminSectionStorage" class="admin-section" data-admin-panel="storage">
+    <h3 data-i18n="storage">存储</h3>
+    <div id="storeGrid" class="admin-grid"></div>
+  </section>
+
+  <!-- 安全 / 管理员 -->
+   <section id="adminSectionSecurity" class="admin-section" data-admin-panel="security">
+    <h3><span data-i18n="security">安全</span> / <span data-i18n="admin">管理员</span></h3>
+    <div id="secGrid" class="admin-grid"></div>
+  </section>
+
+  <!-- 版本 / 发布 -->
+   <section id="adminSectionVersions" class="admin-section" data-admin-panel="versions">
+    <h3 data-i18n="versions">版本发布</h3>
+    <div id="verGrid" class="admin-grid"></div>
+
+    <h4 class="admin-subh4">更新版本信息</h4>
+    <div class="admin-panel">
+      <div class="admin-panel-row">
+        <label>最新版本号 <small>（格式 x.y.z，如 1.1.0）</small>
+          <input id="verLatest" type="text" placeholder="1.0.0" style="font-family:monospace" />
+        </label>
+        <label>发布说明
+          <textarea id="verNotes" rows="3" placeholder="本次更新内容…"></textarea>
+        </label>
+      </div>
+      <div class="admin-panel-row">
+        <button id="verSaveBtn" class="admin-btn primary">保存版本信息</button>
+        <span id="verSavedAt" class="admin-hint"></span>
+      </div>
+    </div>
+
+    <h4 class="admin-subh4">安装包管理 <span id="pkgNote" class="admin-hint"></span></h4>
+    <div class="admin-panel">
+      <div class="admin-pkgrow">
+        <span class="admin-pkg-label">Windows（.exe 安装包）</span>
+        <span id="pkgWindows" class="admin-pkg-state">未上传</span>
+        <button class="admin-btn upload-btn" data-platform="windows">上传</button>
+        <button class="admin-btn danger del-btn" data-platform="windows" style="display:none">删除</button>
+      </div>
+      <div class="admin-pkgrow">
+        <span class="admin-pkg-label">Windows（.zip 便携版）</span>
+        <span id="pkgWindowsPortable" class="admin-pkg-state">未上传</span>
+        <button class="admin-btn upload-btn" data-platform="windowsPortable">上传</button>
+        <button class="admin-btn danger del-btn" data-platform="windowsPortable" style="display:none">删除</button>
+      </div>
+      <div class="admin-pkgrow">
+        <span class="admin-pkg-label">macOS（.dmg）</span>
+        <span id="pkgMacos" class="admin-pkg-state">未上传</span>
+        <button class="admin-btn upload-btn" data-platform="macos">上传</button>
+        <button class="admin-btn danger del-btn" data-platform="macos" style="display:none">删除</button>
+      </div>
+      <div class="admin-pkgrow">
+        <span class="admin-pkg-label">Android（.apk）</span>
+        <span id="pkgAndroid" class="admin-pkg-state">未上传</span>
+        <button class="admin-btn upload-btn" data-platform="android">上传</button>
+        <button class="admin-btn danger del-btn" data-platform="android" style="display:none">删除</button>
+      </div>
+      <div class="admin-pkgrow">
+        <span class="admin-pkg-label">鸿蒙（.hap）</span>
+        <span id="pkgHarmony" class="admin-pkg-state">未上传</span>
+        <button class="admin-btn upload-btn" data-platform="harmony">上传</button>
+        <button class="admin-btn danger del-btn" data-platform="harmony" style="display:none">删除</button>
+      </div>
+      <div class="admin-pkgrow">
+        <span class="admin-pkg-label">iOS（.ipa）</span>
+        <span id="pkgIos" class="admin-pkg-state">未上传</span>
+        <button class="admin-btn upload-btn" data-platform="ios">上传</button>
+        <button class="admin-btn danger del-btn" data-platform="ios" style="display:none">删除</button>
+      </div>
+      <input type="file" id="pkgFileInput" style="display:none" />
+      <div id="pkgProgress" class="admin-hint" style="display:none"></div>
+    </div>
+  </section>
+
+ </div>
+ </main>
+</div>
+
+<script src="i18n.js?v=i18n-20260802-1"></script>
+<script src="admin.js?v=admin-i18n-20260802-1"></script>
+</body>
+</html>

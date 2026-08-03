@@ -1,0 +1,16 @@
+node_modules/
+dist/
+data */
+.cloudflared/
+*.sqlite
+data/*.db
+data/*.db-*
+*.log
+portable/
+server/downloads/
+cloudflared.exe
+*.zip
+*.exe
+*.apk
+*.hap
+.DS_Store

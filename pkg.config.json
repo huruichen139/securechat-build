@@ -1,0 +1,16 @@
+{
+  "pkg": {
+    "assets": [
+      "web/**/*",
+      "server/downloads/**/*"
+    ],
+    "scripts": [
+      "server/**/*.js",
+      "shared/**/*.js"
+    ],
+    "targets": [
+      "node24-win-x64"
+    ],
+    "outputPath": "server/dist"
+  }
+}

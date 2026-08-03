@@ -1,0 +1,10 @@
+// SecureChat entry module package
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "SecureChat entry module",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {}
+}

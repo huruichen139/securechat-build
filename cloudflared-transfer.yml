@@ -1,0 +1,9 @@
+tunnel: d707200c-b08f-4bde-9103-a3569a90b01b
+credentials-file: .cloudflared/d707200c-b08f-4bde-9103-a3569a90b01b.json
+
+ingress:
+  - hostname: m.chat.32768.top
+    service: http://localhost:8080
+  - hostname: chat.32768.top
+    service: http://localhost:8080
+  - service: http_status:404

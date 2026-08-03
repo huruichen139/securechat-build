@@ -1,0 +1,7 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "SecureChat entry module" },
+    { "name": "EntryAbility_desc", "value": "SecureChat entry" },
+    { "name": "EntryAbility_label", "value": "SecureChat" }
+  ]
+}
