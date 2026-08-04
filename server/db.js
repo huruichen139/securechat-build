@@ -60,6 +60,27 @@ function init() {
       created_at INTEGER NOT NULL,
       read INTEGER DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS file_transfers (
+      id TEXT PRIMARY KEY,
+      from_id INTEGER NOT NULL,
+      to_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      path TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS call_recordings (
+      id TEXT PRIMARY KEY,
+      from_id INTEGER NOT NULL,
+      to_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      path TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_call_recordings_pair ON call_recordings(from_id, to_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_file_transfers_pair ON file_transfers(from_id, to_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_msg_pair ON messages(from_id, to_id, created_at);
     CREATE TABLE IF NOT EXISTS friends (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,6 +147,18 @@ function init() {
   } catch (e) { /* 列已存在 */ }
   try {
     db.run('ALTER TABLE messages ADD COLUMN client_msg_id TEXT');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN banned_at INTEGER');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN banned_by INTEGER');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN ban_reason TEXT');
   } catch (e) { /* 列已存在 */ }
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
   // 给缺 uid 的老数据补一个

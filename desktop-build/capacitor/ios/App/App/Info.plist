@@ -6,8 +6,12 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
-	<key>CFBundleDisplayName</key>
+  <key>CFBundleDisplayName</key>
         <string>SecureChat</string>
+  <key>NSCameraUsageDescription</key>
+  <string>SecureChat 需要使用摄像头进行视频通话。</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>SecureChat 需要使用麦克风进行语音和视频通话。</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

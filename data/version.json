@@ -1,6 +1,6 @@
 {
-  "current": "1.0.0",
-  "latest": "1.0.0",
-  "releaseNotes": "首次发布",
-  "updatedAt": 1785679297915
+  "current": "1.24.3",
+  "latest": "1.24.3",
+  "releaseNotes": "新增消息提示音与消息弹窗；桌面端新增托盘图标与系统通知；Windows 安装包优化；多项稳定性修复",
+  "updatedAt": 1785827400000
 }

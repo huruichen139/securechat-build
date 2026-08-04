@@ -2,12 +2,28 @@
   'use strict';
 
   var PLATFORMS = [
-    { key: 'windows', name: 'Windows', description: 'Windows 7 / 10 / 11' },
-    { key: 'macos', name: 'macOS', description: 'macOS 10.15 及以上' },
-    { key: 'android', name: 'Android', description: 'Android 6.0 及以上' },
-    { key: 'ios', name: 'iOS', description: 'iOS 12 及以上' },
-    { key: 'harmony', name: '鸿蒙 HarmonyOS', description: 'HarmonyOS 4 及以上（.hap）' }
+    { key: 'windows', name: 'Windows', descriptionKey: 'dlWinDesc', description: 'Windows 7 / 10 / 11' },
+    { key: 'macos', name: 'macOS', descriptionKey: 'dlMacDesc', description: 'macOS 10.15 及以上' },
+    { key: 'android', name: 'Android', descriptionKey: 'dlAndroidDesc', description: 'Android 6.0 及以上' },
+    { key: 'ios', name: 'iOS', descriptionKey: 'dlIosDesc', description: 'iOS 12 及以上' },
+    { key: 'harmony', name: '鸿蒙 HarmonyOS', descriptionKey: 'dlHarmonyDesc', description: 'HarmonyOS 4 及以上（.hap）' }
   ];
+
+  function _t(key, fallback) {
+    if (window.SCI18N && typeof window.SCI18N.t === 'function') {
+      var v = window.SCI18N.t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback;
+  }
+
+  function platformName(p) {
+    var n = _t('dlName' + p.key, p.name);
+    return n;
+  }
+  function platformDesc(p) {
+    return _t(p.descriptionKey, p.description);
+  }
 
   function apiHost() {
     var configured = window.DOWNLOAD_API_HOST || window.SERVER_HOST || '';
@@ -52,9 +68,9 @@
   }
 
   function downloadControl(url) {
-    if (!url) return addText(document.createDocumentFragment(), 'span', '暂未提供，敬请期待', 'download disabled');
+    if (!url) return addText(document.createDocumentFragment(), 'span', _t('downloadUnavailable', '暂未提供，敬请期待'), 'download disabled');
     var link = document.createElement('a');
-     link.className = 'download'; link.href = url; link.textContent = '下载';
+     link.className = 'download'; link.href = url; link.textContent = _t('download', '下载');
     link.setAttribute('download', '');
     link.target = '_blank'; link.rel = 'noopener';
     return link;
@@ -62,9 +78,9 @@
 
   function card(platform, version, url) {
     var article = document.createElement('article'); article.className = 'platform';
-    addText(article, 'h3', platform.name);
-    addText(article, 'p', platform.description, 'details');
-    addText(article, 'div', '版本 v' + version, 'version');
+    addText(article, 'h3', platformName(platform));
+    addText(article, 'p', platformDesc(platform), 'details');
+    addText(article, 'div', _t('version', '版本') + ' v' + version, 'version');
     article.appendChild(downloadControl(url));
     return article;
   }
@@ -80,10 +96,10 @@
     if (!target) target = root.querySelector('#downloadRecommended');
     target.textContent = '';
     var copy = document.createElement('div');
-    addText(copy, 'div', '推荐下载', 'recommend-label');
-     addText(copy, 'h1', recommended.name, 'platform-name');
-    addText(copy, 'p', recommended.description, 'details');
-    addText(copy, 'div', '最新版本 v' + version, 'version');
+    addText(copy, 'div', _t('recommended', '推荐下载'), 'recommend-label');
+     addText(copy, 'h1', platformName(recommended), 'platform-name');
+    addText(copy, 'p', platformDesc(recommended), 'details');
+    addText(copy, 'div', _t('version', '版本') + ' v' + version, 'version');
     target.appendChild(copy); target.appendChild(downloadControl(url));
 
     var list = root.querySelector('#platform-list');
@@ -93,7 +109,7 @@
       list.appendChild(card(p, version, absoluteDownload(downloads[p.key], apiUrl)));
     });
     var status = root.querySelector('#status') || root.querySelector('#downloadStatus');
-    if (status) status.textContent = data.releaseNotes ? '最新版本：v' + version + ' · ' + data.releaseNotes : '最新版本：v' + version;
+    if (status) status.textContent = data.releaseNotes ? _t('latestVersion', '最新版本') + ': v' + version + ' · ' + data.releaseNotes : _t('latestVersion', '最新版本') + ': v' + version;
   }
 
   var apiUrl = apiHost() + '/api/version';
@@ -102,7 +118,7 @@
     root = root || document;
     if (loaded) { render(loaded, apiUrl, root); return; }
     var status = root.querySelector('#status') || root.querySelector('#downloadStatus');
-    if (status) status.textContent = '正在获取最新版本…';
+    if (status) status.textContent = _t('detectingSystem', '正在获取最新版本…');
     fetch(apiUrl).then(function (response) {
       if (!response.ok) throw new Error('API ' + response.status);
       return response.json();
@@ -110,7 +126,7 @@
       loaded = data;
       render(data, apiUrl, root);
     }).catch(function () {
-      if (status) status.textContent = '暂时无法获取版本信息，请稍后刷新重试。';
+      if (status) status.textContent = _t('loadFailed', '暂时无法获取版本信息，请稍后刷新重试。');
       render({ current: '—', downloads: {} }, apiUrl, root);
     });
   }

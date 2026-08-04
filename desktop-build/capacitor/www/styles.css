@@ -158,6 +158,14 @@ input, textarea { outline: none; }
 .call-bar video { width: 120px; height: 80px; background: #000; border-radius: 6px; object-fit: cover; display: none; }
 .call-bar.with-video video { display: block; }
 .call-actions { display: flex; gap: 8px; }
+.call-replay-list { margin: 8px 12px; padding: 8px 10px; border: 1px solid var(--line, #ddd); border-radius: 10px; font-size: 12px; }
+.call-replay { display: flex; justify-content: space-between; gap: 12px; padding-top: 6px; }
+.call-replay a { color: var(--accent, #3767ff); }
+.message-notice-stack { position: fixed; top: 18px; right: 18px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; width: min(360px, calc(100vw - 36px)); pointer-events: none; }
+.message-notice { pointer-events: auto; padding: 12px 14px; border: 1px solid var(--line, #d8dee9); border-radius: 12px; background: var(--panel, #fff); color: var(--text, #172033); box-shadow: 0 12px 30px rgba(15, 23, 42, .18); cursor: pointer; animation: message-notice-in .2s ease-out; }
+.message-notice strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.message-notice span { display: block; max-height: 4.2em; overflow: hidden; line-height: 1.4; font-size: 13px; word-break: break-word; }
+@keyframes message-notice-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 .btn-cn {
   padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
   background: var(--primary); color: #fff; font-weight: 600;
@@ -388,6 +396,12 @@ input, textarea { outline: none; }
 .admin-action-btn { border: 1px solid #dbe3ea; border-radius: 6px; background: #fff; color: #64748b; padding: 5px 9px; cursor: pointer; font-size: 11px; }
 .admin-action-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
 body.dark-mode .admin-action-btn { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+.admin-action-btn.danger { color: #d33; border-color: #e0b7b7; }
+.admin-action-btn.danger:hover { background: #fbf0f0; border-color: #fa5151; color: #fa5151; }
+.admin-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+.admin-badge.online { background: #e6f7ed; color: #07c160; }
+.admin-badge.offline { background: #f1f5f9; color: #94a3b8; }
+.admin-badge.banned { background: #fee2e2; color: #dc2626; }
 
 /* NatureTunnel-inspired visual layer */
 :root {

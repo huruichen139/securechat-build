@@ -2,6 +2,7 @@
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const childProcess = require('child_process');
 const util = require('util');
 const express = require('express');
@@ -247,6 +248,9 @@ app.post('/api/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: '用户名/邮箱或密码错误' });
   }
+  if (user.banned) {
+    return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
+  }
   const token = signToken(user);
   res.json({ token, user: publicUser(user) });
 });
@@ -261,6 +265,9 @@ app.post('/api/login/code', (req, res) => {
   if (codeErr) return res.status(400).json({ error: codeErr });
   const user = prepare('SELECT * FROM users WHERE email=?').get(email);
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
+  if (user.banned) {
+    return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
+  }
   const token = signToken(user);
   res.json({ token, user: publicUser(user) });
 });
@@ -295,10 +302,9 @@ app.post('/api/friend/add', (req, res) => {
   prepare('INSERT OR IGNORE INTO friends(user_id,friend_id,status,created_at) VALUES(?,?,0,?)')
     .run(payload.id, friendId, Date.now());
   res.json({ ok: true, friend: publicUser(target) });
-  const peer = online.get(friendId);
-  if (peer) {
+  if (onlineAny(friendId)) {
     const me = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey FROM users WHERE id=?').get(payload.id);
-    send(peer, P.S_FRIEND_REQ, { from: payload.id, fromUser: publicUser(me) });
+    sendToUser(friendId, P.S_FRIEND_REQ, { from: payload.id, fromUser: publicUser(me) });
   }
 });
 
@@ -364,15 +370,14 @@ app.get('/api/friend/requests', (req, res) => {
 });
 
 function pushFriendList(uid) {
-  const ws = online.get(uid);
-  if (!ws) return;
+  if (!onlineAny(uid)) return;
   const rows = prepare(
      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey
      FROM friends f JOIN users u ON u.id = f.friend_id
      WHERE f.user_id=? AND f.status=1 ORDER BY u.nickname`
   ).all(uid);
-  const list = rows.map(r => ({ ...publicUser(r), online: online.has(r.id) }));
-  send(ws, P.S_FRIEND_LIST, { friends: list });
+  const list = rows.map(r => ({ ...publicUser(r), online: onlineHas(r.id) }));
+  sendToUser(uid, P.S_FRIEND_LIST, { friends: list });
 }
 
 // 设置头像：POST /api/avatar { avatar: "<data-uri base64>" }
@@ -463,11 +468,122 @@ app.get('/api/history/:peerId', (req, res) => {
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
-  const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
-  const rows = prepare('SELECT * FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY created_at ASC LIMIT ?')
-    .all(payload.id, peerId, peerId, payload.id, limit);
+  const rows = prepare('SELECT * FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY created_at ASC')
+    .all(payload.id, peerId, peerId, payload.id);
   const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read }));
   res.json({ messages: msgs });
+});
+
+app.delete('/api/history/:peerId', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const peerId = parseInt(req.params.peerId, 10);
+  if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
+  const result = prepare('DELETE FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)')
+    .run(payload.id, peerId, peerId, payload.id);
+  res.json({ ok: true, deleted: result.changes || 0 });
+});
+
+// 文字消息 REST 发送入口：不依赖发送方浏览器的 WebSocket 状态。
+app.post('/api/messages', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { to, content, clientMsgId } = req.body || {};
+  const toId = parseInt(to, 10);
+  if (!Number.isInteger(toId) || !content || typeof content !== 'string') return res.status(400).json({ error: '消息内容无效' });
+  if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) return res.status(400).json({ error: '消息标识无效' });
+  if (clientMsgId) {
+    const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=?').get(clientMsgId);
+    if (existing) return res.json({ ok: true, message: { id: existing.id, from: existing.senderId, to: existing.recipientId, content: existing.content, createdAt: existing.createdAt, clientMsgId } });
+  }
+  const createdAt = Date.now();
+  const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)').run(payload.id, toId, content, clientMsgId || null, createdAt);
+  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null };
+  const peer = onlineAny(toId);
+  if (peer) sendToUser(toId, P.S_MSG, message);
+  sentMsgsThisMinCounter += 1;
+  if (peer) recvMsgsThisMinCounter += 1;
+  res.json({ ok: true, message });
+});
+
+// ---------- 离线文件中转 ----------
+const FILES_DIR = process.env.FILES_DIR || path.join(__dirname, 'files');
+const CALLS_DIR = process.env.CALLS_DIR || path.join(__dirname, 'call-recordings');
+try { fs.mkdirSync(FILES_DIR, { recursive: true }); } catch {}
+try { fs.mkdirSync(CALLS_DIR, { recursive: true }); } catch {}
+
+function apiUser(req) {
+  const auth = req.headers.authorization || '';
+  return verifyToken(auth.replace(/^Bearer\s+/i, ''));
+}
+
+app.post('/api/files', express.raw({ type: 'application/octet-stream', limit: '100mb' }), (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '文件为空' });
+  const toId = parseInt(req.query.to, 10);
+  if (!Number.isInteger(toId) || !prepare('SELECT id FROM users WHERE id=?').get(toId)) return res.status(400).json({ error: '接收方无效' });
+  const name = String(req.query.name || 'file').trim().slice(0, 240) || 'file';
+  const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
+  const id = crypto.randomUUID();
+  const filePath = path.join(FILES_DIR, id + '.bin');
+  try {
+    fs.writeFileSync(filePath, req.body);
+    prepare('INSERT INTO file_transfers(id,from_id,to_id,name,mime,size,path,created_at) VALUES(?,?,?,?,?,?,?,?)')
+      .run(id, payload.id, toId, name, mime, req.body.length, filePath, Date.now());
+    res.json({ ok: true, id, name, mime, size: req.body.length });
+  } catch (e) {
+    try { fs.unlinkSync(filePath); } catch {}
+    res.status(500).json({ error: '文件保存失败' });
+  }
+});
+
+app.get('/api/files/:id', (req, res) => {
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const file = prepare('SELECT * FROM file_transfers WHERE id=? AND (from_id=? OR to_id=?)').get(req.params.id, payload.id, payload.id);
+  if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '文件不存在' });
+  res.setHeader('Content-Type', file.mime);
+  res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
+  fs.createReadStream(file.path).pipe(res);
+});
+
+app.get('/api/call-recordings', (req, res) => {
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const peerId = req.query.peer ? parseInt(req.query.peer, 10) : null;
+  const rows = peerId
+    ? prepare('SELECT id,from_id AS fromId,to_id AS toId,kind,size,created_at AS createdAt FROM call_recordings WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY created_at DESC').all(payload.id, peerId, peerId, payload.id)
+    : prepare('SELECT id,from_id AS fromId,to_id AS toId,kind,size,created_at AS createdAt FROM call_recordings WHERE from_id=? OR to_id=? ORDER BY created_at DESC').all(payload.id, payload.id);
+  res.json({ recordings: rows });
+});
+
+app.post('/api/call-recordings', express.raw({ type: 'video/webm', limit: '500mb' }), (req, res) => {
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '回放为空' });
+  const toId = parseInt(req.query.to, 10);
+  const kind = req.query.kind === 'video' ? 'video' : 'audio';
+  if (!Number.isInteger(toId) || !prepare('SELECT id FROM users WHERE id=?').get(toId)) return res.status(400).json({ error: '接收方无效' });
+  const id = crypto.randomUUID();
+  const filePath = path.join(CALLS_DIR, id + '.webm');
+  try {
+    fs.writeFileSync(filePath, req.body);
+    prepare('INSERT INTO call_recordings(id,from_id,to_id,kind,size,path,created_at) VALUES(?,?,?,?,?,?,?)').run(id, payload.id, toId, kind, req.body.length, filePath, Date.now());
+    res.json({ ok: true, id, kind, size: req.body.length });
+  } catch (e) { try { fs.unlinkSync(filePath); } catch {} ; res.status(500).json({ error: '回放保存失败' }); }
+});
+
+app.get('/api/call-recordings/:id', (req, res) => {
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const row = prepare('SELECT * FROM call_recordings WHERE id=? AND (from_id=? OR to_id=?)').get(req.params.id, payload.id, payload.id);
+  if (!row || !fs.existsSync(row.path)) return res.status(404).json({ error: '回放不存在' });
+  res.setHeader('Content-Type', 'video/webm');
+  fs.createReadStream(row.path).pipe(res);
 });
 
 // ---------- 群组 ----------
@@ -530,7 +646,7 @@ app.post('/api/group/invite', (req, res) => {
   broadcastGroups();
 });
 
-// 群消息历史：GET /api/group/:id/messages?limit=100
+// 群消息历史：返回全部历史记录，不删除、不截断
 app.get('/api/group/:id/messages', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const auth = req.headers.authorization || '';
@@ -540,13 +656,12 @@ app.get('/api/group/:id/messages', (req, res) => {
   if (!groupId) return res.status(400).json({ error: '群ID错误' });
   const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
   if (!isMember) return res.status(403).json({ error: '你不在此群' });
-  const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
   const rows = prepare(
     `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
             u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
-     FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
-     WHERE gm.group_id=? ORDER BY gm.created_at ASC LIMIT ?`
-  ).all(groupId, limit);
+      FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
+      WHERE gm.group_id=? ORDER BY gm.created_at ASC`
+  ).all(groupId);
   const msgs = rows.map(r => ({
     id: r.id, groupId: r.groupId, from: r.fromId, content: r.content, createdAt: r.createdAt,
     fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid }
@@ -623,7 +738,7 @@ function buildGroupsForUser(userId) {
       `SELECT u.id, u.username, u.nickname, u.avatar, u.uid, u.email, u.country, u.province, u.city, u.extra
        FROM group_members m JOIN users u ON u.id = m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at`
-    ).all(g.id).map(m => ({ ...publicUser(m), online: online.has(m.id) }));
+    ).all(g.id).map(m => ({ ...publicUser(m), online: onlineHas(m.id) }));
     const last = prepare(
       `SELECT gm.id, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
               u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
@@ -1148,6 +1263,57 @@ app.get('/api/admin/overview', (req, res) => {
   });
 });
 
+// GET /api/admin/users —— 返回全部用户（含未在线），含在线/封禁状态
+app.get('/api/admin/users', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const rows = prepare(
+    'SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,banned,banned_at,banned_by,ban_reason,created_at FROM users ORDER BY created_at DESC'
+  ).all();
+  const onlineIds = new Set();
+  for (const id of online.keys()) onlineIds.add(id);
+  const list = rows.map(u => ({
+    id: u.id, username: u.username, nickname: u.nickname, avatar: u.avatar,
+    uid: u.uid, email: u.email || '', country: u.country || '', province: u.province || '', city: u.city || '',
+    online: onlineIds.has(u.id),
+    banned: !!u.banned,
+    bannedAt: u.banned_at || null,
+    bannedBy: u.banned_by || null,
+    banReason: u.ban_reason || '',
+    createdAt: u.created_at
+  }));
+  res.json({ users: list, total: list.length });
+});
+
+// POST /api/admin/ban —— 封禁/解封用户 { id, banned, reason? }
+app.post('/api/admin/ban', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number((req.body || {}).id);
+  const banned = !!(req.body || {}).banned;
+  if (!id) return res.status(400).json({ error: '缺少用户ID' });
+  const target = prepare('SELECT id,username,email FROM users WHERE id=?').get(id);
+  if (!target) return res.status(404).json({ error: '用户不存在' });
+  // 不允许封禁管理员自己/其他管理员
+  if (isAdmin(target)) return res.status(400).json({ error: '不能封禁管理员账号' });
+  if (banned) {
+    const reason = String((req.body || {}).reason || '').trim().slice(0, 200);
+    prepare('UPDATE users SET banned=1, banned_at=?, banned_by=?, ban_reason=? WHERE id=?')
+      .run(Date.now(), guard.u.id, reason, id);
+  } else {
+    prepare('UPDATE users SET banned=0, banned_at=NULL, banned_by=NULL, ban_reason=NULL WHERE id=?').run(id);
+  }
+  // 若该用户在线，断开其 WebSocket 强制下线
+  for (const ws of online.get(id) || []) {
+    try { send(ws, 'KICKED', { reason: banned ? '账号已被封禁' : '账号已解封' }); } catch {}
+  }
+  try { online.delete(id); } catch {}
+  res.json({ ok: true, id, banned });
+});
+
+
 // 把毫秒转成 "1d 2h 3m"
 function humanMs(ms) {
   if (ms < 0) ms = 0;
@@ -1205,6 +1371,28 @@ const wss = new WebSocketServer({
 });
 const online = new Map();
 
+// 多端连接辅助：online Map: uid -> [ws,...]。以下为统一入口
+function onlineWss(uid) {
+  return online.get(uid) || [];
+}
+function onlineHas(uid) {
+  const list = online.get(uid);
+  return !!(list && list.length);
+}
+function onlineAny(uid) {
+  return onlineHas(uid);
+}
+function sendToUser(uid, type, payload) {
+  for (const ws of onlineWss(uid)) send(ws, type, payload);
+}
+function removeWs(uid, ws) {
+  const list = online.get(uid);
+  if (!list) return;
+  const i = list.indexOf(ws);
+  if (i >= 0) list.splice(i, 1);
+  if (!list.length) online.delete(uid);
+}
+
 wss.on('connection', (ws) => {
   ws.uid = null;
 
@@ -1216,11 +1404,15 @@ wss.on('connection', (ws) => {
     if (type === P.C_AUTH) {
       const user = verifyToken(payload.token);
       if (!user) return send(ws, P.S_AUTH_FAIL, { error: '令牌无效' });
-       const dbUser = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey FROM users WHERE id=?').get(user.id);
+       const dbUser = prepare('SELECT * FROM users WHERE id=?').get(user.id);
       if (!dbUser) return send(ws, P.S_AUTH_FAIL, { error: '用户不存在' });
+      if (dbUser.banned) return send(ws, P.S_AUTH_FAIL, { error: '该账号已被封禁' + (dbUser.ban_reason ? '：' + dbUser.ban_reason : '') });
       ws.uid = dbUser.id;
       ws.user = publicUser(dbUser);
-      online.set(dbUser.id, ws);
+      // 多端登录：同一 uid 允许多个 WS 连接（Map 存数组）
+      const list = online.get(dbUser.id) || [];
+      list.push(ws);
+      online.set(dbUser.id, list);
       if (online.size > peakConcurrentUsers) peakConcurrentUsers = online.size;
       send(ws, P.S_AUTH_OK, { user: ws.user });
       broadcastUserList();
@@ -1246,10 +1438,10 @@ wss.on('connection', (ws) => {
       // Retries reuse clientMsgId. Return the original message instead of
       // inserting a duplicate row or delivering it twice.
       if (clientMsgId) {
-        const existing = prepare('SELECT id,from_id AS from,to_id AS to,content,created_at AS createdAt FROM messages WHERE client_msg_id=?').get(clientMsgId);
+        const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=?').get(clientMsgId);
         if (existing) {
           // content 已是客户端密文，不再 decrypt
-          send(ws, P.S_MSG, { ...existing, clientMsgId });
+          send(ws, P.S_MSG, { id: existing.id, from: existing.senderId, to: existing.recipientId, content: existing.content, createdAt: existing.createdAt, clientMsgId });
           return;
         }
       }
@@ -1259,8 +1451,8 @@ wss.on('connection', (ws) => {
         .run(ws.uid, to, content, clientMsgId || null, createdAt);
       const msgObj = { id: info.lastInsertRowid, from: ws.uid, to, content, createdAt, clientMsgId: clientMsgId || null };
       send(ws, P.S_MSG, msgObj);
-      const peer = online.get(to);
-      if (peer) send(peer, P.S_MSG, msgObj);
+      const peer = onlineAny(to);
+      if (peer) sendToUser(to, P.S_MSG, msgObj);
       // 实时计数：发1 收1（对方在线则记一次接收）
       sentMsgsThisMinCounter += 1;
       if (peer) recvMsgsThisMinCounter += 1;
@@ -1290,12 +1482,11 @@ wss.on('connection', (ws) => {
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
       const fromUser = ws.user;
       for (const m of members) {
-        const peer = online.get(m.user_id);
-        if (peer) send(peer, P.S_GROUP_MSG, { ...msgObj, fromUser });
+        if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { ...msgObj, fromUser });
       }
       // 实时计数：群消息按 发1 + 在线成员接收 计
       sentMsgsThisMinCounter += 1;
-      recvMsgsThisMinCounter += members.filter(m => m.user_id === ws.uid || online.has(m.user_id)).length;
+      recvMsgsThisMinCounter += members.filter(m => m.user_id === ws.uid || onlineHas(m.user_id)).length;
       return;
     }
 
@@ -1309,8 +1500,7 @@ wss.on('connection', (ws) => {
     if (type === P.C_TYPING) {
       if (!ws.uid) return;
       const { to } = payload || {};
-      const peer = online.get(to);
-      if (peer) send(peer, P.S_TYPING, { from: ws.uid });
+      if (onlineAny(to)) sendToUser(to, P.S_TYPING, { from: ws.uid });
       return;
     }
 
@@ -1319,19 +1509,18 @@ wss.on('connection', (ws) => {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { to, sub, data } = payload || {};
       if (to === undefined || !sub) return;
-      const peer = online.get(to);
-      if (!peer) {
+      if (!onlineAny(to)) {
         send(ws, P.S_SIGNAL, { from: to, sub: 'peer_offline', data: null });
         return;
       }
-      send(peer, P.S_SIGNAL, { from: ws.uid, sub, data });
+      sendToUser(to, P.S_SIGNAL, { from: ws.uid, sub, data });
       return;
     }
   });
 
   ws.on('close', () => {
     if (ws.uid) {
-      online.delete(ws.uid);
+      removeWs(ws.uid, ws);
       broadcastUserList();
       broadcastGroups();
     }
@@ -1340,8 +1529,8 @@ wss.on('connection', (ws) => {
 
 function broadcastUserList() {
   const users = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey FROM users').all();
-  const list = users.map(u => ({ ...publicUser(u), online: online.has(u.id) }));
-  for (const ws of online.values()) send(ws, P.S_USER_LIST, { users: list });
+  const list = users.map(u => ({ ...publicUser(u), online: onlineHas(u.id) }));
+  for (const uid of online.keys()) sendToUser(uid, P.S_USER_LIST, { users: list });
   // 用户在线状态变化也会影响群成员在线展示，同步推送群列表
   broadcastGroups();
 }

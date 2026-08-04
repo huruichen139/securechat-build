@@ -5,19 +5,21 @@
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun.qq.com:3478' }
+  { urls: 'stun:stun.qq.com:3478' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:stun.aliyun.com:3478' }
 ];
 
 // 单例：与某个 peer 的 PeerConnection + 多个 DataChannel（文件）+ media stream
 function createRtc(ctx) {
   // ctx = { sendSignal(peerId, sub, data), selfId() }
-  const peers = new Map(); // peerId -> { pc, dc, stream, kind, fileRecv }
+  const peers = new Map(); // peerId -> { pc, dc, stream, kind, fileRecv, pendingIce }
 
   function ensurePc(peerId) {
     let entry = peers.get(peerId);
     if (entry && entry.pc) return entry;
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    const e = entry || { pc, dc: null, stream: null, kind: null, fileRecv: null };
+    const e = entry || { pc, dc: null, stream: null, kind: null, fileRecv: null, pendingIce: [], pendingOffer: null };
     e.pc = pc;
     peers.set(peerId, e);
 
@@ -26,15 +28,15 @@ function createRtc(ctx) {
     };
     pc.onconnectionstatechange = () => {
       const s = pc.connectionState;
-      if (s === 'failed' || s === 'closed' || s === 'disconnected') {
-        // 通知 UI
-        window.dispatchEvent(new CustomEvent('rtc-state', { detail: { peerId, state: s } }));
-      } else {
+      // disconnected/iceconnectionstate 可能暂时掉线后又恢复；这里仅上报
+      window.dispatchEvent(new CustomEvent('rtc-state', { detail: { peerId, state: s } }));
+      if (s === 'failed' || s === 'closed') {
         window.dispatchEvent(new CustomEvent('rtc-state', { detail: { peerId, state: s } }));
       }
     };
     pc.ontrack = (ev) => {
-      e.stream = ev.streams[0];
+      // 兜底：有的实现 ev.streams 为空就自己拼一个 MediaStream
+      e.stream = (ev.streams && ev.streams[0]) || new MediaStream([ev.track]);
       window.dispatchEvent(new CustomEvent('rtc-remote-stream', { detail: { peerId, stream: e.stream, kind: e.kind } }));
     };
     pc.ondatachannel = (ev) => {
@@ -44,8 +46,25 @@ function createRtc(ctx) {
     return e;
   }
 
+  // 彻底释放所有媒体设备与连接（防"Device in use"）
+  function releaseAllMedia() {
+    for (const [pid, e] of peers) {
+      try { if (e.localStream) e.localStream.getTracks().forEach((t) => t.stop()); } catch (err) {}
+      try { if (e.stream) e.stream.getTracks().forEach((t) => t.stop()); } catch (err) {}
+      try { if (e.pc) e.pc.close(); } catch (err) {}
+    }
+    peers.clear();
+  }
+
   // ---------- 通话：audio/video ----------
   async function startCall(peerId, kind /* 'audio' | 'video' */, localStream) {
+    // 若该 peer 已有旧连接（可能残留设备占用），先彻底清理
+    const old = peers.get(peerId);
+    if (old && old.pc) {
+      try { if (old.localStream) old.localStream.getTracks().forEach((t) => t.stop()); } catch (err) {}
+      try { old.pc.close(); } catch (err) {}
+      peers.delete(peerId);
+    }
     const e = ensurePc(peerId);
     e.kind = kind;
     // 添加本地轨道
@@ -67,10 +86,18 @@ function createRtc(ctx) {
   async function onOffer(peerId, data) {
     const e = ensurePc(peerId);
     e.kind = data.kind || e.kind;
-    await e.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    const answer = await e.pc.createAnswer();
-    await e.pc.setLocalDescription(answer);
-    ctx.sendSignal(peerId, 'answer', { sdp: answer, kind: e.kind });
+    if (String(data.kind) === 'file') {
+      await e.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      for (const candidate of e.pendingIce.splice(0)) {
+        try { await e.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {}
+      }
+      const answer = await e.pc.createAnswer();
+      await e.pc.setLocalDescription(answer);
+      ctx.sendSignal(peerId, 'answer', { sdp: answer, kind: e.kind });
+      return;
+    }
+    e.pendingOffer = data.sdp;
+    window.dispatchEvent(new CustomEvent('call-incoming', { detail: { from: peerId, kind: e.kind } }));
   }
 
   async function onAnswer(peerId, data) {
@@ -80,15 +107,41 @@ function createRtc(ctx) {
   }
 
   async function onIce(peerId, candidate) {
-    const e = peers.get(peerId);
-    if (!e || !e.pc) return;
+    const e = ensurePc(peerId);
+    if (!e.pc.remoteDescription) { e.pendingIce.push(candidate); return; }
     try { await e.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {}
+  }
+
+  // 被叫方只把本地媒体加入同一个 PC，等待主叫 offer 后由 onOffer 回答。
+  async function acceptCall(peerId, kind, localStream) {
+    // 清理该 peer 可能残留的旧连接，避免设备占用
+    const old = peers.get(peerId);
+    if (old && old.pc && !old.pendingOffer) {
+      try { if (old.localStream) old.localStream.getTracks().forEach((t) => t.stop()); } catch (err) {}
+      try { old.pc.close(); } catch (err) {}
+      peers.delete(peerId);
+    }
+    const e = ensurePc(peerId);
+    e.kind = kind;
+    e.localStream = localStream;
+    if (!e.pendingOffer) throw new Error('通话邀请已失效');
+    await e.pc.setRemoteDescription(new RTCSessionDescription(e.pendingOffer));
+    for (const track of localStream.getTracks()) e.pc.addTrack(track, localStream);
+    for (const candidate of e.pendingIce.splice(0)) {
+      try { await e.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {}
+    }
+    const answer = await e.pc.createAnswer();
+    await e.pc.setLocalDescription(answer);
+    ctx.sendSignal(peerId, 'answer', { sdp: answer, kind: e.kind });
+    e.pendingOffer = null;
+    return e;
   }
 
   function hangup(peerId) {
     const e = peers.get(peerId);
     if (!e) return;
     try { if (e.localStream) e.localStream.getTracks().forEach((t) => t.stop()); } catch (err) {}
+    try { if (e.stream) e.stream.getTracks().forEach((t) => t.stop()); } catch (err) {}
     try { if (e.pc) e.pc.close(); } catch (err) {}
     peers.delete(peerId);
     window.dispatchEvent(new CustomEvent('rtc-state', { detail: { peerId, state: 'closed' } }));
@@ -214,15 +267,43 @@ function createRtc(ctx) {
     else if (sub === 'peer_offline') window.dispatchEvent(new CustomEvent('peer-offline', { detail: { from } }));
   }
 
-  return { startCall, hangup, sendFile, handleSignal, ensurePc };
+  return { startCall, acceptCall, hangup, sendFile, handleSignal, ensurePc, releaseAllMedia };
 }
 
-// 工具：获取本地媒体
+// 工具：获取本地媒体（带错误分类与宽松约束兜底）
 async function getLocalStream(kind) {
-  const constraints = kind === 'video'
-    ? { video: { width: 640, height: 480 }, audio: true }
-    : { audio: true, video: false };
-  return await navigator.mediaDevices.getUserMedia(constraints);
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const err = new Error('浏览器不支持或当前非安全上下文（需 HTTPS）');
+    err.code = 'NOT_SUPPORTED';
+    throw err;
+  }
+  const tryConstraints = (constraints) => navigator.mediaDevices.getUserMedia(constraints);
+  try {
+    return await tryConstraints(kind === 'video'
+      ? { video: { width: 640, height: 480 }, audio: true }
+      : { audio: true, video: false });
+  } catch (e1) {
+    if (kind === 'video' && (e1.name === 'OverconstrainedError' || e1.name === 'NotFoundError')) {
+      // 摄像头不支持该分辨率：放宽为任意摄像头
+      return await tryConstraints({ video: true, audio: true });
+    }
+    if (e1.name === 'NotAllowedError' || e1.name === 'PermissionDeniedError') {
+      const err = new Error('摄像头/麦克风权限被拒绝，请在浏览器设置中允许');
+      err.code = 'PERMISSION';
+      throw err;
+    }
+    if (e1.name === 'NotFoundError' || e1.name === 'DevicesNotFoundError') {
+      const err = new Error('未检测到可用摄像头/麦克风');
+      err.code = 'NO_DEVICE';
+      throw err;
+    }
+    if (e1.name === 'NotReadableError' || e1.name === 'AbortError' || /in use|busy/i.test(e1.message)) {
+      const err = new Error('摄像头/麦克风被其他程序占用，请关闭后重试');
+      err.code = 'IN_USE';
+      throw err;
+    }
+    throw e1;
+  }
 }
 
 if (typeof window !== 'undefined') window.createRtc = createRtc;

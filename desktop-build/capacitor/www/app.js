@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.current 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.0.0';
+const PACKAGE_VERSION = '1.24.3';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -19,6 +19,8 @@ let state = {
   me: null,
   serverHost: window.SERVER_HOST,
   ws: null,
+  wsAuthed: false,
+  outboundQueue: [],
   users: [],
   friends: [],
   pendingReq: [],
@@ -256,8 +258,6 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
   }, ms);
 }
 
-function t(zh) { return zh; }  // 占位，便于以后做语言切换
-
 // ============ 登录/注册 ============
 let mode = 'login';
 let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
@@ -408,6 +408,7 @@ function cmpVersion(a, b) {
 }
 // 每次（登录/进入聊天页）自动拉 /api/version，若 latest > 当前 PACKAGE_VERSION 则弹更新浮层。
 async function checkUpdate() {
+  if (/Electron\//i.test(navigator.userAgent || '')) return;
   try {
     const res = await fetch(state.serverHost + '/api/version');
     if (!res.ok) return;
@@ -470,12 +471,7 @@ function enterChat() {
   applyChatBg(getChatBg());
   connectWS();
   loadFriends();
-  // 初始化端到端加密密钥（生成并上传公钥）
-  if (window.SCE2EE) {
-    window.SCE2EE.ensureKeyPair(state.token, state.serverHost)
-      .then((kp) => { state.myPrivJwk = kp.privJwk; })
-      .catch((e) => console.warn('E2EE init failed', e));
-  }
+  // E2EE 已停用：消息以明文发送，不再生成/上传密钥。
 }
 
 function renderMyInfo() {
@@ -848,27 +844,41 @@ function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 
 function connectWS() {
   const wsUrl = state.serverHost.replace(/^http/, 'ws') + '/ws';
+  state.wsAuthed = false;
   state.ws = new WebSocket(wsUrl);
-  state.ws.onopen = () => send(P.C_AUTH, { token: state.token });
+  state.ws.onopen = () => state.ws.send(JSON.stringify({ type: P.C_AUTH, payload: { token: state.token } }));
   state.ws.onmessage = (ev) => {
     let data; try { data = JSON.parse(ev.data); } catch { return; }
     handleServer(data);
   };
   state.ws.onclose = () => {
+    state.wsAuthed = false;
     setTimeout(() => { if (state.me) connectWS(); }, 2000);
   };
 }
 
 function send(type, payload) {
+  if (type !== P.C_AUTH && !state.wsAuthed) {
+    state.outboundQueue.push({ type, payload });
+    return true;
+  }
   if (state.ws && state.ws.readyState === WebSocket.OPEN) {
     state.ws.send(JSON.stringify({ type, payload }));
+    return true;
   }
+  return false;
 }
 
 function handleServer(data) {
   const { type, payload } = data;
   switch (type) {
-    case P.S_AUTH_OK: console.log('auth ok', payload); break;
+    case P.S_AUTH_OK:
+      state.wsAuthed = true;
+      while (state.outboundQueue.length && state.ws && state.ws.readyState === WebSocket.OPEN) {
+        const queued = state.outboundQueue.shift();
+        state.ws.send(JSON.stringify(queued));
+      }
+      break;
     case P.S_AUTH_FAIL: toast(payload.error || '登录失效', 'error'); logout(); break;
     case P.S_USER_LIST:
       state.users = payload.users || [];
@@ -1170,7 +1180,7 @@ async function selectGroup(groupId) {
   refreshConversationButtons();
   restoreCurrentDraft();
   try {
-    const res = await fetch(state.serverHost + '/api/group/' + groupId + '/messages?limit=100', {
+    const res = await fetch(state.serverHost + '/api/group/' + groupId + '/messages', {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
@@ -1221,7 +1231,7 @@ function onIncomingGroupMsg(payload) {
     const fromName = (payload.fromUser && payload.fromUser.nickname) || ('用户' + payload.from);
     const g = state.groups.find(x => x.id === payload.groupId);
     const gname = g ? g.name : ('群#' + payload.groupId);
-    if (window.chatAPI) window.chatAPI.notify(gname + ' ' + fromName, payload.content);
+    showMessageNotice({ from: payload.from, content: payload.content }, gname + ' ' + fromName);
     renderContacts();
   }
 }
@@ -1296,6 +1306,7 @@ async function selectPeer(peerId) {
   state.activeGroup = null;
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.unread[peerId] = 0;
+  loadCallReplays(peerId);
   const peer = state.friends.find(u => u.id === peerId);
   $('chatHeader').textContent = peer ? peer.nickname : '聊天';
   $('inviteBar').style.display = 'none';
@@ -1303,20 +1314,12 @@ async function selectPeer(peerId) {
   refreshConversationButtons();
   restoreCurrentDraft();
   try {
-    const res = await fetch(state.serverHost + '/api/history/' + peerId + '?limit=100', {
+    const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(peerId)), {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const msgs = data.messages || [];
-    if (window.SCE2EE && state.myPrivJwk) {
-      const peer = state.friends.find(u => u.id === peerId) || state.users.find(u => u.id === peerId);
-      if (peer && peer.pubkey) {
-        await Promise.all(msgs.map(async (m) => {
-          try { m.content = await window.SCE2EE.decryptIn(state.myPrivJwk, peer.pubkey, m.content); }
-          catch { m.content = '[无法解密]'; }
-        }));
-      }
-    }
     renderMessages(msgs);
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
@@ -1342,6 +1345,7 @@ function refreshConversationButtons() {
 
 function wireConversationTools() {
   const pin = $('pinChatBtn'); const mute = $('muteChatBtn'); const notify = $('notifyBtn');
+  const clear = $('clearChatBtn');
   const searchBtn = $('messageSearchBtn'); const searchBar = $('messageSearchBar');
   const searchInput = $('messageSearchInput'); const searchClose = $('messageSearchClose');
   // 移动端返回按钮：回到会话列表，并清空当前会话选中态
@@ -1371,6 +1375,21 @@ function wireConversationTools() {
     notify.textContent = permission === 'granted' ? '通知已开' : '通知';
     toast(permission === 'granted' ? '浏览器通知已开启' : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
   };
+  if (clear) clear.onclick = async () => {
+    if (!state.activePeer) return toast('请先选择联系人', 'warn', 1200);
+    if (!confirm('确定清空当前聊天记录吗？此操作不可恢复。')) return;
+    clear.disabled = true;
+    try {
+      const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + state.token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '清空失败');
+      $('messages').innerHTML = '';
+      toast('当前聊天记录已清空', 'success', 1500);
+    } catch (e) { toast('清空失败：' + e.message, 'error'); }
+    finally { clear.disabled = false; }
+  };
   function applySearch() {
     const q = (searchInput && searchInput.value || '').trim().toLowerCase();
     document.querySelectorAll('#messages .msg-row').forEach(row => {
@@ -1392,6 +1411,15 @@ if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const tab = document.quer
 if (welcomeAiBtn) welcomeAiBtn.onclick = () => { const tab = document.querySelector('.side-tab[data-side="ai"]'); if (tab) tab.click(); };
 
 function appendMessage(m, prepend) {
+  if (typeof m.content === 'string' && m.content.startsWith('__FILE__')) {
+    try {
+      const file = JSON.parse(m.content.slice(8));
+      if (file.id && file.name) {
+        appendFileMsg(m.from === state.me.id, file.name, file.size, file.id, m.createdAt);
+        return;
+      }
+    } catch {}
+  }
   const box = $('messages');
   const mine = m.from === state.me.id;
   const row = document.createElement('div');
@@ -1419,60 +1447,132 @@ function fmtTime(t) {
   return hh + ':' + mm;
 }
 
+let noticeAudioContext = null;
+document.addEventListener('pointerdown', () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx && !noticeAudioContext) noticeAudioContext = new AudioCtx();
+    if (noticeAudioContext && noticeAudioContext.state === 'suspended') noticeAudioContext.resume().catch(() => {});
+  } catch {}
+}, { once: true, capture: true });
+function playMessageNoticeSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    noticeAudioContext ||= new AudioCtx();
+    if (noticeAudioContext.state === 'suspended') noticeAudioContext.resume().catch(() => {});
+    const now = noticeAudioContext.currentTime;
+    [0, 0.09].forEach((delay, index) => {
+      const osc = noticeAudioContext.createOscillator();
+      const gain = noticeAudioContext.createGain();
+      osc.type = 'sine'; osc.frequency.value = index ? 880 : 660;
+      gain.gain.setValueAtTime(0.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.16);
+      osc.connect(gain).connect(noticeAudioContext.destination);
+      osc.start(now + delay); osc.stop(now + delay + 0.18);
+    });
+  } catch {}
+}
+let callRingtoneTimer = null;
+function startCallRingtone() {
+  stopCallRingtone();
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    noticeAudioContext ||= new AudioCtx();
+    if (noticeAudioContext.state === 'suspended') noticeAudioContext.resume().catch(() => {});
+    const ring = () => {
+      if (!noticeAudioContext) return;
+      const now = noticeAudioContext.currentTime;
+      [0, 0.24].forEach((delay, index) => {
+        const osc = noticeAudioContext.createOscillator();
+        const gain = noticeAudioContext.createGain();
+        osc.type = 'sine'; osc.frequency.value = index ? 880 : 660;
+        gain.gain.setValueAtTime(0.0001, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.16, now + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.18);
+        osc.connect(gain).connect(noticeAudioContext.destination);
+        osc.start(now + delay); osc.stop(now + delay + 0.2);
+      });
+    };
+    ring();
+    callRingtoneTimer = setInterval(ring, 1400);
+  } catch {}
+}
+function stopCallRingtone() {
+  if (callRingtoneTimer) { clearInterval(callRingtoneTimer); callRingtoneTimer = null; }
+}
+function showMessageNotice(m, name) {
+  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文件' : String(m.content || '').slice(0, 240);
+  playMessageNoticeSound();
+  const stack = $('messageNoticeStack');
+  if (stack) {
+    const item = document.createElement('div'); item.className = 'message-notice';
+    item.innerHTML = '<strong>' + escapeHtml(name || '新消息') + '</strong><span>' + escapeHtml(text || '收到新消息') + '</span>';
+    item.onclick = () => { if (state.activePeer !== m.from) selectPeer(m.from); item.remove(); };
+    stack.appendChild(item); setTimeout(() => item.remove(), 6500);
+  }
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from }); } catch {}
+  }
+  if (window.chatAPI) window.chatAPI.notify(name + ' 发来消息', text);
+}
+
 // ============ 收消息 ============
 async function onIncomingMsg(m) {
-  // 发送方回包：用本地缓存的明文替换密文
+  // 明文模式：不再做 E2EE 解密，直接显示原文。
   if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
     m.content = state.sentPlain[m.clientMsgId];
     delete state.sentPlain[m.clientMsgId];
-  } else if (window.SCE2EE && state.myPrivJwk) {
-    const fromUser = state.friends.find(u => u.id === m.from) || state.users.find(u => u.id === m.from);
-    const fromPub = fromUser && fromUser.pubkey;
-    if (fromPub) {
-      try { m.content = await window.SCE2EE.decryptIn(state.myPrivJwk, fromPub, m.content); }
-      catch { m.content = '[无法解密]'; }
-    }
   }
-  if (state.activePeer === m.from) {
+  if (m.from === state.me.id && m.clientMsgId && state.pendingLocal[m.clientMsgId]) {
+    delete state.pendingLocal[m.clientMsgId];
+    state.lastFrom[m.from] = m.content;
+    renderContacts();
+    return;
+  }
+  // 服务端会回显发送者自己的消息；自己的消息也必须渲染到当前会话。
+  if (m.from === state.me.id || state.activePeer === m.from) {
     appendMessage(m);
-    send(P.C_READ, { from: m.from });
+    if (m.from !== state.me.id) send(P.C_READ, { from: m.from });
   } else {
     state.unread[m.from] = (state.unread[m.from] || 0) + 1;
     const fromUser = state.friends.find(u => u.id === m.from);
     const name = fromUser ? fromUser.nickname : '新消息';
-    if (window.chatAPI) {
-      window.chatAPI.notify(name + ' 发来消息', m.content);
-    }
+    showMessageNotice(m, name);
   }
   state.lastFrom[m.from] = m.content;
   renderContacts();
 }
 
 // ============ 发送 ============
-async function sendCurrent() {
+function sendCurrent() {
   if (state.activeGroup) { sendCurrentGroup(); return; }
-  const text = $('input').value.trim();
+  const input = $('input');
+  const text = input.value.trim();
   if (!text || !state.activePeer) return;
   const clientMsgId = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
-  let body = text;
-  // E2EE：用对方公钥加密
-  if (window.SCE2EE && state.myPrivJwk) {
-    const peer = state.friends.find(u => u.id === state.activePeer) || state.users.find(u => u.id === state.activePeer);
-    const peerPub = peer && peer.pubkey;
-    if (peerPub) {
-      try { body = await window.SCE2EE.encryptOut(state.myPrivJwk, peerPub, text); }
-      catch (e) { toast('无法加密：' + (e.message || '对方公钥未就绪'), 'error'); return; }
-    } else {
-      toast('对方尚未启用 E2EE，本条未加密发送', 'warn', 2000);
-    }
-  }
-  send(P.C_MSG, { to: state.activePeer, content: body, clientMsgId });
-  if (clientMsgId && body !== text) state.sentPlain[clientMsgId] = text;
-  $('input').value = '';
+  const peerId = state.activePeer;
+  const payload = { to: peerId, content: text, clientMsgId };
+  state.pendingLocal[clientMsgId] = true;
+  input.value = '';
   saveCurrentDraft();
+  appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: Date.now(), clientMsgId }, false);
+  // UI 先完成；文字通过 REST 持久化，不依赖浏览器 WebSocket 状态。
+  fetch(state.serverHost + '/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+    body: JSON.stringify(payload)
+  }).then(async (res) => {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '发送失败');
+    delete state.pendingLocal[clientMsgId];
+  }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
 }
 
-$('sendBtn').onclick = sendCurrent;
+$('sendBtn').type = 'button';
+$('sendBtn').onclick = (event) => { event.preventDefault(); sendCurrent(); };
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
 });
@@ -1562,6 +1662,50 @@ function escapeHtml(s) {
 // ============ WebRTC：文件 / 语音 / 视频 ============
 let rtc, callPeer = null, callKind = null, incomingCall = null, localStream = null;
 let pendingRemoteStream = null;
+let callRecorder = null, callRecordChunks = [], callRecordStartedAt = 0;
+let callRecordings = [];
+
+function renderCallReplays() {
+  const box = $('callReplayList');
+  if (!box) return;
+  if (!callRecordings.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = '<strong>通话回放</strong>' + callRecordings.map((r, i) => '<div class="call-replay"><span>' + escapeHtml(r.kind === 'video' ? '视频' : '语音') + ' ' + new Date(r.createdAt).toLocaleString() + '</span><a href="' + r.url + '" target="_blank">播放/下载</a></div>').join('');
+}
+async function loadCallReplays(peerId) {
+  try {
+    const res = await fetch(state.serverHost + '/api/call-recordings?peer=' + encodeURIComponent(peerId), { headers: { 'Authorization': 'Bearer ' + state.token } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '加载回放失败');
+    callRecordings = (data.recordings || []).map(r => ({ ...r, url: state.serverHost + '/api/call-recordings/' + encodeURIComponent(r.id) }));
+    renderCallReplays();
+  } catch (e) { callRecordings = []; renderCallReplays(); }
+}
+function startCallRecording(remoteStream) {
+  if (callRecorder || !localStream || !remoteStream || typeof MediaRecorder === 'undefined') return;
+  const tracks = [...localStream.getTracks(), ...remoteStream.getTracks()];
+  try {
+    const mixed = new MediaStream(tracks);
+    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
+    callRecorder = new MediaRecorder(mixed, { mimeType: mime });
+    callRecordChunks = []; callRecordStartedAt = Date.now();
+    callRecorder.ondataavailable = (e) => { if (e.data && e.data.size) callRecordChunks.push(e.data); };
+    callRecorder.onstop = () => {
+      if (!callRecordChunks.length) return;
+      const blob = new Blob(callRecordChunks, { type: mime });
+      const kind = callKind || 'audio';
+      const peerId = callPeer;
+      fetch(state.serverHost + '/api/call-recordings?to=' + encodeURIComponent(peerId) + '&kind=' + encodeURIComponent(kind), { method: 'POST', body: blob, headers: { 'Content-Type': 'video/webm', 'Authorization': 'Bearer ' + state.token } })
+        .then(() => loadCallReplays(peerId))
+        .catch((e) => toast('回放上传失败：' + e.message, 'error'));
+      callRecorder = null; callRecordChunks = [];
+    };
+    callRecorder.start(1000);
+  } catch (e) { callRecorder = null; }
+}
+function stopCallRecording() {
+  if (callRecorder && callRecorder.state !== 'inactive') callRecorder.stop();
+}
 
 function initRtc() {
   if (window.createRtc) {
@@ -1574,12 +1718,38 @@ function initRtc() {
   window.addEventListener('rtc-remote-stream', (e) => {
     // 未接听时暂存，不挂到 UI
     pendingRemoteStream = e.detail.stream;
+    startCallRecording(e.detail.stream);
     maybeShowRemote(e.detail.peerId);
   });
   window.addEventListener('rtc-state', (e) => {
-    if (e.detail.state === 'connected') maybeShowRemote(e.detail.peerId);
-    if (['closed','failed','disconnected'].includes(e.detail.state)) closeCallBar();
+    if (e.detail.state === 'connected') { clearCallTimer(); maybeShowRemote(e.detail.peerId); }
+    if (e.detail.state === 'failed' || e.detail.state === 'closed') { clearCallTimer(); closeCallBar(); }
+    // disconnected：不立即关闭，等待恢复；超过 8s 仍 disconnected 则按失败处理
+    if (e.detail.state === 'disconnected') startCallTimer();
   });
+  let callTimer = null;
+  function clearCallTimer() { if (callTimer) { clearTimeout(callTimer); callTimer = null; } }
+  function startCallTimer() {
+    // 若已有计时器或已接通则不重复
+    if (callTimer) return;
+    callTimer = setTimeout(() => {
+      callTimer = null;
+      // 8 秒后仍未恢复则关闭通话
+      closeCallBar();
+      toast('网络连接中断，通话已结束', 'warn');
+    }, 8000);
+  }
+  function startCallTimeout() {
+    clearCallTimer();
+    callTimer = setTimeout(() => {
+      callTimer = null;
+      if (callPeer && !incomingCall) {
+        toast('对方无响应，通话超时', 'warn');
+        closeCallBar();
+        if (rtc && callPeer) rtc.hangup(callPeer);
+      }
+    }, 30000);
+  }
   function maybeShowRemote(peerId) {
     // 显示规则：必须已"接通"——incomingCall=null（已接听，从来电状态过渡）
     // 且当前 callPeer = 该 peer；或主动呼出方无需"接听"动作，对方一搭上就显示
@@ -1596,13 +1766,18 @@ function initRtc() {
     $('callBar').style.display = 'flex';
   }
   window.addEventListener('call-incoming', (e) => {
+    clearCallTimer();
+    startCallRingtone();
     incomingCall = { from: e.detail.from, kind: e.detail.kind };
     $('callText').textContent = (e.detail.kind === 'video' ? '视频' : '语音') + '来电（来自用户 ' + e.detail.from + '）';
     $('acceptCallBtn').style.display = ''; $('rejectCallBtn').style.display = ''; $('hangupBtn').style.display = 'none';
     $('callBar').classList.remove('with-video'); $('callBar').style.display = 'flex';
+    callTimer = setTimeout(() => {
+      if (incomingCall) rejectIncomingCall();
+    }, 30000);
   });
-  window.addEventListener('call-rejected', () => { $('callText').textContent = '对方已拒绝'; setTimeout(closeCallBar, 1500); });
-  window.addEventListener('peer-offline', () => { $('callText').textContent = '对方不在线'; setTimeout(closeCallBar, 1500); });
+  window.addEventListener('call-rejected', () => { stopCallRingtone(); $('callText').textContent = '对方已拒绝'; setTimeout(closeCallBar, 1500); });
+  window.addEventListener('peer-offline', () => { stopCallRingtone(); $('callText').textContent = '对方不在线'; setTimeout(closeCallBar, 1500); });
   window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收：' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {
@@ -1614,8 +1789,27 @@ function initRtc() {
 function setProgress(r) { $('fileProgress').style.width = Math.round(r * 100) + '%'; }
 function humanSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1)+' KB'; if (b < 1073741824) return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }
 
+// 释放本地媒体设备（每次发起/接听/挂断前调用，防止"Device in use"）
+function releaseLocalMedia() {
+  if (localStream) {
+    try { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); } catch (e) {}
+    localStream = null;
+  }
+  if (rtc) {
+    try { rtc.releaseAllMedia(); } catch (e) {}
+  }
+  const lv = $('localVideo');
+  if (lv) { try { lv.srcObject = null; } catch (e) {} }
+  const rv = $('remoteVideo');
+  if (rv) { try { rv.srcObject = null; } catch (e) {} }
+}
+
 function startOutgoingCall(kind) {
+  stopCallRingtone();
   if (!state.activePeer) return toast('请先选择联系人', 'warn');
+  // 若正在通话或设备被占用，先彻底释放
+  releaseLocalMedia();
+  if (rtc && callPeer) rtc.hangup(callPeer);
   callPeer = state.activePeer; callKind = kind;
   send(P.C_SIGNAL, { to: callPeer, sub: 'call', data: { kind } });
   $('callText').textContent = '正在呼叫(' + (kind==='video'?'视频':'语音') + ')...';
@@ -1626,22 +1820,30 @@ function startOutgoingCall(kind) {
     localStream = s;
     const v = $('localVideo'); if (v && kind==='video') v.srcObject = s;
     rtc.startCall(callPeer, kind, s);
+    startCallTimeout();
   }).catch((e) => { toast('无法获取媒体：'+e.message, 'error'); closeCallBar(); });
 }
 async function acceptIncomingCall() {
   if (!incomingCall) return;
+  stopCallRingtone();
+  clearCallTimer();
+  releaseLocalMedia();
+  if (rtc && incomingCall.from && incomingCall.from !== callPeer) rtc.hangup(incomingCall.from);
   callPeer = incomingCall.from; callKind = incomingCall.kind; incomingCall = null;
   $('callText').textContent = '通话中...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
-  try { localStream = await window.getLocalStream(callKind); const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream; await rtc.startCall(callPeer, callKind, localStream); }
+try { localStream = await window.getLocalStream(callKind); const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream; await rtc.acceptCall(callPeer, callKind, localStream); startCallTimeout(); }
   catch (e) { toast('无法获取媒体：'+e.message, 'error'); send(P.C_SIGNAL,{to:callPeer,sub:'hangup',data:null}); closeCallBar(); }
 }
-function rejectIncomingCall() { if (incomingCall) { send(P.C_SIGNAL,{to:incomingCall.from,sub:'call_reject',data:null}); incomingCall = null; } closeCallBar(); }
+function rejectIncomingCall() { stopCallRingtone(); if (incomingCall) { send(P.C_SIGNAL,{to:incomingCall.from,sub:'call_reject',data:null}); incomingCall = null; } closeCallBar(); }
 function hangup() { if (callPeer) send(P.C_SIGNAL,{to:callPeer,sub:'hangup',data:null}); if (rtc&&callPeer) rtc.hangup(callPeer); closeCallBar(); }
 function closeCallBar() {
-  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+  stopCallRingtone();
+  clearCallTimer();
+  stopCallRecording();
+  releaseLocalMedia();
   pendingRemoteStream = null;
-  const lv=$('localVideo'), rv=$('remoteVideo'); if (lv){lv.srcObject=null;lv.style.display='none';} if (rv){rv.srcObject=null;rv.style.display='none';}
+  const lv=$('localVideo'), rv=$('remoteVideo'); if (lv){lv.style.display='none';} if (rv){rv.style.display='none';}
   const bar=$('callBar'); if (bar){bar.style.display='none';bar.classList.remove('with-video');}
   callPeer=null; callKind=null; incomingCall=null;
 }
@@ -1650,15 +1852,29 @@ $('fileBtn').onclick = () => {
   const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
     $('fileBar').style.display=''; $('fileText').textContent='发送：'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
-    rtc.sendFile(state.activePeer, f, (sent,size)=>setProgress(sent/size)).then(()=>{
-      $('fileText').textContent='已发送：'+f.name; setProgress(1); appendFileMsg(false, f.name, f.size, null);
+    fetch(state.serverHost + '/api/files?to=' + encodeURIComponent(state.activePeer) + '&name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
+      method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '上传失败');
+      send(P.C_MSG, { to: state.activePeer, content: '__FILE__' + JSON.stringify({ id: data.id, name: data.name, size: data.size, mime: data.mime }), clientMsgId: 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10) });
+      $('fileText').textContent='已发送：'+f.name; setProgress(1);
       setTimeout(()=>$('fileBar').style.display='none',3000);
-    }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; });
+    }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
   }; inp.click();
 };
-function appendFileMsg(mine, name, size, url) {
+function appendFileMsg(mine, name, size, fileId, createdAt) {
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
-  row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(url?'<a class="fsize" href="'+url+'" download="'+escapeHtml(name)+'">下载</a>':'')+'</div></div><span class="time">'+fmtTime(Date.now())+'</span>';
+  row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+  const download = row.querySelector('.file-download');
+  if (download) download.onclick = async () => {
+    download.disabled = true;
+    try {
+      const res = await fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
+      if (!res.ok) throw new Error('下载失败');
+      const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) { toast(e.message, 'error'); } finally { download.disabled = false; }
+  };
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 }
 $('audioBtn').onclick = () => startOutgoingCall('audio');

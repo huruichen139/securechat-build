@@ -39,21 +39,67 @@
       </div>`).join('');
   }
 
-  // 在线用户表
+  // 用户表：显示全部用户（含未在线），含封禁状态与操作
   function renderOnline(list) {
     const tb = el('onlineTbody');
     const q = (el('adminUserSearch') && el('adminUserSearch').value || '').trim().toLowerCase();
     const filtered = q ? list.filter(u => [u.username, u.nickname, u.uid, u.email].some(v => String(v || '').toLowerCase().includes(q))) : list;
     el('onlineCountTag').textContent = '(' + filtered.length + (q ? '/' + list.length : '') + ')';
-    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">没有匹配的在线用户</td></tr>'; return; }
-    tb.innerHTML = filtered.map(u => `
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">没有匹配的用户</td></tr>'; return; }
+    tb.innerHTML = filtered.map(u => {
+      const onlineBadge = u.online ? '<span class="admin-badge online">在线</span>' : '<span class="admin-badge offline">离线</span>';
+      const banBadge = u.banned ? '<span class="admin-badge banned" title="' + escapeHtml(u.banReason || '') + '">已封禁</span>' : '';
+      const action = u.banned
+        ? '<button class="admin-action-btn" data-unban="' + u.id + '">解封</button>'
+        : '<button class="admin-action-btn danger" data-ban="' + u.id + '">封禁</button>';
+      return `
       <tr>
         <td>${u.id}</td>
         <td>${escapeHtml(u.username)}</td>
         <td>${escapeHtml(u.nickname)}</td>
         <td><code>${escapeHtml(u.uid)}</code></td>
         <td>${escapeHtml(u.email || '-')}</td>
-      </tr>`).join('');
+        <td>${onlineBadge} ${banBadge}</td>
+        <td>${fmtTime(u.createdAt)}</td>
+        <td>${action}</td>
+      </tr>`;
+    }).join('');
+    tb.querySelectorAll('[data-ban]').forEach(btn => btn.addEventListener('click', () => toggleBan(Number(btn.dataset.ban), true)));
+    tb.querySelectorAll('[data-unban]').forEach(btn => btn.addEventListener('click', () => toggleBan(Number(btn.dataset.unban), false)));
+  }
+
+  // 封禁 / 解封
+  async function toggleBan(id, banned) {
+    const token = getToken();
+    if (!token) return;
+    let reason = '';
+    if (banned) {
+      reason = window.prompt('请输入封禁原因（可留空）：', '');
+      if (reason === null) return; // 用户取消
+    }
+    try {
+      const resp = await fetch(API + '/api/admin/ban', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, banned, reason })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || (banned ? '封禁失败' : '解封失败'), 'error'); return; }
+      toast(banned ? '已封禁该用户' : '已解封该用户', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 拉取全部用户列表（含未在线、封禁状态）
+  async function loadAllUsers() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (resp.status !== 200) return;
+      const data = await resp.json();
+      renderOnline(data.users || []);
+    } catch {}
   }
 
   function renderGroups(rows) {
@@ -234,6 +280,7 @@
       { label: '已扩展资料', value: data.users.withExtra }
     ]);
     renderOnline(data.users.onlineUsers);
+    await loadAllUsers();
 
     renderGrid(el('socialGrid'), [
       { label: '好友关系（已成立）', value: data.friendships.accepted },
