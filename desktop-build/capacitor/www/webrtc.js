@@ -274,41 +274,22 @@ function createRtc(ctx) {
 async function getLocalStream(kind) {
   const media = navigator.mediaDevices;
   if (!media || typeof media.getUserMedia !== 'function') {
-    const err = new Error('当前客户端不支持通话媒体，请更新客户端');
+    const err = new Error('媒体接口不可用（协议=' + location.protocol + '，安全上下文=' + window.isSecureContext + '）');
     err.code = 'NOT_SUPPORTED';
     throw err;
   }
 
-  const audio = {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true
-  };
-  const video = {
-    facingMode: 'user',
-    width: { ideal: 640, max: 1280 },
-    height: { ideal: 480, max: 720 },
-    frameRate: { ideal: 24, max: 30 }
-  };
-
-  async function request(constraints) {
-    try {
-      return await media.getUserMedia(constraints);
-    } catch (error) {
-      const name = error && error.name || '';
-      if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
-        return media.getUserMedia({ audio: !!constraints.audio, video: !!constraints.video });
-      }
-      throw error;
-    }
-  }
-
   try {
-    // 先用最少约束请求，避免部分 Android WebView 因分辨率/回声参数拒绝整个请求。
-    return await request(kind === 'video' ? { audio, video } : { audio });
+    // Android WebView/国产系统对复杂约束兼容性差，首请求只使用布尔约束。
+    return await media.getUserMedia(kind === 'video' ? { audio: true, video: true } : { audio: true, video: false });
   } catch (error) {
     const name = error && error.name || '';
     const message = String(error && error.message || '').toLowerCase();
+    console.error('[SecureChat] getUserMedia failed', { kind, name, message, protocol: location.protocol, secure: window.isSecureContext });
+    // 摄像头约束失败时退化为音频，至少让语音通话可以接通。
+    if (kind === 'video' && (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError')) {
+      try { return await media.getUserMedia({ audio: true, video: true }); } catch (fallbackError) { error = fallbackError; }
+    }
     const err = new Error();
     if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
       err.message = '摄像头/麦克风权限未开启，请在系统设置中允许 SecureChat 使用摄像头和麦克风';
