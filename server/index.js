@@ -62,7 +62,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 function publicUser(u) {
   return {
@@ -1401,6 +1401,7 @@ wss.on('connection', (ws) => {
     try { data = JSON.parse(buf.toString()); } catch { return; }
     const { type, payload } = data;
 
+    try {
     if (type === P.C_AUTH) {
       const user = verifyToken(payload.token);
       if (!user) return send(ws, P.S_AUTH_FAIL, { error: '令牌无效' });
@@ -1431,7 +1432,8 @@ wss.on('connection', (ws) => {
     if (type === P.C_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { to, content, clientMsgId } = payload || {};
-      if (to === undefined || !content) return;
+      const toId = Number(to);
+      if (toId === undefined || !Number.isInteger(toId) || !content) return;
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
         return send(ws, P.S_ERROR, { error: '消息标识无效' });
       }
@@ -1448,11 +1450,11 @@ wss.on('connection', (ws) => {
       // Cleartext path: from_id -> peer without E2EE. content 已被客户端加密为密文；服务端只存储/转发，不再加解密。
       const createdAt = Date.now();
       const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-        .run(ws.uid, to, content, clientMsgId || null, createdAt);
-      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to, content, createdAt, clientMsgId: clientMsgId || null };
+        .run(ws.uid, toId, content, clientMsgId || null, createdAt);
+      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null };
       send(ws, P.S_MSG, msgObj);
-      const peer = onlineAny(to);
-      if (peer) sendToUser(to, P.S_MSG, msgObj);
+      const peer = onlineAny(toId);
+      if (peer) sendToUser(toId, P.S_MSG, msgObj);
       // 实时计数：发1 收1（对方在线则记一次接收）
       sentMsgsThisMinCounter += 1;
       if (peer) recvMsgsThisMinCounter += 1;
@@ -1462,7 +1464,7 @@ wss.on('connection', (ws) => {
     if (type === P.C_READ) {
       if (!ws.uid) return;
       const { from } = payload || {};
-      prepare('UPDATE messages SET read=1 WHERE from_id=? AND to_id=?').run(from, ws.uid);
+      prepare('UPDATE messages SET read=1 WHERE from_id=? AND to_id=?').run(Number(from), ws.uid);
       return;
     }
 
@@ -1470,16 +1472,17 @@ wss.on('connection', (ws) => {
     if (type === P.C_GROUP_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { groupId, content } = payload || {};
-      if (!groupId || !content) return;
-      const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, ws.uid);
+      const gid = Number(groupId);
+      if (!Number.isInteger(gid) || !content) return;
+      const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid);
       if (!isMember) return send(ws, P.S_ERROR, { error: '你不在此群' });
       const enc = content;
       const now = Date.now();
       const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
-        .run(groupId, ws.uid, enc, now);
-      const msgObj = { id: info.lastInsertRowid, groupId, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now };
+        .run(gid, ws.uid, enc, now);
+      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now };
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
-      const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
+      const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;
       for (const m of members) {
         if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { ...msgObj, fromUser });
@@ -1500,7 +1503,8 @@ wss.on('connection', (ws) => {
     if (type === P.C_TYPING) {
       if (!ws.uid) return;
       const { to } = payload || {};
-      if (onlineAny(to)) sendToUser(to, P.S_TYPING, { from: ws.uid });
+      const toId = Number(to);
+      if (Number.isInteger(toId) && onlineAny(toId)) sendToUser(toId, P.S_TYPING, { from: ws.uid });
       return;
     }
 
@@ -1508,13 +1512,18 @@ wss.on('connection', (ws) => {
     if (type === P.C_SIGNAL) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { to, sub, data } = payload || {};
-      if (to === undefined || !sub) return;
-      if (!onlineAny(to)) {
-        send(ws, P.S_SIGNAL, { from: to, sub: 'peer_offline', data: null });
+      const toId = Number(to);
+      if (!Number.isInteger(toId) || !sub) return;
+      if (!onlineAny(toId)) {
+        send(ws, P.S_SIGNAL, { from: toId, sub: 'peer_offline', data: null });
         return;
       }
-      sendToUser(to, P.S_SIGNAL, { from: ws.uid, sub, data });
+      sendToUser(toId, P.S_SIGNAL, { from: ws.uid, sub, data });
       return;
+    }
+    } catch (err) {
+      console.error('[WS] message handler error:', err && err.stack || err);
+      try { send(ws, P.S_ERROR, { error: '服务器内部错误' }); } catch {}
     }
   });
 

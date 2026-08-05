@@ -31,6 +31,8 @@ let state = {
   myPrivJwk: null,
   // 已发送消息明文缓存：clientMsgId -> 明文，用于服务端回包替换密文显示原文字
   sentPlain: {},
+  // 本地已发送（乐观渲染）消息：clientMsgId -> true，用于去重服务端回显
+  pendingLocal: {},
   // 群组
   tabContact: 'friends',   // 'friends' | 'groups'
   groups: [],
@@ -1871,7 +1873,6 @@ async function acceptIncomingCall() {
   if (!incomingCall) return;
   stopCallRingtone();
   clearCallTimer();
-  releaseLocalMedia();
   const pendingCall = incomingCall;
   callPeer = pendingCall.from; callKind = pendingCall.kind;
   $('callText').textContent = '通话中...';

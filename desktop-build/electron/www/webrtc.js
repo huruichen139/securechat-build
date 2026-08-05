@@ -104,6 +104,9 @@ function createRtc(ctx) {
     const e = peers.get(peerId);
     if (!e || !e.pc) return;
     await e.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    for (const candidate of e.pendingIce.splice(0)) {
+      try { await e.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {}
+    }
   }
 
   async function onIce(peerId, candidate) {
