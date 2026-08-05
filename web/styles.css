@@ -287,6 +287,7 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .download-page { width: min(960px, calc(100% - 48px)); margin: 0 auto; padding: 34px 0 52px; color: #17211b; font: 15px/1.6 "Microsoft YaHei", "Segoe UI", sans-serif; }
 .download-status { min-height: 25px; color: var(--muted); text-align: center; margin: 0 0 14px; }
 .download-page .note { margin: 8px 0 0; font-size: 12.5px; color: #a06a1f; background: #fdf6e7; border: 1px solid #f0dfb6; border-radius: 8px; padding: 8px 10px; }
+.download-page .download.alt { color: var(--primary); background: #e9f7ef; margin-top: 8px; }
 .download-recommend { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px; border: 2px solid var(--primary); border-radius: 18px; background: #fff; box-shadow: 0 12px 32px rgba(13,74,43,.09); }
 .download-recommend .recommend-label { color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .download-recommend .platform-name { margin: 2px 0; font-size: 24px; font-weight: 700; }

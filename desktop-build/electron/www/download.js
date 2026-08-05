@@ -83,7 +83,16 @@
     addText(article, 'div', _t('version', '版本') + ' v' + version, 'version');
     article.appendChild(downloadControl(url));
     if (platform.key === 'ios') {
-      addText(article, 'p', _t('dlIosNote', '未签名 IPA：需用 AltStore（PC+数据线）或 Sideloadly 等工具自签安装，签名 7 天过期需重签。'), 'note');
+      addText(article, 'p', _t('dlIosNote', '未签名 IPA：推荐用 LiveContainer 运行（下方下载），免费签名一次即可无限运行，无需重签。'), 'note');
+      var base = apiHost().replace(/\/$/, '');
+      var lc = document.createElement('a'); lc.className = 'download alt';
+      lc.href = base + '/downloads/LiveContainer+SideStore.ipa'; lc.textContent = _t('dlLiveContainer', '下载 LiveContainer+SideStore');
+      lc.setAttribute('download', ''); lc.target = '_blank'; lc.rel = 'noopener';
+      article.appendChild(lc);
+      var lc2 = document.createElement('a'); lc2.className = 'download alt';
+      lc2.href = base + '/downloads/LiveContainer.ipa'; lc2.textContent = _t('dlLiveContainerLite', '下载 LiveContainer（单独）');
+      lc2.setAttribute('download', ''); lc2.target = '_blank'; lc2.rel = 'noopener';
+      article.appendChild(lc2);
     }
     return article;
   }
@@ -105,7 +114,16 @@
     addText(copy, 'div', _t('version', '版本') + ' v' + version, 'version');
     target.appendChild(copy); target.appendChild(downloadControl(url));
     if (recommended.key === 'ios') {
-      addText(copy, 'p', _t('dlIosNote', '未签名 IPA：需用 AltStore（PC+数据线）或 Sideloadly 等工具自签安装，签名 7 天过期需重签。'), 'note');
+      addText(copy, 'p', _t('dlIosNote', '未签名 IPA：推荐用 LiveContainer 运行（下方下载），免费签名一次即可无限运行，无需重签。'), 'note');
+      var base = apiHost().replace(/\/$/, '');
+      var lc = document.createElement('a'); lc.className = 'download alt';
+      lc.href = base + '/downloads/LiveContainer+SideStore.ipa'; lc.textContent = _t('dlLiveContainer', '下载 LiveContainer+SideStore');
+      lc.setAttribute('download', ''); lc.target = '_blank'; lc.rel = 'noopener';
+      copy.appendChild(lc);
+      var lc2 = document.createElement('a'); lc2.className = 'download alt';
+      lc2.href = base + '/downloads/LiveContainer.ipa'; lc2.textContent = _t('dlLiveContainerLite', '下载 LiveContainer（单独）');
+      lc2.setAttribute('download', ''); lc2.target = '_blank'; lc2.rel = 'noopener';
+      copy.appendChild(lc2);
     }
 
     var list = root.querySelector('#platform-list');
