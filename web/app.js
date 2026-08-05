@@ -844,6 +844,21 @@ function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 
+// 登录后自检媒体权限，避免"点接听没反应"
+async function checkMediaPermissionHint() {
+  try {
+    if (!navigator.permissions || !navigator.permissions.query) return;
+    const checks = await Promise.allSettled([
+      navigator.permissions.query({ name: 'camera' }).then((s) => s.state),
+      navigator.permissions.query({ name: 'microphone' }).then((s) => s.state)
+    ]);
+    const states = checks.map((c) => c.status === 'fulfilled' ? c.value : 'prompt');
+    if (states.indexOf('denied') >= 0) {
+      toast('摄像头/麦克风权限已被拒绝：点击地址栏 🔒 → 网站设置 → 允许"摄像头/麦克风"后即可通话', 'error', 6000);
+    }
+  } catch (e) {}
+}
+
 function connectWS() {
   const wsUrl = state.serverHost.replace(/^http/, 'ws') + '/ws';
   state.wsAuthed = false;
@@ -880,6 +895,7 @@ function handleServer(data) {
         const queued = state.outboundQueue.shift();
         state.ws.send(JSON.stringify(queued));
       }
+      checkMediaPermissionHint();
       break;
     case P.S_AUTH_FAIL: toast(payload.error || '登录失效', 'error'); logout(); break;
     case P.S_USER_LIST:
@@ -1915,9 +1931,11 @@ async function acceptIncomingCall() {
     startCallTimeout();
   } catch (e) {
     incomingCall = pendingCall;
-    $('callText').textContent = '无法接听，请允许摄像头和麦克风权限';
+    const code = e && e.code;
+    const isPerm = code === 'PERMISSION' || code === 'NOT_SUPPORTED' || /NotAllowed|Permission|denied|拒绝|安全/i.test(String(e && e.message || e && e.name || ''));
+    $('callText').textContent = isPerm ? '需要摄像头/麦克风权限才能接听' : '接听失败，请重试';
     $('acceptCallBtn').style.display=''; $('rejectCallBtn').style.display=''; $('hangupBtn').style.display='none';
-    toast('无法获取媒体：' + (e.message || e.name || '请检查权限'), 'error');
+    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点击 🔒 → 网站设置 → 允许"摄像头/麦克风"，然后重新接听' : '无法获取媒体：') + (e.message || e.name || ''), 'error', 5000);
     clearCallTimer();
     callTimer = setTimeout(() => { if (incomingCall === pendingCall) rejectIncomingCall(); }, 30000);
   }
