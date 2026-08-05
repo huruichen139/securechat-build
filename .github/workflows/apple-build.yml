@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'build-latest' }}
+
 jobs:
   ios:
     name: Build iOS
@@ -62,11 +65,12 @@ jobs:
           path: desktop-build/capacitor/ios/App/SecureChat-ios-unsigned.ipa
           if-no-files-found: error
 
-      - name: Upload iOS to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: desktop-build/capacitor/ios/App/SecureChat-ios-unsigned.ipa
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" --generate-notes --repo "${{ github.repository }}" || true
+          gh release upload "$RELEASE_TAG" desktop-build/capacitor/ios/App/SecureChat-ios-unsigned.ipa --clobber --repo "${{ github.repository }}"
 
   macos:
     name: Build macOS
@@ -98,8 +102,9 @@ jobs:
           path: desktop-build/electron/dist/*.dmg
           if-no-files-found: error
 
-      - name: Upload macOS to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: desktop-build/electron/dist/*.dmg
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" --generate-notes --repo "${{ github.repository }}" || true
+          gh release upload "$RELEASE_TAG" desktop-build/electron/dist/*.dmg --clobber --repo "${{ github.repository }}"
