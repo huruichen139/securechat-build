@@ -1,23 +1,33 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
+  /* 微信调色板 */
   --bg: #ffffff;
-  --side-bg: #f7f7f7;
-  --border: #ececec;
+  --side-bg: #ededed;
+  --border: #e5e5e5;
   --primary: #07c160;
-  --text: #1a1a1a;
-  --muted: #999;
+  --primary-soft: #e9f7ef;
+  --text: #191919;
+  --text-2: #5b5b5b;
+  --muted: #888;
   --chip: #f0f0f0;
+  --nav-bg: #f7f7f7;
+  --nav-border: #d8d8d8;
+  --bubble-mine: #95ec69;
+  --bubble-other: #ffffff;
+  --link: #576b95;
 }
 html, body { height: 100%; }
 body {
-  font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-user-select: none;
   user-select: none;
   overflow: hidden;
+  font-size: 15px;
+  line-height: 1.45;
 }
-input, textarea { outline: none; }
+input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 
 /* ---------- 登录注册 ---------- */
 .auth-wrap {
@@ -1337,3 +1347,149 @@ html.is-mobile .header::before { display: none; }   /* 桌面端那条绿色竖�
 
 /* 气泡在窄屏可以更宽，少留白 */
 html.is-mobile .bubble { max-width: 86%; }
+
+/* =========================================================
+   微信式 UI 强化
+   ========================================================= */
+/* 顶部导航：微信式灰白栏 + 返回箭头 */
+html.is-mobile .header {
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--nav-border);
+  height: 48px;
+  padding: 0 12px;
+}
+html.is-mobile .header h1,
+html.is-mobile .header-title {
+  font-size: 17px; font-weight: 600; color: var(--text);
+}
+html.is-mobile .header .back-to-list-btn {
+  margin-right: 4px; padding: 4px 8px;
+  background: transparent; color: var(--primary);
+  font-size: 16px; font-weight: 500;
+}
+html.is-mobile .header .back-to-list-btn::before { content: '‹ '; font-size: 22px; }
+
+/* 聊天列表（微信/通讯录）：白底列表，行高大，头像圆角 */
+html.is-mobile .contact-list { background: #fff; }
+html.is-mobile .contact {
+  margin: 0; border-radius: 0; border-left: 0;
+  padding: 12px 14px; gap: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+html.is-mobile .contact .avatar { width: 44px; height: 44px; border-radius: 6px; font-size: 18px; }
+html.is-mobile .contact .name { font-size: 16px; font-weight: 500; color: var(--text); }
+html.is-mobile .contact .last { font-size: 13px; color: var(--muted); margin-top: 3px; }
+html.is-mobile .contact .time { font-size: 11px; color: #b0b0b0; position: absolute; right: 14px; top: 12px; }
+
+/* 侧边区：搜索栏顶置（微信式灰底） */
+html.is-mobile .sidebar-search { background: #ededed; padding: 8px; }
+html.is-mobile .sidebar-search .search { background: #fff; border-radius: 6px; }
+
+/* 选中项底标 */
+html.is-mobile .contact.active { background: #f5f5f5; border-left: 0; }
+html.is-mobile .contact.active::before { display: none; }
+
+/* 聊天页：背景微信浅灰底 #EDEDED */
+html.is-mobile .messages { background: #ededed; }
+html.is-mobile .msg-row { padding: 6px 14px; }
+
+/* 气泡：微信绿色（我）/ 白色（对方），圆角小尖角 */
+html.is-mobile .bubble {
+  background: var(--bubble-other);
+  border-radius: 6px;
+  border: 1px solid #e5e5e5;
+  padding: 10px 12px;
+  font-size: 15px; color: var(--text);
+  box-shadow: none;
+}
+html.is-mobile .msg-row.me .bubble {
+  background: var(--bubble-mine);
+  border-color: #8add5b;
+}
+html.is-mobile .msg-row.me .bubble::after,
+html.is-mobile .msg-row.other .bubble::after { display: none; }
+
+/* 输入栏：微信式灰底 + 圆角输入框 + 右侧语音/emoji/+ 按钮 */
+html.is-mobile .composer {
+  background: #f7f7f7; border-top: 1px solid var(--nav-border);
+  padding: 8px 10px 8px;
+  gap: 8px;
+}
+html.is-mobile .composer textarea,
+html.is-mobile .composer-input-wrap textarea {
+  background: #fff; border-radius: 6px; border: 1px solid #e0e0e0;
+  height: 36px; font-size: 15px; padding: 7px 10px;
+}
+html.is-mobile .composer .send,
+html.is-mobile .composer .send-btn {
+  background: var(--primary); color: #fff; border-radius: 6px;
+  height: 36px; font-size: 14px; font-weight: 500;
+}
+
+/* 底部 tab：微信式 4 格，等分，灰色图标 + 选中绿字+上绿条 */
+html.is-mobile .mobile-bottom-nav {
+  background: #f7f7f7; border-top: 1px solid var(--nav-border);
+  min-height: 50px; height: calc(50px + env(safe-area-inset-bottom, 0));
+}
+html.is-mobile .mobile-bottom-nav .side-tab {
+  font-size: 11px; color: #7a7a7a;
+  position: relative;
+}
+html.is-mobile .mobile-bottom-nav .side-tab .rail-icon {
+  font-size: 22px; margin-bottom: 2px;
+}
+html.is-mobile .mobile-bottom-nav .side-tab.on {
+  color: var(--primary); font-weight: 500;
+}
+html.is-mobile .mobile-bottom-nav .side-tab.on::after {
+  content: ''; position: absolute; bottom: 4px; left: 50%;
+  transform: translateX(-50%); width: 6px; height: 6px;
+  border-radius: 50%; background: var(--primary); top: auto;
+}
+/* 未读红点（占位由 JS 控制 badge） */
+html.is-mobile .mobile-bottom-nav .side-tab .badge {
+  position: absolute; top: 4px; right: 22%;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: #fa5151; color: #fff; font-size: 10px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+}
+
+/* 通话栏：微信式全屏黑底，按钮居中下方圆形 */
+html.is-mobile .call-bar {
+  background: #1c1c1e; color: #fff;
+  flex-direction: column; justify-content: space-between;
+}
+html.is-mobile .call-bar #callText {
+  color: #fff; font-size: 16px; font-weight: 500;
+  text-shadow: none; position: static; margin-top: 80px;
+}
+html.is-mobile .call-bar video { border-radius: 0; }
+html.is-mobile .call-bar .call-actions,
+html.is-mobile .call-bar > div:last-child {
+  padding-bottom: 40px; gap: 32px;
+}
+html.is-mobile .call-bar button,
+html.is-mobile #acceptCallBtn, html.is-mobile #rejectCallBtn, html.is-mobile #hangupBtn {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #2c2c2e; border: 0; color: #fff;
+  font-size: 14px;
+}
+html.is-mobile #hangupBtn { background: #fa5151; }
+html.is-mobile #acceptCallBtn { background: #07c160; }
+html.is-mobile #rejectCallBtn { background: #fa5151; }
+
+/* 深色模式适配微信式调色 */
+html.is-mobile body.dark-mode .header,
+html.is-mobile body.dark-mode .mobile-bottom-nav {
+  background: #2a2a2a; border-color: #3a3a3a;
+}
+html.is-mobile body.dark-mode .contact-list,
+html.is-mobile body.dark-mode .contact { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+html.is-mobile body.dark-mode .contact.active { background: #2a2a2a; }
+html.is-mobile body.dark-mode .messages { background: #1a1a1a; }
+html.is-mobile body.dark-mode .bubble { background: #2c2c2e; border-color: #3a3a3a; color: #e0e0e0; }
+html.is-mobile body.dark-mode .msg-row.me .bubble { background: #2e7d4f; border-color: #2e7d4f; }
+html.is-mobile body.dark-mode .composer,
+html.is-mobile body.dark-mode .sidebar-search { background: #1a1a1a; }
+html.is-mobile body.dark-mode .composer textarea,
+html.is-mobile body.dark-mode .search { background: #2c2c2e; border-color: #3a3a3a; color: #e0e0e0; }
