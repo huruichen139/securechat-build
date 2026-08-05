@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.current 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.24.3';
+const PACKAGE_VERSION = '1.25.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -357,6 +357,29 @@ $('authBtn').onclick = async () => {
   }
 };
 
+let qrLoginTimer = null;
+async function openQrAuth() {
+  try {
+    const res = await fetch(state.serverHost + '/api/login/qr/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '二维码生成失败');
+    const mask = document.createElement('div');
+    mask.className = 'qr-login-mask';
+    mask.innerHTML = '<div class="qr-login-card"><h3>扫码登录授权</h3><img alt="登录二维码"><p>请在未登录的 SecureChat 客户端“扫码登录”扫描此二维码，2 分钟内有效</p><button type="button">关闭</button></div>';
+    mask.querySelector('img').src = state.serverHost + '/api/login/qr/image?token=' + encodeURIComponent(data.token);
+    mask.querySelector('button').onclick = () => { if (qrLoginTimer) clearInterval(qrLoginTimer); mask.remove(); };
+    document.body.appendChild(mask);
+    let done = false;
+    qrLoginTimer = setInterval(async () => {
+      if (done) return;
+      try {
+        const r = await fetch(state.serverHost + '/api/login/qr/status?token=' + encodeURIComponent(data.token), { method: 'GET' });
+        if (r.status === 410) { done = true; clearInterval(qrLoginTimer); mask.querySelector('p').textContent = '二维码已被使用或过期'; }
+      } catch (e) {}
+    }, 2000);
+  } catch (e) { toast(e.message || '二维码生成失败', 'error'); }
+}
+
 // 发送邮箱验证码（注册用 purpose='register'；登录验证码登录用 purpose='login'）
 let codeTimer = null;
 $('sendCodeBtn').onclick = async () => {
@@ -511,6 +534,7 @@ function renderMyInfo() {
     + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '改 ID')) + '</button>'
     + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
     + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
+    + '<button class="account-tool" id="qrAuthBtn">扫码登录授权</button>'
     + '<span class="theme-switch" role="group" aria-label="外观主题">'
     + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', '日')) + '</button>'
     + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', '夜')) + '</button>'
@@ -523,6 +547,8 @@ function renderMyInfo() {
   $('editUidBtn').onclick = editUid;
   $('editProfileBtn').onclick = editProfile;
   $('feedbackBtn').onclick = openFeedback;
+  const qrAuth = $('myInfo').querySelector('#qrAuthBtn');
+  if (qrAuth) qrAuth.onclick = openQrAuth;
   const setLocalTheme = (wantDark) => {
     document.body.classList.toggle('dark-mode', wantDark);
     localStorage.setItem('sc_theme', wantDark ? 'dark' : 'light');
@@ -1073,6 +1099,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
       // 调用 ai.js 里的 switchToAi：它负责未配置 apiKey 时弹设置、聚焦输入
       if (window.switchToAi) window.switchToAi();
+      loadMiniPrograms();
       // 移动端：切到 AI 视图也要进入"聊天态"（AI 视图与 .main 平级，靠 mobile-chat-active 移入屏内）
        if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
        return;
@@ -1858,6 +1885,27 @@ function initRtc() {
     appendFileMsg(true, e.detail.name, e.detail.size, e.detail.url);
     setTimeout(() => $('fileBar').style.display = 'none', 4000);
   });
+}
+
+async function loadMiniPrograms() {
+  const list = $('miniProgramList');
+  if (!list || !state.token) return;
+  try {
+    const res = await fetch(state.serverHost + '/api/mini-programs', { headers: { Authorization: 'Bearer ' + state.token } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '加载失败');
+    list.innerHTML = '';
+    (data.programs || []).forEach((program) => {
+      const item = document.createElement('button');
+      item.type = 'button'; item.className = 'mini-program-item';
+      item.innerHTML = '<strong>' + escapeHtml(program.name) + '</strong><span>v' + escapeHtml(program.version) + '</span>';
+      item.onclick = () => {
+        if (!String(program.entry).startsWith('/mini-programs/')) return toast('小程序入口不受信任', 'error');
+        toast(program.name + ' 小程序入口已登记，等待安全包发布', 'info', 2500);
+      };
+      list.appendChild(item);
+    });
+  } catch (e) { list.textContent = '小程序暂不可用'; }
 }
 function setProgress(r) { $('fileProgress').style.width = Math.round(r * 100) + '%'; }
 function humanSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1)+' KB'; if (b < 1073741824) return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }

@@ -10,6 +10,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { WebSocketServer } = require('ws');
 const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
 const { getDb, prepare, persist, persistNow, genUid } = require('./db');
 const { encrypt, decrypt } = require('../shared/crypto');
 const P = require('../shared/protocol');
@@ -17,6 +18,31 @@ const execFile = util.promisify(childProcess.execFile);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
 const PORT = parseInt(process.env.PORT || '8080', 10);
+const QR_LOGIN_TTL = 2 * 60 * 1000;
+const qrLoginSessions = new Map();
+
+function newQrLoginSession() {
+  const token = crypto.randomBytes(32).toString('base64url');
+  const session = { token, createdAt: Date.now(), expiresAt: Date.now() + QR_LOGIN_TTL, status: 'pending', userId: null, loginToken: null, consumed: false };
+  qrLoginSessions.set(token, session);
+  return session;
+}
+
+function getQrLoginSession(token) {
+  const session = qrLoginSessions.get(String(token || ''));
+  if (!session) return null;
+  if (session.expiresAt <= Date.now() || session.consumed) {
+    qrLoginSessions.delete(session.token);
+    return null;
+  }
+  return session;
+}
+
+setInterval(() => {
+  for (const [token, session] of qrLoginSessions) {
+    if (session.expiresAt <= Date.now() || session.consumed) qrLoginSessions.delete(token);
+  }
+}, 30 * 1000);
 
 // ---------- 管理员后台白名单 ----------
 // 仅 3529403074@qq.com 拥有管理员后台权限
@@ -270,6 +296,70 @@ app.post('/api/login/code', (req, res) => {
   }
   const token = signToken(user);
   res.json({ token, user: publicUser(user) });
+});
+
+// 扫码登录：已登录设备生成"授权登录二维码"，把自身身份绑定到会话；新设备扫码即得一次性登录凭证。
+app.post('/api/login/qr/create', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '请先登录后生成登录二维码' });
+  const user = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  const session = newQrLoginSession();
+  session.userId = user.id;
+  session.loginToken = signToken(user);
+  session.status = 'confirmed';
+  res.json({ token: session.token, expiresAt: session.expiresAt, qrText: 'securechat://login?token=' + encodeURIComponent(session.token) });
+});
+
+app.get('/api/login/qr/image', async (req, res) => {
+  const session = getQrLoginSession(req.query.token);
+  if (!session) return res.status(410).json({ error: '二维码已过期，请重新生成' });
+  try {
+    const png = await QRCode.toBuffer('securechat://login?token=' + encodeURIComponent(session.token), { width: 320, margin: 2, errorCorrectionLevel: 'M' });
+    res.type('png').send(png);
+  } catch (e) { res.status(500).json({ error: '二维码生成失败' }); }
+});
+
+app.get('/api/login/qr/status', (req, res) => {
+  const session = getQrLoginSession(req.query.token);
+  if (!session) return res.status(410).json({ error: '二维码已过期，请重新生成' });
+  res.json({ status: session.status, expiresAt: session.expiresAt });
+});
+
+// 已登录设备扫码确认：用扫描端自己的 Authorization 把身份写入会话，二维码端即可登录。
+app.post('/api/login/qr/confirm', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '请先登录后扫码确认' });
+  const session = getQrLoginSession(req.body && req.body.token);
+  if (!session) return res.status(410).json({ error: '二维码已过期，请重新生成' });
+  if (session.status !== 'pending') return res.status(409).json({ error: '二维码已处理' });
+  const user = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  session.status = 'confirmed';
+  session.userId = user.id;
+  session.loginToken = signToken(user);
+  res.json({ ok: true, status: session.status, user: publicUser(user) });
+});
+
+// 二维码端轮询：未登录时由网页/客户端发起，拿到一次性登录凭证后即登录成功。
+app.post('/api/login/qr/consume', (req, res) => {
+  const session = getQrLoginSession(req.body && req.body.token);
+  if (!session) return res.status(410).json({ error: '二维码已过期' });
+  if (session.status !== 'confirmed' || !session.loginToken) return res.json({ status: session.status });
+  session.consumed = true;
+  res.json({ status: 'ok', token: session.loginToken, user: publicUser(prepare('SELECT * FROM users WHERE id=?').get(session.userId)) });
+});
+
+// 小程序目录：只返回受控的 SecureChat 官方入口，后续包下载仍需扩展签名校验。
+app.get('/api/mini-programs', (req, res) => {
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  res.json({ programs: [
+    { id: 'securechat.tools', name: '安全工具', version: '1.0.0', icon: '/icons/icon-192.png', entry: '/mini-programs/tools/index.html', permissions: [] },
+    { id: 'securechat.notes', name: '安全便签', version: '1.0.0', icon: '/icons/icon-192.png', entry: '/mini-programs/notes/index.html', permissions: ['storage'] }
+  ] });
 });
 
 app.get('/api/users', (req, res) => {

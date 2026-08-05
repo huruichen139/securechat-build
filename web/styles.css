@@ -248,6 +248,16 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .voice-bars { display: flex; gap: 2px; align-items: center; height: 16px; }
 .voice-bars span { width: 2px; background: currentColor; border-radius: 1px; }
 .toast-wrap { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.qr-login-mask { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; background: rgba(15,23,42,.58); }
+.qr-login-card { width: min(360px, calc(100vw - 32px)); padding: 24px; border-radius: 18px; background: #fff; text-align: center; box-shadow: 0 20px 70px rgba(0,0,0,.3); }
+.qr-login-card img { width: 280px; max-width: 100%; display: block; margin: 16px auto; }
+.qr-login-card p { color: #64748b; font-size: 13px; }
+.qr-login-card button { border: 0; border-radius: 8px; padding: 9px 24px; background: #07c160; color: #fff; }
+.mini-programs { padding: 14px 18px; border-bottom: 1px solid var(--line, #e5e7eb); }
+.mini-programs-title { font-weight: 700; margin-bottom: 9px; }
+.mini-program-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.mini-program-item { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; border: 1px solid #dbe3ea; border-radius: 10px; background: #fff; padding: 9px 12px; color: #172033; }
+.mini-program-item span { color: #64748b; font-size: 11px; }
 .toast {
   min-width: 240px; max-width: 360px; padding: 12px 18px; border-radius: 8px; font-size: 14px;
   background: #333; color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.18);
