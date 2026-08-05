@@ -1872,12 +1872,25 @@ async function acceptIncomingCall() {
   stopCallRingtone();
   clearCallTimer();
   releaseLocalMedia();
-  if (rtc && incomingCall.from && incomingCall.from !== callPeer) rtc.hangup(incomingCall.from);
-  callPeer = incomingCall.from; callKind = incomingCall.kind; incomingCall = null;
+  const pendingCall = incomingCall;
+  callPeer = pendingCall.from; callKind = pendingCall.kind;
   $('callText').textContent = '通话中...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
-try { localStream = await window.getLocalStream(callKind); const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream; await rtc.acceptCall(callPeer, callKind, localStream); startCallTimeout(); }
-  catch (e) { toast('无法获取媒体：'+e.message, 'error'); send(P.C_SIGNAL,{to:callPeer,sub:'hangup',data:null}); closeCallBar(); }
+  try {
+    if (!window.getLocalStream) throw new Error('WebRTC 不可用');
+    localStream = await window.getLocalStream(callKind);
+    incomingCall = null;
+    const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream;
+    await rtc.acceptCall(callPeer, callKind, localStream);
+    startCallTimeout();
+  } catch (e) {
+    incomingCall = pendingCall;
+    $('callText').textContent = '无法接听，请允许摄像头和麦克风权限';
+    $('acceptCallBtn').style.display=''; $('rejectCallBtn').style.display=''; $('hangupBtn').style.display='none';
+    toast('无法获取媒体：' + (e.message || e.name || '请检查权限'), 'error');
+    clearCallTimer();
+    callTimer = setTimeout(() => { if (incomingCall === pendingCall) rejectIncomingCall(); }, 30000);
+  }
 }
 function rejectIncomingCall() { stopCallRingtone(); if (incomingCall) { send(P.C_SIGNAL,{to:incomingCall.from,sub:'call_reject',data:null}); incomingCall = null; } closeCallBar(); }
 function hangup() { if (callPeer) send(P.C_SIGNAL,{to:callPeer,sub:'hangup',data:null}); if (rtc&&callPeer) rtc.hangup(callPeer); closeCallBar(); }
