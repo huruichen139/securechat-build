@@ -1304,28 +1304,42 @@ function showFriendReqBar() {
   $('friendReqBar').style.display = 'flex';
 }
 $('acceptFriendBtn').onclick = async () => {
-  const req = state.pendingReq.shift();
+  const req = state.pendingReq[0];
   if (!req) { $('friendReqBar').style.display = 'none'; return; }
   try {
-    await fetch(state.serverHost + '/api/friend/accept', {
+    const res = await fetch(state.serverHost + '/api/friend/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ friendId: req.from })
     });
-  } catch (e) {}
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    state.pendingReq.shift();
+  } catch (e) {
+    toast('接受好友请求失败：' + e.message, 'error');
+    showFriendReqBar();
+    return;
+  }
   showFriendReqBar();
   loadFriends();
 };
 $('rejectFriendBtn').onclick = async () => {
-  const req = state.pendingReq.shift();
+  const req = state.pendingReq[0];
   if (!req) { $('friendReqBar').style.display = 'none'; return; }
   try {
-    await fetch(state.serverHost + '/api/friend/reject', {
+    const res = await fetch(state.serverHost + '/api/friend/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ friendId: req.from })
     });
-  } catch (e) {}
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    state.pendingReq.shift();
+  } catch (e) {
+    toast('拒绝好友请求失败：' + e.message, 'error');
+    showFriendReqBar();
+    return;
+  }
   showFriendReqBar();
 };
 
