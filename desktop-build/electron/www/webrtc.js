@@ -270,39 +270,60 @@ function createRtc(ctx) {
   return { startCall, acceptCall, hangup, sendFile, handleSignal, ensurePc, releaseAllMedia };
 }
 
-// 工具：获取本地媒体（带错误分类与宽松约束兜底）
+// 工具：统一获取本地媒体。移动 WebView 的权限请求可能异步完成，所有采集都从这里进入。
 async function getLocalStream(kind) {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    const err = new Error('浏览器不支持或当前非安全上下文（需 HTTPS）');
+  const media = navigator.mediaDevices;
+  if (!media || typeof media.getUserMedia !== 'function') {
+    const err = new Error('当前客户端不支持通话媒体，请更新客户端');
     err.code = 'NOT_SUPPORTED';
     throw err;
   }
-  const tryConstraints = (constraints) => navigator.mediaDevices.getUserMedia(constraints);
+
+  const audio = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  };
+  const video = {
+    facingMode: 'user',
+    width: { ideal: 640, max: 1280 },
+    height: { ideal: 480, max: 720 },
+    frameRate: { ideal: 24, max: 30 }
+  };
+
+  async function request(constraints) {
+    try {
+      return await media.getUserMedia(constraints);
+    } catch (error) {
+      const name = error && error.name || '';
+      if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+        return media.getUserMedia({ audio: !!constraints.audio, video: !!constraints.video });
+      }
+      throw error;
+    }
+  }
+
   try {
-    return await tryConstraints(kind === 'video'
-      ? { video: { width: 640, height: 480 }, audio: true }
-      : { audio: true, video: false });
-  } catch (e1) {
-    if (kind === 'video' && (e1.name === 'OverconstrainedError' || e1.name === 'NotFoundError')) {
-      // 摄像头不支持该分辨率：放宽为任意摄像头
-      return await tryConstraints({ video: true, audio: true });
-    }
-    if (e1.name === 'NotAllowedError' || e1.name === 'PermissionDeniedError') {
-      const err = new Error('摄像头/麦克风权限被拒绝，请在浏览器设置中允许');
+    // 先用最少约束请求，避免部分 Android WebView 因分辨率/回声参数拒绝整个请求。
+    return await request(kind === 'video' ? { audio, video } : { audio });
+  } catch (error) {
+    const name = error && error.name || '';
+    const message = String(error && error.message || '').toLowerCase();
+    const err = new Error();
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+      err.message = '摄像头/麦克风权限未开启，请在系统设置中允许 SecureChat 使用摄像头和麦克风';
       err.code = 'PERMISSION';
-      throw err;
-    }
-    if (e1.name === 'NotFoundError' || e1.name === 'DevicesNotFoundError') {
-      const err = new Error('未检测到可用摄像头/麦克风');
+    } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      err.message = kind === 'video' ? '未检测到摄像头和麦克风' : '未检测到麦克风';
       err.code = 'NO_DEVICE';
-      throw err;
-    }
-    if (e1.name === 'NotReadableError' || e1.name === 'AbortError' || /in use|busy/i.test(e1.message)) {
-      const err = new Error('摄像头/麦克风被其他程序占用，请关闭后重试');
+    } else if (name === 'NotReadableError' || name === 'AbortError' || /in use|busy|占用/.test(message)) {
+      err.message = '摄像头或麦克风正被其他应用占用，请关闭其他通话应用后重试';
       err.code = 'IN_USE';
-      throw err;
+    } else {
+      err.message = '媒体设备启动失败：' + (error && error.message || name || '未知错误');
+      err.code = name || 'MEDIA_ERROR';
     }
-    throw e1;
+    throw err;
   }
 }
 
