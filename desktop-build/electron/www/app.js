@@ -1915,7 +1915,10 @@ function startOutgoingCall(kind) {
   }).catch((e) => { toast('无法获取媒体：'+e.message, 'error'); closeCallBar(); });
 }
 async function acceptIncomingCall() {
-  if (!incomingCall) return;
+  if (!incomingCall) {
+    toast('没有正在响铃的来电，请让对方重新拨打', 'warn', 3000);
+    return;
+  }
   stopCallRingtone();
   clearCallTimer();
   const pendingCall = incomingCall;
