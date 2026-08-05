@@ -82,6 +82,9 @@
     addText(article, 'p', platformDesc(platform), 'details');
     addText(article, 'div', _t('version', '版本') + ' v' + version, 'version');
     article.appendChild(downloadControl(url));
+    if (platform.key === 'ios') {
+      addText(article, 'p', _t('dlIosNote', '未签名 IPA：需用 AltStore（PC+数据线）或 Sideloadly 等工具自签安装，签名 7 天过期需重签。'), 'note');
+    }
     return article;
   }
 
@@ -101,6 +104,9 @@
     addText(copy, 'p', platformDesc(recommended), 'details');
     addText(copy, 'div', _t('version', '版本') + ' v' + version, 'version');
     target.appendChild(copy); target.appendChild(downloadControl(url));
+    if (recommended.key === 'ios') {
+      addText(copy, 'p', _t('dlIosNote', '未签名 IPA：需用 AltStore（PC+数据线）或 Sideloadly 等工具自签安装，签名 7 天过期需重签。'), 'note');
+    }
 
     var list = root.querySelector('#platform-list');
     if (!list) list = root.querySelector('#download-platform-list');
