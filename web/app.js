@@ -1901,7 +1901,7 @@ async function loadMiniPrograms() {
       item.innerHTML = '<strong>' + escapeHtml(program.name) + '</strong><span>v' + escapeHtml(program.version) + '</span>';
       item.onclick = () => {
         if (!String(program.entry).startsWith('/mini-programs/')) return toast('小程序入口不受信任', 'error');
-        toast(program.name + ' 小程序入口已登记，等待安全包发布', 'info', 2500);
+        window.open(state.serverHost + program.entry, '_blank', 'noopener');
       };
       list.appendChild(item);
     });

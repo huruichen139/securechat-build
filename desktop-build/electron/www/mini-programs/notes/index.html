@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>安全便签</title>
+<style>body{margin:0;padding:20px;background:#f5f8f6;font:16px system-ui,sans-serif;color:#172033}main{max-width:720px;margin:auto}textarea{width:100%;min-height:55vh;padding:16px;border:1px solid #dbe3ea;border-radius:12px;box-sizing:border-box;font:inherit}button{margin-top:12px;padding:10px 18px;border:0;border-radius:8px;background:#07c160;color:#fff}</style></head>
+<body><main><h1>安全便签</h1><textarea id="note" placeholder="只保存在本设备浏览器中"></textarea><br><button id="save">保存便签</button><span id="status"></span></main><script>const n=document.getElementById('note'),s=document.getElementById('status');n.value=localStorage.getItem('securechat-mini-note')||'';document.getElementById('save').onclick=()=>{localStorage.setItem('securechat-mini-note',n.value);s.textContent=' 已保存';setTimeout(()=>s.textContent='',1500)};</script></body>
+</html>

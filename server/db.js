@@ -119,6 +119,37 @@ function init() {
       status TEXT NOT NULL DEFAULT 'open',   -- open|processing|closed
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS message_meta (
+      message_id INTEGER PRIMARY KEY,
+      reply_to INTEGER,
+      forwarded_from INTEGER,
+      burn_after_reading INTEGER NOT NULL DEFAULT 0,
+      pinned INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS message_favorites (
+      user_id INTEGER NOT NULL,
+      message_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id, message_id)
+    );
+    CREATE TABLE IF NOT EXISTS user_chat_settings (
+      user_id INTEGER NOT NULL,
+      peer_id INTEGER NOT NULL,
+      muted INTEGER NOT NULL DEFAULT 0,
+      pinned INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id, peer_id)
+    );
+    CREATE TABLE IF NOT EXISTS webhooks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      url TEXT NOT NULL,
+      secret TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      UNIQUE(user_id, url)
+    );
   `);
   // 迁移：给旧表加 uid 列（如果不存在）；给历史用户补 uid
   try {

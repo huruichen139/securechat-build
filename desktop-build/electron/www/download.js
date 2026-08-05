@@ -101,6 +101,7 @@
     root = root || document;
     var version = String(data.latest || data.current || '1.0.0');
     var downloads = data.downloads || {};
+    var downloadVersions = data.downloadVersions || {};
     var recommendedKey = platformFromUserAgent(navigator.userAgent);
     var recommended = PLATFORMS.filter(function (p) { return p.key === recommendedKey; })[0] || PLATFORMS[0];
     var url = absoluteDownload(downloads[recommended.key], apiUrl);
@@ -111,7 +112,7 @@
     addText(copy, 'div', _t('recommended', '推荐下载'), 'recommend-label');
      addText(copy, 'h1', platformName(recommended), 'platform-name');
     addText(copy, 'p', platformDesc(recommended), 'details');
-    addText(copy, 'div', _t('version', '版本') + ' v' + version, 'version');
+    addText(copy, 'div', _t('version', '版本') + ' v' + (downloadVersions[recommended.key] || version), 'version');
     target.appendChild(copy); target.appendChild(downloadControl(url));
     if (recommended.key === 'ios') {
       addText(copy, 'p', _t('dlIosNote', '未签名 IPA：推荐用 LiveContainer 运行（下方下载），免费签名一次即可无限运行，无需重签。'), 'note');
@@ -130,7 +131,7 @@
     if (!list) list = root.querySelector('#download-platform-list');
     list.textContent = '';
     PLATFORMS.filter(function (p) { return p.key !== recommended.key; }).forEach(function (p) {
-      list.appendChild(card(p, version, absoluteDownload(downloads[p.key], apiUrl)));
+      list.appendChild(card(p, downloadVersions[p.key] || version, absoluteDownload(downloads[p.key], apiUrl)));
     });
     var status = root.querySelector('#status') || root.querySelector('#downloadStatus');
     if (status) status.textContent = data.releaseNotes ? _t('latestVersion', '最新版本') + ': v' + version + ' · ' + data.releaseNotes : _t('latestVersion', '最新版本') + ': v' + version;

@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>安全工具</title>
+<style>body{margin:0;padding:28px;font:16px system-ui,sans-serif;color:#172033;background:#f5f8f6}main{max-width:620px;margin:auto;background:#fff;padding:24px;border-radius:14px;box-shadow:0 10px 30px #102a1b18}h1{margin-top:0;color:#07c160}button{padding:10px 14px;border:0;border-radius:8px;background:#07c160;color:#fff}pre{white-space:pre-wrap;background:#f1f5f3;padding:12px;border-radius:8px}</style></head>
+<body><main><h1>安全工具</h1><p>SecureChat 内置安全工具小程序。</p><button id="copy">复制当前页面地址</button><pre id="out">等待操作</pre></main><script>document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);document.getElementById('out').textContent='已复制';}catch(e){document.getElementById('out').textContent=location.href;}};</script></body>
+</html>

@@ -551,6 +551,91 @@ app.post('/api/profile', (req, res) => {
 });
 // （背景自定义由前端 localStorage 处理；不需要服务端）
 
+function messageForUser(messageId, userId) {
+  return prepare(`
+    SELECT m.id,m.from_id AS from,m.to_id AS to,m.content,m.created_at AS createdAt,m.read,
+      mm.reply_to AS replyTo,mm.forwarded_from AS forwardedFrom,
+      mm.burn_after_reading AS burnAfterReading,mm.pinned
+    FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
+    WHERE m.id=? AND (m.from_id=? OR m.to_id=?)
+  `).get(messageId, userId, userId);
+}
+
+function messageMetaUpdate(messageId, userId, field, value) {
+  const message = messageForUser(messageId, userId);
+  if (!message) return null;
+  const now = Date.now();
+  const storedValue = field === 'reply_to' || field === 'forwarded_from' ? (Number(value) || null) : (value ? 1 : 0);
+  prepare(`INSERT INTO message_meta(message_id,${field},updated_at) VALUES(?,?,?)
+    ON CONFLICT(message_id) DO UPDATE SET ${field}=excluded.${field},updated_at=excluded.updated_at`)
+    .run(messageId, storedValue, now);
+  return messageForUser(messageId, userId);
+}
+
+app.post('/api/messages/:id/reply', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = Number(req.params.id); const message = messageForUser(id, payload.id);
+  if (!message) return res.status(404).json({ error: '消息不存在' });
+  const meta = messageMetaUpdate(id, payload.id, 'reply_to', Number(req.body && req.body.replyTo) || 0);
+  res.json({ ok: true, message: meta });
+});
+
+app.post('/api/messages/:id/pin', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const meta = messageMetaUpdate(Number(req.params.id), payload.id, 'pinned', !!(req.body && req.body.pinned));
+  if (!meta) return res.status(404).json({ error: '消息不存在' });
+  res.json({ ok: true, message: meta });
+});
+
+app.post('/api/messages/:id/favorite', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = Number(req.params.id); if (!messageForUser(id, payload.id)) return res.status(404).json({ error: '消息不存在' });
+  if (req.body && req.body.favorite === false) prepare('DELETE FROM message_favorites WHERE user_id=? AND message_id=?').run(payload.id, id);
+  else prepare('INSERT OR IGNORE INTO message_favorites(user_id,message_id,created_at) VALUES(?,?,?)').run(payload.id, id, Date.now());
+  res.json({ ok: true, favorite: !(req.body && req.body.favorite === false) });
+});
+
+app.get('/api/favorites', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare(`SELECT m.id,m.from_id AS from,m.to_id AS to,m.content,m.created_at AS createdAt,f.created_at AS favoritedAt
+    FROM message_favorites f JOIN messages m ON m.id=f.message_id WHERE f.user_id=? ORDER BY f.created_at DESC`).all(payload.id);
+  res.json({ messages: rows });
+});
+
+app.post('/api/chats/:peerId/settings', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const peerId = Number(req.params.peerId); if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
+  const body = req.body || {}; const now = Date.now();
+  const current = prepare('SELECT muted,pinned FROM user_chat_settings WHERE user_id=? AND peer_id=?').get(payload.id, peerId) || { muted: 0, pinned: 0 };
+  const muted = body.muted === undefined ? current.muted : (body.muted ? 1 : 0);
+  const pinned = body.pinned === undefined ? current.pinned : (body.pinned ? 1 : 0);
+  prepare(`INSERT INTO user_chat_settings(user_id,peer_id,muted,pinned,updated_at) VALUES(?,?,?,?,?)
+    ON CONFLICT(user_id,peer_id) DO UPDATE SET muted=excluded.muted,pinned=excluded.pinned,updated_at=excluded.updated_at`)
+    .run(payload.id, peerId, muted, pinned, now);
+  res.json({ ok: true, peerId, muted: !!muted, pinned: !!pinned });
+});
+
+app.get('/api/chats/settings', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare('SELECT peer_id AS peerId,muted,pinned,updated_at AS updatedAt FROM user_chat_settings WHERE user_id=? ORDER BY pinned DESC,updated_at DESC').all(payload.id);
+  res.json({ settings: rows });
+});
+
+app.post('/api/webhooks', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  const url = String(req.body && req.body.url || '').trim();
+  if (!/^https:\/\//i.test(url)) return res.status(400).json({ error: 'Webhook 必须使用 HTTPS' });
+  const secret = crypto.randomBytes(24).toString('hex');
+  const info = prepare('INSERT OR IGNORE INTO webhooks(user_id,url,secret,enabled,created_at) VALUES(?,?,?,?,?)').run(payload.id, url, secret, 1, Date.now());
+  const row = prepare('SELECT id,url,enabled,created_at AS createdAt FROM webhooks WHERE user_id=? AND url=?').get(payload.id, url);
+  res.status(info.changes === 0 ? 200 : 201).json({ webhook: row, secret });
+});
+
+app.get('/api/webhooks', (req, res) => {
+  const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
+  res.json({ webhooks: prepare('SELECT id,url,enabled,created_at AS createdAt FROM webhooks WHERE user_id=? ORDER BY id DESC').all(payload.id) });
+});
+
 app.get('/api/history/:peerId', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const auth = req.headers.authorization || '';
@@ -558,9 +643,11 @@ app.get('/api/history/:peerId', (req, res) => {
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
-  const rows = prepare('SELECT * FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY created_at ASC')
+  const rows = prepare(`SELECT m.*,mm.reply_to,mm.forwarded_from,mm.burn_after_reading,mm.pinned
+    FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
+    WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at ASC`)
     .all(payload.id, peerId, peerId, payload.id);
-  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read }));
+  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned }));
   res.json({ messages: msgs });
 });
 
@@ -580,7 +667,7 @@ app.post('/api/messages', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const { to, content, clientMsgId } = req.body || {};
+  const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = req.body || {};
   const toId = parseInt(to, 10);
   if (!Number.isInteger(toId) || !content || typeof content !== 'string') return res.status(400).json({ error: '消息内容无效' });
   if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) return res.status(400).json({ error: '消息标识无效' });
@@ -590,7 +677,11 @@ app.post('/api/messages', (req, res) => {
   }
   const createdAt = Date.now();
   const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)').run(payload.id, toId, content, clientMsgId || null, createdAt);
-  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null };
+  if (replyTo || forwardedFrom || burnAfterReading) {
+    prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
+      .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
+  }
+  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading };
   const peer = onlineAny(toId);
   if (peer) sendToUser(toId, P.S_MSG, message);
   sentMsgsThisMinCounter += 1;
@@ -1075,23 +1166,38 @@ function saveVersionConfig(cfg) {
 // 根据 version.json 的 latest 扫描 downloads 目录，动态构建下载链接（文件不存在则给 null）
 function buildDownloads(cfg) {
   const downloads = {};
+  const downloadVersions = {};
   for (const key of Object.keys(PLATFORM_FILES)) {
     const info = PLATFORM_FILES[key];
     const filename = 'SecureChat-' + cfg.latest + '-' + info.seg + '.' + info.ext;
-    downloads[key] = fs.existsSync(path.join(DOWNLOADS_DIR, filename)) ? '/downloads/' + filename : null;
+    if (fs.existsSync(path.join(DOWNLOADS_DIR, filename))) {
+      downloads[key] = '/downloads/' + filename;
+      downloadVersions[key] = cfg.latest;
+      continue;
+    }
+    const prefix = 'SecureChat-';
+    const suffix = '-' + info.seg + '.' + info.ext;
+    const fallback = fs.readdirSync(DOWNLOADS_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(suffix))
+      .map((entry) => entry.name)
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0];
+    downloads[key] = fallback ? '/downloads/' + fallback : null;
+    if (fallback) downloadVersions[key] = fallback.slice(prefix.length, -suffix.length);
   }
-  return downloads;
+  return { downloads, downloadVersions };
 }
 
 // GET /api/version（无需鉴权）返回版本配置与各平台下载链接
 app.get('/api/version', (req, res) => {
   const cfg = getVersionConfig();
+  const packageData = buildDownloads(cfg);
   res.json({
     current: cfg.current,
     latest: cfg.latest,
     releaseNotes: cfg.releaseNotes,
     updatedAt: cfg.updatedAt,
-    downloads: buildDownloads(cfg)
+    downloads: packageData.downloads,
+    downloadVersions: packageData.downloadVersions
   });
 });
 
