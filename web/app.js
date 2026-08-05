@@ -1807,6 +1807,7 @@ function initRtc() {
   });
   window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('对方已拒绝', 'warn'); closeCallBar(); });
   window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('对方不在线', 'warn'); closeCallBar(); });
+  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('对方已挂断', 'info'); closeCallBar(); });
   window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收：' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {

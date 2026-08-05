@@ -261,7 +261,7 @@ function createRtc(ctx) {
     if (sub === 'offer') await onOffer(from, data);
     else if (sub === 'answer') await onAnswer(from, data);
     else if (sub === 'ice') await onIce(from, data);
-    else if (sub === 'hangup') hangup(from);
+    else if (sub === 'hangup') { hangup(from); window.dispatchEvent(new CustomEvent('remote-hangup', { detail: { from } })); }
     else if (sub === 'call') window.dispatchEvent(new CustomEvent('call-incoming', { detail: { from, kind: data && data.kind } }));
     else if (sub === 'call_reject') window.dispatchEvent(new CustomEvent('call-rejected', { detail: { from } }));
     else if (sub === 'peer_offline') window.dispatchEvent(new CustomEvent('peer-offline', { detail: { from } }));
