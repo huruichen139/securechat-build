@@ -1927,7 +1927,9 @@ async function acceptIncomingCall() {
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   try {
     if (!window.getLocalStream) throw new Error('WebRTC 不可用');
-    localStream = await window.getLocalStream(callKind);
+    $('callText').textContent = '正在请求麦克风/摄像头权限...';
+    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('浏览器权限请求超时，请允许摄像头和麦克风权限后重试')), 12000));
+    localStream = await Promise.race([window.getLocalStream(callKind), mediaTimeout]);
     incomingCall = null;
     const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream;
     await rtc.acceptCall(callPeer, callKind, localStream);
