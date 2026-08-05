@@ -7,7 +7,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   ios:
@@ -62,6 +62,12 @@ jobs:
           path: desktop-build/capacitor/ios/App/SecureChat-ios-unsigned.ipa
           if-no-files-found: error
 
+      - name: Upload iOS to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop-build/capacitor/ios/App/SecureChat-ios-unsigned.ipa
+
   macos:
     name: Build macOS
     runs-on: macos-14
@@ -91,3 +97,9 @@ jobs:
           name: SecureChat-${{ github.ref_name }}-macos
           path: desktop-build/electron/dist/*.dmg
           if-no-files-found: error
+
+      - name: Upload macOS to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop-build/electron/dist/*.dmg

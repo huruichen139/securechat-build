@@ -150,14 +150,52 @@ input, textarea { outline: none; }
 
 /* ---------- 通话呼叫条 ---------- */
 .call-bar {
-  position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
-  background: #fff; border: 1px solid var(--border); border-radius: 10px;
-  padding: 14px 18px; box-shadow: 0 6px 20px rgba(0,0,0,.12);
-  display: flex; align-items: center; gap: 14px; z-index: 50;
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(430px, calc(100vw - 32px));
+  background: linear-gradient(160deg, #ffffff, #f6faf8);
+  border: 1px solid rgba(7,193,96,.18);
+  border-radius: 20px;
+  padding: 26px 24px 22px;
+  box-shadow: 0 24px 60px rgba(15,23,42,.22);
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  z-index: 1200;
+  animation: call-bar-in .22s ease-out;
 }
-.call-bar video { width: 120px; height: 80px; background: #000; border-radius: 6px; object-fit: cover; display: none; }
+@keyframes call-bar-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.92); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.call-bar #callText { font-size: 17px; font-weight: 700; color: #172033; }
+.call-bar video {
+  width: 100%; height: auto; max-height: 46vh; aspect-ratio: 4/3;
+  background: #0b1220; border-radius: 14px; object-fit: cover;
+  display: none;
+}
 .call-bar.with-video video { display: block; }
-.call-actions { display: flex; gap: 8px; }
+.call-bar video#localVideo {
+  position: absolute; right: 14px; bottom: 92px; width: 104px; height: 78px;
+  border-radius: 10px; border: 2px solid #fff; box-shadow: 0 6px 18px rgba(0,0,0,.3);
+  z-index: 2;
+}
+.call-bar:not(.with-video) video#localVideo { display: none; }
+.call-bar.with-video #callText { position: absolute; top: 12px; left: 0; right: 0; text-align: center; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.5); z-index: 3; font-size: 15px; }
+.call-bar.with-video video#remoteVideo { display: block; }
+.call-actions { display: flex; gap: 18px; align-items: center; }
+.call-actions .btn-cn {
+  width: 58px; height: 58px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 14px; font-weight: 700;
+  border: 0; cursor: pointer; color: #fff;
+  box-shadow: 0 8px 20px rgba(15,23,42,.18);
+  transition: transform .12s ease;
+}
+.call-actions .btn-cn:active { transform: scale(.92); }
+#acceptCallBtn { background: linear-gradient(145deg, #07c160, #059a4c); }
+#rejectCallBtn { background: linear-gradient(145deg, #ff5a4d, #e63d2f); }
+#hangupBtn { background: linear-gradient(145deg, #ff5a4d, #e63d2f); width: 62px; height: 62px; }
+.call-bar.with-video { background: #0b1220; border-color: transparent; }
+html.is-mobile .call-bar { width: 100vw; height: 100vh; max-width: none; border-radius: 0; top: 0; left: 0; transform: none; animation: none; justify-content: center; }
+html.is-mobile .call-bar video { max-height: 56vh; }
+html.is-mobile .call-bar video#localVideo { bottom: 130px; right: 12px; width: 90px; height: 68px; }
+body.dark-mode .call-bar { background: linear-gradient(160deg, #1e293b, #0f172a); border-color: #263244; }
+body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .call-replay-list { margin: 8px 12px; padding: 8px 10px; border: 1px solid var(--line, #ddd); border-radius: 10px; font-size: 12px; }
 .call-replay { display: flex; justify-content: space-between; gap: 12px; padding-top: 6px; }
 .call-replay a { color: var(--accent, #3767ff); }
@@ -1212,6 +1250,70 @@ html.is-mobile #chatView.mobile-chat-active > #downloadView {
 html.is-mobile .sidebar { flex-direction: row; }
 html.is-mobile .sidebar-rail { display: none; }
 html.is-mobile .sidebar-content { width: 100%; flex: 1; }
+
+/* =========================================================
+   移动端底部 Tab 栏（微信式）：rail 改为固定在屏幕底部的横排导航。
+   ========================================================= */
+html.is-mobile .mobile-bottom-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 56px;
+  display: flex;
+  align-items: stretch;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(5,5,5,.08);
+  z-index: 80;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+html.is-mobile .mobile-bottom-nav .side-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+html.is-mobile .mobile-bottom-nav .side-tab .rail-icon {
+  width: auto;
+  height: 22px;
+  font-size: 13px;
+}
+html.is-mobile .mobile-bottom-nav .side-tab.on {
+  color: var(--primary);
+  background: transparent;
+  box-shadow: none;
+  font-weight: 700;
+}
+html.is-mobile .mobile-bottom-nav .side-tab.on::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+}
+html.is-mobile body.dark-mode .mobile-bottom-nav {
+  background: rgba(17,24,39,.96);
+  border-top-color: #263244;
+}
+html.is-mobile body.dark-mode .mobile-bottom-nav .side-tab { color: #64748b; }
+html.is-mobile body.dark-mode .mobile-bottom-nav .side-tab.on { color: var(--primary); }
+
+/* 给会话列表底部留出 tab 栏高度，避免内容被遮 */
+html.is-mobile .sidebar-content { padding-bottom: 64px; }
+html.is-mobile .contact-list { padding-bottom: 0; }
+html.is-mobile #chatView.mobile-chat-active .main { bottom: 0; }
 
 /* 列表态下显示返回按钮（列表里本无返回，这里仅聊天态显示——再用一条规则覆盖） */
 html.is-mobile #chatView.mobile-chat-active .back-to-list-btn { display: inline-flex; }

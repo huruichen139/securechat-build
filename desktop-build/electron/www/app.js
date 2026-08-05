@@ -1031,10 +1031,16 @@ function renderGroupList() {
 }
 
 // 切换 side-tab
+function syncMobileNav(active) {
+  document.querySelectorAll('#mobileBottomNav .side-tab').forEach(b => {
+    b.classList.toggle('on', b.dataset.side === active);
+  });
+}
 document.querySelectorAll('.side-tab').forEach(tt => {
   tt.onclick = () => {
     if (tt.dataset.side === 'friends' || tt.dataset.side === 'groups') state.tabContact = tt.dataset.side;
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === tt));
+    syncMobileNav(tt.dataset.side);
 
     // AI tab：切到 AI 助手视图，隐藏主聊天区
     if (tt.dataset.side === 'ai') {
@@ -1085,6 +1091,29 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     renderContacts();
   };
 });
+
+// 移动端底部导航：克隆 rail tab 到底部栏，点击时转发到原 tab
+(function initMobileBottomNav() {
+  const nav = $('mobileBottomNav');
+  if (!nav || !window.IS_MOBILE) return;
+  document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'side-tab' + (src.classList.contains('on') ? ' on' : '');
+    b.dataset.side = src.dataset.side;
+    b.innerHTML = src.innerHTML;
+    b.onclick = () => {
+      const real = document.querySelector('.sidebar-rail .side-tab[data-side="' + src.dataset.side + '"]');
+      if (real) real.click();
+      else {
+        document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === b));
+        syncMobileNav(src.dataset.side);
+      }
+    };
+    nav.appendChild(b);
+  });
+  syncMobileNav(state.tabContact || 'friends');
+})();
 
 const downloadBackBtn = $('downloadBackBtn');
 if (downloadBackBtn) downloadBackBtn.onclick = () => {
@@ -1776,8 +1805,8 @@ function initRtc() {
       if (incomingCall) rejectIncomingCall();
     }, 30000);
   });
-  window.addEventListener('call-rejected', () => { stopCallRingtone(); $('callText').textContent = '对方已拒绝'; setTimeout(closeCallBar, 1500); });
-  window.addEventListener('peer-offline', () => { stopCallRingtone(); $('callText').textContent = '对方不在线'; setTimeout(closeCallBar, 1500); });
+  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('对方已拒绝', 'warn'); closeCallBar(); });
+  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('对方不在线', 'warn'); closeCallBar(); });
   window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收：' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {
