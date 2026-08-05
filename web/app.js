@@ -1990,9 +1990,18 @@ function appendFileMsg(mine, name, size, fileId, createdAt) {
 }
 $('audioBtn').onclick = () => startOutgoingCall('audio');
 $('videoBtn').onclick = () => startOutgoingCall('video');
-$('acceptCallBtn').onclick = acceptIncomingCall;
-$('rejectCallBtn').onclick = rejectIncomingCall;
-$('hangupBtn').onclick = hangup;
+$('acceptCallBtn').addEventListener('click', (event) => {
+  event.preventDefault();
+  acceptIncomingCall();
+});
+$('rejectCallBtn').addEventListener('click', (event) => {
+  event.preventDefault();
+  rejectIncomingCall();
+});
+$('hangupBtn').addEventListener('click', (event) => {
+  event.preventDefault();
+  hangup();
+});
 initRtc();
 
 // ============ 语音消息（点一下开始录音，再点一下发送） ============
