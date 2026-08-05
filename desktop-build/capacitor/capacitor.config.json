@@ -1,12 +1,8 @@
-{
+﻿{
   "appId": "com.securechat.app",
   "appName": "SecureChat",
   "webDir": "www",
-  "server": {
-    "url": "https://mc.32768.top:8888",
-    "cleartext": false
-  },
-  "android": {
+    "android": {
     "allowMixedContent": false
   }
 }

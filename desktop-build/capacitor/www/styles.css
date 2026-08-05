@@ -286,6 +286,8 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .download-header-sub { color: var(--muted); font-size: 12px; font-weight: 400; }
 .download-page { width: min(960px, calc(100% - 48px)); margin: 0 auto; padding: 34px 0 52px; color: #17211b; font: 15px/1.6 "Microsoft YaHei", "Segoe UI", sans-serif; }
 .download-status { min-height: 25px; color: var(--muted); text-align: center; margin: 0 0 14px; }
+.download-page .note { margin: 8px 0 0; font-size: 12.5px; color: #a06a1f; background: #fdf6e7; border: 1px solid #f0dfb6; border-radius: 8px; padding: 8px 10px; }
+.download-page .download.alt { color: var(--primary); background: #e9f7ef; margin-top: 8px; }
 .download-recommend { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px; border: 2px solid var(--primary); border-radius: 18px; background: #fff; box-shadow: 0 12px 32px rgba(13,74,43,.09); }
 .download-recommend .recommend-label { color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .download-recommend .platform-name { margin: 2px 0; font-size: 24px; font-weight: 700; }
@@ -1313,7 +1315,13 @@ html.is-mobile body.dark-mode .mobile-bottom-nav .side-tab.on { color: var(--pri
 /* 给会话列表底部留出 tab 栏高度，避免内容被遮 */
 html.is-mobile .sidebar-content { padding-bottom: 64px; }
 html.is-mobile .contact-list { padding-bottom: 0; }
-html.is-mobile #chatView.mobile-chat-active .main { bottom: 0; }
+/* 聊天态 .main / AI 视图：底部为固定 tab 栏让位，避免遮挡输入框 */
+html.is-mobile #chatView.mobile-chat-active > .main,
+html.is-mobile #chatView.mobile-chat-active > #aiView {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0));
+}
+/* 下载视图内容同样让位 */
+html.is-mobile #chatView.mobile-chat-active > #downloadView { bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
 
 /* 列表态下显示返回按钮（列表里本无返回，这里仅聊天态显示——再用一条规则覆盖） */
 html.is-mobile #chatView.mobile-chat-active .back-to-list-btn { display: inline-flex; }

@@ -1315,7 +1315,13 @@ html.is-mobile body.dark-mode .mobile-bottom-nav .side-tab.on { color: var(--pri
 /* 给会话列表底部留出 tab 栏高度，避免内容被遮 */
 html.is-mobile .sidebar-content { padding-bottom: 64px; }
 html.is-mobile .contact-list { padding-bottom: 0; }
-html.is-mobile #chatView.mobile-chat-active .main { bottom: 0; }
+/* 聊天态 .main / AI 视图：底部为固定 tab 栏让位，避免遮挡输入框 */
+html.is-mobile #chatView.mobile-chat-active > .main,
+html.is-mobile #chatView.mobile-chat-active > #aiView {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0));
+}
+/* 下载视图内容同样让位 */
+html.is-mobile #chatView.mobile-chat-active > #downloadView { bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
 
 /* 列表态下显示返回按钮（列表里本无返回，这里仅聊天态显示——再用一条规则覆盖） */
 html.is-mobile #chatView.mobile-chat-active .back-to-list-btn { display: inline-flex; }
