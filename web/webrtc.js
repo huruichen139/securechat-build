@@ -7,7 +7,8 @@ const ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun.qq.com:3478' },
   { urls: 'stun:stun.cloudflare.com:3478' },
-  { urls: 'stun:stun.aliyun.com:3478' }
+  { urls: 'stun:stun.aliyun.com:3478' },
+  { urls: 'stun:mc.32768.top:3478' }
 ];
 
 // 单例：与某个 peer 的 PeerConnection + 多个 DataChannel（文件）+ media stream
@@ -25,6 +26,10 @@ function createRtc(ctx) {
 
     pc.onicecandidate = (ev) => {
       if (ev.candidate) ctx.sendSignal(peerId, 'ice', ev.candidate);
+    };
+    pc.oniceconnectionstatechange = () => {
+      const s = pc.iceConnectionState;
+      window.dispatchEvent(new CustomEvent('rtc-state', { detail: { peerId, state: s === 'connected' || s === 'completed' ? 'connected' : s, source: 'ice' } }));
     };
     pc.onconnectionstatechange = () => {
       const s = pc.connectionState;

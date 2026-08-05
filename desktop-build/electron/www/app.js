@@ -1752,6 +1752,49 @@ function stopCallRecording() {
   if (callRecorder && callRecorder.state !== 'inactive') callRecorder.stop();
 }
 
+// 通话超时/恢复/远端画面显示（顶层函数，供 initRtc 事件与通话按钮共用）
+let callTimer = null;
+function clearCallTimer() { if (callTimer) { clearTimeout(callTimer); callTimer = null; } }
+function startCallTimer() {
+  // 若已有计时器或已接通则不重复
+  if (callTimer) return;
+  callTimer = setTimeout(() => {
+    callTimer = null;
+    // 8 秒后仍未恢复则关闭通话
+    closeCallBar();
+    toast('网络连接中断，通话已结束', 'warn');
+  }, 8000);
+}
+function startCallTimeout() {
+  clearCallTimer();
+  callTimer = setTimeout(() => {
+    callTimer = null;
+    if (callPeer && !incomingCall) {
+      toast('对方无响应，通话超时', 'warn');
+      closeCallBar();
+      if (rtc && callPeer) rtc.hangup(callPeer);
+    }
+  }, 30000);
+}
+function maybeShowRemote(peerId) {
+  // 显示规则：必须已"接通"——incomingCall=null（已接听，从来电状态过渡）
+  // 且当前 callPeer = 该 peer；或主动呼出方无需"接听"动作，对方一搭上就显示
+  if (!pendingRemoteStream) return;
+  if (!callPeer) return;
+  // 主呼方：incomingCall 一直为 null 即可显示
+  // 被呼方：必须 incomingCall=null（已 acceptIncomingCall 清空）
+  if (incomingCall) return; // 还在待接听
+  const v = $('remoteVideo');
+  if (!v) return;
+  v.srcObject = pendingRemoteStream;
+  v.style.display = '';
+  // WebView 默认禁止无手势自动播放，必须显式 play()，否则接通后无声/无画面
+  try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  if (callKind === 'video') $('callBar').classList.add('with-video');
+  $('callBar').style.display = 'flex';
+  showCallDuration();
+}
+
 function initRtc() {
   if (window.createRtc) {
     rtc = window.createRtc({
@@ -1767,49 +1810,17 @@ function initRtc() {
     maybeShowRemote(e.detail.peerId);
   });
   window.addEventListener('rtc-state', (e) => {
-    if (e.detail.state === 'connected') { clearCallTimer(); maybeShowRemote(e.detail.peerId); }
-    if (e.detail.state === 'failed' || e.detail.state === 'closed') { clearCallTimer(); closeCallBar(); }
+    if (e.detail.state === 'connected') { clearCallTimer(); stopCallDuration(); maybeShowRemote(e.detail.peerId); }
+    if (e.detail.state === 'failed') {
+      clearCallTimer(); stopCallDuration();
+      toast('通话连接失败：请确认双方网络可互通（NAT/防火墙限制）', 'error', 3000);
+      closeCallBar();
+      if (rtc && callPeer) rtc.hangup(callPeer);
+    }
+    if (e.detail.state === 'closed') { clearCallTimer(); stopCallDuration(); closeCallBar(); }
     // disconnected：不立即关闭，等待恢复；超过 8s 仍 disconnected 则按失败处理
     if (e.detail.state === 'disconnected') startCallTimer();
   });
-  let callTimer = null;
-  function clearCallTimer() { if (callTimer) { clearTimeout(callTimer); callTimer = null; } }
-  function startCallTimer() {
-    // 若已有计时器或已接通则不重复
-    if (callTimer) return;
-    callTimer = setTimeout(() => {
-      callTimer = null;
-      // 8 秒后仍未恢复则关闭通话
-      closeCallBar();
-      toast('网络连接中断，通话已结束', 'warn');
-    }, 8000);
-  }
-  function startCallTimeout() {
-    clearCallTimer();
-    callTimer = setTimeout(() => {
-      callTimer = null;
-      if (callPeer && !incomingCall) {
-        toast('对方无响应，通话超时', 'warn');
-        closeCallBar();
-        if (rtc && callPeer) rtc.hangup(callPeer);
-      }
-    }, 30000);
-  }
-  function maybeShowRemote(peerId) {
-    // 显示规则：必须已"接通"——incomingCall=null（已接听，从来电状态过渡）
-    // 且当前 callPeer = 该 peer；或主动呼出方无需"接听"动作，对方一搭上就显示
-    if (!pendingRemoteStream) return;
-    if (!callPeer) return;
-    // 主呼方：incomingCall 一直为 null 即可显示
-    // 被呼方：必须 incomingCall=null（已 acceptIncomingCall 清空）
-    if (incomingCall) return; // 还在待接听
-    const v = $('remoteVideo');
-    if (!v) return;
-    v.srcObject = pendingRemoteStream;
-    v.style.display = '';
-    if (callKind === 'video') $('callBar').classList.add('with-video');
-    $('callBar').style.display = 'flex';
-  }
   window.addEventListener('call-incoming', (e) => {
     clearCallTimer();
     startCallRingtone();
@@ -1834,6 +1845,24 @@ function initRtc() {
 }
 function setProgress(r) { $('fileProgress').style.width = Math.round(r * 100) + '%'; }
 function humanSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1)+' KB'; if (b < 1073741824) return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }
+
+// 通话时长计时（接通后显示 通话中 MM:SS）
+let durationTimer = null;
+let callStartAt = 0;
+function showCallDuration() {
+  if (durationTimer) return;
+  callStartAt = Date.now();
+  durationTimer = setInterval(() => {
+    if (!callPeer) { clearInterval(durationTimer); durationTimer = null; return; }
+    const s = Math.floor((Date.now() - callStartAt) / 1000);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    $('callText').textContent = '通话中 ' + mm + ':' + ss;
+  }, 1000);
+}
+function stopCallDuration() {
+  if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
+}
 
 // 释放本地媒体设备（每次发起/接听/挂断前调用，防止"Device in use"）
 function releaseLocalMedia() {
@@ -1898,6 +1927,7 @@ function hangup() { if (callPeer) send(P.C_SIGNAL,{to:callPeer,sub:'hangup',data
 function closeCallBar() {
   stopCallRingtone();
   clearCallTimer();
+  stopCallDuration();
   stopCallRecording();
   releaseLocalMedia();
   pendingRemoteStream = null;
