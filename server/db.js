@@ -205,9 +205,10 @@ function prepare(sql) {
   return {
     run(...args) {
       db.run(sql, args);
-      persistNow();
+      // 先取 last_insert_rowid 再持久化：sql.js 的 export() 会把 last_insert_rowid 重置为 0
       const row = db.exec('SELECT last_insert_rowid() AS id');
       const lastInsertRowid = (row && row.length && row[0].values.length) ? row[0].values[0][0] : 0;
+      persistNow();
       return { lastInsertRowid };
     },
     get(...args) {
