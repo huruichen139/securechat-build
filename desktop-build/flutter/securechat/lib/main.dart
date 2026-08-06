@@ -289,6 +289,15 @@ class _ChatShellState extends State<ChatShell> {
         final id = uploaded['id'];
         socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': 2, 'content': '[语音消息:$id]', 'clientMsgId': 'v${DateTime.now().microsecondsSinceEpoch}'}}));
         setState(() => messages.add({'voiceId': id, 'mine': true, 'time': '现在'}));
+        try {
+          final transcript = await widget.api.transcribe(id);
+          if (transcript.isNotEmpty) {
+            socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': 2, 'content': transcript, 'clientMsgId': 't${DateTime.now().microsecondsSinceEpoch}'}}));
+            if (mounted) setState(() => messages.add({'text': transcript, 'mine': true, 'time': '现在'}));
+          }
+        } catch (_) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('语音已发送，转写服务暂不可用')));
+        }
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音发送失败：$e')));
       }

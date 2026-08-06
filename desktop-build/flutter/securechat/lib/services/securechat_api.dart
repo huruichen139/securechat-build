@@ -85,6 +85,11 @@ class SecureChatApi {
     return response.bodyBytes;
   }
 
+  Future<String> transcribe(String id) async {
+    final data = await _json('POST', '/api/stt', body: {'id': id});
+    return (data['text'] ?? '').toString().trim();
+  }
+
   Future<List<Map<String, dynamic>>> friends() async {
     final data = await _json('GET', '/api/friends');
     return ((data['friends'] as List?) ?? const []).cast<Map<String, dynamic>>();

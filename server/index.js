@@ -735,6 +735,48 @@ app.get('/api/files/:id', (req, res) => {
   fs.createReadStream(file.path).pipe(res);
 });
 
+// ---------- 语音转文字（STT）----------
+// 启用方式（任一）：
+//   1) 安装 faster-whisper：pip install faster-whisper，并放置 server/stt_whisper.py
+//   2) whisper.cpp：设置 STT_WHISPER_CLI（可执行路径）+ STT_WHISPER_MODEL（模型路径）
+// 未配置时接口返回 501，客户端降级为纯语音消息。
+
+async function runStt(filePath) {
+  const cli = process.env.STT_WHISPER_CLI;
+  if (cli) {
+    const model = process.env.STT_WHISPER_MODEL || 'ggml-small.bin';
+    try {
+      await execFile(cli, ['-m', model, '-f', filePath, '-l', 'zh', '-otxt', '-np', '-nt'], { timeout: 120000 });
+      return fs.readFileSync(filePath + '.txt', 'utf8').trim() || '…';
+    } catch (e) {
+      throw new Error(String(e && e.stderr || e && e.message || e).slice(0, 200));
+    }
+  }
+  const script = path.join(__dirname, 'stt_whisper.py');
+  if (fs.existsSync(script)) {
+    try {
+      const { stdout } = await execFile('python', [script, filePath], { timeout: 120000 });
+      return String(stdout).trim() || '…';
+    } catch (e) {
+      throw new Error(String(e && e.stderr || e && e.message || e).slice(0, 200));
+    }
+  }
+  throw new Error('未配置 STT_WHISPER_CLI，或缺少 server/stt_whisper.py');
+}
+
+app.post('/api/stt', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = String((req.body && req.body.id) || '');
+  if (!/^[0-9a-f-]{8,}$/.test(id)) return res.status(400).json({ error: '文件 id 无效' });
+  const file = prepare('SELECT * FROM file_transfers WHERE id=? AND from_id=?').get(id, payload.id);
+  if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '语音文件不存在' });
+  runStt(file.path)
+    .then(text => res.json({ ok: true, text }))
+    .catch(e => res.status(501).json({ error: '语音转文字服务未启用：' + e.message }));
+});
+
 app.get('/api/call-recordings', (req, res) => {
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
