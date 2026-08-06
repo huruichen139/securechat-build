@@ -152,3 +152,35 @@ jobs:
           path: |
             desktop-build/flutter/securechat/dist/SecureChat-${{ steps.v.outputs.ver }}-macos.dmg
             desktop-build/flutter/securechat/dist/SecureChat-${{ steps.v.outputs.ver }}-ios.ipa
+
+  # 把三平台产物发布为 GitHub Release 资产（公开，可经 gh-proxy 代理高速下载到本地服务器）。
+  release:
+    runs-on: ubuntu-latest
+    needs: [windows, android, macos-ios]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          ver="${{ github.event.inputs.version || '1.25.0' }}"
+          [ -z "$ver" ] && ver="1.25.0"
+          echo "ver=$ver" >> $GITHUB_OUTPUT
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Publish Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: flutter-rel-${{ steps.v.outputs.ver }}
+          name: "SecureChat ${{ steps.v.outputs.ver }} (Flutter)"
+          body: |
+            Flutter 原生客户端全平台产物：
+            - windows.exe / windows.zip（安装包 / 便携版）
+            - android.apk
+            - macos.dmg
+            - ios.ipa（unsigned）
+          artifacts: "artifacts/*"
+          allowUpdates: true
+          prerelease: false
