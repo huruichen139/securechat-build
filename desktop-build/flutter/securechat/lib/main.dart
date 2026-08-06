@@ -8,6 +8,8 @@ import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'services/securechat_api.dart';
+import 'services/call_service.dart';
+import 'call_page.dart';
 import 'qr_confirm_page.dart';
 
 void main() => runApp(const SecureChatApp());
@@ -228,6 +230,7 @@ class _ChatShellState extends State<ChatShell> {
     {'text': '欢迎使用 SecureChat', 'mine': false, 'time': '09:41'},
   ];
   WebSocketChannel? socket;
+  CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
 
@@ -242,12 +245,31 @@ class _ChatShellState extends State<ChatShell> {
       socket = widget.api.connect();
       socket!.stream.listen((event) {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
-        if (root['type'] != 'msg') return;
-        final p = (root['payload'] as Map).cast<String, dynamic>();
-        if (!mounted) return;
-        setState(() => messages.add({'text': p['content'] ?? '', 'mine': false, 'time': '现在'}));
+        final type = root['type'];
+        if (type == 'msg') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          setState(() => messages.add({'text': p['content'] ?? '', 'mine': false, 'time': '现在'}));
+        } else if (type == 'signal') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final service = calls;
+          if (service != null) {
+            service.onSignal(p['from'] as int?, p['sub'] as String?, p['data']);
+            if (service.status == CallStatus.ringing && mounted) {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: '林默')));
+            }
+          }
+        }
       }, onError: (_) {});
     } catch (_) {}
+  }
+
+  Future<void> _startCall(bool video) async {
+    final service = calls ??= CallService(socket: socket!);
+    if (service.busy) return;
+    await service.startCall(2, withVideo: video);
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: '林默')));
   }
 
   Future<void> _toggleRecording() async {
@@ -276,6 +298,7 @@ class _ChatShellState extends State<ChatShell> {
   @override
   void dispose() {
     socket?.sink.close();
+    calls?.dispose();
     recorder.dispose();
     input.dispose();
     super.dispose();
@@ -303,7 +326,7 @@ class _ChatShellState extends State<ChatShell> {
   Widget _conversationTile(String title, String preview, IconData icon, bool active) => Container(margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: active ? const Color(0xff2a3d49) : Colors.transparent, borderRadius: BorderRadius.circular(12)), child: Row(children: [CircleAvatar(radius: 22, backgroundColor: const Color(0xffd9eee4), child: Icon(icon, color: const Color(0xff168457))), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)), const SizedBox(height: 4), Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff9aabb5), fontSize: 12))])), const Text('09:43', style: TextStyle(color: Color(0xff82919b), fontSize: 10))]));
 
   Widget _conversation() => Column(children: [
-    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), const Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('林默', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), Text('在线', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]), const Spacer(), IconButton(tooltip: '手机扫码登录授权', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api))), icon: const Icon(Icons.qr_code_scanner)), IconButton(tooltip: '语音通话', onPressed: () {}, icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () {}, icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '更多', onPressed: () {}, icon: const Icon(Icons.more_horiz))])),
+    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), const Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('林默', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), Text('在线', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机扫码登录授权', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api))), icon: const Icon(Icons.qr_code_scanner)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '更多', onPressed: () {}, icon: const Icon(Icons.more_horiz))])),
     Expanded(child: ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
     _composer(),
   ]);

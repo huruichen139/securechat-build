@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>SecureChat 需要使用摄像头进行视频通话</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SecureChat 需要使用麦克风进行语音消息和通话</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
