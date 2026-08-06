@@ -1,0 +1,89 @@
+<Window x:Class="SecureChat.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SecureChat 登录"
+        Width="440" Height="560"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#FFFFFF">
+    <Grid Margin="32,24,32,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,20">
+            <Border Width="64" Height="64" CornerRadius="16" Background="#07C160">
+                <TextBlock Text="S" FontSize="36" FontWeight="Bold" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="SecureChat" FontSize="22" FontWeight="SemiBold" Margin="0,10,0,0"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="原生加密聊天客户端" FontSize="12" Foreground="#888888" Margin="0,4,0,0"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <TabControl Grid.Row="1" x:Name="LoginTabs" BorderThickness="0" Background="Transparent">
+            <TabItem Header="密码登录" Padding="0">
+                <StackPanel Margin="0,18,0,0">
+                    <TextBlock Text="用户名 / 邮箱" Foreground="#666666" />
+                    <TextBox x:Name="AccountBox" Height="38" Padding="10,6" Margin="0,4,0,14" FontSize="14"
+                             VerticalContentAlignment="Center" />
+                    <TextBlock Text="密码" Foreground="#666666" />
+                    <PasswordBox x:Name="PasswordBox" Height="38" Padding="10,6" Margin="0,4,0,20" FontSize="14"
+                                 VerticalContentAlignment="Center" KeyDown="PasswordBox_KeyDown" />
+                    <Button x:Name="PasswordLoginBtn" Content="登 录" Height="42" FontSize="15" FontWeight="SemiBold"
+                            Background="#07C160" Foreground="White" BorderThickness="0" Click="PasswordLogin_Click" />
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="验证码登录" Padding="0">
+                <StackPanel Margin="0,18,0,0">
+                    <TextBlock Text="邮箱" Foreground="#666666" />
+                    <Grid Margin="0,4,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="EmailBox" Height="38" Padding="10,6" FontSize="14" VerticalContentAlignment="Center" />
+                        <Button x:Name="SendCodeBtn" Grid.Column="1" Content="获取验证码" Margin="8,0,0,0"
+                                Padding="14,0" Click="SendCode_Click" />
+                    </Grid>
+                    <TextBlock Text="验证码" Foreground="#666666" />
+                    <TextBox x:Name="CodeBox" Height="38" Padding="10,6" Margin="0,4,0,20" FontSize="14"
+                             VerticalContentAlignment="Center" KeyDown="CodeBox_KeyDown" />
+                    <Button x:Name="CodeLoginBtn" Content="登 录" Height="42" FontSize="15" FontWeight="SemiBold"
+                            Background="#07C160" Foreground="White" BorderThickness="0" Click="CodeLogin_Click" />
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="扫码登录" Padding="0">
+                <StackPanel Margin="0,18,0,0">
+                    <TextBlock TextWrapping="Wrap" Foreground="#666666" FontSize="13" LineHeight="20"
+                               Text="在已登录的设备（网页版或手机 App）打开「我 → 扫码登录授权」显示二维码，然后用本机摄像头扫码即可登录。"/>
+                    <Button x:Name="ScanBtn" Content="打开摄像头扫码" Height="42" Margin="0,16,0,0" FontSize="15"
+                            FontWeight="SemiBold" Background="#07C160" Foreground="White" BorderThickness="0"
+                            Click="Scan_Click" />
+                    <TextBlock Text="或直接粘贴授权链接：" Foreground="#888888" FontSize="12" Margin="0,14,0,4" />
+                    <TextBox x:Name="QrTokenBox" Height="38" Padding="10,6" FontSize="12" VerticalContentAlignment="Center"
+                             KeyDown="QrTokenBox_KeyDown" />
+                    <Button x:Name="QrLoginBtn" Content="用粘贴的链接登录" Height="36" Margin="0,10,0,0" FontSize="13"
+                            Background="#E8E8E8" BorderThickness="0" Click="QrLogin_Click" />
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="服务器地址" Foreground="#666666" />
+            <TextBox x:Name="ServerBox" Height="32" Padding="8,4" Margin="0,4,0,10" FontSize="12" />
+            <CheckBox x:Name="AllowCertBox" Content="允许自签名证书（自建服务器）" Margin="0,0,0,10" FontSize="12" />
+            <TextBlock x:Name="ErrorText" Foreground="#E53935" FontSize="12" TextWrapping="Wrap" MinHeight="18" />
+        </StackPanel>
+
+        <Button Grid.Row="3" x:Name="LinkBtn" Content="已有账号？忘记密码请联系管理员" HorizontalAlignment="Center"
+                Background="Transparent" BorderThickness="0" Foreground="#07C160" FontSize="12"
+                Margin="0,12,0,0" Click="OpenWeb_Click" />
+    </Grid>
+</Window>

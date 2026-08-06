@@ -1,0 +1,13 @@
+﻿<Application x:Class="SecureChat.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <SolidColorBrush x:Key="BrandBrush" Color="#07C160" />
+        <SolidColorBrush x:Key="HeaderBrush" Color="#F7F7F7" />
+        <SolidColorBrush x:Key="WindowBg" Color="#EDEDED" />
+        <SolidColorBrush x:Key="BubbleMine" Color="#95EC69" />
+        <SolidColorBrush x:Key="BubbleOther" Color="#FFFFFF" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Application.Resources>
+</Application>
