@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -233,6 +234,8 @@ class _ChatShellState extends State<ChatShell> {
   CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
+  AudioPlayer? voicePlayer;
+  String? playingVoiceId;
 
   @override
   void initState() {
@@ -249,7 +252,11 @@ class _ChatShellState extends State<ChatShell> {
         if (type == 'msg') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
-          setState(() => messages.add({'text': p['content'] ?? '', 'mine': false, 'time': '现在'}));
+          final content = (p['content'] ?? '').toString();
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(content);
+          setState(() => messages.add(voice != null
+              ? {'voiceId': voice[1], 'mine': false, 'time': '现在'}
+              : {'text': content, 'mine': false, 'time': '现在'}));
         } else if (type == 'signal') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           final service = calls;
@@ -281,7 +288,7 @@ class _ChatShellState extends State<ChatShell> {
         final uploaded = await widget.api.uploadVoice(2, await File(path).readAsBytes(), 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a');
         final id = uploaded['id'];
         socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': 2, 'content': '[语音消息:$id]', 'clientMsgId': 'v${DateTime.now().microsecondsSinceEpoch}'}}));
-        setState(() => messages.add({'text': '语音消息', 'mine': true, 'time': '现在'}));
+        setState(() => messages.add({'voiceId': id, 'mine': true, 'time': '现在'}));
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音发送失败：$e')));
       }
@@ -299,6 +306,7 @@ class _ChatShellState extends State<ChatShell> {
   void dispose() {
     socket?.sink.close();
     calls?.dispose();
+    voicePlayer?.dispose();
     recorder.dispose();
     input.dispose();
     super.dispose();
@@ -331,7 +339,61 @@ class _ChatShellState extends State<ChatShell> {
     _composer(),
   ]);
 
-  Widget _bubble(Map<String, dynamic> msg) { final mine = msg['mine'] as bool; return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [if (!mine) const CircleAvatar(radius: 16, backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, size: 17, color: Color(0xff168457))), if (!mine) const SizedBox(width: 8), Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? const Color(0xffb7efd2) : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))), child: Text(msg['text'] as String, style: const TextStyle(color: Color(0xff17212b), fontSize: 14))), const SizedBox(height: 4), Text(msg['time'] as String, style: const TextStyle(color: Color(0xff9aa5ab), fontSize: 10))])]))); }
+  Widget _bubble(Map<String, dynamic> msg) {
+    final mine = msg['mine'] as bool;
+    final voiceId = msg['voiceId'] as String?;
+    return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+      if (!mine) const CircleAvatar(radius: 16, backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, size: 17, color: Color(0xff168457))),
+      if (!mine) const SizedBox(width: 8),
+      Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+        voiceId != null
+            ? _voiceBubble(mine, voiceId)
+            : Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? const Color(0xffb7efd2) : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))), child: Text(msg['text'] as String, style: const TextStyle(color: Color(0xff17212b), fontSize: 14))),
+        const SizedBox(height: 4),
+        Text(msg['time'] as String, style: const TextStyle(color: Color(0xff9aa5ab), fontSize: 10)),
+      ]),
+    ])));
+  }
+
+  Widget _voiceBubble(bool mine, String id) {
+    final playing = playingVoiceId == id;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(color: mine ? const Color(0xffb7efd2) : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: const Color(0xff168457), onPressed: () => _toggleVoice(id)),
+        Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: List.generate(12, (i) {
+          final h = 6.0 + ((i * 7 + (playing ? 3 : 0)) % 16);
+          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? const Color(0xff168457) : const Color(0xff9aa5ab), borderRadius: BorderRadius.circular(2)));
+        })),
+        const SizedBox(width: 8),
+        Text('语音', style: TextStyle(fontSize: 12, color: mine ? const Color(0xff168457) : const Color(0xff5d6a73))),
+      ]),
+    );
+  }
+
+  Future<void> _toggleVoice(String id) async {
+    if (playingVoiceId == id) {
+      await voicePlayer?.stop();
+      if (mounted) setState(() => playingVoiceId = null);
+      return;
+    }
+    await voicePlayer?.dispose();
+    final player = AudioPlayer();
+    player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => playingVoiceId = null);
+    });
+    try {
+      final bytes = await widget.api.fetchFile(id);
+      final path = '${Directory.systemTemp.path}/securechat-voice-$id.m4a';
+      await File(path).writeAsBytes(bytes);
+      await player.play(DeviceFileSource(path));
+      voicePlayer = player;
+      if (mounted) setState(() => playingVoiceId = id);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音播放失败：$e')));
+    }
+  }
 
   Widget _composer() => Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), color: Colors.white, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : null)), IconButton(tooltip: '附件', onPressed: () {}, icon: const Icon(Icons.add_circle_outline)), Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: '输入消息'))), const SizedBox(width: 10), FilledButton(onPressed: () { final text = input.text.trim(); if (text.isEmpty) return; socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': 2, 'content': text, 'clientMsgId': 'f${DateTime.now().microsecondsSinceEpoch}'}})); setState(() { messages.add({'text': text, 'mine': true, 'time': '现在'}); input.clear(); }); }, child: const Text('发送'))]));
 }

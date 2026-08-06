@@ -76,6 +76,15 @@ class SecureChatApi {
     return data;
   }
 
+  Future<List<int>> fetchFile(String id) async {
+    final uri = _uri('/api/files/$id');
+    final response = await http.get(uri, headers: {if (token != null) 'Authorization': 'Bearer $token'});
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('文件获取失败 (${response.statusCode})');
+    }
+    return response.bodyBytes;
+  }
+
   Future<List<Map<String, dynamic>>> friends() async {
     final data = await _json('GET', '/api/friends');
     return ((data['friends'] as List?) ?? const []).cast<Map<String, dynamic>>();
