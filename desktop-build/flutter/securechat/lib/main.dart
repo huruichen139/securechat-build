@@ -1,4 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:record/record.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+import 'services/securechat_api.dart';
+import 'qr_confirm_page.dart';
 
 void main() => runApp(const SecureChatApp());
 
@@ -35,10 +45,74 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   int mode = 0;
+  final api = SecureChatApi();
+  Timer? qrTimer;
+  String? qrText;
+  bool busy = false;
+  String? error;
   final account = TextEditingController();
   final password = TextEditingController();
   final email = TextEditingController();
   final code = TextEditingController();
+
+  @override
+  void dispose() {
+    qrTimer?.cancel();
+    account.dispose();
+    password.dispose();
+    email.dispose();
+    code.dispose();
+    super.dispose();
+  }
+
+  Future<void> login() async {
+    if (busy) return;
+    setState(() { busy = true; error = null; });
+    try {
+      if (mode == 0) {
+        await api.login(account.text.trim(), password.text);
+      } else if (mode == 1) {
+        await api.loginByCode(email.text.trim(), code.text.trim());
+      } else {
+        if (qrText == null) await beginQr();
+        return;
+      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api)));
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> beginQr() async {
+    try {
+      final data = await api.createQrLogin();
+      final token = data['token'] as String?;
+      final text = data['qrText'] as String?;
+      if (token == null || text == null) throw StateError('二维码创建失败');
+      setState(() { qrText = text; error = null; });
+      qrTimer?.cancel();
+      qrTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final status = await api.qrStatus(token);
+          if (status['status'] == 'confirmed') {
+            qrTimer?.cancel();
+            final result = await api.consumeQrLogin(token);
+            if (!mounted) return;
+            if (result['status'] != 'ok') throw StateError('二维码尚未确认');
+            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api)));
+          }
+        } catch (e) {
+          qrTimer?.cancel();
+          if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,15 +161,16 @@ class _LoginPageState extends State<LoginPage> {
         Row(children: [Expanded(child: TextField(controller: code, decoration: const InputDecoration(labelText: '验证码'))), const SizedBox(width: 10), OutlinedButton(onPressed: () {}, child: const Text('获取验证码'))]),
       ] else ...[
         Center(child: Column(children: [
-          Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: const Color(0xffdbe4e1)), borderRadius: BorderRadius.circular(16)), child: const _QrPlaceholder()),
+          Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: const Color(0xffdbe4e1)), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
           const SizedBox(height: 14),
           const Text('请使用已登录的手机扫描此二维码', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           const Text('手机确认后，电脑端会自动登录', style: TextStyle(color: Color(0xff77818a), fontSize: 12)),
         ])),
       ],
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12))),
       const SizedBox(height: 24),
-      SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const ChatShell())), child: Text(mode == 2 ? '等待手机确认' : '登录'))),
+      SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: busy ? null : (mode == 2 ? beginQr : login), child: Text(busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'))),
       const SizedBox(height: 18),
       const Center(child: Text('SecureChat 1.25.0', style: TextStyle(color: Color(0xffa3adb3), fontSize: 12))),
     ]);
@@ -140,7 +215,8 @@ class _QrPainter extends CustomPainter {
 }
 
 class ChatShell extends StatefulWidget {
-  const ChatShell({super.key});
+  const ChatShell({super.key, required this.api});
+  final SecureChatApi api;
   @override
   State<ChatShell> createState() => _ChatShellState();
 }
@@ -150,9 +226,60 @@ class _ChatShellState extends State<ChatShell> {
   final input = TextEditingController();
   final messages = <Map<String, dynamic>>[
     {'text': '欢迎使用 SecureChat', 'mine': false, 'time': '09:41'},
-    {'text': '新的客户端看起来怎么样？', 'mine': false, 'time': '09:42'},
-    {'text': '更清爽了，通话和语音也放在这里。', 'mine': true, 'time': '09:43'},
   ];
+  WebSocketChannel? socket;
+  final recorder = AudioRecorder();
+  bool recording = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _connect();
+  }
+
+  void _connect() {
+    try {
+      socket = widget.api.connect();
+      socket!.stream.listen((event) {
+        final root = jsonDecode(event as String) as Map<String, dynamic>;
+        if (root['type'] != 'msg') return;
+        final p = (root['payload'] as Map).cast<String, dynamic>();
+        if (!mounted) return;
+        setState(() => messages.add({'text': p['content'] ?? '', 'mine': false, 'time': '现在'}));
+      }, onError: (_) {});
+    } catch (_) {}
+  }
+
+  Future<void> _toggleRecording() async {
+    if (recording) {
+      final path = await recorder.stop();
+      setState(() => recording = false);
+      if (path == null) return;
+      try {
+        final uploaded = await widget.api.uploadVoice(2, await File(path).readAsBytes(), 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a');
+        final id = uploaded['id'];
+        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': 2, 'content': '[语音消息:$id]', 'clientMsgId': 'v${DateTime.now().microsecondsSinceEpoch}'}}));
+        setState(() => messages.add({'text': '语音消息', 'mine': true, 'time': '现在'}));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音发送失败：$e')));
+      }
+      return;
+    }
+    if (!await recorder.hasPermission()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('需要麦克风权限')));
+      return;
+    }
+    await recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100), path: '${Directory.systemTemp.path}/securechat-${DateTime.now().millisecondsSinceEpoch}.m4a');
+    setState(() => recording = true);
+  }
+
+  @override
+  void dispose() {
+    socket?.sink.close();
+    recorder.dispose();
+    input.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,12 +303,12 @@ class _ChatShellState extends State<ChatShell> {
   Widget _conversationTile(String title, String preview, IconData icon, bool active) => Container(margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: active ? const Color(0xff2a3d49) : Colors.transparent, borderRadius: BorderRadius.circular(12)), child: Row(children: [CircleAvatar(radius: 22, backgroundColor: const Color(0xffd9eee4), child: Icon(icon, color: const Color(0xff168457))), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)), const SizedBox(height: 4), Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff9aabb5), fontSize: 12))])), const Text('09:43', style: TextStyle(color: Color(0xff82919b), fontSize: 10))]));
 
   Widget _conversation() => Column(children: [
-    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), const Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('林默', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), Text('在线', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]), const Spacer(), IconButton(tooltip: '语音通话', onPressed: () {}, icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () {}, icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '更多', onPressed: () {}, icon: const Icon(Icons.more_horiz))])),
+    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), const Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('林默', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), Text('在线', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]), const Spacer(), IconButton(tooltip: '手机扫码登录授权', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api))), icon: const Icon(Icons.qr_code_scanner)), IconButton(tooltip: '语音通话', onPressed: () {}, icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () {}, icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '更多', onPressed: () {}, icon: const Icon(Icons.more_horiz))])),
     Expanded(child: ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
     _composer(),
   ]);
 
   Widget _bubble(Map<String, dynamic> msg) { final mine = msg['mine'] as bool; return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [if (!mine) const CircleAvatar(radius: 16, backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, size: 17, color: Color(0xff168457))), if (!mine) const SizedBox(width: 8), Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? const Color(0xffb7efd2) : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))), child: Text(msg['text'] as String, style: const TextStyle(color: Color(0xff17212b), fontSize: 14))), const SizedBox(height: 4), Text(msg['time'] as String, style: const TextStyle(color: Color(0xff9aa5ab), fontSize: 10))])]))); }
 
-  Widget _composer() => Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), color: Colors.white, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [IconButton(tooltip: '语音消息', onPressed: () {}, icon: const Icon(Icons.mic_none_rounded)), IconButton(tooltip: '附件', onPressed: () {}, icon: const Icon(Icons.add_circle_outline)), Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: '输入消息'))), const SizedBox(width: 10), FilledButton(onPressed: () { if (input.text.trim().isEmpty) return; setState(() { messages.add({'text': input.text.trim(), 'mine': true, 'time': '现在'}); input.clear(); }); }, child: const Text('发送'))]));
+  Widget _composer() => Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), color: Colors.white, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : null)), IconButton(tooltip: '附件', onPressed: () {}, icon: const Icon(Icons.add_circle_outline)), Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: '输入消息'))), const SizedBox(width: 10), FilledButton(onPressed: () { final text = input.text.trim(); if (text.isEmpty) return; socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': 2, 'content': text, 'clientMsgId': 'f${DateTime.now().microsecondsSinceEpoch}'}})); setState(() { messages.add({'text': text, 'mine': true, 'time': '现在'}); input.clear(); }); }, child: const Text('发送'))]));
 }
