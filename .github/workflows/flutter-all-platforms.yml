@@ -1,21 +1,16 @@
-name: Build Flutter All Platforms
+﻿name: Build Flutter All Platforms
 
-# 用 GitHub Actions 官方 runner 构建 Flutter 原生客户端的全平台产物：
-#   - windows : SecureChat-<ver>-windows.exe（Inno Setup 安装包）+ -windows.zip（便携版）
-#   - android : SecureChat-<ver>-android.apk
-#   - macos   : SecureChat-<ver>-macos.dmg 与 -macos-arm64.dmg
-#   - ios     : SecureChat-<ver>-ios.ipa（unsigned，本地 Xcode 安装）
-# 产物命名匹配服务器 PLATFORM_FILES（desktop-build/flutter/securechat/tools/installer.iss 等）。
-# 版本号 <ver> 须与服务器 version.json 的 latest 一致。
-# 触发：手动（workflow_dispatch）或推 tag flutter-all-*。产物在 Actions → Artifacts 下载。
-
+# 鐢?GitHub Actions 瀹樻柟 runner 鏋勫缓 Flutter 鍘熺敓瀹㈡埛绔殑鍏ㄥ钩鍙颁骇鐗╋細
+#   - windows : SecureChat-<ver>-windows.exe锛圛nno Setup 瀹夎鍖咃級+ -windows.zip锛堜究鎼虹増锛?#   - android : SecureChat-<ver>-android.apk
+#   - macos   : SecureChat-<ver>-macos.dmg 涓?-macos-arm64.dmg
+#   - ios     : SecureChat-<ver>-ios.ipa锛坲nsigned锛屾湰鍦?Xcode 瀹夎锛?# 浜х墿鍛藉悕鍖归厤鏈嶅姟鍣?PLATFORM_FILES锛坉esktop-build/flutter/securechat/tools/installer.iss 绛夛級銆?# 鐗堟湰鍙?<ver> 椤讳笌鏈嶅姟鍣?version.json 鐨?latest 涓€鑷淬€?# 瑙﹀彂锛氭墜鍔紙workflow_dispatch锛夋垨鎺?tag flutter-all-*銆備骇鐗╁湪 Actions 鈫?Artifacts 涓嬭浇銆?
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: '产物版本号（须与服务器 version.json 的 latest 一致）'
+        description: '浜х墿鐗堟湰鍙凤紙椤讳笌鏈嶅姟鍣?version.json 鐨?latest 涓€鑷达級'
         required: true
-        default: '1.25.0'
+        default: '1.38.9'
   push:
     tags: [ 'flutter-all-*' ]
 
@@ -27,8 +22,8 @@ jobs:
       - id: v
         shell: pwsh
         run: |
-          $ver = "${{ github.event.inputs.version || '1.25.0' }}".Trim()
-          if ($ver -eq '') { $ver = '1.25.0' }
+          $ver = "${{ github.event.inputs.version || '1.38.9' }}".Trim()
+          if ($ver -eq '') { $ver = '1.38.9' }
           "ver=$ver" >> $env:GITHUB_OUTPUT
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -75,8 +70,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: v
         run: |
-          ver="${{ github.event.inputs.version || '1.25.0' }}"
-          [ -z "$ver" ] && ver="1.25.0"
+          ver="${{ github.event.inputs.version || '1.38.9' }}"
+          [ -z "$ver" ] && ver="1.38.9"
           echo "ver=$ver" >> $GITHUB_OUTPUT
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -111,8 +106,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: v
         run: |
-          ver="${{ github.event.inputs.version || '1.25.0' }}"
-          [ -z "$ver" ] && ver="1.25.0"
+          ver="${{ github.event.inputs.version || '1.38.9' }}"
+          [ -z "$ver" ] && ver="1.38.9"
           echo "ver=$ver" >> $GITHUB_OUTPUT
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -153,8 +148,7 @@ jobs:
             desktop-build/flutter/securechat/dist/SecureChat-${{ steps.v.outputs.ver }}-macos.dmg
             desktop-build/flutter/securechat/dist/SecureChat-${{ steps.v.outputs.ver }}-ios.ipa
 
-  # 把三平台产物发布为 GitHub Release 资产（公开，可经 gh-proxy 代理高速下载到本地服务器）。
-  release:
+  # 鎶婁笁骞冲彴浜х墿鍙戝竷涓?GitHub Release 璧勪骇锛堝叕寮€锛屽彲缁?gh-proxy 浠ｇ悊楂橀€熶笅杞藉埌鏈湴鏈嶅姟鍣級銆?  release:
     runs-on: ubuntu-latest
     needs: [windows, android, macos-ios]
     permissions:
@@ -163,8 +157,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: v
         run: |
-          ver="${{ github.event.inputs.version || '1.25.0' }}"
-          [ -z "$ver" ] && ver="1.25.0"
+          ver="${{ github.event.inputs.version || '1.38.9' }}"
+          [ -z "$ver" ] && ver="1.38.9"
           echo "ver=$ver" >> $GITHUB_OUTPUT
       - uses: actions/download-artifact@v4
         with:
@@ -176,11 +170,9 @@ jobs:
           tag: flutter-rel-${{ steps.v.outputs.ver }}
           name: "SecureChat ${{ steps.v.outputs.ver }} (Flutter)"
           body: |
-            Flutter 原生客户端全平台产物：
-            - windows.exe / windows.zip（安装包 / 便携版）
+            Flutter 鍘熺敓瀹㈡埛绔叏骞冲彴浜х墿锛?            - windows.exe / windows.zip锛堝畨瑁呭寘 / 渚挎惡鐗堬級
             - android.apk
             - macos.dmg
-            - ios.ipa（unsigned）
-          artifacts: "artifacts/*"
+            - ios.ipa锛坲nsigned锛?          artifacts: "artifacts/*"
           allowUpdates: true
           prerelease: false
