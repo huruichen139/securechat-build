@@ -34,7 +34,8 @@ class _CallPageState extends State<CallPage> {
   void _onChange() {
     if (mounted) {
       setState(() {});
-      if (widget.service.status == CallStatus.idle && Navigator.of(context).canPop()) {
+      final s = widget.service.status;
+      if ((s == CallStatus.idle || s == CallStatus.ended) && Navigator.of(context).canPop()) {
         final reason = widget.service.endReason;
         Navigator.of(context).pop();
         if (reason != null && reason.isNotEmpty) {

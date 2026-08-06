@@ -151,7 +151,7 @@ app.post('/api/email/code', async (req, res) => {
   }
   // 邮箱已被占用？（register/bind 时已占用则拒绝；login 时需已注册）
   const taken = prepare('SELECT id FROM users WHERE email=?').get(email);
-  if (purpose === 'login') {
+  if (purpose === 'login' || purpose === 'reset') {
     if (!taken) return res.status(400).json({ error: '该邮箱未注册' });
   } else if (taken) {
     return res.status(409).json({ error: '该邮箱已被绑定' });
@@ -296,6 +296,23 @@ app.post('/api/login/code', (req, res) => {
   }
   const token = signToken(user);
   res.json({ token, user: publicUser(user) });
+});
+
+// 忘记密码：POST /api/password/reset { email, code, newPassword }
+// 先向邮箱发送 purpose=reset 的验证码，再凭邮箱+验证码重置密码。
+app.post('/api/password/reset', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { email, code, newPassword } = req.body || {};
+  if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式错误' });
+  if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
+  if (!newPassword || String(newPassword).length < 6) return res.status(400).json({ error: '新密码至少6位' });
+  const codeErr = checkCode(email, code, 'reset');
+  if (codeErr) return res.status(400).json({ error: codeErr });
+  const user = prepare('SELECT id FROM users WHERE email=?').get(email);
+  if (!user) return res.status(400).json({ error: '该邮箱未注册' });
+  const hash = bcrypt.hashSync(String(newPassword), 10);
+  prepare('UPDATE users SET password=? WHERE id=?').run(hash, user.id);
+  res.json({ ok: true });
 });
 
 // 扫码登录（微信式）：未登录端（电脑）生成二维码 → 已登录端（手机）扫码确认 → 电脑端轮询后登录。
@@ -723,6 +740,31 @@ app.post('/api/files', express.raw({ type: 'application/octet-stream', limit: '1
     try { fs.unlinkSync(filePath); } catch {}
     res.status(500).json({ error: '文件保存失败' });
   }
+});
+
+// 文件仓库：列出当前用户收发过的文件（云端存储，随取随用，不解压）
+app.get('/api/files', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare('SELECT id,from_id,to_id,name,mime,size,created_at FROM file_transfers WHERE from_id=? OR to_id=? ORDER BY created_at DESC LIMIT 500').all(payload.id, payload.id);
+  const files = [];
+  const meId = payload.id;
+  for (const r of rows) {
+    if (!fs.existsSync(path.join(FILES_DIR, r.id + '.bin'))) continue;
+    const otherId = r.from_id === meId ? r.to_id : r.from_id;
+    const other = otherId ? prepare('SELECT username,nickname FROM users WHERE id=?').get(otherId) : null;
+    files.push({
+      id: r.id,
+      name: r.name,
+      mime: r.mime,
+      size: r.size,
+      kind: r.from_id === meId ? 'sent' : 'received',
+      peer: other ? (other.nickname || other.username) : '未知',
+      time: r.created_at,
+    });
+  }
+  res.json({ files });
 });
 
 app.get('/api/files/:id', (req, res) => {

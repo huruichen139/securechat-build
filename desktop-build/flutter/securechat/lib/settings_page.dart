@@ -358,7 +358,7 @@ class _SettingsPageState extends State<SettingsPage> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.info_outline),
           title: const Text('版本'),
-          trailing: const Text('1.40.1', style: TextStyle(color: Colors.grey)),
+          trailing: const Text('1.42.0', style: TextStyle(color: Colors.grey)),
         ),
       ),
     ]);

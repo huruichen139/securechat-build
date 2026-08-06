@@ -92,6 +92,26 @@ class SecureChatApi {
     return data;
   }
 
+  Future<void> sendResetCode(String email) async {
+    await _json('POST', '/api/email/code', body: {'email': email, 'purpose': 'reset'}, auth: false);
+  }
+
+  Future<void> resetPassword(String email, String code, String newPassword) async {
+    await _json('POST', '/api/password/reset', body: {'email': email, 'code': code, 'newPassword': newPassword}, auth: false);
+  }
+
+  Future<String> aiChat({required String baseUrl, required String apiKey, required String model, required List<Map<String, dynamic>> messages}) async {
+    final data = await _json('POST', '/api/ai/chat', body: {'baseUrl': baseUrl, 'apiKey': apiKey, 'model': model, 'messages': messages});
+    final choices = data['choices'];
+    if (choices is List && choices.isNotEmpty) {
+      final content = choices.first?['message']?['content'];
+      if (content is String && content.isNotEmpty) return content;
+    }
+    final err = data['error'];
+    if (err is String && err.isNotEmpty) throw StateError(err);
+    throw StateError('AI 无返回');
+  }
+
   Future<Map<String, dynamic>> createQrLogin() => _json('POST', '/api/login/qr/create', auth: false);
 
   Future<Map<String, dynamic>> qrStatus(String qrToken) => _json('GET', '/api/login/qr/status', auth: false, query: {'token': qrToken});
@@ -122,6 +142,11 @@ class SecureChatApi {
       throw StateError('文件获取失败 (${response.statusCode})');
     }
     return response.bodyBytes;
+  }
+
+  Future<List<Map<String, dynamic>>> myFiles() async {
+    final data = await _json('GET', '/api/files');
+    return ((data['files'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
   Future<String> transcribe(String id) async {

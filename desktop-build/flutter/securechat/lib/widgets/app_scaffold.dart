@@ -27,8 +27,8 @@ class AppScaffold extends StatelessWidget {
             Positioned.fill(
               child: MaterialOverlay(effect: config.effect, color: materialColor),
             ),
-            if (overlay != null) Positioned.fill(child: overlay!),
             Positioned.fill(child: _BodySurface(config: config, theme: theme, child: body)),
+            if (overlay != null) Positioned.fill(child: overlay!),
           ],
         );
       },
@@ -45,14 +45,30 @@ class _BodySurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (config.blurPanel) {
+    double sigma = 0;
+    final eff = config.effect;
+    if (eff == WindowEffectKind.acrylic ||
+        eff == WindowEffectKind.blur ||
+        eff == WindowEffectKind.mica ||
+        eff == WindowEffectKind.smoke ||
+        eff == WindowEffectKind.frosted ||
+        eff == WindowEffectKind.etched) {
+      sigma = 18;
+    } else if (eff == WindowEffectKind.metallic) {
+      sigma = 8;
+    } else if (eff == WindowEffectKind.shadow) {
+      sigma = 30;
+    }
+    if (config.blurPanel) sigma = 22;
+    if (sigma > 0) {
+      final dark = theme.isDark;
       return ClipRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
           child: ColoredBox(
-            color: theme.isDark
-                ? const Color(0x6628303a)
-                : const Color(0x66ffffff),
+            color: dark
+                ? (eff == WindowEffectKind.mica ? const Color(0x332a323c) : const Color(0x6628303a))
+                : (eff == WindowEffectKind.mica ? const Color(0x33ffffff) : const Color(0x66ffffff)),
             child: child,
           ),
         ),
@@ -60,7 +76,7 @@ class _BodySurface extends StatelessWidget {
     }
     return ColoredBox(
       color: (theme.panel)
-          .withValues(alpha: theme.isDark ? 0.85 : 0.88),
+          .withValues(alpha: theme.isDark ? 0.9 : 0.92),
       child: child,
     );
   }
