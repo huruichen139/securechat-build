@@ -1,6 +1,6 @@
 {
-  "current": "1.38.9",
-  "latest": "1.38.9",
-  "releaseNotes": "Flutter 原生客户端全平台重构：登录/聊天/语音消息/音视频通话/语音转文字",
+  "current": "1.40.1",
+  "latest": "1.40.1",
+  "releaseNotes": "Flutter 原生客户端：毛玻璃/云母等多材质 UI、多主题、自定义背景、功能中心、验证码修复",
   "updatedAt": 0
 }

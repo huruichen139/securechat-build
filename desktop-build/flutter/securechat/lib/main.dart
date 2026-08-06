@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,41 +7,62 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'services/securechat_api.dart';
+import 'services/app_config.dart';
 import 'services/call_service.dart';
+import 'widgets/app_scaffold.dart';
+import 'widgets/window_effect.dart';
 import 'call_page.dart';
 import 'qr_confirm_page.dart';
+import 'settings_page.dart';
+import 'features_center.dart';
 
-void main() => runApp(const SecureChatApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final config = await AppConfig.init();
+  if (Platform.isWindows) {
+    try {
+      await windowManager.ensureInitialized();
+      await windowManager.setMinimumSize(const Size(920, 640));
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+    } catch (_) {}
+  }
+  runApp(SecureChatApp(config: config));
+}
 
-class SecureChatApp extends StatelessWidget {
-  const SecureChatApp({super.key});
+class SecureChatApp extends StatefulWidget {
+  const SecureChatApp({super.key, required this.config});
+  final AppConfig config;
+  @override
+  State<SecureChatApp> createState() => _SecureChatAppState();
+}
 
+class _SecureChatAppState extends State<SecureChatApp> {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'SecureChat',
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xfff5f7f9),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff18a66a)),
-        fontFamily: 'Segoe UI',
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xfff1f4f6),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        ),
-      ),
-      home: const LoginPage(),
+    final config = widget.config;
+    return AnimatedBuilder(
+      animation: config,
+      builder: (context, _) {
+        final t = config.theme;
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'SecureChat',
+          theme: t.theme(),
+          darkTheme: config.dark.theme(),
+          themeMode: config.mode == ThemeModeEx.dark ? ThemeMode.dark : ThemeMode.light,
+          home: LoginPage(config: config),
+        );
+      },
     );
   }
 }
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, required this.config});
+  final AppConfig config;
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -50,6 +71,8 @@ class _LoginPageState extends State<LoginPage> {
   int mode = 0;
   final api = SecureChatApi();
   Timer? qrTimer;
+  Timer? codeTimer;
+  int countdown = 0;
   String? qrText;
   bool busy = false;
   String? error;
@@ -61,11 +84,40 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     qrTimer?.cancel();
+    codeTimer?.cancel();
     account.dispose();
     password.dispose();
     email.dispose();
     code.dispose();
     super.dispose();
+  }
+
+  Future<void> sendEmailCode() async {
+    final em = email.text.trim();
+    if (em.isEmpty) {
+      if (mounted) setState(() => error = '请先输入邮箱地址');
+      return;
+    }
+    if (countdown > 0) return;
+    setState(() { busy = true; error = null; });
+    try {
+      await api.sendEmailCode(em);
+      if (!mounted) return;
+      countdown = 60;
+      error = '验证码已发送，请查收邮箱';
+      codeTimer?.cancel();
+      codeTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) { t.cancel(); return; }
+        setState(() {
+          countdown--;
+          if (countdown <= 0) t.cancel();
+        });
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Future<void> login() async {
@@ -81,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api)));
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
     } finally {
@@ -105,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
             final result = await api.consumeQrLogin(token);
             if (!mounted) return;
             if (result['status'] != 'ok') throw StateError('二维码尚未确认');
-            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api)));
+            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
           }
         } catch (e) {
           qrTimer?.cancel();
@@ -119,26 +171,35 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(children: [
-        Positioned.fill(child: Container(color: const Color(0xff10201d))),
-        Align(
-          alignment: Alignment.center,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980, maxHeight: 620),
-            child: LayoutBuilder(builder: (context, box) {
-              final compact = box.maxWidth < 700;
-              return Container(
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 35, offset: Offset(0, 18))]),
-                child: Row(children: [
-                  if (!compact) const Expanded(child: WelcomePanel()),
-                  Expanded(child: Padding(padding: EdgeInsets.all(compact ? 28 : 58), child: _form(context))),
-                ]),
-              );
-            }),
-          ),
-        ),
-      ]),
+    final config = widget.config;
+    return AnimatedBuilder(
+      animation: config,
+      builder: (context, _) {
+        final glass = config.mode == ThemeModeEx.glass || config.effect != WindowEffectKind.none;
+        return Scaffold(
+          body: Stack(children: [
+            if (glass) Positioned.fill(child: AppScaffold(config: config, body: const SizedBox.expand())),
+            Positioned.fill(child: BgLayer(theme: config.theme, config: config)),
+            Align(
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 980, maxHeight: 620),
+                child: LayoutBuilder(builder: (context, box) {
+                  final compact = box.maxWidth < 700;
+                  return Container(
+                    decoration: BoxDecoration(color: config.theme.card, borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 35, offset: Offset(0, 18))]),
+                    child: Row(children: [
+                      if (!compact) const Expanded(child: WelcomePanel()),
+                      Expanded(child: Padding(padding: EdgeInsets.all(compact ? 28 : 58), child: _form(context))),
+                    ]),
+                  );
+                }),
+              ),
+            ),
+            const Positioned(top: 16, right: 16, child: Icon(Icons.security, color: Color(0xffffffff), size: 18)),
+          ]),
+        );
+      },
     );
   }
 
@@ -161,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
       ] else if (mode == 1) ...[
         TextField(controller: email, decoration: const InputDecoration(labelText: '邮箱地址')),
         const SizedBox(height: 12),
-        Row(children: [Expanded(child: TextField(controller: code, decoration: const InputDecoration(labelText: '验证码'))), const SizedBox(width: 10), OutlinedButton(onPressed: () {}, child: const Text('获取验证码'))]),
+        Row(children: [Expanded(child: TextField(controller: code, decoration: const InputDecoration(labelText: '验证码'))), const SizedBox(width: 10), OutlinedButton(onPressed: busy ? null : sendEmailCode, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))]),
       ] else ...[
         Center(child: Column(children: [
           Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: const Color(0xffdbe4e1)), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
@@ -175,7 +236,7 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 24),
       SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: busy ? null : (mode == 2 ? beginQr : login), child: Text(busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'))),
       const SizedBox(height: 18),
-      const Center(child: Text('SecureChat 1.25.0', style: TextStyle(color: Color(0xffa3adb3), fontSize: 12))),
+      const Center(child: Text('SecureChat 1.40.1', style: TextStyle(color: Color(0xffa3adb3), fontSize: 12))),
     ]);
   }
 
@@ -218,8 +279,9 @@ class _QrPainter extends CustomPainter {
 }
 
 class ChatShell extends StatefulWidget {
-  const ChatShell({super.key, required this.api});
+  const ChatShell({super.key, required this.api, required this.config});
   final SecureChatApi api;
+  final AppConfig config;
   @override
   State<ChatShell> createState() => _ChatShellState();
 }
@@ -413,13 +475,24 @@ class _ChatShellState extends State<ChatShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(backgroundColor: const Color(0xfff4f6f8), body: SafeArea(child: LayoutBuilder(builder: (context, c) {
-      final desktop = c.maxWidth >= 760;
-      return Row(children: [
-        if (desktop) _sidebar(c.maxWidth),
-        Expanded(child: _conversation()),
-      ]);
-    })));
+    final config = widget.config;
+    return AnimatedBuilder(
+      animation: config,
+      builder: (context, _) {
+        return AppScaffold(
+          config: config,
+          body: SafeArea(
+            child: LayoutBuilder(builder: (context, c) {
+              final desktop = c.maxWidth >= 760;
+              return Row(children: [
+                if (desktop) _sidebar(c.maxWidth),
+                Expanded(child: _conversation()),
+              ]);
+            }),
+          ),
+        );
+      },
+    );
   }
 
   Widget _sidebar(double width) => SizedBox(width: width < 1000 ? 290 : 330, child: Container(color: const Color(0xff17212b), child: Column(children: [
@@ -430,8 +503,41 @@ class _ChatShellState extends State<ChatShell> {
       for (var i = 0; i < conversations.length; i++)
         _conversationTile(i, conversations[i]),
     ])),
-    const Padding(padding: EdgeInsets.all(18), child: Row(children: [Icon(Icons.settings_outlined, color: Color(0xff9aabb5), size: 19), SizedBox(width: 10), Text('设置', style: TextStyle(color: Color(0xff9aabb5)))])),
+    const Divider(height: 1, thickness: 1, color: Color(0xff20262e)),
+    _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: const Color(0xff9aabb5)),
+    _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: const Color(0xff9aabb5)),
   ])));
+
+  Widget _navRow(IconData icon, String label, VoidCallback onTap, {required Color color}) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(children: [
+            Icon(icon, color: color, size: 19),
+            const SizedBox(width: 10),
+            Text(label, style: TextStyle(color: const Color(0xff9aabb5))),
+          ]),
+        ),
+      );
+
+  void _openFeatures(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FeaturesSheet(),
+    );
+  }
+
+  Widget _contextMenu() => PopupMenuButton<int>(
+        icon: const Icon(Icons.more_horiz),
+        onSelected: (v) {},
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 0, child: Text('发起群聊')),
+          PopupMenuItem(value: 1, child: Text('发起音视频会议')),
+          PopupMenuItem(value: 2, child: Text('添加好友')),
+          PopupMenuItem(value: 3, child: Text('查看聊天资料')),
+        ],
+      );
 
   Widget _conversationTile(int index, Map<String, dynamic> conv) => InkWell(
         onTap: () => _openConversation(index),
@@ -447,7 +553,7 @@ class _ChatShellState extends State<ChatShell> {
       );
 
   Widget _conversation() => Column(children: [
-    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机扫码登录授权', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api))), icon: const Icon(Icons.qr_code_scanner)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '更多', onPressed: () {}, icon: const Icon(Icons.more_horiz))])),
+    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机扫码登录授权', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api))), icon: const Icon(Icons.qr_code_scanner)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), _contextMenu()])),
     Expanded(child: messages.isEmpty ? const Center(child: Text('还没有消息', style: TextStyle(color: Color(0xff9aa5ab)))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
     _composer(),
   ]);
@@ -533,5 +639,58 @@ class _ChatShellState extends State<ChatShell> {
     final to = conv['id'] as int;
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': text, 'clientMsgId': 'f${DateTime.now().microsecondsSinceEpoch}'}}));
     setState(() { messages.add({'text': text, 'mine': true, 'time': '现在'}); });
+  }
+}
+
+class _FeaturesSheet extends StatelessWidget {
+  const _FeaturesSheet();
+
+  Future<void> _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = <(String, IconData, Widget)>[
+      ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
+      ('待办清单', Icons.checklist_rounded, const TodoPage()),
+      ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
+      ('我的文件', Icons.folder_outlined, const FileCenterPage()),
+      ('我的收藏', Icons.favorite_outline, const FavoritesPage()),
+      ('定时提醒', Icons.alarm_outlined, const ReminderPage()),
+      ('在线状态', Icons.mood_outlined, const MoodStatusPage()),
+    ];
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Container(
+        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, -4))]),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('功能中心', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: theme.colorScheme.onSurface)),
+          const SizedBox(height: 14),
+          Wrap(spacing: 14, runSpacing: 14, children: [
+            for (final e in entries)
+              _gridItem(context, e.$1, e.$2, () => _push(context, e.$3)),
+          ]),
+          const SizedBox(height: 6),
+        ]),
+      ),
+    );
+  }
+
+  Widget _gridItem(BuildContext context, String label, IconData icon, VoidCallback onTap) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 84,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(color: scheme.secondaryContainer.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(16)),
+        child: Column(children: [
+          Icon(icon, color: const Color(0xff18a66a), size: 26),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ]),
+      ),
+    );
   }
 }
