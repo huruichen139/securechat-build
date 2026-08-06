@@ -15,13 +15,14 @@ import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
 import 'call_page.dart';
-import 'qr_confirm_page.dart';
 import 'settings_page.dart';
 import 'features_center.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = await AppConfig.init();
+  final api = SecureChatApi();
+  await api.restoreSession();
   if (Platform.isWindows) {
     try {
       await windowManager.ensureInitialized();
@@ -29,12 +30,13 @@ Future<void> main() async {
       await windowManager.setTitleBarStyle(TitleBarStyle.normal);
     } catch (_) {}
   }
-  runApp(SecureChatApp(config: config));
+  runApp(SecureChatApp(config: config, api: api));
 }
 
 class SecureChatApp extends StatefulWidget {
-  const SecureChatApp({super.key, required this.config});
+  const SecureChatApp({super.key, required this.config, required this.api});
   final AppConfig config;
+  final SecureChatApi api;
   @override
   State<SecureChatApp> createState() => _SecureChatAppState();
 }
@@ -53,7 +55,7 @@ class _SecureChatAppState extends State<SecureChatApp> {
           theme: t.theme(),
           darkTheme: config.dark.theme(),
           themeMode: config.mode == ThemeModeEx.dark ? ThemeMode.dark : ThemeMode.light,
-          home: LoginPage(config: config),
+          home: widget.api.isLoggedIn ? ChatShell(api: widget.api, config: config) : LoginPage(config: config),
         );
       },
     );
@@ -236,7 +238,7 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 24),
       SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: busy ? null : (mode == 2 ? beginQr : login), child: Text(busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'))),
       const SizedBox(height: 18),
-      const Center(child: Text('SecureChat 1.40.1', style: TextStyle(color: Color(0xffa3adb3), fontSize: 12))),
+      const Center(child: Text('SecureChat 1.41.2', style: TextStyle(color: Color(0xffa3adb3), fontSize: 12))),
     ]);
   }
 
@@ -299,6 +301,7 @@ class _ChatShellState extends State<ChatShell> {
   String? playingVoiceId;
   int? myId;
   String? selName;
+  final _sentIds = <String>{};
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -380,6 +383,11 @@ class _ChatShellState extends State<ChatShell> {
         if (type == 'msg') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
+          final cmid = (p['clientMsgId'] ?? '').toString();
+          if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
+            _sentIds.remove(cmid);
+            return;
+          }
           final conv = selConv;
           final from = p['from'];
           final to = p['to'];
@@ -439,12 +447,16 @@ class _ChatShellState extends State<ChatShell> {
       try {
         final uploaded = await widget.api.uploadVoice(to, await File(path).readAsBytes(), 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a');
         final id = uploaded['id'];
-        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id]', 'clientMsgId': 'v${DateTime.now().microsecondsSinceEpoch}'}}));
+        final vcmid = 'v${DateTime.now().microsecondsSinceEpoch}';
+        _sentIds.add(vcmid);
+        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id]', 'clientMsgId': vcmid}}));
         setState(() => messages.add({'voiceId': id, 'mine': true, 'time': '现在'}));
         try {
           final transcript = await widget.api.transcribe(id);
           if (transcript.isNotEmpty) {
-            socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': transcript, 'clientMsgId': 't${DateTime.now().microsecondsSinceEpoch}'}}));
+            final tcmid = 't${DateTime.now().microsecondsSinceEpoch}';
+            _sentIds.add(tcmid);
+            socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': transcript, 'clientMsgId': tcmid}}));
             if (mounted) setState(() => messages.add({'text': transcript, 'mine': true, 'time': '现在'}));
           }
         } catch (_) {
@@ -471,6 +483,10 @@ class _ChatShellState extends State<ChatShell> {
     recorder.dispose();
     input.dispose();
     super.dispose();
+  }
+
+  void _showQrAuth() {
+    showDialog(context: context, builder: (_) => _QrAuthDialog(api: widget.api));
   }
 
   @override
@@ -553,7 +569,7 @@ class _ChatShellState extends State<ChatShell> {
       );
 
   Widget _conversation() => Column(children: [
-    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机扫码登录授权', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api))), icon: const Icon(Icons.qr_code_scanner)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), _contextMenu()])),
+    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: const Icon(Icons.qr_code_2)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), _contextMenu()])),
     Expanded(child: messages.isEmpty ? const Center(child: Text('还没有消息', style: TextStyle(color: Color(0xff9aa5ab)))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
     _composer(),
   ]);
@@ -632,12 +648,16 @@ class _ChatShellState extends State<ChatShell> {
     if (conv == null || text.isEmpty) return;
     input.clear();
     if (conv['kind'] == 'group') {
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text}}));
+      final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
+      _sentIds.add(gcmid);
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text, 'clientMsgId': gcmid}}));
       setState(() => messages.add({'text': text, 'mine': true, 'time': '现在'}));
       return;
     }
     final to = conv['id'] as int;
-    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': text, 'clientMsgId': 'f${DateTime.now().microsecondsSinceEpoch}'}}));
+    final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
+    _sentIds.add(cmid);
+    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': text, 'clientMsgId': cmid}}));
     setState(() { messages.add({'text': text, 'mine': true, 'time': '现在'}); });
   }
 }
@@ -693,4 +713,87 @@ class _FeaturesSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+class _QrAuthDialog extends StatefulWidget {
+  const _QrAuthDialog({required this.api});
+  final SecureChatApi api;
+  @override
+  State<_QrAuthDialog> createState() => _QrAuthDialogState();
+}
+
+class _QrAuthDialogState extends State<_QrAuthDialog> {
+  String? qrText;
+  String? error;
+  bool busy = false;
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _create();
+  }
+
+  Future<void> _create() async {
+    setState(() { busy = true; error = null; });
+    try {
+      final data = await widget.api.createQrLogin();
+      final token = data['token'] as String?;
+      final text = data['qrText'] as String?;
+      if (token == null || text == null) throw StateError('二维码创建失败');
+      if (!mounted) return;
+      setState(() { qrText = text; busy = false; });
+      timer?.cancel();
+      timer = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final status = await widget.api.qrStatus(token);
+          if (status['status'] == 'confirmed' && mounted) {
+            timer?.cancel();
+            Navigator.pop(context, true);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已在其他设备完成登录')));
+          }
+        } catch (_) {}
+      });
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('手机快捷登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            const Text('使用已登录的手机扫描此二维码，即可在本机登录同一账号', textAlign: TextAlign.center, style: TextStyle(color: Color(0xff77818a), fontSize: 13)),
+            const SizedBox(height: 18),
+            if (busy)
+              const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
+            else if (error != null)
+              Padding(padding: const EdgeInsets.all(20), child: Column(children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                const SizedBox(height: 8),
+                Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
+                const SizedBox(height: 12),
+                FilledButton.tonal(onPressed: _create, child: const Text('重试')),
+              ]))
+            else
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xffe3e8eb))),
+                child: QrImageView(data: qrText!, size: 180, version: QrVersions.auto),
+              ),
+            const SizedBox(height: 8),
+            Text('二维码每 10 分钟刷新', style: const TextStyle(color: Color(0xff9aa5ab), fontSize: 11)),
+          ]),
+        ),
+      );
 }

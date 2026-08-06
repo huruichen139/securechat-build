@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SecureChatApi {
   SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'});
@@ -11,6 +12,30 @@ class SecureChatApi {
   String? token;
   int? myId;
 
+  static const _kToken = 'sc_api_token';
+  static const _kMyId = 'sc_api_myid';
+
+  Future<void> persistSession() async {
+    final sp = await SharedPreferences.getInstance();
+    if (token != null) await sp.setString(_kToken, token!);
+    if (myId != null) await sp.setInt(_kMyId, myId!);
+  }
+
+  Future<void> restoreSession() async {
+    final sp = await SharedPreferences.getInstance();
+    token = sp.getString(_kToken);
+    final id = sp.getInt(_kMyId);
+    if (id != null) myId = id;
+  }
+
+  Future<void> clearSession() async {
+    token = null;
+    myId = null;
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_kToken);
+    await sp.remove(_kMyId);
+  }
+
   void _setSession(Map<String, dynamic> data) {
     token = data['token'] as String?;
     final user = data['user'];
@@ -18,6 +43,8 @@ class SecureChatApi {
       myId = int.tryParse('${user['id']}');
     }
   }
+
+  bool get isLoggedIn => token != null && token!.isNotEmpty;
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final root = Uri.parse(baseUrl.endsWith('/') ? baseUrl : '$baseUrl/');
@@ -50,6 +77,7 @@ class SecureChatApi {
   Future<Map<String, dynamic>> login(String account, String password) async {
     final data = await _json('POST', '/api/login', body: {'account': account, 'password': password}, auth: false);
     _setSession(data);
+    await persistSession();
     return data;
   }
 
@@ -60,6 +88,7 @@ class SecureChatApi {
   Future<Map<String, dynamic>> loginByCode(String email, String code) async {
     final data = await _json('POST', '/api/login/code', body: {'email': email, 'code': code}, auth: false);
     _setSession(data);
+    await persistSession();
     return data;
   }
 
@@ -70,6 +99,7 @@ class SecureChatApi {
   Future<Map<String, dynamic>> consumeQrLogin(String qrToken) async {
     final data = await _json('POST', '/api/login/qr/consume', body: {'token': qrToken}, auth: false);
     _setSession(data);
+    await persistSession();
     return data;
   }
 
