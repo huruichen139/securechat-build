@@ -298,18 +298,21 @@ app.post('/api/login/code', (req, res) => {
   res.json({ token, user: publicUser(user) });
 });
 
-// 扫码登录：已登录设备生成"授权登录二维码"，把自身身份绑定到会话；新设备扫码即得一次性登录凭证。
+// 扫码登录（微信式）：未登录端（电脑）生成二维码 → 已登录端（手机）扫码确认 → 电脑端轮询后登录。
+// 已登录设备调用 create 时（网页「扫码登录授权」），直接绑定自身身份并置为 confirmed，兼容旧流程。
 app.post('/api/login/qr/create', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const payload = apiUser(req);
-  if (!payload) return res.status(401).json({ error: '请先登录后生成登录二维码' });
-  const user = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
-  if (!user) return res.status(404).json({ error: '用户不存在' });
   const session = newQrLoginSession();
-  session.userId = user.id;
-  session.loginToken = signToken(user);
-  session.status = 'confirmed';
-  res.json({ token: session.token, expiresAt: session.expiresAt, qrText: 'securechat://login?token=' + encodeURIComponent(session.token) });
+  const payload = apiUser(req);
+  if (payload) {
+    const user = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
+    if (user) {
+      session.userId = user.id;
+      session.loginToken = signToken(user);
+      session.status = 'confirmed';
+    }
+  }
+  res.json({ token: session.token, expiresAt: session.expiresAt, status: session.status, qrText: 'securechat://login?token=' + encodeURIComponent(session.token) });
 });
 
 app.get('/api/login/qr/image', async (req, res) => {
