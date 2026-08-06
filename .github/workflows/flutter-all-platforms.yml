@@ -144,7 +144,7 @@ jobs:
       - name: Make iOS ipa
         working-directory: desktop-build/flutter/securechat
         run: |
-          ditto -c -k --keepParent "build/ios/iphoneos/securechat.app" "dist/SecureChat-${{ steps.v.outputs.ver }}-ios.ipa"
+          ditto -c -k --keepParent "build/ios/iphoneos/Runner.app" "dist/SecureChat-${{ steps.v.outputs.ver }}-ios.ipa"
       - name: Upload macOS + iOS
         uses: actions/upload-artifact@v4
         with:
