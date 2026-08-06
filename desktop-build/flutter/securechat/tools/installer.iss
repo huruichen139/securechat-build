@@ -33,7 +33,8 @@ WizardStyle=modern
 DisableProgramGroupPage=auto
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+; GitHub runner 的 Inno Setup 未打包中文语言文件，这里仅用 English 以避免缺失报错。
+; 如需中文界面，可把 ChineseSimplified.isl 复制进 runner 的 Languages 目录后再加上。
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
