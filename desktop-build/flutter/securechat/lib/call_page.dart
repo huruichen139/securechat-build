@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import 'services/app_config.dart';
 import 'services/call_service.dart';
 
 class CallPage extends StatefulWidget {
-  const CallPage({super.key, required this.service, required this.peerName});
+  const CallPage({super.key, required this.service, required this.peerName, required this.config});
 
   final CallService service;
   final String peerName;
+  final AppConfig config;
 
   @override
   State<CallPage> createState() => _CallPageState();
@@ -77,6 +79,7 @@ class _CallPageState extends State<CallPage> {
   Widget build(BuildContext context) {
     final service = widget.service;
     final videoOn = service.video && service.remoteStream != null;
+    final primary = widget.config.primary;
     return Scaffold(
       backgroundColor: const Color(0xff0f1b24),
       body: SafeArea(
@@ -108,7 +111,7 @@ class _CallPageState extends State<CallPage> {
             bottom: 34,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               if (service.status == CallStatus.ringing) ...[
-                _button(Icons.call_rounded, const Color(0xff23b878), '接听', () => service.accept()),
+                _button(Icons.call_rounded, primary, '接听', () => service.accept()),
                 const SizedBox(width: 26),
                 _button(Icons.call_end_rounded, const Color(0xffe74c3c), '拒绝', () => service.decline()),
               ] else ...[

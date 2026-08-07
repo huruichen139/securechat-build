@@ -221,10 +221,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _form(BuildContext context) {
+    final t = widget.config.theme;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Text('登录 SecureChat', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xff17212b))),
+      Text('登录 SecureChat', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: t.text)),
       const SizedBox(height: 8),
-      const Text('你的消息，只属于你和收件人。', style: TextStyle(color: Color(0xff77818a))),
+      Text('你的消息，只属于你和收件人。', style: TextStyle(color: t.subText)),
       const SizedBox(height: 30),
       Row(children: [
         _mode('密码登录', 0),
@@ -233,20 +234,20 @@ class _LoginPageState extends State<LoginPage> {
       ]),
       const SizedBox(height: 22),
       if (mode == 0) ...[
-        TextField(controller: account, decoration: const InputDecoration(labelText: '用户名或邮箱')),
+        TextField(controller: account, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '用户名或邮箱', labelStyle: TextStyle(color: t.subText))),
         const SizedBox(height: 12),
-        TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+        TextField(controller: password, obscureText: true, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '密码', labelStyle: TextStyle(color: t.subText))),
       ] else if (mode == 1) ...[
-        TextField(controller: email, decoration: const InputDecoration(labelText: '邮箱地址')),
+        TextField(controller: email, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '邮箱地址', labelStyle: TextStyle(color: t.subText))),
         const SizedBox(height: 12),
-        Row(children: [Expanded(child: TextField(controller: code, decoration: const InputDecoration(labelText: '验证码'))), const SizedBox(width: 10), OutlinedButton(onPressed: busy ? null : sendEmailCode, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))]),
+        Row(children: [Expanded(child: TextField(controller: code, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '验证码', labelStyle: TextStyle(color: t.subText)))), const SizedBox(width: 10), OutlinedButton(onPressed: busy ? null : sendEmailCode, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))]),
       ] else ...[
         Center(child: Column(children: [
-          Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: const Color(0xffdbe4e1)), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
+          Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: t.div), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
           const SizedBox(height: 14),
-          const Text('请使用已登录的手机扫描此二维码', style: TextStyle(fontWeight: FontWeight.w600)),
+          Text('请使用已登录的手机扫描此二维码', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
           const SizedBox(height: 4),
-          const Text('手机确认后，电脑端会自动登录', style: TextStyle(color: Color(0xff77818a), fontSize: 12)),
+          Text('手机确认后，电脑端会自动登录', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
       ],
       if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12))),
@@ -255,18 +256,31 @@ class _LoginPageState extends State<LoginPage> {
         alignment: Alignment.centerLeft,
         child: TextButton(
           onPressed: () => _showForgotPassword(context),
-          style: TextButton.styleFrom(foregroundColor: const Color(0xff138752)),
+          style: TextButton.styleFrom(foregroundColor: widget.config.primary),
           child: const Text('忘记密码？', style: TextStyle(fontSize: 13)),
         ),
       ),
       const SizedBox(height: 6),
       SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: busy ? null : (mode == 2 ? beginQr : login), child: Text(busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'))),
       const SizedBox(height: 18),
-      const Center(child: Text('SecureChat 1.42.0', style: TextStyle(color: Color(0xffa3adb3), fontSize: 12))),
+      Center(child: Text('SecureChat $kAppVersion', style: TextStyle(color: t.subText, fontSize: 12))),
     ]);
   }
 
-  Widget _mode(String label, int value) => Expanded(child: GestureDetector(onTap: () => setState(() => mode = value), child: AnimatedContainer(duration: const Duration(milliseconds: 180), padding: const EdgeInsets.symmetric(vertical: 11), decoration: BoxDecoration(color: mode == value ? const Color(0xffe5f6ed) : Colors.transparent, borderRadius: BorderRadius.circular(10)), child: Center(child: Text(label, style: TextStyle(fontSize: 12, color: mode == value ? const Color(0xff138752) : const Color(0xff77818a), fontWeight: mode == value ? FontWeight.w700 : FontWeight.w500))))));
+  Widget _mode(String label, int value) {
+    final t = widget.config.theme;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => mode = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(color: mode == value ? widget.config.primary.withValues(alpha: 0.18) : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+          child: Center(child: Text(label, style: TextStyle(fontSize: 12, color: mode == value ? widget.config.primary : t.subText, fontWeight: mode == value ? FontWeight.w700 : FontWeight.w500))),
+        ),
+      ),
+    );
+  }
 }
 
 class WelcomePanel extends StatelessWidget {
@@ -449,7 +463,7 @@ class _ChatShellState extends State<ChatShell> {
           if (service != null) {
             service.onSignal(p['from'] as int?, p['sub'] as String?, p['data']);
             if (service.status == CallStatus.ringing && mounted) {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: '对方')));
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: '对方', config: widget.config)));
             }
           }
         }
@@ -473,7 +487,7 @@ class _ChatShellState extends State<ChatShell> {
     if (service.busy) return;
     await service.startCall(to, withVideo: video);
     if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: selName ?? '对方')));
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: selName ?? '对方', config: widget.config)));
   }
 
   Future<void> _toggleRecording() async {
@@ -658,7 +672,7 @@ class _ChatShellState extends State<ChatShell> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _FeaturesSheet(api: widget.api),
+      builder: (_) => _FeaturesSheet(api: widget.api, config: widget.config),
     );
   }
 
@@ -897,9 +911,10 @@ class _WindowDragBar extends StatelessWidget {
 }
 
 class _FeaturesSheet extends StatelessWidget {
-  const _FeaturesSheet({this.api});
+  const _FeaturesSheet({this.api, this.config});
 
   final SecureChatApi? api;
+  final AppConfig? config;
 
   Future<void> _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
@@ -915,7 +930,7 @@ class _FeaturesSheet extends StatelessWidget {
       ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
       ('待办清单', Icons.checklist_rounded, const TodoPage()),
       ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
-      ('文件仓库', Icons.folder_outlined, api != null ? FileRepositoryPage(api: api!) : const FileCenterPage()),
+      ('文件仓库', Icons.folder_outlined, api != null && config != null ? FileRepositoryPage(api: api!, config: config!) : const FileCenterPage()),
       ('我的收藏', Icons.favorite_outline, const FavoritesPage()),
       ('定时提醒', Icons.alarm_outlined, const ReminderPage()),
       ('在线状态', Icons.mood_outlined, const MoodStatusPage()),

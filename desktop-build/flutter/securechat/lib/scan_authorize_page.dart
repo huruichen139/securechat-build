@@ -41,7 +41,6 @@ class _ScanAuthorizePageState extends State<ScanAuthorizePage> {
   String? _extractToken(String input) {
     final s = input.trim();
     if (s.isEmpty) return null;
-    // 支持直接粘贴 token，或粘贴完整 QR 内容(securechat://login?token=xxx)
     final uriPattern = RegExp(r'token=([^&\s]+)');
     final m = uriPattern.firstMatch(s);
     if (m != null) return Uri.decodeComponent(m.group(1)!);
@@ -79,7 +78,7 @@ class _ScanAuthorizePageState extends State<ScanAuthorizePage> {
     setState(() => _info = null);
     final ok = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api)),
+      MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api, config: widget.config)),
     );
     if (!mounted) return;
     if (ok == true) {
@@ -96,64 +95,72 @@ class _ScanAuthorizePageState extends State<ScanAuthorizePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('扫码授权登录'),
-        leading: const CloseButton(),
-        actions: [
-          TextButton.icon(
-            onPressed: _busy ? null : _openScanner,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('扫码'),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            height: 120,
-            decoration: BoxDecoration(
-              color: const Color(0xffedf7f1),
-              borderRadius: BorderRadius.circular(20),
+    final t = widget.config.theme;
+    return AnimatedBuilder(
+      animation: widget.config,
+      builder: (context, _) => Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('扫码授权登录'),
+          leading: const CloseButton(),
+          actions: [
+            TextButton.icon(
+              onPressed: _busy ? null : _openScanner,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('扫码'),
             ),
-            child: Center(
-              child: FilledButton.icon(
-                onPressed: _busy ? null : _openScanner,
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('拍摄电脑上的二维码'),
+          ],
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: t.card,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: t.div.withValues(alpha: 0.5)),
+              ),
+              child: Center(
+                child: FilledButton.icon(
+                  onPressed: _busy ? null : _openScanner,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('拍摄电脑上的二维码'),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const Text('手机扫码确认登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          const Text('打开电脑端的「手机快捷登录」二维码，用手机的相机扫描确认后，电脑即可登录你的账号。', style: TextStyle(color: Color(0xff77818a))),
-          const SizedBox(height: 8),
-          const Text('每台设备登录需重新扫描确认，未授权的设备无法获取登录凭证。', style: TextStyle(color: Color(0xff9aa5ab), fontSize: 12)),
-          const SizedBox(height: 20),
-          const Text('也可以手动粘贴扫码内容 / Token', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _tokenCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(hintText: '粘贴二维码中的 token 或完整 securechat:// 链接'),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              onPressed: _busy ? null : () => _doConfirm(_tokenCtrl.text),
-              child: Text(_busy ? '确认中…' : '确认登录'),
+            const SizedBox(height: 16),
+            Text('手机扫码确认登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: t.text)),
+            const SizedBox(height: 6),
+            Text('打开电脑端的「手机快捷登录」二维码，用手机的相机扫描确认后，电脑即可登录你的账号。', style: TextStyle(color: t.subText)),
+            const SizedBox(height: 8),
+            Text('每台设备登录需重新扫描确认，未授权的设备无法获取登录凭证。', style: TextStyle(color: t.subText, fontSize: 12)),
+            const SizedBox(height: 20),
+            Text('也可以手动粘贴扫码内容 / Token', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _tokenCtrl,
+              maxLines: 2,
+              style: TextStyle(color: t.text),
+              decoration: InputDecoration(hintText: '粘贴二维码中的 token 或完整 securechat:// 链接', hintStyle: TextStyle(color: t.subText)),
             ),
-          ),
-          if (_info != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: Text(_info!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 13)),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                onPressed: _busy ? null : () => _doConfirm(_tokenCtrl.text),
+                child: Text(_busy ? '确认中…' : '确认登录'),
+              ),
             ),
-        ]),
+            if (_info != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Text(_info!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 13)),
+              ),
+          ]),
+        ),
       ),
     );
   }

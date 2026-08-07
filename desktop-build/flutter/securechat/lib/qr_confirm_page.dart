@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 
 class QrConfirmPage extends StatefulWidget {
-  const QrConfirmPage({super.key, required this.api});
+  const QrConfirmPage({super.key, required this.api, required this.config});
   final SecureChatApi api;
+  final AppConfig config;
 
   @override
   State<QrConfirmPage> createState() => _QrConfirmPageState();
@@ -29,7 +31,10 @@ class _QrConfirmPageState extends State<QrConfirmPage> {
       setState(() => error = '不是 SecureChat 登录二维码');
       return;
     }
-    setState(() { busy = true; error = null; });
+    setState(() {
+      busy = true;
+      error = null;
+    });
     try {
       await widget.api.confirmQrLogin(token);
       if (mounted) Navigator.pop(context, true);

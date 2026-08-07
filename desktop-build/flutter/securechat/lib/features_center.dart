@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-const _primary = Color(0xff18a66a);
-const _text = Color(0xff17212b);
-const _subText = Color(0xff77818a);
-const _div = Color(0xffe3e8eb);
-const _bg = Color(0xfff4f6f8);
-
 class NotesPage extends StatelessWidget {
   const NotesPage({super.key});
 
@@ -43,6 +37,7 @@ class _NotesBodyState extends State<_NotesBody> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
@@ -52,22 +47,24 @@ class _NotesBodyState extends State<_NotesBody> {
           FilledButton(onPressed: _save, child: const Text('保存')),
         ]),
         const SizedBox(height: 16),
-        Expanded(child: notes.isEmpty
-            ? const Center(child: Text('还没有便签，写下一条吧', style: TextStyle(color: _subText)))
-            : ListView.separated(
-                itemCount: notes.length,
-                separatorBuilder: (_, i) => const SizedBox(height: 8),
-                itemBuilder: (_, i) => Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))]),
-                  child: Row(children: [
-                    const Icon(Icons.sticky_note_2_outlined, color: _primary),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(notes[i], style: const TextStyle(color: _text))),
-                    IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => setState(() => notes.removeAt(i))),
-                  ]),
+        Expanded(
+          child: notes.isEmpty
+              ? Center(child: Text('还没有便签，写下一条吧', style: TextStyle(color: cs.onSurfaceVariant)))
+              : ListView.separated(
+                  itemCount: notes.length,
+                  separatorBuilder: (_, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
+                    child: Row(children: [
+                      Icon(Icons.sticky_note_2_outlined, color: cs.primary),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(notes[i], style: TextStyle(color: cs.onSurface))),
+                      IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => setState(() => notes.removeAt(i))),
+                    ]),
+                  ),
                 ),
-              )),
+        ),
       ]),
     );
   }
@@ -115,6 +112,7 @@ class _TodoBodyState extends State<_TodoBody> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
@@ -124,24 +122,26 @@ class _TodoBodyState extends State<_TodoBody> {
           FilledButton(onPressed: _add, child: const Text('添加')),
         ]),
         const SizedBox(height: 16),
-        Expanded(child: items.isEmpty
-            ? const Center(child: Text('还没有待办', style: TextStyle(color: _subText)))
-            : ListView.separated(
-                itemCount: items.length,
-                separatorBuilder: (_, i) => const SizedBox(height: 4),
-                itemBuilder: (_, i) {
-                  final item = items[i];
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                    child: Row(children: [
-                      Checkbox(value: item.done, activeColor: _primary, onChanged: (v) => setState(() => item.done = v ?? false)),
-                      Expanded(child: Text(item.text, style: TextStyle(color: _text, decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: _subText))),
-                      IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => setState(() => items.removeAt(i))),
-                    ]),
-                  );
-                },
-              )),
+        Expanded(
+          child: items.isEmpty
+              ? Center(child: Text('还没有待办', style: TextStyle(color: cs.onSurfaceVariant)))
+              : ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, i) => const SizedBox(height: 4),
+                  itemBuilder: (_, i) {
+                    final item = items[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12)),
+                      child: Row(children: [
+                        Checkbox(value: item.done, activeColor: cs.primary, onChanged: (v) => setState(() => item.done = v ?? false)),
+                        Expanded(child: Text(item.text, style: TextStyle(color: cs.onSurface, decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: cs.onSurfaceVariant))),
+                        IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => setState(() => items.removeAt(i))),
+                      ]),
+                    );
+                  },
+                ),
+        ),
       ]),
     );
   }
@@ -188,10 +188,11 @@ class _QuickRepliesBodyState extends State<_QuickRepliesBody> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('点击短语即可复制到剪贴板', style: TextStyle(color: _subText)),
+        Text('点击短语即可复制到剪贴板', style: TextStyle(color: cs.onSurfaceVariant)),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(child: TextField(controller: controller, decoration: const InputDecoration(hintText: '添加自定义短语'))),
@@ -199,13 +200,15 @@ class _QuickRepliesBodyState extends State<_QuickRepliesBody> {
           FilledButton(onPressed: _add, child: const Text('添加')),
         ]),
         const SizedBox(height: 16),
-        Expanded(child: Align(
-          alignment: Alignment.topLeft,
-          child: Wrap(spacing: 10, runSpacing: 10, children: [
-            for (final r in replies)
-              ActionChip(label: Text(r), backgroundColor: Colors.white, side: const BorderSide(color: _div), onPressed: () => _copy(r)),
-          ]),
-        )),
+        Expanded(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Wrap(spacing: 10, runSpacing: 10, children: [
+              for (final r in replies)
+                ActionChip(label: Text(r), backgroundColor: cs.surface, side: BorderSide(color: cs.outlineVariant), onPressed: () => _copy(r)),
+            ]),
+          ),
+        ),
       ]),
     );
   }
@@ -250,41 +253,46 @@ class _FileCenterBodyState extends State<_FileCenterBody> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         Row(children: [
-          Expanded(child: TextField(controller: query, decoration: const InputDecoration(hintText: '搜索文件', prefixIcon: Icon(Icons.search)))),
+          Expanded(child: TextField(controller: query, decoration: InputDecoration(hintText: '搜索文件', prefixIcon: Icon(Icons.search, color: cs.onSurfaceVariant)))),
           const SizedBox(width: 10),
           IconButton(
             tooltip: '刷新',
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已刷新'))),
-            icon: const Icon(Icons.refresh, color: _primary),
+            icon: Icon(Icons.refresh, color: cs.primary),
           ),
         ]),
         const SizedBox(height: 16),
-        Expanded(child: _filtered.isEmpty
-            ? const Center(child: Text('没有匹配的文件', style: TextStyle(color: _subText)))
-            : ListView.separated(
-                itemCount: _filtered.length,
-                separatorBuilder: (_, i) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final f = _filtered[i];
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))]),
-                    child: Row(children: [
-                      const Icon(Icons.insert_drive_file_outlined, color: _primary),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(f['name']!, style: const TextStyle(color: _text, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 3),
-                        Text("${f['size']} · ${f['time']}", style: const TextStyle(color: _subText, fontSize: 12)),
-                      ])),
-                    ]),
-                  );
-                },
-              )),
+        Expanded(
+          child: _filtered.isEmpty
+              ? Center(child: Text('没有匹配的文件', style: TextStyle(color: cs.onSurfaceVariant)))
+              : ListView.separated(
+                  itemCount: _filtered.length,
+                  separatorBuilder: (_, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final f = _filtered[i];
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
+                      child: Row(children: [
+                        Icon(Icons.insert_drive_file_outlined, color: cs.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(f['name']!, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 3),
+                            Text('${f['size']} · ${f['time']}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                          ]),
+                        ),
+                      ]),
+                    );
+                  },
+                ),
+        ),
       ]),
     );
   }
@@ -316,6 +324,7 @@ class _FavoritesBodyState extends State<_FavoritesBody> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: ListView.separated(
@@ -325,11 +334,11 @@ class _FavoritesBodyState extends State<_FavoritesBody> {
           final entry = favorites.entries.elementAt(i);
           return Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))]),
+            decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
             child: Row(children: [
-              Expanded(child: Text(entry.key, style: const TextStyle(color: _text))),
+              Expanded(child: Text(entry.key, style: TextStyle(color: cs.onSurface))),
               IconButton(
-                icon: Icon(entry.value ? Icons.favorite : Icons.favorite_border, color: entry.value ? Colors.redAccent : _subText),
+                icon: Icon(entry.value ? Icons.favorite : Icons.favorite_border, color: entry.value ? cs.error : cs.onSurfaceVariant),
                 onPressed: () => setState(() => favorites[entry.key] = !entry.value),
               ),
             ]),
@@ -386,11 +395,12 @@ class _ReminderBodyState extends State<_ReminderBody> {
   String _format(TimeOfDay t) {
     final h = t.hourOfPeriod.toString().padLeft(2, '0');
     final m = t.minute.toString().padLeft(2, '0');
-    return "$h:$m ${t.period == DayPeriod.am ? '上午' : '下午'}";
+    return '$h:$m ${t.period == DayPeriod.am ? '上午' : '下午'}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
@@ -399,33 +409,35 @@ class _ReminderBodyState extends State<_ReminderBody> {
           const SizedBox(width: 10),
           OutlinedButton(
             onPressed: _pickTime,
-            child: Text(time == null ? '选择时间' : _format(time!), style: const TextStyle(color: _primary)),
+            child: Text(time == null ? '选择时间' : _format(time!), style: TextStyle(color: cs.primary)),
           ),
           const SizedBox(width: 10),
           FilledButton(onPressed: _add, child: const Text('设置')),
         ]),
         const SizedBox(height: 16),
-        Expanded(child: reminders.isEmpty
-            ? const Center(child: Text('还没有提醒', style: TextStyle(color: _subText)))
-            : ListView.separated(
-                itemCount: reminders.length,
-                separatorBuilder: (_, i) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final (text, t) = reminders[i];
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))]),
-                    child: Row(children: [
-                      const Icon(Icons.alarm, color: _primary),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(text, style: const TextStyle(color: _text))),
-                      const SizedBox(width: 8),
-                      Text(_format(t), style: const TextStyle(color: _primary, fontWeight: FontWeight.w600)),
-                      IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => setState(() => reminders.removeAt(i))),
-                    ]),
-                  );
-                },
-              )),
+        Expanded(
+          child: reminders.isEmpty
+              ? Center(child: Text('还没有提醒', style: TextStyle(color: cs.onSurfaceVariant)))
+              : ListView.separated(
+                  itemCount: reminders.length,
+                  separatorBuilder: (_, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final (text, t) = reminders[i];
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
+                      child: Row(children: [
+                        Icon(Icons.alarm, color: cs.primary),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(text, style: TextStyle(color: cs.onSurface))),
+                        const SizedBox(width: 8),
+                        Text(_format(t), style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600)),
+                        IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => setState(() => reminders.removeAt(i))),
+                      ]),
+                    );
+                  },
+                ),
+        ),
       ]),
     );
   }
@@ -450,6 +462,7 @@ class _EmojiBoardState extends State<EmojiBoard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     const rows = [
       ['😀', '😁', '😂', '🤣', '😊', '😇', '🙂', '😉'],
       ['😍', '😘', '😜', '🤪', '😎', '🥳', '😴', '🤗'],
@@ -460,15 +473,20 @@ class _EmojiBoardState extends State<EmojiBoard> {
     ];
     return Column(children: [
       for (final row in rows)
-        Expanded(child: Row(children: [
-          for (final e in row)
-            Expanded(child: InkWell(onTap: () => _pick(e), child: Center(child: Text(e, style: const TextStyle(fontSize: 24))))),
-        ])),
-      const Divider(height: 1, color: _div),
+        Expanded(
+          child: Row(children: [
+            for (final e in row)
+              Expanded(child: InkWell(onTap: () => _pick(e), child: Center(child: Text(e, style: const TextStyle(fontSize: 24))))),
+          ]),
+        ),
+      Divider(height: 1, color: cs.outlineVariant),
       Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(children: [
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text('最近', style: TextStyle(color: _subText, fontSize: 12))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text('最近', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+          ),
           for (final e in recent)
             InkWell(onTap: () => _pick(e), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: Text(e, style: const TextStyle(fontSize: 22)))),
         ]),
@@ -508,10 +526,11 @@ class _MoodStatusBodyState extends State<_MoodStatusBody> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('选择在线状态', style: TextStyle(fontWeight: FontWeight.w600)),
+        Text('选择在线状态', style: TextStyle(fontWeight: FontWeight.w600, color: cs.onSurface)),
         const SizedBox(height: 10),
         for (var i = 0; i < statuses.length; i++)
           Padding(
@@ -521,19 +540,19 @@ class _MoodStatusBodyState extends State<_MoodStatusBody> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: status == i ? const Color(0xffe5f6ed) : Colors.white, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: status == i ? cs.primary.withValues(alpha: 0.15) : cs.surface, borderRadius: BorderRadius.circular(12)),
                 child: Row(children: [
                   Icon(icons[i], color: colors[i]),
                   const SizedBox(width: 12),
-                  Text(statuses[i], style: TextStyle(color: _text, fontWeight: status == i ? FontWeight.w700 : FontWeight.w500)),
+                  Text(statuses[i], style: TextStyle(color: cs.onSurface, fontWeight: status == i ? FontWeight.w700 : FontWeight.w500)),
                   const Spacer(),
-                  if (status == i) const Icon(Icons.check_circle, color: _primary),
+                  if (status == i) Icon(Icons.check_circle, color: cs.primary),
                 ]),
               ),
             ),
           ),
         const SizedBox(height: 12),
-        const Text('心情短语', style: TextStyle(fontWeight: FontWeight.w600)),
+        Text('心情短语', style: TextStyle(fontWeight: FontWeight.w600, color: cs.onSurface)),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: TextField(controller: moodController, decoration: const InputDecoration(hintText: '例如：今天心情很好'))),
@@ -555,13 +574,14 @@ class _Scaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cs.surface,
         elevation: 0,
-        title: Text(title, style: const TextStyle(color: _text, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: _text), onPressed: () => Navigator.of(context).maybePop()),
+        title: Text(title, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
+        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
       ),
       body: body,
     );

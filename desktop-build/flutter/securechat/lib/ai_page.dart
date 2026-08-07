@@ -134,80 +134,86 @@ class _AiPageState extends State<AiPage> {
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI 助手'),
-        leading: const CloseButton(),
-        actions: [
-          IconButton(
-            tooltip: _ready ? 'AI 配置' : '未配置 AI，请点击设置',
-            onPressed: () => setState(() {
-              _showConfig = !_showConfig;
-              _syncReady();
-            }),
-            icon: Icon(_ready ? Icons.settings_outlined : Icons.error_outline),
-          ),
-        ],
-      ),
-      body: Column(children: [
-        if (_showConfig)
-          _configCard(config)
-        else if (!_ready)
-          _setupPrompt()
-        else
-          Expanded(
-            child: _messages.isEmpty
-                ? const Center(child: Text('开始和 AI 对话吧', style: TextStyle(color: Color(0xff9aa5ab))))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) => _bubble(_messages[i]),
-                  ),
-          ),
-        _composer(),
-      ]),
-    );
-  }
-
-  Widget _configCard(AppConfig config) {
+    final t = config.theme;
     return AnimatedBuilder(
       animation: config,
-      builder: (context, _) => Container(
-        padding: const EdgeInsets.all(16),
-        color: config.theme.card,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('AI 服务配置', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: config.theme.text)),
-          const SizedBox(height: 12),
-          TextField(controller: _baseUrlCtrl, onChanged: (_) => setState(_syncReady), decoration: const InputDecoration(labelText: 'Base URL', hintText: 'https://api.example.com/v1')),
-          const SizedBox(height: 10),
-          TextField(controller: _apiKeyCtrl, onChanged: (_) => setState(_syncReady), obscureText: true, decoration: const InputDecoration(labelText: 'API Key')),
-          const SizedBox(height: 10),
-          TextField(controller: _modelCtrl, onChanged: (_) => setState(_syncReady), decoration: const InputDecoration(labelText: '模型', hintText: '例如 gpt-4o-mini')),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: FilledButton(onPressed: _saveConfig, child: const Text('保存'))),
-            const SizedBox(width: 10),
-            OutlinedButton(onPressed: () => setState(() => _showConfig = false), child: const Text('取消')),
-          ]),
+      builder: (context, _) => Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('AI 助手'),
+          leading: const CloseButton(),
+          actions: [
+            IconButton(
+              tooltip: _ready ? 'AI 配置' : '未配置 AI，请点击设置',
+              onPressed: () => setState(() {
+                _showConfig = !_showConfig;
+                _syncReady();
+              }),
+              icon: Icon(_ready ? Icons.settings_outlined : Icons.error_outline),
+            ),
+          ],
+        ),
+        body: Column(children: [
+          if (_showConfig)
+            _configCard(config)
+          else if (!_ready)
+            _setupPrompt(config)
+          else
+            Expanded(
+              child: _messages.isEmpty
+                  ? Center(child: Text('开始和 AI 对话吧', style: TextStyle(color: t.subText)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
+                      itemBuilder: (_, i) => _bubble(config, _messages[i]),
+                    ),
+            ),
+          _composer(config),
         ]),
       ),
     );
   }
 
-  Widget _setupPrompt() {
+  Widget _configCard(AppConfig config) {
+    final t = config.theme;
     return Container(
       padding: const EdgeInsets.all(16),
-      color: const Color(0xfffff3e0),
+      color: t.card.withValues(alpha: 0.82),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('AI 服务配置', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
+        const SizedBox(height: 12),
+        TextField(controller: _baseUrlCtrl, onChanged: (_) => setState(_syncReady), style: TextStyle(color: t.text), decoration: InputDecoration(labelText: 'Base URL', hintText: 'https://api.example.com/v1', labelStyle: TextStyle(color: t.subText), hintStyle: TextStyle(color: t.subText))),
+        const SizedBox(height: 10),
+        TextField(controller: _apiKeyCtrl, onChanged: (_) => setState(_syncReady), obscureText: true, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: 'API Key', labelStyle: TextStyle(color: t.subText))),
+        const SizedBox(height: 10),
+        TextField(controller: _modelCtrl, onChanged: (_) => setState(_syncReady), style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '模型', hintText: '例如 gpt-4o-mini', labelStyle: TextStyle(color: t.subText), hintStyle: TextStyle(color: t.subText))),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: FilledButton(onPressed: _saveConfig, child: const Text('保存'))),
+          const SizedBox(width: 10),
+          OutlinedButton(onPressed: () => setState(() => _showConfig = false), child: const Text('取消')),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _setupPrompt(AppConfig config) {
+    final t = config.theme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: t.card.withValues(alpha: 0.6),
       child: Row(children: [
-        const Icon(Icons.info_outline, color: Color(0xffef6c00)),
+        Icon(Icons.info_outline, color: config.primary),
         const SizedBox(width: 10),
-        const Expanded(child: Text('尚未配置 AI 服务，请点击右上角设置 Base URL / API Key / 模型。')),
+        Expanded(child: Text('尚未配置 AI 服务，请点击右上角设置 Base URL / API Key / 模型。', style: TextStyle(color: t.text))),
         TextButton(onPressed: () => setState(() => _showConfig = true), child: const Text('立即配置')),
       ]),
     );
   }
 
-  Widget _bubble(({bool user, String text}) m) {
+  Widget _bubble(AppConfig config, ({bool user, String text}) m) {
+    final t = config.theme;
     final mine = m.user;
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -216,18 +222,19 @@ class _AiPageState extends State<AiPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: const BoxConstraints(maxWidth: 480),
         decoration: BoxDecoration(
-          color: mine ? const Color(0xffb7efd2) : const Color(0xffeef1f4),
+          color: mine ? t.bubbleMine : t.bubbleOther,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(m.text.isEmpty ? '…' : m.text, style: const TextStyle(color: Color(0xff17212b), fontSize: 14, height: 1.4)),
+        child: Text(m.text.isEmpty ? '…' : m.text, style: TextStyle(color: t.text, fontSize: 14, height: 1.4)),
       ),
     );
   }
 
-  Widget _composer() {
+  Widget _composer(AppConfig config) {
+    final t = config.theme;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-      color: Colors.white,
+      color: t.panel.withValues(alpha: 0.5),
       child: Row(children: [
         Expanded(
           child: TextField(
@@ -236,7 +243,8 @@ class _AiPageState extends State<AiPage> {
             maxLines: 4,
             enabled: _ready && !_busy,
             onSubmitted: (_) => _send(),
-            decoration: const InputDecoration(hintText: '向 AI 提问…'),
+            style: TextStyle(color: t.text),
+            decoration: InputDecoration(hintText: '向 AI 提问…', hintStyle: TextStyle(color: t.subText)),
           ),
         ),
         const SizedBox(width: 10),
