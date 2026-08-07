@@ -239,6 +239,7 @@ class CallService extends ChangeNotifier {
     _ringTimer?.cancel();
     endReason = reason;
     status = CallStatus.ended;
+    peerId = null;
     for (final track in localStream?.getTracks() ?? <MediaStreamTrack>[]) {
       track.stop();
     }
@@ -248,20 +249,21 @@ class CallService extends ChangeNotifier {
     remoteStream = null;
     localRenderer.srcObject = null;
     remoteRenderer.srcObject = null;
-    localRenderer.dispose();
-    remoteRenderer.dispose();
+    if (!_disposed) {
+      localRenderer.dispose();
+      remoteRenderer.dispose();
+    }
     peer?.close();
     peer = null;
     _pendingCandidates.clear();
     _remoteDescSet = false;
     _connectedAt = null;
+    muted = false;
+    cameraOn = true;
     if (!_disposed) {
+      // 立即复位回 idle，保证挂断后可以立刻再次发起通话（不再需要等待延迟）
+      status = CallStatus.idle;
       notifyListeners();
-      Future.delayed(const Duration(seconds: 2), () {
-        if (_disposed) return;
-        status = CallStatus.idle;
-        notifyListeners();
-      });
     }
   }
 

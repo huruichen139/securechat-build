@@ -41,10 +41,15 @@ class AppTheme {
   ThemeData theme() {
     final scheme = ColorScheme.fromSeed(seedColor: primary, brightness: isDark ? Brightness.dark : Brightness.light);
     final base = isDark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
+    final scale = fontScale == 1.0 ? 1.0 : fontScale.clamp(0.7, 2.0);
+    // 将字号缩放应用于整个 textTheme，确保所有主题化文字都会随"设置-字号"变化
+    TextTheme scaleText(TextTheme tt) => tt.apply(fontSizeFactor: scale, displayColor: null, bodyColor: null);
     return base.copyWith(
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
       visualDensity: VisualDensity.adaptivePlatformDensity,
+      textTheme: scaleText(base.textTheme),
+      primaryTextTheme: scaleText(base.primaryTextTheme),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputBg,
