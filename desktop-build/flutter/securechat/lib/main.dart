@@ -845,6 +845,12 @@ class _FeaturesSheet extends StatelessWidget {
 
   Future<void> _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
+  void _openUrl(String url) {
+    try {
+      Process.start('cmd', ['/c', 'start', '', url]);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = <(String, IconData, Widget)>[
@@ -855,6 +861,11 @@ class _FeaturesSheet extends StatelessWidget {
       ('我的收藏', Icons.favorite_outline, const FavoritesPage()),
       ('定时提醒', Icons.alarm_outlined, const ReminderPage()),
       ('在线状态', Icons.mood_outlined, const MoodStatusPage()),
+    ];
+    final webServices = <(String, IconData, String)>[
+      ('网盘', Icons.cloud_outlined, 'http://mc.32768.top:5213'),
+      ('邮箱', Icons.mail_outline, 'https://mail.32768.top'),
+      ('AI 网页', Icons.smart_toy_outlined, 'https://ai.32768.top'),
     ];
     final theme = Theme.of(context);
     return SafeArea(
@@ -867,6 +878,13 @@ class _FeaturesSheet extends StatelessWidget {
           Wrap(spacing: 14, runSpacing: 14, children: [
             for (final e in entries)
               _gridItem(context, e.$1, e.$2, () => _push(context, e.$3)),
+          ]),
+          const SizedBox(height: 18),
+          Text('我的服务', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: theme.colorScheme.onSurface)),
+          const SizedBox(height: 14),
+          Wrap(spacing: 14, runSpacing: 14, children: [
+            for (final s in webServices)
+              _gridItem(context, s.$1, s.$2, () => _openUrl(s.$3)),
           ]),
           const SizedBox(height: 6),
         ]),

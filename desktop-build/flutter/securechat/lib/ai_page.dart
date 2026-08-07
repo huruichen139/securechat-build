@@ -38,7 +38,7 @@ class _AiPageState extends State<AiPage> {
   Future<void> _loadConfig() async {
     final sp = await SharedPreferences.getInstance();
     setState(() {
-      _baseUrlCtrl.text = sp.getString(_kBaseUrl) ?? 'https://api.ltzy.top/v1';
+      _baseUrlCtrl.text = sp.getString(_kBaseUrl) ?? 'https://ai.32768.top/v1';
       _apiKeyCtrl.text = sp.getString(_kApiKey) ?? '';
       _modelCtrl.text = sp.getString(_kModel) ?? '';
       _syncReady();
