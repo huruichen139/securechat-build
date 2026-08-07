@@ -149,6 +149,12 @@ class SecureChatApi {
     return ((data['files'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> checkVersion() async {
+    return _json('GET', '/api/version', auth: false);
+  }
+
+  Uri downloadUri(String relativePath) => _uri(relativePath.startsWith('/') ? relativePath : '/$relativePath');
+
   Future<String> transcribe(String id) async {
     final data = await _json('POST', '/api/stt', body: {'id': id});
     return (data['text'] ?? '').toString().trim();

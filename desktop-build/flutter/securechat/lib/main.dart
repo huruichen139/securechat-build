@@ -20,6 +20,7 @@ import 'features_center.dart';
 import 'ai_page.dart';
 import 'scan_authorize_page.dart';
 import 'file_repository_page.dart';
+import 'update_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -333,6 +334,22 @@ class _ChatShellState extends State<ChatShell> {
     super.initState();
     _connect();
     _loadData();
+    _checkUpdate();
+  }
+
+  bool _updatePrompted = false;
+  Future<void> _checkUpdate() async {
+    if (_updatePrompted || !Platform.isWindows) return;
+    try {
+      final svc = UpdateService(api: widget.api);
+      final info = await svc.check();
+      if (info == null || !mounted) return;
+      _updatePrompted = true;
+      showDialog(
+        context: context,
+        builder: (_) => _UpdateDialog(info: info, service: svc),
+      );
+    } catch (_) {}
   }
 
   Future<void> _loadData() async {
@@ -1018,4 +1035,103 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
           ),
         ),
       );
+}
+
+class _UpdateDialog extends StatefulWidget {
+  const _UpdateDialog({required this.info, required this.service});
+  final Map<String, dynamic> info;
+  final UpdateService service;
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  bool _downloading = false;
+  double _progress = 0;
+  String _msg = '';
+  String? _savedPath;
+
+  Future<void> _startDownload() async {
+    final down = (widget.info['download'] ?? '').toString();
+    if (down.isEmpty) {
+      setState(() => _msg = '安装包暂未发布，请稍后再试或前往官网下载。');
+      return;
+    }
+    setState(() {
+      _downloading = true;
+      _progress = 0;
+      _msg = '';
+    });
+    final path = await widget.service.download(
+      down,
+      onProgress: (loaded, total) {
+        if (mounted) {
+          setState(() => _progress = total > 0 ? loaded / total : 0);
+        }
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _downloading = false;
+      _savedPath = path;
+    });
+    if (path == null) {
+      setState(() => _msg = '下载失败，请检查网络后重试');
+      return;
+    }
+  }
+
+  Future<void> _run() async {
+    final p = _savedPath;
+    if (p == null) return;
+    final ok = await widget.service.launchInstaller(p);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _msg = '无法自动启动安装程序，请手动打开：$p');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = (widget.info['latest'] ?? '').toString();
+    final notes = (widget.info['releaseNotes'] ?? '').toString();
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(children: [
+        Icon(Icons.system_update_alt, color: Color(0xff18a66a)),
+        SizedBox(width: 10),
+        Text('发现新版本'),
+      ]),
+      content: SizedBox(
+        width: 380,
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('当前：v$kAppVersion   最新：v$latest', style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          if (notes.isNotEmpty)
+            Text(notes, style: const TextStyle(color: Color(0xff5b6670), height: 1.4)),
+          const SizedBox(height: 14),
+          if (_downloading) ...[
+            LinearProgressIndicator(value: _progress.clamp(0, 1), color: const Color(0xff18a66a)),
+            const SizedBox(height: 6),
+            Text('正在下载安装包… ${(_progress * 100).round()}%', style: const TextStyle(color: Color(0xff5b6670), fontSize: 12)),
+          ] else if (_msg.isNotEmpty)
+            Text(_msg, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12)),
+          if (_savedPath != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('已下载：$_savedPath', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff18a66a), fontSize: 11)),
+            ),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: _downloading ? null : () => Navigator.of(context).pop(), child: const Text('稍后')),
+        if (_savedPath != null)
+          FilledButton(onPressed: _run, child: const Text('立即安装'))
+        else
+          FilledButton(onPressed: _downloading ? null : _startDownload, child: Text(_downloading ? '下载中…' : '下载并更新')),
+      ],
+    );
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
+import 'update_service.dart';
 import 'widgets/window_effect.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -354,11 +355,22 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       _sectionTitle('关于'),
       _card(
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.info_outline),
-          title: const Text('版本'),
-          trailing: const Text('1.42.0', style: TextStyle(color: Colors.grey)),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.system_update_alt_outlined),
+              title: const Text('检查更新'),
+              onTap: () => _checkUpdate(context),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.info_outline),
+              title: const Text('版本'),
+              trailing: const Text('1.42.0', style: TextStyle(color: Colors.grey)),
+            ),
+          ],
         ),
       ),
     ]);
@@ -539,5 +551,100 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _checkUpdate(BuildContext context) async {
+    final svc = UpdateService(api: widget.api);
+    final info = await svc.check();
+    if (!mounted) return;
+    if (info == null) {
+      _toast(this.context, '已是最新版本（v$kAppVersion）');
+      return;
+    }
+    if (!mounted) return;
+    showDialog(
+      context: this.context,
+      builder: (_) => _SimpleUpdateDialog(info: info, service: svc),
+    );
+  }
+}
+
+class _SimpleUpdateDialog extends StatefulWidget {
+  const _SimpleUpdateDialog({required this.info, required this.service});
+  final Map<String, dynamic> info;
+  final UpdateService service;
+  @override
+  State<_SimpleUpdateDialog> createState() => _SimpleUpdateDialogState();
+}
+
+class _SimpleUpdateDialogState extends State<_SimpleUpdateDialog> {
+  bool _downloading = false;
+  double _progress = 0;
+  String _msg = '';
+  String? _savedPath;
+
+  Future<void> _start() async {
+    final down = (widget.info['download'] ?? '').toString();
+    if (down.isEmpty) {
+      setState(() => _msg = '安装包暂未发布，请稍后再试。');
+      return;
+    }
+    setState(() {
+      _downloading = true;
+      _progress = 0;
+    });
+    final path = await widget.service.download(down, onProgress: (l, t) {
+      if (mounted) setState(() => _progress = t > 0 ? l / t : 0);
+    });
+    if (!mounted) return;
+    setState(() {
+      _downloading = false;
+      _savedPath = path;
+    });
+    if (path == null) setState(() => _msg = '下载失败，请检查网络后重试');
+  }
+
+  Future<void> _run() async {
+    final p = _savedPath;
+    if (p == null) return;
+    final ok = await widget.service.launchInstaller(p);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _msg = '无法自动启动安装程序，请手动打开：$p');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('发现新版本'),
+      content: SizedBox(
+        width: 360,
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('当前 v$kAppVersion → 最新 v${widget.info['latest']}', style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text((widget.info['releaseNotes'] ?? '').toString(), style: const TextStyle(color: Color(0xff5b6670))),
+          const SizedBox(height: 12),
+          if (_downloading) ...[
+            LinearProgressIndicator(value: _progress.clamp(0, 1), color: const Color(0xff18a66a)),
+            const SizedBox(height: 6),
+            Text('下载中 ${(_progress * 100).round()}%', style: const TextStyle(color: Color(0xff5b6670), fontSize: 12)),
+          ] else if (_msg.isNotEmpty)
+            Text(_msg, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12)),
+          if (_savedPath != null)
+            Padding(padding: const EdgeInsets.only(top: 4), child: Text('已保存：$_savedPath', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff18a66a), fontSize: 11))),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: _downloading ? null : () => Navigator.of(context).pop(), child: const Text('关闭')),
+        if (_savedPath != null)
+          FilledButton(onPressed: _run, child: const Text('立即安装'))
+        else
+          FilledButton(onPressed: _downloading ? null : _start, child: Text(_downloading ? '下载中…' : '下载并更新')),
+      ],
+    );
   }
 }
