@@ -550,7 +550,7 @@ class _ChatShellState extends State<ChatShell> {
                       Expanded(
                         child: Row(children: [
                           if (desktop) _sidebar(c.maxWidth),
-                          Expanded(child: _conversation()),
+                          Expanded(child: SizedBox(width: double.infinity, child: _conversation())),
                         ]),
                       ),
                       if (!desktop) _mobileNav(context),
@@ -565,20 +565,49 @@ class _ChatShellState extends State<ChatShell> {
     );
   }
 
-  Widget _sidebar(double width) => SizedBox(width: width < 1000 ? 290 : 330, child: Container(color: const Color(0xff17212b), child: Column(children: [
-    Padding(padding: const EdgeInsets.fromLTRB(18, 20, 14, 12), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xff23b878), child: Text('S', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))), const SizedBox(width: 10), const Expanded(child: Text('我的消息', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700))), IconButton(onPressed: () {}, icon: const Icon(Icons.edit_square, color: Color(0xffb5c2ca)))])),
-    Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: TextField(style: const TextStyle(color: Colors.white), decoration: InputDecoration(hintText: '搜索会话', hintStyle: const TextStyle(color: Color(0xff82919b)), prefixIcon: const Icon(Icons.search, color: Color(0xff82919b)), fillColor: const Color(0xff24323d)))),
-    const SizedBox(height: 14),
-    Expanded(child: ListView(children: [
-      for (var i = 0; i < conversations.length; i++)
-        _conversationTile(i, conversations[i]),
-    ])),
-    const Divider(height: 1, thickness: 1, color: Color(0xff20262e)),
-    _navRow(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), color: const Color(0xff9aabb5)),
-    _navRow(Icons.qr_code_2, '扫码授权', () => Navigator.push(context, MaterialPageRoute(builder: (_) => ScanAuthorizePage(api: widget.api, config: widget.config))), color: const Color(0xff9aabb5)),
-    _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: const Color(0xff9aabb5)),
-    _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: const Color(0xff9aabb5)),
-  ])));
+  Widget _sidebar(double width) {
+    final theme = widget.config.theme;
+    final text = theme.text;
+    final sub = theme.subText;
+    return SizedBox(
+      width: width < 1000 ? 290 : 330,
+      child: ColoredBox(
+        color: theme.sidebar.withValues(alpha: 0.82),
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 14, 12),
+            child: Row(children: [
+              CircleAvatar(radius: 18, backgroundColor: widget.config.primary, child: const Text('S', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 10),
+              Expanded(child: Text('我的消息', style: TextStyle(color: text, fontSize: 17, fontWeight: FontWeight.w700))),
+              IconButton(onPressed: () {}, icon: Icon(Icons.edit_square, color: sub)),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: TextField(
+              style: TextStyle(color: text),
+              decoration: InputDecoration(
+                hintText: '搜索会话',
+                hintStyle: TextStyle(color: sub),
+                prefixIcon: Icon(Icons.search, color: sub),
+                fillColor: theme.inputBg,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(child: ListView(children: [
+            for (var i = 0; i < conversations.length; i++) _conversationTile(i, conversations[i]),
+          ])),
+          Divider(height: 1, thickness: 1, color: theme.div),
+          _navRow(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), color: sub),
+          _navRow(Icons.qr_code_2, '扫码授权', () => Navigator.push(context, MaterialPageRoute(builder: (_) => ScanAuthorizePage(api: widget.api, config: widget.config))), color: sub),
+          _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: sub),
+          _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: sub),
+        ]),
+      ),
+    );
+  }
 
   Widget _navRow(IconData icon, String label, VoidCallback onTap, {required Color color}) => InkWell(
         onTap: onTap,
@@ -587,7 +616,7 @@ class _ChatShellState extends State<ChatShell> {
           child: Row(children: [
             Icon(icon, color: color, size: 19),
             const SizedBox(width: 10),
-            Text(label, style: TextStyle(color: const Color(0xff9aabb5))),
+            Text(label, style: TextStyle(color: color)),
           ]),
         ),
       );
@@ -598,14 +627,14 @@ class _ChatShellState extends State<ChatShell> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: 22, color: const Color(0xff18a66a)),
+              Icon(icon, size: 22, color: widget.config.primary),
               const SizedBox(height: 2),
-              Text(label, style: const TextStyle(fontSize: 10, color: Color(0xff17212b))),
+              Text(label, style: TextStyle(fontSize: 10, color: widget.config.theme.text)),
             ]),
           ),
         );
     return Container(
-      color: Colors.white,
+      color: widget.config.theme.panel,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -646,52 +675,80 @@ class _ChatShellState extends State<ChatShell> {
 
   Widget _conversationTile(int index, Map<String, dynamic> conv) => InkWell(
         onTap: () => _openConversation(index),
-        child: Container(margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: index == selected ? const Color(0xff2a3d49) : Colors.transparent, borderRadius: BorderRadius.circular(12)), child: Row(children: [
-          CircleAvatar(radius: 22, backgroundColor: const Color(0xffd9eee4), child: Icon(conv['icon'] as IconData, color: const Color(0xff168457))),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text((conv['name'] ?? '').toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff9aabb5), fontSize: 12)),
-          ])),
-        ])),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: index == selected ? widget.config.theme.primary.withValues(alpha: widget.config.theme.isDark ? 0.35 : 0.18) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            CircleAvatar(radius: 22, backgroundColor: const Color(0xffd9eee4), child: Icon(conv['icon'] as IconData, color: const Color(0xff168457))),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.config.theme.text, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.config.theme.subText, fontSize: 12)),
+            ])),
+          ]),
+        ),
       );
 
-  Widget _conversation() => Column(children: [
-    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: const Icon(Icons.qr_code_2)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: const Icon(Icons.delete_outline)), _contextMenu()])),
-    Expanded(child: messages.isEmpty ? const Center(child: Text('还没有消息', style: TextStyle(color: Color(0xff9aa5ab)))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
-    _composer(),
-  ]);
+  Widget _conversation() {
+    final t = widget.config.theme;
+    final border = Border(bottom: BorderSide(color: t.div));
+    return Column(children: [
+      Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
+        const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))),
+        const SizedBox(width: 12),
+        Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.text)),
+          const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12)),
+        ]),
+        const Spacer(),
+        IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: Icon(Icons.qr_code_2, color: t.text)),
+        IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.text)),
+        IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.text)),
+        IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.text)),
+        _contextMenu(),
+      ])),
+      Expanded(child: messages.isEmpty ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
+      _composer(),
+    ]);
+  }
 
   Widget _bubble(Map<String, dynamic> msg) {
     final mine = msg['mine'] as bool;
     final voiceId = msg['voiceId'] as String?;
+    final t = widget.config.theme;
     return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
       if (!mine) const CircleAvatar(radius: 16, backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, size: 17, color: Color(0xff168457))),
       if (!mine) const SizedBox(width: 8),
       Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
         voiceId != null
             ? _voiceBubble(mine, voiceId)
-            : Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? const Color(0xffb7efd2) : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))), child: Text(msg['text'] as String, style: const TextStyle(color: Color(0xff17212b), fontSize: 14))),
+            : Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))), child: Text(msg['text'] as String, style: TextStyle(color: t.text, fontSize: 14))),
         const SizedBox(height: 4),
-        Text(msg['time'] as String, style: const TextStyle(color: Color(0xff9aa5ab), fontSize: 10)),
+        Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
       ]),
     ])));
   }
 
   Widget _voiceBubble(bool mine, String id) {
     final playing = playingVoiceId == id;
+    final t = widget.config.theme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(color: mine ? const Color(0xffb7efd2) : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))),
+      decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: const Color(0xff168457), onPressed: () => _toggleVoice(id)),
         Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: List.generate(12, (i) {
           final h = 6.0 + ((i * 7 + (playing ? 3 : 0)) % 16);
-          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? const Color(0xff168457) : const Color(0xff9aa5ab), borderRadius: BorderRadius.circular(2)));
+          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? const Color(0xff168457) : t.subText, borderRadius: BorderRadius.circular(2)));
         })),
         const SizedBox(width: 8),
-        Text('语音', style: TextStyle(fontSize: 12, color: mine ? const Color(0xff168457) : const Color(0xff5d6a73))),
+        Text('语音', style: TextStyle(fontSize: 12, color: mine ? const Color(0xff168457) : t.subText)),
       ]),
     );
   }
@@ -722,10 +779,11 @@ class _ChatShellState extends State<ChatShell> {
   Widget _composer() {
     final conv = selConv;
     final canSend = conv != null;
-    return Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), color: Colors.white, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : null)),
-      IconButton(tooltip: '附件', onPressed: () {}, icon: const Icon(Icons.add_circle_outline)),
-      Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: '输入消息'))),
+    final t = widget.config.theme;
+    return Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), color: t.panel.withValues(alpha: 0.5), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
+      IconButton(tooltip: '附件', onPressed: () {}, icon: Icon(Icons.add_circle_outline, color: t.text)),
+      Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
       const SizedBox(width: 10),
       FilledButton(onPressed: canSend ? () => _sendText() : null, child: const Text('发送')),
     ]));
