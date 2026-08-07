@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'qr_confirm_page.dart';
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 
@@ -74,6 +75,19 @@ class _ScanAuthorizePageState extends State<ScanAuthorizePage> {
     }
   }
 
+  Future<void> _openScanner() async {
+    setState(() => _info = null);
+    final ok = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api)),
+    );
+    if (!mounted) return;
+    if (ok == true) {
+      setState(() => _info = null);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已确认，对方设备现在可以登录了')));
+    }
+  }
+
   @override
   void dispose() {
     _tokenCtrl.dispose();
@@ -86,28 +100,39 @@ class _ScanAuthorizePageState extends State<ScanAuthorizePage> {
       appBar: AppBar(
         title: const Text('扫码授权登录'),
         leading: const CloseButton(),
+        actions: [
+          TextButton.icon(
+            onPressed: _busy ? null : _openScanner,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('扫码'),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            height: 200,
+            height: 120,
             decoration: BoxDecoration(
               color: const Color(0xffedf7f1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Center(
-              child: Icon(Icons.qr_code_2_rounded, size: 120, color: Color(0xff18a66a)),
+            child: Center(
+              child: FilledButton.icon(
+                onPressed: _busy ? null : _openScanner,
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('拍摄电脑上的二维码'),
+              ),
             ),
           ),
           const SizedBox(height: 16),
           const Text('手机扫码确认登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('在其他电脑上打开「手机快捷登录」二维码，用此页面的扫码/粘贴方式确认后，对方电脑即可登录你的账号。', style: TextStyle(color: Color(0xff77818a))),
+          const Text('打开电脑端的「手机快捷登录」二维码，用手机的相机扫描确认后，电脑即可登录你的账号。', style: TextStyle(color: Color(0xff77818a))),
           const SizedBox(height: 8),
           const Text('每台设备登录需重新扫描确认，未授权的设备无法获取登录凭证。', style: TextStyle(color: Color(0xff9aa5ab), fontSize: 12)),
           const SizedBox(height: 20),
-          const Text('扫描内容 / Token', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('也可以手动粘贴扫码内容 / Token', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           TextField(
             controller: _tokenCtrl,

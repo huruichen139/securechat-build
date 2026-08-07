@@ -78,7 +78,7 @@ class AppConfig extends ChangeNotifier {
   ThemeModeEx mode = ThemeModeEx.light;
   WindowEffectKind effect = WindowEffectKind.acrylic;
   Color primary = const Color(0xff18a66a);
-  double fontScale = 0.92;
+  double fontScale = 1.0;
   int bgKind = 0; // 0 纯色 1 渐变 2 图片
   Color bgColor = const Color(0xff2c3e50);
   bool dense = false;
@@ -106,7 +106,7 @@ class AppConfig extends ChangeNotifier {
       ..mode = ThemeModeEx.values[int.tryParse(sp.getString(_kTheme) ?? '') ?? 0]
       ..effect = WindowEffectKind.values[int.tryParse(sp.getString(_kEffect) ?? '') ?? 1]
       ..primary = Color(int.tryParse(sp.getString(_kPrimary) ?? '') ?? const Color(0xff18a66a).toARGB32())
-      ..fontScale = double.tryParse(sp.getString(_kFont) ?? '') ?? 0.92
+      ..fontScale = double.tryParse(sp.getString(_kFont) ?? '') ?? 1.0
       ..bgKind = int.tryParse(sp.getString(_kBgKind) ?? '') ?? 0
       ..bgColor = Color(int.tryParse(sp.getString(_kBgColor) ?? '') ?? const Color(0xff2c3e50).toARGB32())
       ..dense = sp.getBool(_kDense) ?? false

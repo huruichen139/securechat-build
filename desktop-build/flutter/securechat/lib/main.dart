@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'services/securechat_api.dart';
 import 'services/app_config.dart';
+import 'services/chat_crypto.dart';
 import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
@@ -60,9 +61,8 @@ class _SecureChatAppState extends State<SecureChatApp> {
           darkTheme: config.dark.theme(),
           themeMode: config.mode == ThemeModeEx.dark ? ThemeMode.dark : ThemeMode.light,
           builder: (context, child) {
-            final base = MediaQuery.textScalerOf(context);
             return MediaQuery(
-              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(config.fontScale * base.scale(1))),
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(config.fontScale)),
               child: child ?? const SizedBox.shrink(),
             );
           },
@@ -389,11 +389,12 @@ class _ChatShellState extends State<ChatShell> {
       final msgs = <Map<String, dynamic>>[];
       for (final m in history) {
         final content = (m['content'] ?? '').toString();
+        final text = readChatText(content);
         final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
-        final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(content);
+        final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
         msgs.add(voice != null
             ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt'])}
-            : {'text': content, 'mine': mine, 'time': _fmtTs(m['createdAt'])});
+            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt'])});
       }
       if (!mounted) return;
       setState(() {
@@ -433,12 +434,13 @@ class _ChatShellState extends State<ChatShell> {
           final to = p['to'];
           final talkingToPeer = conv != null && conv['kind'] == 'friend' && (from == conv['id'] || to == conv['id']);
           final content = (p['content'] ?? '').toString();
-          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(content);
+          final text = readChatText(content);
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
           setState(() {
             if (conv == null || talkingToPeer) {
               messages.add(voice != null
                   ? {'voiceId': voice[1], 'mine': p['from'] == myId, 'time': '现在'}
-                  : {'text': content, 'mine': p['from'] == myId, 'time': '现在'});
+                  : {'text': text, 'mine': p['from'] == myId, 'time': '现在'});
             }
           });
         } else if (type == 'signal') {
@@ -656,7 +658,7 @@ class _ChatShellState extends State<ChatShell> {
       );
 
   Widget _conversation() => Column(children: [
-    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: const Icon(Icons.qr_code_2)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), _contextMenu()])),
+    Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xffe3e8eb)))), child: Row(children: [const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))), const SizedBox(width: 12), Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(selName ?? '未选择会话', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12))]),         const Spacer(), IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: const Icon(Icons.qr_code_2)), IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: const Icon(Icons.call_outlined)), IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: const Icon(Icons.videocam_outlined)), IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: const Icon(Icons.delete_outline)), _contextMenu()])),
     Expanded(child: messages.isEmpty ? const Center(child: Text('还没有消息', style: TextStyle(color: Color(0xff9aa5ab)))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
     _composer(),
   ]);
@@ -737,15 +739,45 @@ class _ChatShellState extends State<ChatShell> {
     if (conv['kind'] == 'group') {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text, 'clientMsgId': gcmid}}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': writeChatText(text), 'clientMsgId': gcmid}}));
       setState(() => messages.add({'text': text, 'mine': true, 'time': '现在'}));
       return;
     }
     final to = conv['id'] as int;
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
-    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': text, 'clientMsgId': cmid}}));
+    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': writeChatText(text), 'clientMsgId': cmid}}));
     setState(() { messages.add({'text': text, 'mine': true, 'time': '现在'}); });
+  }
+
+  Future<void> _clearConversation() async {
+    final conv = selConv;
+    if (conv == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('清空聊天记录'),
+        content: Text('确定要清空与「${conv['name']}」的所有聊天记录吗？此操作不可恢复。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('清空')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (conv['kind'] == 'friend') {
+      try {
+        await widget.api.deleteHistory(conv['id'] as int);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除失败：$e')));
+        return;
+      }
+    }
+    if (!mounted) return;
+    setState(() => messages.clear());
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('聊天记录已清空')));
   }
 }
 

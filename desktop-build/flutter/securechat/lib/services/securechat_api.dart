@@ -59,9 +59,12 @@ class SecureChatApi {
   Future<Map<String, dynamic>> _json(String method, String path, {Object? body, bool auth = true, Map<String, String>? query}) async {
     final headers = auth ? _headers : {'Content-Type': 'application/json'};
     final uri = _uri(path, query);
-    final response = method == 'GET'
-        ? await http.get(uri, headers: headers)
-        : await http.post(uri, headers: headers, body: jsonEncode(body ?? const {}));
+    final response = switch (method) {
+      'GET' => await http.get(uri, headers: headers),
+      'POST' => await http.post(uri, headers: headers, body: jsonEncode(body ?? const {})),
+      'DELETE' => await http.delete(uri, headers: headers),
+      _ => await http.get(uri, headers: headers),
+    };
     Map<String, dynamic> data;
     try {
       data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -173,6 +176,10 @@ class SecureChatApi {
   Future<List<Map<String, dynamic>>> history(int peerId) async {
     final data = await _json('GET', '/api/history/$peerId');
     return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> deleteHistory(int peerId) async {
+    await _json('DELETE', '/api/history/$peerId');
   }
 
   WebSocketChannel connect() {
