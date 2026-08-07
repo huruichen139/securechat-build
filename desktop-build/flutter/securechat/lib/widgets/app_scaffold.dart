@@ -24,10 +24,18 @@ class AppScaffold extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Positioned.fill(child: BgLayer(theme: theme, config: config)),
-            Positioned.fill(
-              child: MaterialOverlay(effect: config.effect, color: materialColor),
+            // 材质切换时淡入淡出，让变化清晰可感知
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 420),
+              child: MaterialOverlay(
+                key: ValueKey('overlay-${config.effect}'),
+                effect: config.effect,
+                color: materialColor,
+              ),
             ),
-            Positioned.fill(child: _BodySurface(config: config, theme: theme, child: body)),
+            Positioned.fill(
+              child: _BodySurface(config: config, theme: theme, child: body),
+            ),
             if (overlay != null) Positioned.fill(child: overlay!),
           ],
         );
@@ -45,38 +53,57 @@ class _BodySurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double sigma = 0;
     final eff = config.effect;
-    if (eff == WindowEffectKind.acrylic ||
-        eff == WindowEffectKind.blur ||
-        eff == WindowEffectKind.mica ||
-        eff == WindowEffectKind.smoke ||
-        eff == WindowEffectKind.frosted ||
-        eff == WindowEffectKind.etched) {
-      sigma = 18;
-    } else if (eff == WindowEffectKind.metallic) {
-      sigma = 8;
-    } else if (eff == WindowEffectKind.shadow) {
-      sigma = 30;
+    // 每材质独立的模糊强度 + 面板透明度 → 切换时视觉差异明显
+    double sigma;
+    double panelAlpha;
+    switch (eff) {
+      case WindowEffectKind.none:
+        sigma = 0;
+        panelAlpha = 0.96;
+      case WindowEffectKind.mica:
+        sigma = 22;
+        panelAlpha = 0.84;
+      case WindowEffectKind.acrylic:
+        sigma = 18;
+        panelAlpha = 0.78;
+      case WindowEffectKind.blur:
+        sigma = 28;
+        panelAlpha = 0.82;
+      case WindowEffectKind.smoke:
+        sigma = 16;
+        panelAlpha = 0.74;
+      case WindowEffectKind.metallic:
+        sigma = 6;
+        panelAlpha = 0.70;
+      case WindowEffectKind.frosted:
+        sigma = 34;
+        panelAlpha = 0.88;
+      case WindowEffectKind.etched:
+        sigma = 12;
+        panelAlpha = 0.80;
+      case WindowEffectKind.shadow:
+        sigma = 40;
+        panelAlpha = 0.90;
     }
-    if (config.blurPanel) sigma = 22;
+    if (config.blurPanel) sigma = 24;
+    final dark = theme.isDark;
+
     if (sigma > 0) {
-      final dark = theme.isDark;
       return ClipRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
           child: ColoredBox(
             color: dark
-                ? (eff == WindowEffectKind.mica ? const Color(0x332a323c) : const Color(0x6628303a))
-                : (eff == WindowEffectKind.mica ? const Color(0x33ffffff) : const Color(0x66ffffff)),
+                ? const Color(0x4228303a)
+                : const Color(0x40ffffff),
             child: child,
           ),
         ),
       );
     }
     return ColoredBox(
-      color: (theme.panel)
-          .withValues(alpha: theme.isDark ? 0.9 : 0.92),
+      color: (theme.panel).withValues(alpha: panelAlpha),
       child: child,
     );
   }
