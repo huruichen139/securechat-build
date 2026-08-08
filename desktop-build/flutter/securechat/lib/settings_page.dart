@@ -454,7 +454,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _sectionTitle(AppTheme t, String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 0, 10),
+        padding: const EdgeInsets.fromLTRB(4, 16, 0, 10),
         child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: widget.config.primary, letterSpacing: 0.5)),
       );
 

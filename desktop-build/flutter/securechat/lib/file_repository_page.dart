@@ -124,13 +124,14 @@ class _FileRepositoryPageState extends State<FileRepositoryPage> {
                 ? Center(child: Text(error!, style: const TextStyle(color: Color(0xffc0392b))))
                 : Column(children: [
                     Container(
-                      color: primary.withValues(alpha: 0.12),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(color: primary.withValues(alpha: t.isDark ? 0.16 : 0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: primary.withValues(alpha: 0.25))),
                       child: Row(children: [
                         Icon(Icons.cloud_done_outlined, color: primary, size: 18),
                         const SizedBox(width: 8),
                         Expanded(child: Text('云端存储：收到的文件在线保存，压缩包直接下载保存、无需解压。', style: TextStyle(color: t.text, fontSize: 12))),
-                        Text('${files.length} 个文件', style: TextStyle(color: t.text, fontSize: 12)),
+                        Text('${files.length} 个文件', style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
                       ]),
                     ),
                     Expanded(
@@ -144,7 +145,7 @@ class _FileRepositoryPageState extends State<FileRepositoryPage> {
                                 final f = files[i];
                                 return Container(
                                   padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(color: t.card.withValues(alpha: 0.82), borderRadius: BorderRadius.circular(14), border: Border.all(color: t.div.withValues(alpha: 0.5))),
+                                  decoration: BoxDecoration(color: t.card.withValues(alpha: 0.82), borderRadius: BorderRadius.circular(14), border: Border.all(color: t.div.withValues(alpha: 0.5)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]),
                                   child: Row(children: [
                                     Icon(_iconFor((f['name'] ?? '').toString()), color: primary, size: 34),
                                     const SizedBox(width: 12),
@@ -168,8 +169,9 @@ class _FileRepositoryPageState extends State<FileRepositoryPage> {
                     if (downloadMsg != null)
                       Container(
                         width: double.infinity,
-                        color: t.card,
+                        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(color: t.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: t.div.withValues(alpha: 0.5))),
                         child: Text(downloadMsg!, style: TextStyle(color: t.text, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                       ),
                   ]),

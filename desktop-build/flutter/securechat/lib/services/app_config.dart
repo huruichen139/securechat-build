@@ -27,9 +27,9 @@ class AppTheme {
   final double fontScale;
 
   Color get bg => isDark ? const Color(0xff14181e) : const Color(0xfff4f6f8);
-  Color get panel => isDark ? const Color(0xcc1c222b) : const Color(0xccffffff);
-  Color get sidebar => isDark ? const Color(0xe6202730) : const Color(0xe616212b);
-  Color get card => isDark ? const Color(0xff232c36) : Colors.white;
+  Color get panel => isDark ? const Color(0x99263038) : const Color(0x99ffffff);
+  Color get sidebar => isDark ? const Color(0xa61f2a33) : const Color(0x9cffffff);
+  Color get card => isDark ? const Color(0xcc232c36) : const Color(0xd9ffffff);
   Color get text => isDark ? const Color(0xffe6eaef) : const Color(0xff17212b);
   Color get subText => isDark ? const Color(0xff8b96a1) : const Color(0xff77818a);
   Color get div => isDark ? const Color(0xff2d3742) : const Color(0xffe3e8eb);

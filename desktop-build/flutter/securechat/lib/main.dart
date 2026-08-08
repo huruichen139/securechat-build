@@ -204,7 +204,12 @@ class _LoginPageState extends State<LoginPage> {
                 child: LayoutBuilder(builder: (context, box) {
                   final compact = box.maxWidth < 700;
                   return Container(
-                    decoration: BoxDecoration(color: config.theme.card, borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 35, offset: Offset(0, 18))]),
+                    decoration: BoxDecoration(
+                      color: config.theme.card,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: config.theme.div.withValues(alpha: 0.35)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: config.theme.isDark ? 0.4 : 0.14), blurRadius: 42, offset: const Offset(0, 20))],
+                    ),
                     child: Row(children: [
                       if (!compact) const Expanded(child: WelcomePanel()),
                       Expanded(child: Padding(padding: EdgeInsets.all(compact ? 28 : 58), child: _form(context))),
@@ -213,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
                 }),
               ),
             ),
-            const Positioned(top: 16, right: 16, child: Icon(Icons.security, color: Color(0xffffffff), size: 18)),
+            Positioned(top: 16, right: 16, child: Icon(Icons.security, color: config.primary.withValues(alpha: 0.8), size: 18)),
           ]),
         );
       },
@@ -227,11 +232,15 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 8),
       Text('你的消息，只属于你和收件人。', style: TextStyle(color: t.subText)),
       const SizedBox(height: 30),
-      Row(children: [
-        _mode('密码登录', 0),
-        _mode('邮箱验证码', 1),
-        _mode('扫码登录', 2),
-      ]),
+      Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(color: t.inputBg, borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [
+          _mode('密码登录', 0, t),
+          _mode('邮箱验证码', 1, t),
+          _mode('扫码登录', 2, t),
+        ]),
+      ),
       const SizedBox(height: 22),
       if (mode == 0) ...[
         TextField(controller: account, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '用户名或邮箱', labelStyle: TextStyle(color: t.subText))),
@@ -267,16 +276,16 @@ class _LoginPageState extends State<LoginPage> {
     ]);
   }
 
-  Widget _mode(String label, int value) {
-    final t = widget.config.theme;
+  Widget _mode(String label, int value, AppTheme t) {
+    final selected = mode == value;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => mode = value),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 11),
-          decoration: BoxDecoration(color: mode == value ? widget.config.primary.withValues(alpha: 0.18) : Colors.transparent, borderRadius: BorderRadius.circular(10)),
-          child: Center(child: Text(label, style: TextStyle(fontSize: 12, color: mode == value ? widget.config.primary : t.subText, fontWeight: mode == value ? FontWeight.w700 : FontWeight.w500))),
+          decoration: BoxDecoration(color: selected ? widget.config.theme.card : Colors.transparent, borderRadius: BorderRadius.circular(9), boxShadow: selected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))] : null),
+          child: Center(child: Text(label, style: TextStyle(fontSize: 12, color: selected ? widget.config.primary : t.subText, fontWeight: selected ? FontWeight.w700 : FontWeight.w500))),
         ),
       ),
     );
@@ -591,7 +600,7 @@ class _ChatShellState extends State<ChatShell> {
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 20, 14, 12),
             child: Row(children: [
-              CircleAvatar(radius: 18, backgroundColor: widget.config.primary, child: const Text('S', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              CircleAvatar(radius: 18, backgroundColor: widget.config.primary, child: Text('S', style: TextStyle(color: widget.config.theme.onAccent, fontWeight: FontWeight.bold))),
               const SizedBox(width: 10),
               Expanded(child: Text('我的消息', style: TextStyle(color: text, fontSize: 17, fontWeight: FontWeight.w700))),
               IconButton(onPressed: () {}, icon: Icon(Icons.edit_square, color: sub)),
@@ -687,44 +696,51 @@ class _ChatShellState extends State<ChatShell> {
         ],
       );
 
-  Widget _conversationTile(int index, Map<String, dynamic> conv) => InkWell(
+  Widget _conversationTile(int index, Map<String, dynamic> conv) {
+    final t = widget.config.theme;
+    final selected = index == this.selected;
+    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
+    return InkWell(
         onTap: () => _openConversation(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: index == selected ? widget.config.theme.primary.withValues(alpha: widget.config.theme.isDark ? 0.35 : 0.18) : Colors.transparent,
+            color: selected ? widget.config.primary.withValues(alpha: t.isDark ? 0.30 : 0.14) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
+            border: selected ? Border.all(color: widget.config.primary.withValues(alpha: t.isDark ? 0.30 : 0.18)) : null,
           ),
           child: Row(children: [
-            CircleAvatar(radius: 22, backgroundColor: const Color(0xffd9eee4), child: Icon(conv['icon'] as IconData, color: const Color(0xff168457))),
+            CircleAvatar(radius: 22, backgroundColor: avatarBg, child: Icon(conv['icon'] as IconData, color: widget.config.primary)),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.config.theme.text, fontWeight: FontWeight.w600)),
+              Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.config.theme.subText, fontSize: 12)),
+              Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12)),
             ])),
           ]),
         ),
       );
+  }
 
   Widget _conversation() {
     final t = widget.config.theme;
     final border = Border(bottom: BorderSide(color: t.div));
+    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
     return Column(children: [
       Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
-        const CircleAvatar(backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, color: Color(0xff168457))),
+        CircleAvatar(backgroundColor: avatarBg, child: Icon(Icons.person, color: t.primary)),
         const SizedBox(width: 12),
         Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.text)),
-          const Text('SecureChat', style: TextStyle(color: Color(0xff18a66a), fontSize: 12)),
+          Text('SecureChat', style: TextStyle(color: t.primary, fontSize: 12)),
         ]),
         const Spacer(),
-        IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: Icon(Icons.qr_code_2, color: t.text)),
-        IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.text)),
-        IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.text)),
-        IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.text)),
+        IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: Icon(Icons.qr_code_2, color: t.subText)),
+        IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
+        IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
+        IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
         _contextMenu(),
       ])),
       Expanded(child: messages.isEmpty ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
@@ -736,15 +752,16 @@ class _ChatShellState extends State<ChatShell> {
     final mine = msg['mine'] as bool;
     final voiceId = msg['voiceId'] as String?;
     final t = widget.config.theme;
+    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
     return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-      if (!mine) const CircleAvatar(radius: 16, backgroundColor: Color(0xffd9eee4), child: Icon(Icons.person, size: 17, color: Color(0xff168457))),
+      if (!mine) CircleAvatar(radius: 16, backgroundColor: avatarBg, child: Icon(Icons.person, size: 17, color: t.primary)),
       if (!mine) const SizedBox(width: 8),
       Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
         voiceId != null
             ? _voiceBubble(mine, voiceId)
-            : Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))), child: Text(msg['text'] as String, style: TextStyle(color: t.text, fontSize: 14))),
+            : Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]), child: Text(msg['text'] as String, style: TextStyle(color: t.text, fontSize: 14, height: 1.4))),
         const SizedBox(height: 4),
-        Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
+        Padding(padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 18), child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10))),
       ]),
     ])));
   }
@@ -752,17 +769,18 @@ class _ChatShellState extends State<ChatShell> {
   Widget _voiceBubble(bool mine, String id) {
     final playing = playingVoiceId == id;
     final t = widget.config.theme;
+    final acc = widget.config.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16))),
+      decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: const Color(0xff168457), onPressed: () => _toggleVoice(id)),
+        IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: acc, onPressed: () => _toggleVoice(id)),
         Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: List.generate(12, (i) {
           final h = 6.0 + ((i * 7 + (playing ? 3 : 0)) % 16);
-          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? const Color(0xff168457) : t.subText, borderRadius: BorderRadius.circular(2)));
+          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? acc : t.subText, borderRadius: BorderRadius.circular(2)));
         })),
         const SizedBox(width: 8),
-        Text('语音', style: TextStyle(fontSize: 12, color: mine ? const Color(0xff168457) : t.subText)),
+        Text('语音', style: TextStyle(fontSize: 12, color: mine ? acc : t.subText)),
       ]),
     );
   }
@@ -794,12 +812,12 @@ class _ChatShellState extends State<ChatShell> {
     final conv = selConv;
     final canSend = conv != null;
     final t = widget.config.theme;
-    return Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), color: t.panel.withValues(alpha: 0.5), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+    return Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
       IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
       IconButton(tooltip: '附件', onPressed: () {}, icon: Icon(Icons.add_circle_outline, color: t.text)),
       Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
       const SizedBox(width: 10),
-      FilledButton(onPressed: canSend ? () => _sendText() : null, child: const Text('发送')),
+      SizedBox(height: 42, child: FilledButton(onPressed: canSend ? () => _sendText() : null, child: const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('发送')))),
     ]));
   }
 
@@ -941,19 +959,21 @@ class _FeaturesSheet extends StatelessWidget {
       ('AI 网页', Icons.smart_toy_outlined, 'https://ai.32768.top'),
     ];
     final theme = Theme.of(context);
+    final t = config?.theme;
+    final textColor = t?.text ?? theme.colorScheme.onSurface;
     return SafeArea(
       child: Container(
-        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 30, offset: Offset(0, -4))]),
+        decoration: BoxDecoration(color: t?.card ?? theme.colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 30, offset: const Offset(0, -4))]),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('功能中心', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: theme.colorScheme.onSurface)),
+          Text('功能中心', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor)),
           const SizedBox(height: 14),
           Wrap(spacing: 14, runSpacing: 14, children: [
             for (final e in entries)
               _gridItem(context, e.$1, e.$2, () => _push(context, e.$3)),
           ]),
           const SizedBox(height: 18),
-          Text('我的服务', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: theme.colorScheme.onSurface)),
+          Text('我的服务', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor)),
           const SizedBox(height: 14),
           Wrap(spacing: 14, runSpacing: 14, children: [
             for (final s in webServices)
@@ -966,18 +986,21 @@ class _FeaturesSheet extends StatelessWidget {
   }
 
   Widget _gridItem(BuildContext context, String label, IconData icon, VoidCallback onTap) {
+    final t = config?.theme;
+    final primary = config?.primary ?? const Color(0xff18a66a);
     final scheme = Theme.of(context).colorScheme;
+    final textColor = t?.text ?? scheme.onSurface;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 84,
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(color: scheme.secondaryContainer.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(color: (t?.card ?? scheme.surface), borderRadius: BorderRadius.circular(16), border: Border.all(color: (t?.div ?? scheme.outlineVariant).withValues(alpha: 0.5)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t?.isDark == true ? 0.15 : 0.04), blurRadius: 8, offset: const Offset(0, 2))]),
         child: Column(children: [
-          Icon(icon, color: const Color(0xff18a66a), size: 26),
+          Icon(icon, color: primary, size: 26),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(label, style: TextStyle(fontSize: 12, color: textColor)),
         ]),
       ),
     );

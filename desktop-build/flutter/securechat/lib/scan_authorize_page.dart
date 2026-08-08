@@ -121,10 +121,12 @@ class _ScanAuthorizePageState extends State<ScanAuthorizePage> {
                 color: t.card,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: t.div.withValues(alpha: 0.5)),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.25 : 0.06), blurRadius: 16, offset: const Offset(0, 6))],
               ),
               child: Center(
                 child: FilledButton.icon(
                   onPressed: _busy ? null : _openScanner,
+                  style: FilledButton.styleFrom(minimumSize: const Size(200, 44)),
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('拍摄电脑上的二维码'),
                 ),
