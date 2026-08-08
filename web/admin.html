@@ -6,10 +6,10 @@
 <title>SecureChat 管理员后台</title>
 <link rel="stylesheet" href="styles.css?v=admin-i18n-20260804-1" />
 <script>
-  // 所有正式请求强制使用 HTTPS 公网入口。
+  // API 自动跟随当前页面来源（同源），避免硬编码地址连不通。
   (function () {
     var host = location.hostname || '';
-    window.SERVER_HOST = 'https://mc.32768.top:8888';
+    window.SERVER_HOST = location.origin;
   })();
 </script>
 </head>
