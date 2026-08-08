@@ -904,12 +904,17 @@ class _WindowDragBar extends StatelessWidget {
         SizedBox(
           height: 40,
           child: Row(children: [
-            const SizedBox(width: 12),
-            const Icon(Icons.lock_outline, size: 15, color: Color(0xff18a66a)),
-            const SizedBox(width: 8),
-            const Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            DragToMoveArea(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Row(children: [
+                  const Icon(Icons.lock_outline, size: 15, color: Color(0xff18a66a)),
+                  const SizedBox(width: 8),
+                  const Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
             const Spacer(),
-            const DragToMoveArea(child: SizedBox(width: 40, height: 40)),
             btn(Icons.remove_rounded, windowManager.minimize),
             btn(Icons.crop_square_rounded, () async {
               final m = await windowManager.isMaximized();

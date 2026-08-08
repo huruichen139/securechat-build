@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SecureChatApi {
-  SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'});
+  SecureChatApi({this.baseUrl = 'http://mc.32768.top:8888'});
 
   String baseUrl;
   String? token;
