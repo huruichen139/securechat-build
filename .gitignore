@@ -14,3 +14,14 @@ cloudflared.exe
 *.apk
 *.hap
 .DS_Store
+
+# Runtime / build-noise (do not commit, see AGENTS.md)
+/backups/
+*.sqlite.bak*
+*.sqlite.*
+/server/call-recordings/
+/server/files/
+/tools/
+/log_utfprobe.txt
+desktop-build/harmony/.hvigor/
+desktop-build/harmony/entry/build/
