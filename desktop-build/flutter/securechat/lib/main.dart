@@ -901,28 +901,40 @@ class _WindowDragBar extends StatelessWidget {
       child: Column(children: [
         SizedBox(
           height: 40,
-          child: Row(children: [
-            DragToMoveArea(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 10),
-                child: Row(children: [
-                  const Icon(Icons.lock_outline, size: 15, color: Color(0xff18a66a)),
-                  const SizedBox(width: 8),
-                  const Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ]),
+          child: Stack(children: [
+            Positioned.fill(
+              child: DragToMoveArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Row(children: [
+                      const Icon(Icons.lock_outline, size: 15, color: Color(0xff18a66a)),
+                      const SizedBox(width: 8),
+                      const Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ),
               ),
             ),
-            const Spacer(),
-            btn(Icons.remove_rounded, windowManager.minimize),
-            btn(Icons.crop_square_rounded, () async {
-              final m = await windowManager.isMaximized();
-              if (m) {
-                await windowManager.unmaximize();
-              } else {
-                await windowManager.maximize();
-              }
-            }),
-            btn(Icons.close_rounded, windowManager.close, danger: true),
+            // 窗口控制按钮固定在右侧，不影响拖动区
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: Row(children: [
+                btn(Icons.remove_rounded, windowManager.minimize),
+                btn(Icons.crop_square_rounded, () async {
+                  final m = await windowManager.isMaximized();
+                  if (m) {
+                    await windowManager.unmaximize();
+                  } else {
+                    await windowManager.maximize();
+                  }
+                }),
+                btn(Icons.close_rounded, windowManager.close, danger: true),
+              ]),
+            ),
           ]),
         ),
         const Divider(height: 1, thickness: 1),
