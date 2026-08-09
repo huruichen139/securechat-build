@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
-import 'widgets/window_effect.dart';
+import 'widgets/app_scaffold.dart';
 
 class AiPage extends StatefulWidget {
   const AiPage({super.key, required this.api, required this.config});
@@ -138,26 +138,10 @@ class _AiPageState extends State<AiPage> {
     final t = config.theme;
     return AnimatedBuilder(
       animation: config,
-      builder: (context, _) => Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          title: const Text('AI 助手'),
-          leading: const CloseButton(),
-          actions: [
-            IconButton(
-              tooltip: _ready ? 'AI 配置' : '未配置 AI，请点击设置',
-              onPressed: () => setState(() {
-                _showConfig = !_showConfig;
-                _syncReady();
-              }),
-              icon: Icon(_ready ? Icons.settings_outlined : Icons.error_outline),
-            ),
-          ],
-        ),
-        body: Stack(children: [
-          Positioned.fill(child: BgLayer(theme: t, config: config)),
-          Column(children: [
+      builder: (context, _) => AppScaffold(
+        config: config,
+        body: Column(children: [
+          _topBar(config),
           if (_showConfig)
             _configCard(config)
           else if (!_ready)
@@ -173,7 +157,33 @@ class _AiPageState extends State<AiPage> {
                     ),
             ),
           _composer(config),
-          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _topBar(AppConfig config) {
+    final t = config.theme;
+    return Material(
+      color: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+        child: Row(children: [
+          IconButton(
+            tooltip: _ready ? 'AI 配置' : '未配置 AI，请点击设置',
+            onPressed: () => setState(() {
+              _showConfig = !_showConfig;
+              _syncReady();
+            }),
+            icon: Icon(_ready ? Icons.settings_outlined : Icons.error_outline, color: t.text),
+          ),
+          Text('AI 助手', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: t.text)),
+          const Spacer(),
+          IconButton(
+            tooltip: '关闭',
+            onPressed: () => Navigator.maybePop(context),
+            icon: Icon(Icons.close, color: t.subText),
+          ),
         ]),
       ),
     );

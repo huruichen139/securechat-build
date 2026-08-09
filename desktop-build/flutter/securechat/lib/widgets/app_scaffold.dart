@@ -94,9 +94,10 @@ class _BodySurface extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
           child: ColoredBox(
+            // 更轻的罩膜：让下方分材质的主色调能透出来，切换材质肉眼可辨
             color: dark
-                ? const Color(0x4228303a)
-                : const Color(0x40ffffff),
+                ? const Color(0x2428303a)
+                : const Color(0x1fffffff),
             child: child,
           ),
         ),

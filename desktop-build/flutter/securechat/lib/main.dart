@@ -19,7 +19,7 @@ import 'call_page.dart';
 import 'settings_page.dart';
 import 'features_center.dart';
 import 'ai_page.dart';
-import 'scan_authorize_page.dart';
+
 import 'file_repository_page.dart';
 import 'update_service.dart';
 
@@ -624,7 +624,6 @@ class _ChatShellState extends State<ChatShell> {
           ])),
           Divider(height: 1, thickness: 1, color: theme.div),
           _navRow(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), color: sub),
-          _navRow(Icons.qr_code_2, '扫码授权', () => Navigator.push(context, MaterialPageRoute(builder: (_) => ScanAuthorizePage(api: widget.api, config: widget.config))), color: sub),
           _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: sub),
           _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: sub),
         ]),
@@ -667,7 +666,6 @@ class _ChatShellState extends State<ChatShell> {
             children: [
               tile(Icons.chat_bubble_outline, '会话', () {}),
               tile(Icons.auto_awesome_outlined, 'AI', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config)))),
-              tile(Icons.qr_code_2, '扫码授权', () => Navigator.push(context, MaterialPageRoute(builder: (_) => ScanAuthorizePage(api: widget.api, config: widget.config)))),
               tile(Icons.apps_rounded, '功能', () => _openFeatures(context)),
               tile(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api)))),
             ],
@@ -953,8 +951,8 @@ class _FeaturesSheet extends StatelessWidget {
       ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
       ('待办清单', Icons.checklist_rounded, const TodoPage()),
       ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
-      ('文件仓库', Icons.folder_outlined, api != null && config != null ? FileRepositoryPage(api: api!, config: config!) : const FileCenterPage()),
-      ('我的收藏', Icons.favorite_outline, const FavoritesPage()),
+      ('文件仓库', Icons.folder_outlined, api != null && config != null ? FileRepositoryPage(api: api!, config: config!) : FileCenterPage(api: api)),
+      ('我的收藏', Icons.favorite_outline, FavoritesPage(api: api)),
       ('定时提醒', Icons.alarm_outlined, const ReminderPage()),
       ('在线状态', Icons.mood_outlined, const MoodStatusPage()),
     ];

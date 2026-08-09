@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.44.0';
+const PACKAGE_VERSION = '1.45.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -80,14 +80,14 @@ function saveCurrentDraft() {
   if (value) drafts[key] = value;
   else delete drafts[key];
   localStorage.setItem(draftStorageKey(), JSON.stringify(drafts));
-  const hint = $('draftState'); if (hint) hint.textContent = value ? '草稿已保存' : '草稿自动保存';
+  const hint = $('draftState'); if (hint) hint.textContent = value ? t('draftSaved','草稿已保存') : t('draftAuto','草稿自动保存');
 }
 function restoreCurrentDraft() {
   const key = activeConversationKey();
   const input = $('input');
   if (!input) return;
   input.value = key ? (readDrafts()[key] || '') : '';
-  const hint = $('draftState'); if (hint) hint.textContent = input.value ? '已恢复草稿' : '草稿自动保存';
+  const hint = $('draftState'); if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草稿') : t('draftAuto','草稿自动保存');
 }
 
 // ============ 个人资料字段定义（≥100 项） ============
@@ -293,7 +293,7 @@ document.querySelectorAll('.tab').forEach(tt => {
   tt.onclick = () => {
     mode = tt.dataset.tab;
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === tt));
-    $('authBtn').textContent = mode === 'login' ? '登录' : '注册';
+    $('authBtn').textContent = mode === 'login' ? t('login', '登录') : t('register', '注册');
     applyLoginMode();
   };
 });
@@ -339,6 +339,9 @@ $('authBtn').onclick = async () => {
     endpoint = '/api/login';
     body = { account: username, password };
   }
+  const btn = $('authBtn');
+  btn.disabled = true;
+  btn.textContent = t('loggingIn', '登录中…');
   try {
     const res = await fetch(state.serverHost + endpoint, {
       method: 'POST',
@@ -354,6 +357,9 @@ $('authBtn').onclick = async () => {
     enterChat();
   } catch (e) {
     $('authErr').textContent = '无法连接服务器：' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = mode === 'register' ? t('register', '注册') : (loginMode === 'code' ? t('codeLogin', '验证码登录') : t('login', '登录'));
   }
 };
 
@@ -1277,6 +1283,44 @@ function renderGroupMessages(msgs) {
 
 // 群聊消息气泡（带昵称）
 function appendGroupMessage(m, prepend) {
+  // 群聊语音：复用气泡结构，但带上发送人昵称/头像
+  if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
+    const rest = m.content.slice(VOICE_PREFIX.length);
+    const sep = rest.indexOf('|');
+    const dur = parseFloat(rest.slice(0, sep)) || 0;
+    const b64 = rest.slice(sep + 1);
+    const box = $('messages');
+    const mine = m.from === (state.me && state.me.id);
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (mine ? 'me' : 'other');
+    const fromName = (m.fromUser && m.fromUser.nickname) || ('用户' + m.from);
+    const avHtml = (m.fromUser && m.fromUser.avatar)
+      ? '<img src="' + m.fromUser.avatar + '">'
+      : avatarChar(fromName);
+    const nameLine = mine ? '' : '<div class="name">' + escapeHtml(fromName) + '</div>';
+    const bars = '<span class="voice-bars">' + Array.from({ length: 5 }, (_, i) => '<span style="height:' + (6 + i * 2) + 'px"></span>').join('') + '</span>';
+    row.innerHTML = `<div class="avatar">${avHtml}</div>
+      <div class="bubble-wrap">
+        ${nameLine}
+        <div class="bubble"><div class="voice-bubble">\u25B6${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
+        <span class="time">${fmtTime(m.createdAt)}</span>
+      </div>`;
+    if (b64) {
+      const vb = row.querySelector('.voice-bubble');
+      vb._b64 = b64;
+      vb.onclick = function () {
+        const audio = new Audio('data:audio/webm;base64,' + this._b64);
+        audio.play();
+        const btn = this.querySelector('.play') || this;
+        btn.textContent = '\u23F8';
+        audio.onended = () => { btn.textContent = '\u25B6'; };
+        audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = '\u25B6'; };
+      };
+    }
+    box.appendChild(row);
+    if (!prepend) box.scrollTop = box.scrollHeight;
+    return;
+  }
   const box = $('messages');
   const mine = m.from === (state.me && state.me.id);
   const row = document.createElement('div');
@@ -1427,8 +1471,8 @@ function refreshConversationButtons() {
   const key = activeConversationKey();
   const prefs = chatPrefs();
   const pin = $('pinChatBtn'); const mute = $('muteChatBtn');
-  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? '已置顶' : '置顶'; }
-  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? '已静音' : '免打扰'; }
+  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','已置顶') : t('pin','置顶'); }
+  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','已静音') : t('mute','免打扰'); }
 }
 
 function wireConversationTools() {
@@ -1460,7 +1504,7 @@ function wireConversationTools() {
     if (!('Notification' in window)) return toast('当前浏览器不支持系统通知', 'warn', 1500);
     const permission = await Notification.requestPermission();
     notify.classList.toggle('active', permission === 'granted');
-    notify.textContent = permission === 'granted' ? '通知已开' : '通知';
+    notify.textContent = permission === 'granted' ? t('notifyOn','通知已开') : t('notify','通知');
     toast(permission === 'granted' ? '浏览器通知已开启' : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
   };
   if (clear) clear.onclick = async () => {
@@ -2113,7 +2157,7 @@ function stopVoiceRec(cancel) {
   $('voiceTip').style.display = 'none';
   // 复位语音按钮文字
   const btn = $('voiceBtn');
-  if (btn) { btn.classList.remove('recording'); btn.textContent = '语音'; }
+  if (btn) { btn.classList.remove('recording'); btn.textContent = t('voice','语音'); }
   document.dispatchEvent(new Event('recrecstate'));
 }
 
@@ -2173,11 +2217,11 @@ function stopVoiceRec(cancel) {
     recognition.onend = () => {
       active = false;
       btn.classList.remove('transcribing');
-      btn.textContent = '转文字';
+      btn.textContent = t('transcribe','转文字');
       saveCurrentDraft();
     };
     try { recognition.start(); toast('开始语音转文字，再次点击可停止', 'info', 1400); }
-    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = '转文字'; }
+    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','转文字'); }
   };
 })();
 

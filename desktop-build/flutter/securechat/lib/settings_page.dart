@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
@@ -23,6 +26,13 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _demoReadReceipt = false;
   bool _demoDeviceLock = false;
   String? _clearInfo;
+  String _cacheSizeText = '计算中…';
+  int _cacheFileCount = 0;
+
+  static const _kPrivacyStealth = 'privacy_stealth';
+  static const _kPrivacyAutoClear = 'privacy_autoclear';
+  static const _kPrivacyReadReceipt = 'privacy_read_receipt';
+  static const _kPrivacyDeviceLock = 'privacy_device_lock';
 
   static const List<Color> _bgColors = [
     Color(0xff2c3e50),
@@ -32,6 +42,95 @@ class _SettingsPageState extends State<SettingsPage> {
     Color(0xff7f1d1d),
     Color(0xff0e7490),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+    _scanCache();
+  }
+
+  Future<void> _loadPrefs() async {
+    final sp = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _demoStealth = sp.getBool(_kPrivacyStealth) ?? false;
+        _demoAutoClear = sp.getBool(_kPrivacyAutoClear) ?? false;
+        _demoReadReceipt = sp.getBool(_kPrivacyReadReceipt) ?? false;
+        _demoDeviceLock = sp.getBool(_kPrivacyDeviceLock) ?? false;
+      });
+    }
+  }
+
+  Future<void> _savePrivacy(String key, bool value) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(key, value);
+  }
+
+  Future<void> _scanCache() async {
+    int total = 0;
+    int count = 0;
+    try {
+      final tmp = await Directory.systemTemp.create();
+      await for (final entry in tmp.list(recursive: false, followLinks: false)) {
+        final name = entry.path.split(Platform.pathSeparator).last;
+        if (name.startsWith('securechat-voice-')) {
+          try {
+            if (entry is File) {
+              total += await entry.length();
+              count++;
+            } else if (entry is Directory) {
+              await for (final sub in entry.list(recursive: true, followLinks: false)) {
+                if (sub is File) {
+                  total += await sub.length();
+                  count++;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _cacheFileCount = count;
+        _cacheSizeText = _fmtSize(total);
+      });
+    }
+  }
+
+  String _fmtSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+    return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(1)} GB';
+  }
+
+  Future<void> _clearCache() async {
+    int deleted = 0;
+    try {
+      final tmp = await Directory.systemTemp.create();
+      await for (final entry in tmp.list(recursive: false, followLinks: false)) {
+        final name = entry.path.split(Platform.pathSeparator).last;
+        if (name.startsWith('securechat-voice-')) {
+          try {
+            if (entry is File) {
+              await entry.delete();
+              deleted++;
+            } else if (entry is Directory) {
+              await entry.delete(recursive: true);
+              deleted++;
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    await _scanCache();
+    if (mounted) {
+      setState(() => _clearInfo = '已清除 $deleted 个缓存文件');
+      _toast(context, '已清除 $deleted 个缓存文件');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +415,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.help_outline),
             title: const Text('帮助中心'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _toast(context, '帮助中心即将上线'),
+            onTap: () => _toast(context, '帮助中心即将上线，可反馈至 admin 邮箱'),
           ),
           const Divider(height: 1),
           ListTile(
@@ -324,7 +423,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.rate_review_outlined),
             title: const Text('给 SecureChat 评分'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _toast(context, '感谢你的支持'),
+            onTap: () => _toast(context, '感谢支持'),
           ),
         ],
       )),
@@ -369,7 +468,10 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: const Text('隐藏在线状态与已读回执'),
             secondary: const Icon(Icons.visibility_off_outlined),
             value: _demoStealth,
-            onChanged: (v) => setState(() => _demoStealth = v),
+            onChanged: (v) {
+              setState(() => _demoStealth = v);
+              _savePrivacy(_kPrivacyStealth, v);
+            },
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -377,7 +479,10 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: const Text('离开会话后自动删除本地副本'),
             secondary: const Icon(Icons.delete_sweep_outlined),
             value: _demoAutoClear,
-            onChanged: (v) => setState(() => _demoAutoClear = v),
+            onChanged: (v) {
+              setState(() => _demoAutoClear = v);
+              _savePrivacy(_kPrivacyAutoClear, v);
+            },
           ),
         ],
       )),
@@ -390,7 +495,10 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: const Text('展示消息已被对方读取'),
             secondary: const Icon(Icons.done_all_outlined),
             value: _demoReadReceipt,
-            onChanged: (v) => setState(() => _demoReadReceipt = v),
+            onChanged: (v) {
+              setState(() => _demoReadReceipt = v);
+              _savePrivacy(_kPrivacyReadReceipt, v);
+            },
           ),
           const Divider(height: 1),
           SwitchListTile(
@@ -399,7 +507,10 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: const Text('新设备登录需再次验证'),
             secondary: const Icon(Icons.phonelink_lock_outlined),
             value: _demoDeviceLock,
-            onChanged: (v) => setState(() => _demoDeviceLock = v),
+            onChanged: (v) {
+              setState(() => _demoDeviceLock = v);
+              _savePrivacy(_kPrivacyDeviceLock, v);
+            },
           ),
         ],
       )),
@@ -414,9 +525,9 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           Row(children: [Icon(Icons.folder_open_outlined, color: t.text), const SizedBox(width: 10), Text('当前缓存大小', style: TextStyle(color: t.text, fontWeight: FontWeight.w700))]),
           const SizedBox(height: 8),
-          Text('约 128 MB', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: t.text)),
+          Text('约 $_cacheSizeText（$_cacheFileCount 个文件）', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: t.text)),
           const SizedBox(height: 8),
-          Text('包含语音缓存、图片缩略图与离线消息副本。', style: TextStyle(color: t.subText)),
+          Text('包含语音缓存等临时文件（位于系统临时目录 securechat-voice-*）。', style: TextStyle(color: t.subText)),
           const Divider(height: 28),
           Row(children: [
             Expanded(
@@ -424,10 +535,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.cleaning_services_outlined),
                 title: const Text('清除缓存'),
-                onTap: () {
-                  setState(() => _clearInfo = '已清除 128 MB 缓存');
-                  _toast(context, '缓存已清除');
-                },
+                onTap: _clearCache,
               ),
             ),
             if (_clearInfo != null)

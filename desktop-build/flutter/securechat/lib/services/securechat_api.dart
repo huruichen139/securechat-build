@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SecureChatApi {
-  SecureChatApi({this.baseUrl = 'http://mc.32768.top:8888'});
+  SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'});
 
   String baseUrl;
   String? token;
@@ -150,6 +150,15 @@ class SecureChatApi {
   Future<List<Map<String, dynamic>>> myFiles() async {
     final data = await _json('GET', '/api/files');
     return ((data['files'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> favorites() async {
+    final data = await _json('GET', '/api/favorites');
+    return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> setFavorite(int messageId, {bool favorite = true}) async {
+    await _json('POST', '/api/messages/$messageId/favorite', body: {'favorite': favorite});
   }
 
   Future<Map<String, dynamic>> checkVersion() async {

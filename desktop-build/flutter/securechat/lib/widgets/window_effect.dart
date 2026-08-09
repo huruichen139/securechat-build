@@ -77,34 +77,32 @@ class MaterialOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final tint = color;
-    final lightBase = const Color(0xb8ffffff).withValues(alpha: dark ? 0.9 : 0.25);
-    final darkBase = const Color(0x9928303a);
-
+    // 每种材质在明/暗下都给一个独特、可感知的主色调，
+    // 这样切换材质时整面板的色温/明度都会明显变化，不再“换了没感觉”。
     Widget? base;
     switch (effect) {
       case WindowEffectKind.none:
         base = null;
-      case WindowEffectKind.mica:
-        base = _NoiseWidget(baseDark: const Color(0x662a323c), baseLight: tint);
-      case WindowEffectKind.acrylic:
-        base = _NoiseWidget(baseDark: const Color(0x8a222a33), baseLight: tint);
-      case WindowEffectKind.blur:
-        base = _TintWidget(baseDark: darkBase, baseLight: lightBase, seed: 1);
-      case WindowEffectKind.smoke:
-        base = _SmokeWidget(baseDark: darkBase, baseLight: lightBase);
-      case WindowEffectKind.metallic:
-        base = _MetallicWidget(baseDark: darkBase, baseLight: lightBase);
-      case WindowEffectKind.frosted:
-        base = _FrostedWidget(baseDark: darkBase, baseLight: lightBase);
-      case WindowEffectKind.etched:
-        base = _EtchedWidget(baseDark: darkBase, baseLight: lightBase);
-      case WindowEffectKind.shadow:
-        base = _ShadowWidget(baseDark: darkBase, baseLight: lightBase);
+      case WindowEffectKind.mica: // 蓝灰
+        base = _TintWidget(baseDark: const Color(0x8a27303e), baseLight: const Color(0xd9e8eef5), seed: 1);
+      case WindowEffectKind.acrylic: // 半透明高透，蓝紫调
+        base = _NoiseWidget(baseDark: const Color(0xb8232b38), baseLight: const Color(0xccf4f6fb));
+      case WindowEffectKind.blur: // 中性，最接近纯毛玻璃
+        base = _TintWidget(baseDark: const Color(0x99600000), baseLight: const Color(0xccffffff), seed: 2);
+      case WindowEffectKind.smoke: // 暖灰烟
+        base = _SmokeWidget(baseDark: const Color(0x7a2c2a28), baseLight: const Color(0xccf5f1ec));
+      case WindowEffectKind.metallic: // 冷钢金属
+        base = _MetallicWidget(baseDark: const Color(0x7a2b3440), baseLight: const Color(0xdcd8e2ec));
+      case WindowEffectKind.frosted: // 冰白霜花
+        base = _FrostedWidget(baseDark: const Color(0x66283340), baseLight: const Color(0xe6f0f4fa));
+      case WindowEffectKind.etched: // 琥珀刻纹
+        base = _EtchedWidget(baseDark: const Color(0x7a2e2a20), baseLight: const Color(0xd8f4efe4));
+      case WindowEffectKind.shadow: // 深影高对比
+        base = _ShadowWidget(baseDark: const Color(0xb81c2126), baseLight: const Color(0xd9eaedf2));
     }
 
     if (base == null) return child ?? const SizedBox.shrink();
+    // 轻量柔光，避免材质纹理过于抢眼
     return Stack(fit: StackFit.expand, children: [base, ?child]);
   }
 }
