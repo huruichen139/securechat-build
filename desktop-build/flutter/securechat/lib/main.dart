@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:record/record.dart';
@@ -16,6 +17,7 @@ import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
 import 'call_page.dart';
+import 'qr_confirm_page.dart';
 import 'settings_page.dart';
 import 'features_center.dart';
 import 'ai_page.dart';
@@ -349,6 +351,9 @@ class _ChatShellState extends State<ChatShell> {
   int? myId;
   String? selName;
   final _sentIds = <String>{};
+  int? replyingTo;
+  String? replyPreview;
+  final inputFocus = FocusNode();
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -379,15 +384,24 @@ class _ChatShellState extends State<ChatShell> {
     try {
       final friends = await widget.api.friends();
       final groups = await widget.api.groups();
+      final cs = await widget.api.chatSettings();
+      final csMap = <int, Map<String, dynamic>>{};
+      for (final s in cs) {
+        final pid = s['peerId'];
+        if (pid is int) csMap[pid] = s;
+      }
       if (!mounted) return;
       setState(() {
         conversations.clear();
         for (final f in friends) {
-          conversations.add({'kind': 'friend', 'id': f['id'], 'name': (f['nickname'] ?? f['username'] ?? '').toString(), 'icon': Icons.person, 'online': f['online'] == true});
+          final settings = csMap[f['id']];
+          conversations.add({'kind': 'friend', 'id': f['id'], 'name': (f['nickname'] ?? f['username'] ?? '').toString(), 'icon': Icons.person, 'online': f['online'] == true, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
         for (final g in groups) {
-          conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false});
+          final settings = csMap[g['id']];
+          conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
+        conversations.sort((a, b) => ((b['pinned'] == true) ? 1 : 0) - ((a['pinned'] == true) ? 1 : 0));
         messages.clear();
       });
       if (conversations.isNotEmpty) await _openConversation(0);
@@ -402,6 +416,25 @@ class _ChatShellState extends State<ChatShell> {
     messages.clear();
     if (conv['kind'] == 'group') {
       if (mounted) setState(() => selName = conv['name'].toString());
+      final gid = conv['id'] as int;
+      try {
+        final ghis = await widget.api.groupHistory(gid);
+        if (!mounted) return;
+        final msgs = <Map<String, dynamic>>[];
+        for (final m in ghis) {
+          final content = (m['content'] ?? '').toString();
+          final text = readChatText(content);
+          final from = m['from'];
+          final mine = from == myId;
+          final sender = (m['fromUser'] is Map) ? (((m['fromUser'] as Map)['nickname'] ?? (m['fromUser'] as Map)['username']) ?? '').toString() : null;
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          msgs.add(voice != null
+              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender}
+              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender});
+        }
+        if (!mounted) return;
+        setState(() => messages.addAll(msgs));
+      } catch (_) {}
       return;
     }
     final peerId = conv['id'] as int;
@@ -416,8 +449,8 @@ class _ChatShellState extends State<ChatShell> {
         final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
         msgs.add(voice != null
-            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt'])}
-            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt'])});
+            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']}
+            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']});
       }
       if (!mounted) return;
       setState(() {
@@ -462,8 +495,32 @@ class _ChatShellState extends State<ChatShell> {
           setState(() {
             if (conv == null || talkingToPeer) {
               messages.add(voice != null
-                  ? {'voiceId': voice[1], 'mine': p['from'] == myId, 'time': '现在'}
-                  : {'text': text, 'mine': p['from'] == myId, 'time': '现在'});
+                  ? {'voiceId': voice[1], 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']}
+                  : {'text': text, 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']});
+            }
+          });
+        } else if (type == 'group_msg') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          final cmid = (p['clientMsgId'] ?? '').toString();
+          if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
+            _sentIds.remove(cmid);
+            return;
+          }
+          final conv = selConv;
+          final gid = p['groupId'];
+          final content = (p['content'] ?? '').toString();
+          final text = readChatText(content);
+          final from = p['from'];
+          final fromUser = p['fromUser'];
+          final sender = (fromUser is Map) ? (((fromUser)['nickname'] ?? fromUser['username']) ?? '').toString() : null;
+          final mine = from == myId;
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          setState(() {
+            if (conv != null && conv['kind'] == 'group' && conv['id'] == gid) {
+              messages.add(voice != null
+                  ? {'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender}
+                  : {'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender});
             }
           });
         } else if (type == 'signal') {
@@ -547,6 +604,7 @@ class _ChatShellState extends State<ChatShell> {
     voicePlayer?.dispose();
     recorder.dispose();
     input.dispose();
+    inputFocus.dispose();
     super.dispose();
   }
 
@@ -619,6 +677,7 @@ class _ChatShellState extends State<ChatShell> {
             for (var i = 0; i < conversations.length; i++) _conversationTile(i, conversations[i]),
           ])),
           Divider(height: 1, thickness: 1, color: theme.div),
+          _navRow(Icons.qr_code_2, '我的名片', () => _showMyCard(context), color: sub),
           _navRow(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), color: sub),
           _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: sub),
           _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: sub),
@@ -661,6 +720,8 @@ class _ChatShellState extends State<ChatShell> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               tile(Icons.chat_bubble_outline, '会话', () {}),
+              if (Platform.isAndroid || Platform.isIOS) tile(Icons.qr_code_scanner, '扫一扫', () => _showScanner(context)),
+              tile(Icons.qr_code_2, '名片', () => _showMyCard(context)),
               tile(Icons.auto_awesome_outlined, 'AI', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config)))),
               tile(Icons.apps_rounded, '功能', () => _openFeatures(context)),
               tile(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api)))),
@@ -679,23 +740,124 @@ class _ChatShellState extends State<ChatShell> {
     );
   }
 
+  Future<void> _showChatInfo(BuildContext context) async {
+    final conv = selConv;
+    if (conv == null) return;
+    final theme = widget.config.theme;
+    if (conv['kind'] == 'group') {
+      List<Map<String, dynamic>> members;
+      try {
+        members = await widget.api.groupMembers(conv['id'] as int);
+      } catch (_) {
+        members = const [];
+      }
+      if (!mounted) return;
+      showDialog(context: context, builder: (ctx) => Dialog(child: SizedBox(width: 360, child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.groups_rounded, color: widget.config.primary),
+          const SizedBox(width: 8),
+          Expanded(child: Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16), overflow: TextOverflow.ellipsis)),
+          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+        ]),
+        const SizedBox(height: 6),
+        Text('群成员（${members.length}）', style: TextStyle(color: theme.subText, fontSize: 12)),
+        const SizedBox(height: 8),
+        Flexible(child: ListView(shrinkWrap: true, children: [
+          for (final m in members)
+            ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: CircleAvatar(radius: 16, child: Text((m['nickname'] ?? m['username'] ?? '?').toString()[0])), title: Text((m['nickname'] ?? m['username'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontSize: 14))),
+        ])),
+        const SizedBox(height: 8),
+        SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))),
+      ]), ))));
+      return;
+    }
+    // 好友资料
+    showDialog(context: context, builder: (ctx) => Dialog(child: SizedBox(width: 320, child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        CircleAvatar(backgroundColor: widget.config.primary.withValues(alpha: 0.2), child: Icon(Icons.person, color: widget.config.primary)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(conv['online'] == true ? '在线' : '离线', style: TextStyle(color: theme.subText, fontSize: 12)),
+        ])),
+        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+      ]),
+      const SizedBox(height: 12),
+      const Divider(height: 1),
+      ListTile(leading: const Icon(Icons.cleaning_services_outlined), title: const Text('清空聊天记录'), onTap: () { Navigator.pop(ctx); _clearConversation(); }),
+      ListTile(leading: const Icon(Icons.push_pin_outlined), title: Text(conv['pinned'] == true ? '取消置顶' : '置顶会话'), onTap: () { Navigator.pop(ctx); _togglePin(selected, !(conv['pinned'] == true)); }),
+      ListTile(leading: const Icon(Icons.notifications_none), title: Text(conv['muted'] == true ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(ctx); _toggleMute(selected, !(conv['muted'] == true)); }),
+    ]), ))));
+  }
+
+  Future<void> _showMyCard(BuildContext context) async {
+    Map<String, dynamic> card;
+    try {
+      card = await widget.api.myCard();
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('获取名片失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+      return;
+    }
+    final uid = (card['uid'] ?? '').toString();
+    if (uid.isEmpty) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未获取到您的 UID，无法生成名片')));
+      return;
+    }
+    final name = (card['name'] ?? (card['nickname'] ?? (card['username'] ?? ''))).toString();
+    if (context.mounted) {
+      showDialog(context: context, builder: (_) => Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('我的名片', style: TextStyle(fontWeight: FontWeight.w700, color: widget.config.theme.text)),
+        const SizedBox(height: 14),
+        Text(name.isNotEmpty ? name : uid, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        const SizedBox(height: 16),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: widget.config.theme.div), borderRadius: BorderRadius.circular(16)), child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200)),
+        const SizedBox(height: 12),
+        Text('让朋友用手机「扫一扫」这个二维码，即可添加我为好友。', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
+        const SizedBox(height: 6),
+        Text('UID：$uid', style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
+        const SizedBox(height: 10),
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))),
+      ]))));
+    }
+  }
+
+  void _showScanner(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api, config: widget.config)));
+  }
+
   Widget _contextMenu() => PopupMenuButton<int>(
         icon: const Icon(Icons.more_horiz),
-        onSelected: (v) {},
+        onSelected: (v) => _onContextMenu(v),
         itemBuilder: (_) => const [
           PopupMenuItem(value: 0, child: Text('发起群聊')),
           PopupMenuItem(value: 1, child: Text('发起音视频会议')),
           PopupMenuItem(value: 2, child: Text('添加好友')),
           PopupMenuItem(value: 3, child: Text('查看聊天资料')),
+          PopupMenuItem(value: 4, child: Text('我的名片')),
+          PopupMenuItem(value: 5, child: Text('扫一扫')),
         ],
       );
+
+  void _onContextMenu(int v) {
+    if (v == 3) _showChatInfo(context);
+    if (v == 4) _showMyCard(context);
+    if (v == 5) {
+      if (Platform.isAndroid || Platform.isIOS) {
+        _showScanner(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('扫描仅支持手机端')));
+      }
+    }
+  }
 
   Widget _conversationTile(int index, Map<String, dynamic> conv) {
     final t = widget.config.theme;
     final selected = index == this.selected;
     final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
+    final avPin = conv['pinned'] == true;
     return InkWell(
         onTap: () => _openConversation(index),
+        onLongPress: () => _convMenu(context, index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -709,7 +871,11 @@ class _ChatShellState extends State<ChatShell> {
             CircleAvatar(radius: 22, backgroundColor: avatarBg, child: Icon(conv['icon'] as IconData, color: widget.config.primary)),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
+              Row(children: [
+                if (avPin) const Icon(Icons.push_pin, size: 14, color: Color(0xffe67e22)),
+                if (avPin) const SizedBox(width: 4),
+                Expanded(child: Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.text, fontWeight: FontWeight.w600))),
+              ]),
               const SizedBox(height: 4),
               Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12)),
             ])),
@@ -737,8 +903,23 @@ class _ChatShellState extends State<ChatShell> {
         _contextMenu(),
       ])),
       Expanded(child: messages.isEmpty ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
+      if (replyingTo != null) _replyBar(),
       _composer(),
     ]);
+  }
+
+  Widget _replyBar() {
+    final t = widget.config.theme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 2),
+      color: t.panel.withValues(alpha: 0.5),
+      child: Row(children: [
+        Icon(Icons.reply, color: widget.config.primary, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text('回复：${replyPreview ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12))),
+        IconButton(icon: Icon(Icons.close, size: 16), onPressed: _cancelReply, color: t.subText),
+      ]),
+    );
   }
 
   Widget _bubble(Map<String, dynamic> msg) {
@@ -746,17 +927,48 @@ class _ChatShellState extends State<ChatShell> {
     final voiceId = msg['voiceId'] as String?;
     final t = widget.config.theme;
     final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
-    return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-      if (!mine) CircleAvatar(radius: 16, backgroundColor: avatarBg, child: Icon(Icons.person, size: 17, color: t.primary)),
-      if (!mine) const SizedBox(width: 8),
-      Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-        voiceId != null
-            ? _voiceBubble(mine, voiceId)
-            : Container(constraints: const BoxConstraints(maxWidth: 520), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11), decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]), child: Text(msg['text'] as String, style: TextStyle(color: t.text, fontSize: 14, height: 1.4))),
-        const SizedBox(height: 4),
-        Padding(padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 18), child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10))),
+    final replyText = (msg['replyTo'] != null && msg['replyTo'] != 0) ? '回复了一条消息' : null;
+    final content = voiceId != null
+        ? _voiceBubble(mine, voiceId)
+        : _textBubble(mine, msg, t);
+    return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: GestureDetector(
+      onLongPress: () => _bubbleMenu(context, msg),
+      child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+        if (!mine) CircleAvatar(radius: 16, backgroundColor: avatarBg, child: Icon(Icons.person, size: 17, color: t.primary)),
+        if (!mine) const SizedBox(width: 8),
+        Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+          if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group')
+            Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: t.subText, fontSize: 11))),
+          if (replyText != null)
+            Container(margin: const EdgeInsets.only(bottom: 3), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: mine ? Colors.white10 : Colors.black.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(6)),
+              child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 11, fontStyle: FontStyle.italic))),
+          content,
+          const SizedBox(height: 4),
+          Padding(padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 18), child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10))),
+        ]),
       ]),
-    ])));
+    )));
+  }
+
+  Widget _textBubble(bool mine, Map<String, dynamic> msg, dynamic t) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 520),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+      decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]),
+      child: SelectableText(msg['text'] as String, style: TextStyle(color: t.text, fontSize: 14, height: 1.4)),
+    );
+  }
+
+  String replyPreviewText(Map<String, dynamic> msg) {
+    final id = msg['replyTo'];
+    if (id == null || id == 0) return '';
+    for (final m in messages) {
+      if (m['id'] == id) {
+        final s = (m['text'] ?? '').toString();
+        return s.isEmpty ? '语音消息' : (s.length > 30 ? s.substring(0, 30) + '…' : s);
+      }
+    }
+    return '回复了一条消息';
   }
 
   Widget _voiceBubble(bool mine, String id) {
@@ -808,7 +1020,7 @@ class _ChatShellState extends State<ChatShell> {
     return Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
       IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
       IconButton(tooltip: '附件', onPressed: () {}, icon: Icon(Icons.add_circle_outline, color: t.text)),
-      Expanded(child: TextField(controller: input, minLines: 1, maxLines: 4, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
+      Expanded(child: TextField(controller: input, focusNode: inputFocus, minLines: 1, maxLines: 4, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
       const SizedBox(width: 10),
       SizedBox(height: 42, child: FilledButton(onPressed: canSend ? () => _sendText() : null, child: const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('发送')))),
     ]));
@@ -818,19 +1030,22 @@ class _ChatShellState extends State<ChatShell> {
     final conv = selConv;
     final text = input.text.trim();
     if (conv == null || text.isEmpty) return;
+    final replyMsg = replyingTo;
+    await _flushReplyBar();
     input.clear();
+    setState(() => replyingTo = null);
     if (conv['kind'] == 'group') {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': writeChatText(text), 'clientMsgId': gcmid}}));
-      setState(() => messages.add({'text': text, 'mine': true, 'time': '现在'}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': writeChatText(text), 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
+      setState(() => messages.add({'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}));
       return;
     }
     final to = conv['id'] as int;
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
-    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': writeChatText(text), 'clientMsgId': cmid}}));
-    setState(() { messages.add({'text': text, 'mine': true, 'time': '现在'}); });
+    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': writeChatText(text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
+    setState(() { messages.add({'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}); });
   }
 
   Future<void> _clearConversation() async {
@@ -861,6 +1076,146 @@ class _ChatShellState extends State<ChatShell> {
     if (!mounted) return;
     setState(() => messages.clear());
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('聊天记录已清空')));
+  }
+
+  void _startReply(Map<String, dynamic> msg) {
+    final text = (msg['text'] ?? '').toString();
+    setState(() {
+      replyingTo = msg['id'] as int?;
+      replyPreview = text.isEmpty ? '语音消息' : text;
+    });
+    inputFocus.requestFocus();
+  }
+
+  void _cancelReply() {
+    setState(() { replyingTo = null; replyPreview = null; });
+  }
+
+  Future<void> _flushReplyBar() async {
+    await Future<void>.delayed(const Duration(milliseconds: 0));
+  }
+
+  Future<void> _copyMessage(Map<String, dynamic> msg) async {
+    final text = (msg['text'] ?? '').toString();
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制')));
+  }
+
+  Future<void> _favoriteMessage(Map<String, dynamic> msg) async {
+    final id = msg['id'] as int?;
+    if (id == null) return;
+    try {
+      await widget.api.setFavorite(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已收藏')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('收藏失败：$e')));
+    }
+  }
+
+  void _deleteLocalMessage(Map<String, dynamic> msg) {
+    setState(() => messages.remove(msg));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除（仅本端）')));
+  }
+
+  Future<void> _forwardMessage(Map<String, dynamic> msg) async {
+    if (conversations.isEmpty) return;
+    final target = selected;
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('选择要转发到的会话'),
+        children: [
+          for (var i = 0; i < conversations.length; i++)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, i),
+              child: Row(children: [
+                Icon(conversations[i]['icon'] as IconData, size: 18),
+                const SizedBox(width: 10),
+                Text(conversations[i]['name'].toString()),
+              ]),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || picked == target || !mounted) return;
+    final conv = conversations[picked];
+    final text = (msg['text'] ?? '').toString();
+    final content = text.isEmpty ? '转发消息' : text;
+    if (conv['kind'] == 'group') {
+      final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
+      _sentIds.add(gcmid);
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': writeChatText(content), 'clientMsgId': gcmid}}));
+    } else {
+      final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
+      _sentIds.add(cmid);
+      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': writeChatText(content), 'clientMsgId': cmid}}));
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已转发')));
+  }
+
+  void _bubbleMenu(BuildContext context, Map<String, dynamic> msg) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Icons.copy), title: const Text('复制'), onTap: () { Navigator.pop(sheetCtx); _copyMessage(msg); }),
+          ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
+          ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
+          ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
+          ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
+        ]),
+      ),
+    );
+  }
+
+  void _convMenu(BuildContext context, int index) {
+    final conv = conversations[index];
+    final isPinned = conv['pinned'] == true;
+    final isMuted = conv['muted'] == true;
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: Icon(isPinned ? Icons.push_pin : Icons.push_pin_outlined), title: Text(isPinned ? '取消置顶' : '置顶会话'), onTap: () { Navigator.pop(sheetCtx); _togglePin(index, !isPinned); }),
+          ListTile(leading: Icon(isMuted ? Icons.notifications_off : Icons.notifications_none), title: Text(isMuted ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(sheetCtx); _toggleMute(index, !isMuted); }),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _togglePin(int index, bool pinned) async {
+    final conv = conversations[index];
+    if (conv['kind'] != 'friend' && conv['kind'] != 'group') return;
+    final peerId = conv['id'] as int;
+    try {
+      await widget.api.setChatSettings(peerId, pinned: pinned);
+      if (!mounted) return;
+      setState(() => conversations[index]['pinned'] = pinned);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pinned ? '已置顶' : '已取消置顶')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+    }
+  }
+
+  Future<void> _toggleMute(int index, bool muted) async {
+    final conv = conversations[index];
+    if (conv['kind'] != 'friend' && conv['kind'] != 'group') return;
+    final peerId = conv['id'] as int;
+    try {
+      await widget.api.setChatSettings(peerId, muted: muted);
+      if (!mounted) return;
+      setState(() => conversations[index]['muted'] = muted);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(muted ? '已开启免打扰' : '已取消免打扰')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+    }
   }
 }
 

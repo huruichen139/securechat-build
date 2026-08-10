@@ -372,6 +372,29 @@ app.post('/api/login/qr/consume', (req, res) => {
   res.json({ status: 'ok', token: session.loginToken, user: publicUser(prepare('SELECT * FROM users WHERE id=?').get(session.userId)) });
 });
 
+// 通用二维码渲染：GET /api/qrcode/render?text=...&w=...（返回 PNG，用于网页端展示名片等）
+app.get('/api/qrcode/render', async (req, res) => {
+  const text = (req.query.text || '').toString().slice(0, 1024);
+  if (!text) return res.status(400).json({ error: '缺少 text 参数' });
+  try {
+    const w = Math.min(parseInt(req.query.w, 10) || 320, 800);
+    const png = await QRCode.toBuffer(text, { width: w, margin: 2, errorCorrectionLevel: 'M' });
+    res.type('png').send(png);
+  } catch (e) {
+    res.status(500).json({ error: '二维码生成失败' });
+  }
+});
+
+// 我的名片：返回当前登录用户的 uid 等信息，客户端据此生成「加好友」二维码 securechat://friend?uid=xxx
+app.get('/api/qrcode/mycard', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const user = prepare('SELECT id, username, nickname, avatar, uid, email FROM users WHERE id=?').get(payload.id);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  res.json({ card: { uid: user.uid, name: user.nickname || user.username, nickname: user.nickname, username: user.username, avatar: user.avatar, email: user.email } });
+});
+
 // 小程序目录：只返回受控的 SecureChat 官方入口，后续包下载仍需扩展签名校验。
 app.get('/api/mini-programs', (req, res) => {
   const payload = apiUser(req);
@@ -935,6 +958,24 @@ app.get('/api/group/:id/messages', (req, res) => {
     fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid }
   }));
   res.json({ messages: msgs });
+});
+
+// 群成员列表：GET /api/group/:id/members
+app.get('/api/group/:id/members', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const groupId = parseInt(req.params.id, 10);
+  if (!groupId) return res.status(400).json({ error: '群ID错误' });
+  const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
+  if (!isMember) return res.status(403).json({ error: '你不在此群' });
+  const members = prepare(
+    `SELECT u.id, u.username, u.nickname, u.avatar, u.uid AS uid FROM group_members gm
+       JOIN users u ON u.id = gm.user_id WHERE gm.group_id=? ORDER BY gm.joined_at ASC`
+  ).all(groupId);
+  const group = prepare('SELECT g.id, g.name, g.owner_id AS ownerId FROM groups g WHERE g.id=?').get(groupId);
+  const memberIds = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId).map(r => r.user_id);
+  res.json({ members, group: { id: group.id, name: group.name, ownerId: group.ownerId, memberCount: memberIds.length } });
 });
 
 // 我所在的所有群（初始加载用）：GET /api/groups
@@ -1714,12 +1755,13 @@ wss.on('connection', (ws) => {
 
     if (type === P.C_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
-      const { to, content, clientMsgId } = payload || {};
+      const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = payload || {};
       const toId = Number(to);
       if (toId === undefined || !Number.isInteger(toId) || !content) return;
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
         return send(ws, P.S_ERROR, { error: '消息标识无效' });
       }
+      const metaFlag = Number(replyTo) || Number(forwardedFrom) || !!burnAfterReading;
       // Retries reuse clientMsgId. Return the original message instead of
       // inserting a duplicate row or delivering it twice.
       if (clientMsgId) {
@@ -1734,7 +1776,11 @@ wss.on('connection', (ws) => {
       const createdAt = Date.now();
       const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
         .run(ws.uid, toId, content, clientMsgId || null, createdAt);
-      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null };
+      if (metaFlag) {
+        prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
+          .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
+      }
+      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading };
       send(ws, P.S_MSG, msgObj);
       const peer = onlineAny(toId);
       if (peer) sendToUser(toId, P.S_MSG, msgObj);

@@ -7,7 +7,6 @@ import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'update_service.dart';
 import 'widgets/app_scaffold.dart';
-import 'widgets/window_effect.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.config, required this.api});
@@ -549,14 +548,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ]),
         ],
       )),
-      _sectionTitle(t, '演示布局'),
-      _card(t, child: Stack(children: [
-        BgLayer(theme: widget.config.theme, config: widget.config),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text('背景预览', style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
-        ),
-      ])),
     ]);
   }
 

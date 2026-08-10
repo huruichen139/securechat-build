@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.48.0';
+const PACKAGE_VERSION = '1.49.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -568,6 +568,7 @@ function renderMyInfo() {
     + '<div class="account-toolbar">'
     + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', '资料')) + '</button>'
     + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '改 ID')) + '</button>'
+    + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', '名片')) + '</button>'
     + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
     + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
     + '<span class="theme-switch" role="group" aria-label="外观主题">'
@@ -582,6 +583,7 @@ function renderMyInfo() {
   $('editUidBtn').onclick = editUid;
   $('editProfileBtn').onclick = editProfile;
   $('feedbackBtn').onclick = openFeedback;
+  $('myCardBtn').onclick = showMyCard;
   const setLocalTheme = (wantDark) => {
     document.body.classList.toggle('dark-mode', wantDark);
     localStorage.setItem('sc_theme', wantDark ? 'dark' : 'light');
@@ -603,6 +605,43 @@ function renderMyInfo() {
       toast('当前浏览器不支持复制', 'warn', 1000);
     }
   };
+}
+
+// 展示我的名片（加好友二维码）
+function showMyCard() {
+  if (!state.me || !state.me.uid) { toast('暂无ID，无法生成名片', 'warn', 1500); return; }
+  const uid = String(state.me.uid);
+  const qrText = 'securechat://friend?uid=' + encodeURIComponent(uid);
+  const imgUrl = state.serverHost + '/api/qrcode/render?text=' + encodeURIComponent(qrText) + '&w=300';
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const h3 = document.createElement('h3');
+  h3.textContent = t('myCard', '名片');
+  const xBtn = document.createElement('button');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '关闭'); xBtn.innerHTML = '&times;';
+  head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
+  const body = document.createElement('div');
+  body.style.cssText = 'text-align:center;padding:6px 0 4px';
+  body.innerHTML = '<img src="' + imgUrl + '" alt="名片二维码" style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
+    + '<div style="margin-top:12px;font-size:14px;font-weight:600">' + escapeHtml(state.me.nickname) + '</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-top:3px">ID: ' + escapeHtml(uid) + '</div>'
+    + '<div style="margin-top:8px;font-size:12px;color:#64748b">让朋友用手机「扫一扫」添加我为好友</div>';
+  box.appendChild(body);
+  const acts = document.createElement('div');
+  acts.className = 'modal-actions';
+  const ok = document.createElement('button');
+  ok.className = 'ok'; ok.textContent = t('close', '关闭');
+  acts.appendChild(ok); box.appendChild(acts);
+  mask.appendChild(box); document.body.appendChild(mask);
+  const close = () => mask.remove();
+  ok.onclick = close; xBtn.onclick = close;
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
 }
 
 // 通用模态弹窗（替代浏览器 prompt/confirm）

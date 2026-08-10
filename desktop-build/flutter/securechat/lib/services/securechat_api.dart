@@ -130,6 +130,18 @@ class SecureChatApi {
     await _json('POST', '/api/login/qr/confirm', body: {'token': qrToken});
   }
 
+  Future<Map<String, dynamic>> myCard() async {
+    final data = await _json('GET', '/api/qrcode/mycard');
+    final card = data['card'];
+    if (card is Map<String, dynamic>) return card;
+    if (card is Map) return card.cast<String, dynamic>();
+    return data;
+  }
+
+  Future<Map<String, dynamic>> addFriend(String friendUid) async {
+    return _json('POST', '/api/friend/add', body: {'friendUid': friendUid});
+  }
+
   Future<Map<String, dynamic>> uploadVoice(int to, List<int> bytes, String name) async {
     final uri = _uri('/api/files', {'to': '$to', 'name': name, 'mime': 'audio/m4a'});
     final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
@@ -189,6 +201,37 @@ class SecureChatApi {
 
   Future<void> deleteHistory(int peerId) async {
     await _json('DELETE', '/api/history/$peerId');
+  }
+
+  Future<Map<String, dynamic>> sendMessage(int to, String content, {String? clientMsgId, int? replyTo, int? forwardedFrom}) async {
+    return _json('POST', '/api/messages', body: {
+      'to': to, 'content': content,
+      'clientMsgId': ?clientMsgId,
+      'replyTo': ?replyTo,
+      'forwardedFrom': ?forwardedFrom,
+    });
+  }
+
+  Future<void> setChatSettings(int peerId, {bool? muted, bool? pinned}) async {
+    await _json('POST', '/api/chats/$peerId/settings', body: {
+      'muted': ?muted,
+      'pinned': ?pinned,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> chatSettings() async {
+    final data = await _json('GET', '/api/chats/settings');
+    return ((data['settings'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> groupMembers(int groupId) async {
+    final data = await _json('GET', '/api/group/$groupId/members');
+    return ((data['members'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> groupHistory(int groupId) async {
+    final data = await _json('GET', '/api/group/$groupId/messages');
+    return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
   WebSocketChannel connect() {
