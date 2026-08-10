@@ -64,6 +64,7 @@
         <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
       </div>
       <button id="authBtn" class="btn" data-i18n="login">登录</button>
+      <button id="qrLoginBtn" class="btn btn-secondary" type="button" data-i18n="qrLogin">扫码登录</button>
       <div id="authErr" class="err"></div>
     </div>
   </div>
@@ -201,7 +202,7 @@
 <script src="ai.js?v=ai-20260802-3"></script>
 <script src="download.js"></script>
 <script src="e2ee.js?v=e2ee-20260803-1"></script>
-<script src="app.js?v=1-24-3-26"></script>
+<script src="app.js?v=1-46-0-27"></script>
 <script>
   // 注册 Service Worker（PWA 离线/加速；仅 HTTPS 环境生效）
   if ('serviceWorker' in navigator && location.protocol === 'https:') {

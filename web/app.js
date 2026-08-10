@@ -286,6 +286,7 @@ function applyLoginMode() {
   $('email').placeholder = showReg ? t('email', '邮箱（注册时填写）') : t('emailLogin', '邮箱');
   // 登录方式按钮高亮
   document.querySelectorAll('.login-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.loginMode === loginMode));
+  if ($('qrLoginBtn')) $('qrLoginBtn').style.display = showReg ? 'none' : 'block';
   $('authErr').textContent = '';
 }
 
@@ -364,6 +365,40 @@ $('authBtn').onclick = async () => {
 };
 
 let qrLoginTimer = null;
+async function openQrLogin() {
+  try {
+    const res = await fetch(state.serverHost + '/api/login/qr/create', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '二维码生成失败');
+    const mask = document.createElement('div');
+    mask.className = 'qr-login-mask';
+    mask.innerHTML = '<div class="qr-login-card"><h3>扫码登录</h3><img alt="登录二维码"><p>请使用已登录的 SecureChat 手机端「扫一扫」扫描此二维码，2 分钟内有效</p><button type="button">关闭</button></div>';
+    mask.querySelector('img').src = state.serverHost + '/api/login/qr/image?token=' + encodeURIComponent(data.token);
+    mask.querySelector('button').onclick = () => { if (qrLoginTimer) clearInterval(qrLoginTimer); mask.remove(); };
+    document.body.appendChild(mask);
+    let done = false;
+    qrLoginTimer = setInterval(async () => {
+      if (done) return;
+      try {
+        const r = await fetch(state.serverHost + '/api/login/qr/consume', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: data.token })
+        });
+        const rdata = await r.json();
+        if (r.status === 410) { done = true; clearInterval(qrLoginTimer); mask.querySelector('p').textContent = '二维码已被使用或过期'; return; }
+        if (rdata.status === 'ok' && rdata.token && rdata.user) {
+          done = true; clearInterval(qrLoginTimer); mask.remove();
+          state.token = rdata.token;
+          state.me = rdata.user;
+          localStorage.setItem('sc_token', state.token);
+          localStorage.setItem('sc_me', JSON.stringify(state.me));
+          enterChat();
+        }
+      } catch (e) {}
+    }, 2000);
+  } catch (e) { toast(e.message || '二维码生成失败', 'error'); }
+}
+
 async function openQrAuth() {
   try {
     const res = await fetch(state.serverHost + '/api/login/qr/create', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
@@ -385,6 +420,8 @@ async function openQrAuth() {
     }, 2000);
   } catch (e) { toast(e.message || '二维码生成失败', 'error'); }
 }
+
+if ($('qrLoginBtn')) $('qrLoginBtn').onclick = openQrLogin;
 
 // 发送邮箱验证码（注册用 purpose='register'；登录验证码登录用 purpose='login'）
 let codeTimer = null;

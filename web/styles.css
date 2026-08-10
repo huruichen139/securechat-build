@@ -253,6 +253,8 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .qr-login-card img { width: 280px; max-width: 100%; display: block; margin: 16px auto; }
 .qr-login-card p { color: #64748b; font-size: 13px; }
 .qr-login-card button { border: 0; border-radius: 8px; padding: 9px 24px; background: #07c160; color: #fff; }
+.btn-secondary { background: transparent; color: var(--accent, #07c160); border: 1px solid currentColor; margin-top: 8px; }
+.btn-secondary:hover { background: rgba(7,193,96,.08); }
 .mini-programs { padding: 14px 18px; border-bottom: 1px solid var(--line, #e5e7eb); }
 .mini-programs-title { font-weight: 700; margin-bottom: 9px; }
 .mini-program-list { display: flex; gap: 8px; flex-wrap: wrap; }
