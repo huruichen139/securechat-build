@@ -551,7 +551,7 @@ class _ChatShellState extends State<ChatShell> {
   }
 
   void _showQrAuth() {
-    showDialog(context: context, builder: (_) => _QrAuthDialog(api: widget.api));
+    showDialog(context: context, builder: (_) => _QrAuthDialog(api: widget.api, config: widget.config));
   }
 
   @override
@@ -1023,8 +1023,9 @@ class _FeaturesSheet extends StatelessWidget {
 }
 
 class _QrAuthDialog extends StatefulWidget {
-  const _QrAuthDialog({required this.api});
+  const _QrAuthDialog({required this.api, required this.config});
   final SecureChatApi api;
+  final AppConfig config;
   @override
   State<_QrAuthDialog> createState() => _QrAuthDialogState();
 }
@@ -1056,10 +1057,19 @@ class _QrAuthDialogState extends State<_QrAuthDialog> {
           final status = await widget.api.qrStatus(token);
           if (status['status'] == 'confirmed' && mounted) {
             timer?.cancel();
-            Navigator.pop(context, true);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已在其他设备完成登录')));
+            final result = await widget.api.consumeQrLogin(token);
+            if (!mounted) return;
+            if (result['status'] != 'ok') throw StateError('二维码尚未确认');
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => ChatShell(api: widget.api, config: widget.config)),
+              (route) => false,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已通过扫码切换到该账号')));
           }
-        } catch (_) {}
+        } catch (e) {
+          timer?.cancel();
+          if (mounted) setState(() { busy = false; error = e.toString().replaceFirst('Bad state: ', ''); });
+        }
       });
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
@@ -1078,9 +1088,9 @@ class _QrAuthDialogState extends State<_QrAuthDialog> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('手机快捷登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text('扫码登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            const Text('使用已登录的手机扫描此二维码，即可在本机登录同一账号', textAlign: TextAlign.center, style: TextStyle(color: Color(0xff77818a), fontSize: 13)),
+            const Text('使用已登录的手机扫描此二维码，即可在本机切换到该手机账号', textAlign: TextAlign.center, style: TextStyle(color: Color(0xff77818a), fontSize: 13)),
             const SizedBox(height: 18),
             if (busy)
               const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
