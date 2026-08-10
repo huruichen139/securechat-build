@@ -51,6 +51,7 @@
       <div id="loginModeRow" class="login-mode-row" style="display:none">
         <button type="button" class="login-mode-btn on" data-login-mode="password" data-i18n="passwordLogin">密码登录</button>
         <button type="button" class="login-mode-btn" data-login-mode="code" data-i18n="codeLogin">验证码登录</button>
+        <button type="button" class="login-mode-btn" data-login-mode="qr" data-i18n="qrLogin">扫码登录</button>
       </div>
       <input id="nickname" class="input" placeholder="昵称（注册时填写）" style="display:none" data-i18n-placeholder="nickname" />
       <input id="customUid" class="input" placeholder="自定义ID（4-16位字母数字，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="customUid" />
@@ -63,8 +64,11 @@
         <input id="code" class="input code-input" placeholder="邮箱验证码" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
         <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
       </div>
-      <button id="authBtn" class="btn" data-i18n="login">登录</button>
-      <button id="qrLoginBtn" class="btn btn-secondary" type="button" data-i18n="qrLogin">扫码登录</button>
+      <div id="qrLoginArea" style="display:none">
+        <div id="qrImage"></div>
+        <p id="qrTip" class="qr-login-tip">请使用手机扫码登录</p>
+        <button id="qrRegenBtn" type="button" class="btn btn-secondary">刷新二维码</button>
+      </div>
       <div id="authErr" class="err"></div>
     </div>
   </div>
