@@ -1,12 +1,12 @@
 ﻿/* SecureChat Service Worker - network-first, cache static assets */
 'use strict';
 
-const CACHE = 'securechat-auto-route-v39';
+const CACHE = 'securechat-auto-route-v40';
 const CORE_ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
-  '/app.js',
+  '/app.js?v=1-48-0-1',
   '/e2ee.js',
   '/i18n.js',
   '/ai.js',

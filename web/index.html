@@ -64,6 +64,7 @@
         <input id="code" class="input code-input" placeholder="邮箱验证码" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
         <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
       </div>
+      <button id="authBtn" class="btn" data-i18n="login">登录</button>
       <div id="qrLoginArea" style="display:none">
         <div id="qrImage"></div>
         <p id="qrTip" class="qr-login-tip">请使用手机扫码登录</p>
@@ -206,7 +207,7 @@
 <script src="ai.js?v=ai-20260802-3"></script>
 <script src="download.js"></script>
 <script src="e2ee.js?v=e2ee-20260803-1"></script>
-<script src="app.js?v=1-46-0-27"></script>
+<script src="app.js?v=1-48-0-1"></script>
 <script>
   // 注册 Service Worker（PWA 离线/加速；仅 HTTPS 环境生效）
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
