@@ -550,10 +550,6 @@ class _ChatShellState extends State<ChatShell> {
     super.dispose();
   }
 
-  void _showQrAuth() {
-    showDialog(context: context, builder: (_) => _QrAuthDialog(api: widget.api, config: widget.config));
-  }
-
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
@@ -735,7 +731,6 @@ class _ChatShellState extends State<ChatShell> {
           Text('SecureChat', style: TextStyle(color: t.primary, fontSize: 12)),
         ]),
         const Spacer(),
-        IconButton(tooltip: '手机快捷登录', onPressed: () => _showQrAuth(), icon: Icon(Icons.qr_code_2, color: t.subText)),
         IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
         IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
         IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
@@ -1020,99 +1015,6 @@ class _FeaturesSheet extends StatelessWidget {
       ),
     );
   }
-}
-
-class _QrAuthDialog extends StatefulWidget {
-  const _QrAuthDialog({required this.api, required this.config});
-  final SecureChatApi api;
-  final AppConfig config;
-  @override
-  State<_QrAuthDialog> createState() => _QrAuthDialogState();
-}
-
-class _QrAuthDialogState extends State<_QrAuthDialog> {
-  String? qrText;
-  String? error;
-  bool busy = false;
-  Timer? timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _create();
-  }
-
-  Future<void> _create() async {
-    setState(() { busy = true; error = null; });
-    try {
-      final data = await widget.api.createQrLogin();
-      final token = data['token'] as String?;
-      final text = data['qrText'] as String?;
-      if (token == null || text == null) throw StateError('二维码创建失败');
-      if (!mounted) return;
-      setState(() { qrText = text; busy = false; });
-      timer?.cancel();
-      timer = Timer.periodic(const Duration(seconds: 2), (_) async {
-        try {
-          final status = await widget.api.qrStatus(token);
-          if (status['status'] == 'confirmed' && mounted) {
-            timer?.cancel();
-            final result = await widget.api.consumeQrLogin(token);
-            if (!mounted) return;
-            if (result['status'] != 'ok') throw StateError('二维码尚未确认');
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => ChatShell(api: widget.api, config: widget.config)),
-              (route) => false,
-            );
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已通过扫码切换到该账号')));
-          }
-        } catch (e) {
-          timer?.cancel();
-          if (mounted) setState(() { busy = false; error = e.toString().replaceFirst('Bad state: ', ''); });
-        }
-      });
-    } catch (e) {
-      if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
-    }
-  }
-
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('扫码登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            const Text('使用已登录的手机扫描此二维码，即可在本机切换到该手机账号', textAlign: TextAlign.center, style: TextStyle(color: Color(0xff77818a), fontSize: 13)),
-            const SizedBox(height: 18),
-            if (busy)
-              const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
-            else if (error != null)
-              Padding(padding: const EdgeInsets.all(20), child: Column(children: [
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
-                const SizedBox(height: 8),
-                Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
-                const SizedBox(height: 12),
-                FilledButton.tonal(onPressed: _create, child: const Text('重试')),
-              ]))
-            else
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xffe3e8eb))),
-                child: QrImageView(data: qrText!, size: 180, version: QrVersions.auto),
-              ),
-            const SizedBox(height: 8),
-            Text('二维码每 10 分钟刷新', style: const TextStyle(color: Color(0xff9aa5ab), fontSize: 11)),
-          ]),
-        ),
-      );
 }
 
 class _ForgotPasswordDialog extends StatefulWidget {
