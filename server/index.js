@@ -16,6 +16,30 @@ const { encrypt, decrypt } = require('../shared/crypto');
 const P = require('../shared/protocol');
 const execFile = util.promisify(childProcess.execFile);
 
+// 轻量 .env 加载：从 server/.env（或 cwd/.env）读取 KEY=VALUE，已存在的环境变量优先。
+// 用途：SMTP 邮箱/授权码等可在不改代码的情况下配置。
+(function loadDotEnv() {
+  const candidates = [path.join(__dirname, '.env'), path.join(process.cwd(), '.env')];
+  for (const f of candidates) {
+    if (!fs.existsSync(f)) continue;
+    try {
+      const lines = fs.readFileSync(f, 'utf8').split(/\r?\n/);
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line || line[0] === '#') continue;
+        const eq = line.indexOf('=');
+        if (eq < 1) continue;
+        const k = line.slice(0, eq).trim();
+        let v = line.slice(eq + 1).trim();
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+        if (k && process.env[k] === undefined) process.env[k] = v;
+      }
+      console.log('[env] loaded ' + f);
+      break;
+    } catch (e) { console.error('[env] 加载失败 ' + f + ' : ' + (e.message || e)); }
+  }
+})();
+
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const QR_LOGIN_TTL = 2 * 60 * 1000;

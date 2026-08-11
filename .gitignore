@@ -23,5 +23,6 @@ cloudflared.exe
 /server/files/
 /tools/
 /log_utfprobe.txt
+server/.env
 desktop-build/harmony/.hvigor/
 desktop-build/harmony/entry/build/
