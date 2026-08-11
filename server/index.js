@@ -138,7 +138,10 @@ async function sendMail(to, subject, html) {
     mailer.sendMail({
       from: '"SecureChat" <' + (process.env.SMTP_USER || 'andy130305@163.com') + '>',
       to, subject, html
-    }, (err, info) => resolve({ ok: !err, err: err && err.message, info }));
+    }, (err, info) => {
+      if (err) console.error('[mail] 发送失败 to=' + to + ' subject=' + subject + ' : ' + (err.message || err));
+      resolve({ ok: !err, err: err && err.message, info });
+    });
   });
 }
 
@@ -152,7 +155,7 @@ app.post('/api/email/code', async (req, res) => {
   // 邮箱已被占用？（register/bind 时已占用则拒绝；login 时需已注册）
   const taken = prepare('SELECT id FROM users WHERE email=?').get(email);
   if (purpose === 'login' || purpose === 'reset') {
-    if (!taken) return res.status(400).json({ error: '该邮箱未注册' });
+    if (!taken) return res.status(400).json({ error: '该邮箱未注册，请先注册再使用验证码登录' });
   } else if (taken) {
     return res.status(409).json({ error: '该邮箱已被绑定' });
   }
@@ -1676,6 +1679,8 @@ app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8')
 
 const CERT_PATH = process.env.CERT_PATH || path.join(process.cwd(), 'portable', 'le.crt');
 const KEY_PATH = process.env.KEY_PATH || path.join(process.cwd(), 'portable', 'le.key');
+const PFX_PATH = process.env.PFX_PATH || path.join(process.cwd(), 'portable', 'le.pfx');
+const PFX_PASS = process.env.PFX_PASS || '';
 let server;
 if (process.env.USE_HTTPS === '1' && fs.existsSync(CERT_PATH) && fs.existsSync(KEY_PATH)) {
   const https = require('https');
