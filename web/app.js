@@ -263,6 +263,7 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
 // ============ 登录/注册 ============
 let mode = 'login';
 let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
+let qrLoginTimer = null;
 
 // 根据当前 mode 与 loginMode 统一刷新登录/注册表单字段的显隐
 function applyLoginMode() {
@@ -377,7 +378,6 @@ $('authBtn').onclick = async () => {
   }
 };
 
-let qrLoginTimer = null;
 async function setQrLogin() {
   if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
   const img = $('qrImage');
