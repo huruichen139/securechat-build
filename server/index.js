@@ -1690,16 +1690,16 @@ function humanBytes(b) {
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 const webDir = process.env.WEB_DIR || path.join(__dirname, '..', 'web');
 // admin/download 页禁止缓存，避免更新后浏览器/SW 卡旧版
-app.get(['/admin.html', '/download.html'], (req, res, next) => {
+app.get(['/admin.html', '/download.html', '/index.html', '/'], (req, res, next) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
 app.use(express.static(webDir, { setHeaders: (res, filePath) => {
-  if (/\.html$/i.test(filePath)) res.set('Content-Type', 'text/html; charset=utf-8');
+  if (/\.html$/i.test(filePath)) { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
   if (/\.js$/i.test(filePath)) res.set('Content-Type', 'text/javascript; charset=utf-8');
   if (/\.css$/i.test(filePath)) res.set('Content-Type', 'text/css; charset=utf-8');
 }}));
-app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.sendFile(path.join(webDir, 'index.html')); });
+app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'index.html')); });
 
 const CERT_PATH = process.env.CERT_PATH || path.join(process.cwd(), 'portable', 'le.crt');
 const KEY_PATH = process.env.KEY_PATH || path.join(process.cwd(), 'portable', 'le.key');
