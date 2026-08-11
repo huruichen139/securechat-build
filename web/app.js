@@ -569,6 +569,7 @@ function renderMyInfo() {
     + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', '资料')) + '</button>'
     + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '改 ID')) + '</button>'
     + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', '名片')) + '</button>'
+    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', '扫一扫')) + '</button>'
     + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
     + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
     + '<span class="theme-switch" role="group" aria-label="外观主题">'
@@ -584,6 +585,7 @@ function renderMyInfo() {
   $('editProfileBtn').onclick = editProfile;
   $('feedbackBtn').onclick = openFeedback;
   $('myCardBtn').onclick = showMyCard;
+  $('scanQrBtn').onclick = openQrScanner;
   const setLocalTheme = (wantDark) => {
     document.body.classList.toggle('dark-mode', wantDark);
     localStorage.setItem('sc_theme', wantDark ? 'dark' : 'light');
@@ -642,6 +644,200 @@ function showMyCard() {
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
   const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
+}
+
+// 从图像的 ImageData 解码二维码（jsQR 为同步纯前端解码，图片不上传）
+function decodeQRFromImageData(imageData) {
+  if (typeof jsQR !== 'function') throw new Error('二维码解码库未加载');
+  const res = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'dontInvert'
+  });
+  return res ? res.data : null;
+}
+
+// 渲染图片到 canvas，返回 ImageData 和原始位图
+function renderToImageData(img) {
+  const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return ctx.getImageData(0, 0, w, h);
+}
+
+// 处理扫描结果：好友码 → 加好友；登录码 → 确认登录
+async function handleScanText(text) {
+  const raw = String(text || '').trim();
+  if (!raw) throw new Error('未识别到二维码内容');
+  // 好友码
+  let uid = null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol === 'securechat:' && (u.hostname === 'friend' || u.pathname.indexOf('/friend') === 0)) uid = u.searchParams.get('uid');
+  } catch (_) { /* 非 URL 则尝试裸格式 */ }
+  if (!uid && raw.startsWith('securechat://friend')) {
+    const m = raw.match(/uid=(.+?)(&|$)/i);
+    if (m) uid = m[1];
+  }
+  if (uid) {
+    const ok = await confirmOpen('扫一扫', '识别到好友二维码，ID：' + uid + '。确认发送好友请求？');
+    if (!ok) return '已取消';
+    const res = await fetch(state.serverHost + '/api/friend/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify({ friendUid: String(uid).trim() })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '加好友失败');
+    return '好友请求已发送：' + ((data.friend && (data.friend.nickname || data.friend.username)) || uid);
+  }
+  // 登录码：已登录设备扫码确认，目标设备即可登录为当前账号
+  if (raw.startsWith('securechat://login')) {
+    const m = raw.match(/token=(.+?)(&|$)/i);
+    const token = m ? m[1] : null;
+    if (!token) throw new Error('登录二维码无效');
+    const ok = await confirmOpen('扫一扫', '确认允许另一台设备登录 SecureChat 吗？');
+    if (!ok) return '已取消';
+    const res = await fetch(state.serverHost + '/api/login/qr/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '确认失败');
+    return '已确认，目标设备可登录';
+  }
+  throw new Error('不是 SecureChat 二维码');
+}
+
+// 确认弹窗（复用 openModal 风格）
+function confirmOpen(title, message) {
+  return new Promise((resolve) => {
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    const box = document.createElement('div');
+    box.className = 'modal modal-sm';
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    const h3 = document.createElement('h3'); h3.textContent = title;
+    const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
+    head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.innerHTML = '<div style="font-size:14px;line-height:1.6">' + escapeHtml(message) + '</div>';
+    box.appendChild(body);
+    const acts = document.createElement('div');
+    acts.className = 'modal-actions';
+    const no = document.createElement('button'); no.className = 'cancel'; no.textContent = t('cancel', '取消');
+    const yes = document.createElement('button'); yes.className = 'ok'; yes.textContent = t('confirm', '确认');
+    acts.appendChild(no); acts.appendChild(yes); box.appendChild(acts);
+    mask.appendChild(box); document.body.appendChild(mask);
+    const settle = (v) => { mask.remove(); resolve(v); };
+    yes.onclick = () => settle(true); no.onclick = () => settle(false); xBtn.onclick = () => settle(false);
+    mask.addEventListener('click', (e) => { if (e.target === mask) settle(false); });
+  });
+}
+
+// 打开扫一扫弹窗：支持选择图片 / 拖拽 / 粘贴剪贴板图片，前端用 jsQR 解码
+function openQrScanner() {
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const h3 = document.createElement('h3'); h3.textContent = t('scan', '扫一扫');
+  const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
+  head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+  body.style.textAlign = 'center';
+  const drop = document.createElement('div');
+  const dropId = 'scanDrop_' + Date.now();
+  drop.className = 'scan-drop'; drop.id = dropId;
+  drop.innerHTML = '<div style="font-size:40px;opacity:.6">&#128269;</div>'
+    + '<div style="margin-top:8px;font-size:14px">选择或拖拽二维码图片到此处</div>'
+    + '<div style="margin-top:4px;font-size:12px;color:#64748b">也支持 Ctrl+V 粘贴图片，图片仅在本机解码</div>';
+  const preview = document.createElement('img');
+  preview.style.cssText = 'max-width:240px;max-height:240px;margin-top:12px;border-radius:10px;border:1px solid var(--border);display:none';
+  const btnRow = document.createElement('div');
+  btnRow.className = 'modal-actions';
+  const pick = document.createElement('button'); pick.className = 'ok'; pick.textContent = t('chooseImage', '选择图片');
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.style.display = 'none';
+  btnRow.appendChild(pick);
+  body.appendChild(drop); body.appendChild(preview); body.appendChild(fileInput); body.appendChild(btnRow);
+  box.appendChild(body);
+  const status = document.createElement('div');
+  status.className = 'modal-status'; status.style.cssText = 'font-size:12px;color:#64748b;padding:0 20px 12px;min-height:18px';
+  box.appendChild(status);
+  mask.appendChild(box); document.body.appendChild(mask);
+  let pasteFn = null;
+  const close = () => {
+    if (pasteFn) { document.removeEventListener('paste', pasteFn); pasteFn = null; }
+    mask.remove();
+  };
+  xBtn.onclick = close; mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  document.addEventListener('keydown', function esc(ev) { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+
+  let busy = false;
+
+  async function renderFileToImageData(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im); im.onerror = () => reject(new Error('无法读取图片'));
+        im.src = url;
+      });
+      const data = renderToImageData(img);
+      return { data, url };
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  async function decode(file) {
+    if (busy) return;
+    busy = true;
+    try {
+      const { data, url } = await renderFileToImageData(file);
+      preview.src = url; preview.style.display = 'block';
+      status.textContent = '正在识别…';
+      const text = decodeQRFromImageData(data);
+      if (text === null) { status.textContent = '未识别到二维码，请换一张更清晰的图片'; return; }
+      status.textContent = '识别成功，处理中…';
+      const result = await handleScanText(text);
+      status.textContent = result || '处理完成';
+    } catch (e) {
+      status.textContent = e.message || '识别失败';
+    } finally {
+      busy = false;
+    }
+  }
+
+  pick.onclick = () => fileInput.click();
+  drop.onclick = () => fileInput.click();
+  fileInput.onchange = () => { const f = fileInput.files[0]; if (f) decode(f); };
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.remove('over');
+    const f = (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) || null;
+    if (f) decode(f);
+  });
+  document.addEventListener('paste', pasteFn = function onPaste(e) {
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    for (const it of items) {
+      if (it.type && it.type.indexOf('image') === 0) {
+        const f = it.getAsFile();
+        if (f) { decode(f); return; }
+      }
+    }
+  });
 }
 
 // 通用模态弹窗（替代浏览器 prompt/confirm）

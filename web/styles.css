@@ -1501,3 +1501,10 @@ html.is-mobile body.dark-mode .composer,
 html.is-mobile body.dark-mode .sidebar-search { background: #1a1a1a; }
 html.is-mobile body.dark-mode .composer textarea,
 html.is-mobile body.dark-mode .search { background: #2c2c2e; border-color: #3a3a3a; color: #e0e0e0; }
+
+.scan-drop{border:1px dashed #aaa;border-radius:12px;padding:26px 18px;color:#333;cursor:pointer;background:rgba(0,0,0,.02);transition:.15s}
+.scan-drop.over{border-color:#18a66a;background:rgba(24,166,106,.08)}
+body.dark-mode .scan-drop{color:#e0e0e0;border-color:#555;background:rgba(255,255,255,.03)}
+.modal-body{padding:12px 20px 4px}
+.modal-sm{max-width:340px}
+.modal-status{min-height:18px;text-align:center}
