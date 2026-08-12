@@ -242,4 +242,35 @@ class SecureChatApi {
     channel.sink.add(jsonEncode({'type': 'auth', 'payload': {'token': token}}));
     return channel;
   }
+
+  // ============ 朋友圈 ============
+  Future<Map<String, dynamic>> postMoment(String content, List<String> images) =>
+      _json('POST', '/api/moments', body: {'content': content, 'images': images});
+  Future<List<Map<String, dynamic>>> moments({int offset = 0, int limit = 20}) async {
+    final data = await _json('GET', '/api/moments', query: {'offset': '$offset', 'limit': '$limit'});
+    return ((data['moments'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+  Future<void> likeMoment(int id, {bool on = true}) =>
+      _json('POST', '/api/moments/$id/like', body: {'on': on});
+  Future<void> commentMoment(int id, String content, {int? replyToId}) =>
+      _json('POST', '/api/moments/$id/comment', body: {'content': content, 'replyToId': replyToId});
+
+  // ============ 钱包 ============
+  Future<Map<String, dynamic>> wallet() => _json('GET', '/api/wallet');
+  Future<Map<String, dynamic>> redeem(String code) =>
+      _json('POST', '/api/wallet/redeem', body: {'code': code});
+  Future<Map<String, dynamic>> transfer(String toUid, double amount, {String remark = ''}) =>
+      _json('POST', '/api/wallet/transfer', body: {'toUid': toUid, 'amount': amount, 'remark': remark});
+  Future<List<Map<String, dynamic>>> walletTxn() async {
+    final data = await _json('GET', '/api/wallet/txn');
+    return ((data['txn'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  // ============ 状态 ============
+  Future<Map<String, dynamic>?> myStatus() async {
+    final data = await _json('GET', '/api/status');
+    return data['status'] as Map<String, dynamic>?;
+  }
+  Future<void> setStatus(String text, {String icon = '', String emoji = ''}) =>
+      _json('POST', '/api/status', body: {'text': text, 'icon': icon, 'emoji': emoji});
 }

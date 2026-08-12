@@ -21,6 +21,8 @@ import 'qr_confirm_page.dart';
 import 'settings_page.dart';
 import 'features_center.dart';
 import 'ai_page.dart';
+import 'moments_page.dart';
+import 'wallet_page.dart';
 
 import 'file_repository_page.dart';
 import 'update_service.dart';
@@ -683,6 +685,8 @@ class _ChatShellState extends State<ChatShell> {
           ])),
           Divider(height: 1, thickness: 1, color: theme.div),
           _navRow(Icons.qr_code_2, '我的名片', () => _showMyCard(context), color: sub),
+          _navRow(Icons.dynamic_feed_outlined, '朋友圈', () => Navigator.push(context, MaterialPageRoute(builder: (_) => MomentsPage(api: widget.api, config: widget.config))), color: sub),
+          _navRow(Icons.account_balance_wallet_outlined, '钱包', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config))), color: sub),
           _navRow(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), color: sub),
           _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: sub),
           _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: sub),
@@ -1315,6 +1319,8 @@ class _FeaturesSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = <(String, IconData, Widget)>[
+      if (api != null && config != null) ('朋友圈', Icons.dynamic_feed_outlined, MomentsPage(api: api!, config: config!)),
+      if (api != null && config != null) ('钱包', Icons.account_balance_wallet_outlined, WalletPage(api: api!, config: config!)),
       ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
       ('待办清单', Icons.checklist_rounded, const TodoPage()),
       ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
