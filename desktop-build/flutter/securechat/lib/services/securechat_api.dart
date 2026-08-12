@@ -273,4 +273,42 @@ class SecureChatApi {
   }
   Future<void> setStatus(String text, {String icon = '', String emoji = ''}) =>
       _json('POST', '/api/status', body: {'text': text, 'icon': icon, 'emoji': emoji});
+
+  // ============ 视频号 ============
+  Future<void> postVideo(String title, {String cover = '', String content = ''}) =>
+      _json('POST', '/api/videos', body: {'title': title, 'cover': cover, 'content': content});
+  Future<List<Map<String, dynamic>>> videos() async {
+    final data = await _json('GET', '/api/videos');
+    return ((data['videos'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+  Future<void> likeVideo(int id, {bool on = true}) => _json('POST', '/api/videos/$id/like', body: {'on': on});
+  Future<void> commentVideo(int id, String content) => _json('POST', '/api/videos/$id/comment', body: {'content': content});
+
+  // ============ 公众号 ============
+  Future<List<Map<String, dynamic>>> accounts() async {
+    final data = await _json('GET', '/api/accounts');
+    return ((data['accounts'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+  Future<void> followAccount(int id, {bool on = true}) => _json('POST', '/api/accounts/$id/follow', body: {'on': on});
+  Future<List<Map<String, dynamic>>> accountPosts(int id) async {
+    final data = await _json('GET', '/api/accounts/$id/posts');
+    return ((data['posts'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  // ============ 小程序 ============
+  Future<List<Map<String, dynamic>>> miniApps() async {
+    final data = await _json('GET', '/api/mini-apps');
+    return ((data['apps'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  // ============ 拍一拍 ============
+  Future<void> poke(int to) => _json('POST', '/api/poke', body: {'to': to});
+
+  // ============ 收藏笔记 ============
+  Future<void> addNote(String content) => _json('POST', '/api/notes', body: {'content': content});
+  Future<List<Map<String, dynamic>>> notes() async {
+    final data = await _json('GET', '/api/notes');
+    return ((data['notes'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+  Future<void> deleteNote(int id) => _json('DELETE', '/api/notes/$id');
 }
