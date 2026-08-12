@@ -320,20 +320,83 @@ function openAiSettings() {
   // apiKey（用 password 类型）
   const fldKey = makeField('apiKey', 'API Key（仅保存在本机浏览器）', cfg.apiKey, 'sk-...', 'password');
   box.appendChild(fldKey.wrap);
-  // model
+  // model —— input + 「拉取模型」按钮 + datalist 自动完成
   const fldModel = makeField('model', '模型名', cfg.model, 'gpt-4o-mini');
+  // 给 model input 挂 datalist
+  const modelListId = 'ai-model-list-' + Date.now();
+  fldModel.input.setAttribute('list', modelListId);
+  const dataList = document.createElement('datalist');
+  dataList.id = modelListId;
   box.appendChild(fldModel.wrap);
+  box.appendChild(dataList);
+  // 「拉取模型」按钮：用 baseUrl+apiKey 调 GET /models，把模型列表填到 datalist
+  const fetchRow = document.createElement('div');
+  fetchRow.style.cssText = 'margin:-4px 0 10px;display:flex;gap:8px;align-items:center;';
+  const fetchBtn = document.createElement('button');
+  fetchBtn.type = 'button';
+  fetchBtn.textContent = '🔄 拉取模型列表';
+  fetchBtn.style.cssText = 'padding:6px 10px;border:1px solid #07c160;background:#07c16014;color:#07c160;border-radius:6px;font-size:12px;cursor:pointer;';
+  const fetchTip = document.createElement('span');
+  fetchTip.style.cssText = 'font-size:11px;color:#94a3b8;';
+  fetchRow.appendChild(fetchBtn);
+  fetchRow.appendChild(fetchTip);
+  box.appendChild(fetchRow);
+  fetchBtn.onclick = async () => {
+    const baseUrl = (fldBase.input.value || '').trim().replace(/\/+$/, '');
+    const apiKey = (fldKey.input.value || '').trim();
+    if (!baseUrl) { fetchTip.textContent = '请先填 Base URL'; fetchTip.style.color = '#dc2626'; return; }
+    fetchTip.style.color = '#64748b';
+    fetchTip.textContent = '正在拉取...';
+    dataList.innerHTML = '';
+    try {
+      const res = await fetch(baseUrl + '/models', {
+        method: 'GET',
+        headers: apiKey ? { 'Authorization': 'Bearer ' + apiKey } : {}
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error('HTTP ' + res.status + (txt ? ' ' + txt.slice(0, 80) : ''));
+      }
+      const j = await res.json();
+      const arr = (j && (j.data || j.models || j)) || [];
+      const ids = Array.isArray(arr) ? arr.map(m => (m && (m.id || m.name)) || String(m)).filter(Boolean) : [];
+      if (!ids.length) { fetchTip.textContent = '未返回模型'; fetchTip.style.color = '#dc2626'; return; }
+      ids.sort();
+      ids.slice(0, 200).forEach(id => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        dataList.appendChild(opt);
+      });
+      fetchTip.style.color = '#07c160';
+      fetchTip.textContent = '✓ 拉取到 ' + ids.length + ' 个模型，点击「模型名」输入框选择';
+      // 现有 model 值为空时自动填第一个
+      if (!fldModel.input.value && ids.length) {
+        // 优先选包含 'gpt-4' / 'gpt-3.5' / 'glm-4' / 'deepseek' / 'claude' 的常用模型
+        const prefer = ids.find(x => /gpt-4o|gpt-4|gpt-3.5|glm-4-flash|deepseek-chat|claude-3/i.test(x)) || ids[0];
+        fldModel.input.value = prefer;
+      }
+    } catch (e) {
+      fetchTip.style.color = '#dc2626';
+      fetchTip.textContent = '拉取失败：' + (e && e.message ? e.message : String(e));
+    }
+  };
   // systemPrompt
   const fldSys = makeField('systemPrompt', '系统提示词（System Prompt）', cfg.systemPrompt, '你是一位友善的中文助手。');
   box.appendChild(fldSys.wrap);
 
-  // 预设切换自动填 baseUrl/model
+  // 预设切换自动填 baseUrl/model，并尝试拉模型列表
   sel.addEventListener('change', () => {
     const k = sel.value;
     const p = AI_PRESETS[k];
     if (!p) return;
     if (p.baseUrl) fldBase.input.value = p.baseUrl;
     if (p.defaultModel) fldModel.input.value = p.defaultModel;
+    // 若 apiKey 已填，自动拉取模型列表
+    if (fldKey.input.value.trim()) fetchBtn.click();
+  });
+  // apiKey 输入完成（blur）后也自动拉取一次
+  fldKey.input.addEventListener('blur', () => {
+    if (fldKey.input.value.trim() && fldBase.input.value.trim()) fetchBtn.click();
   });
 
   // 按钮
