@@ -519,8 +519,17 @@ function logout() {
   state.myPrivJwk = null;
   if (window.SCE2EE) window.SCE2EE._cache = {};
   if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
+  if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
+  // 清掉当前会话/联系人状态
+  state.current = null;
+  if (state.messages) state.messages = {};
+  // 切换回登录页并重置登录模式
   $('chatView').style.display = 'none';
   $('authView').style.display = 'flex';
+  mode = 'login';
+  loginMode = 'password';
+  try { applyLoginMode(); } catch {}
+  toast(t('logout', '已退出登录'), 'info');
 }
 
 // ============ 进入聊天 ============

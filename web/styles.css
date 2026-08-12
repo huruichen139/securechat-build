@@ -1508,3 +1508,7 @@ body.dark-mode .scan-drop{color:#e0e0e0;border-color:#555;background:rgba(255,25
 .modal-body{padding:12px 20px 4px}
 .modal-sm{max-width:340px}
 .modal-status{min-height:18px;text-align:center}
+
+/* v1.49.0-6 -- logout button more prominent */
+.account-exit{display:inline-flex;align-items:center;gap:3px;border:1px solid #fecaca!important;background:#fef2f2!important;color:#dc2626!important;font-size:12px!important;padding:4px 10px!important;border-radius:6px!important;font-weight:600!important}
+.account-exit:hover{background:#fee2e2!important;color:#b91c1c!important;border-color:#fca5a5!important}
