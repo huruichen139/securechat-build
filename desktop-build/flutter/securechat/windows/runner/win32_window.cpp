@@ -21,13 +21,11 @@ namespace {
 #ifndef DWMWA_SYSTEMBACKDROP_TYPE
 #define DWMWA_SYSTEMBACKDROP_TYPE 38
 #endif
-typedef enum {
-  DWMSBT_AUTO = 0,
-  DWMSBT_NONE = 1,
-  DWMSBT_MAINWINDOW = 2,  // Mica
-  DWMSBT_TRANSIENTWINDOW = 3,  // Acrylic
-  DWMSBT_TABBEDWINDOW = 4
-} DWM_SYSTEMBACKDROP_TYPE;
+// backdrop 取值：1=None / 2=Mica(主窗口) / 3=Acrylic(瞬态窗口) / 4=Tabbed
+// 不引入 enum 名字（避免与新版 SDK 的命名冲突），直接用 DWORD 传值。
+constexpr DWORD kScBackdropNone = 1;
+constexpr DWORD kScBackdropMica = 2;
+constexpr DWORD kScBackdropAcrylic = 3;
 // 让 Mica/Acrylic 占据整个客户区（不只标题栏）：Margins = {-1,-1,-1,-1}
 #ifndef DWMWA_ALLOW_NCPAINT
 #define DWMWA_ALLOW_NCPAINT 31
@@ -304,13 +302,12 @@ void Win32Window::UpdateTheme(HWND const window) {
   }
 
   // Windows 11 22H2+: 启用 Mica 系统亚克力背景。
-  // DWMSBT_MAINWINDOW = Mica（桌面壁纸着色，跟随主题）
-  // DWMSBT_TRANSIENTWINDOW = Acrylic（更明显的半透模糊）
+  // 2 = Mica（桌面壁纸着色，跟随主题）；3 = Acrylic（更明显的半透模糊）
   // 这里用 Mica 主窗口，性能更好；Win10 及更早版本该 attribute 被忽略，自然降级。
   BOOL allow_ncpaint = TRUE;
   DwmSetWindowAttribute(window, DWMWA_ALLOW_NCPAINT, &allow_ncpaint,
                         sizeof(allow_ncpaint));
-  DWM_SYSTEMBACKDROP_TYPE backdrop = DWMSBT_MAINWINDOW;
+  DWORD backdrop = kScBackdropMica;
   DwmSetWindowAttribute(window, DWMWA_SYSTEMBACKDROP_TYPE, &backdrop,
                         sizeof(backdrop));
   // 把 backdrop 扩展到整个客户区（Margins {-1,-1,-1,-1}）。
