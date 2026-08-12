@@ -249,6 +249,43 @@ function init() {
       owner_id INTEGER,
       created_at INTEGER NOT NULL
     );
+    -- ============ 视频号 ============
+    CREATE TABLE IF NOT EXISTS videos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      cover TEXT DEFAULT '',
+      content TEXT DEFAULT '',
+      likes INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS video_likes (
+      video_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(video_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS video_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    -- ============ 拍一拍记录 ============
+    CREATE TABLE IF NOT EXISTS pokes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_id INTEGER NOT NULL,
+      to_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    -- ============ 消息已读记录 ============
+    CREATE TABLE IF NOT EXISTS message_reads (
+      message_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      read_at INTEGER NOT NULL,
+      PRIMARY KEY(message_id, user_id)
+    );
   `);
   // 迁移：给旧表加 uid 列（如果不存在）；给历史用户补 uid
   try {

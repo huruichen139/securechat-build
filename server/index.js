@@ -1187,6 +1187,164 @@ app.post('/api/status', (req, res) => {
   res.json({ ok: true });
 });
 
+// =============================== 视频号 ===============================
+// 发布短视频：POST /api/videos { title, cover, content }
+app.post('/api/videos', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { title, cover, content } = req.body || {};
+  const t = String(title || '').trim();
+  if (!t) return res.status(400).json({ error: '标题不能为空' });
+  prepare('INSERT INTO videos(user_id,title,cover,content,created_at) VALUES(?,?,?,?,?)')
+    .run(payload.id, t, String(cover || ''), String(content || ''), Date.now());
+  persist();
+  res.json({ ok: true });
+});
+// 视频流：GET /api/videos
+app.get('/api/videos', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare(
+    `SELECT v.id,v.user_id AS userId,v.title,v.cover,v.content,v.created_at AS createdAt,v.likes AS likeCount,
+            u.nickname,u.avatar
+     FROM videos v JOIN users u ON u.id=v.user_id ORDER BY v.created_at DESC LIMIT 100`
+  ).all();
+  const data = rows.map(v => ({
+    ...v,
+    likedByMe: !!prepare('SELECT 1 FROM video_likes WHERE video_id=? AND user_id=?').get(v.id, payload.id),
+  }));
+  res.json({ videos: data });
+});
+// 点赞：POST /api/videos/:id/like { on }
+app.post('/api/videos/:id/like', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = Number(req.params.id);
+  if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
+  const on = req.body && req.body.on !== false;
+  if (on) { prepare('INSERT OR IGNORE INTO video_likes(video_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now()); prepare('UPDATE videos SET likes=likes+1 WHERE id=?').run(id); }
+  else { prepare('DELETE FROM video_likes WHERE video_id=? AND user_id=?').run(id, payload.id); prepare('UPDATE videos SET likes=MAX(0,likes-1) WHERE id=?').run(id); }
+  persist();
+  res.json({ ok: true, liked: on });
+});
+// 评论：POST /api/videos/:id/comment { content }
+app.post('/api/videos/:id/comment', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = Number(req.params.id);
+  if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
+  const content = String((req.body || {}).content || '').trim();
+  if (!content) return res.status(400).json({ error: '评论不能为空' });
+  prepare('INSERT INTO video_comments(video_id,user_id,content,created_at) VALUES(?,?,?,?)').run(id, payload.id, content, Date.now());
+  persist();
+  res.json({ ok: true });
+});
+
+// =============================== 公众号 ===============================
+// 关注列表：GET /api/accounts
+app.get('/api/accounts', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const accounts = prepare(
+    `SELECT a.id,a.name,a.avatar,a.intro, (SELECT COUNT(*) FROM account_follows af WHERE af.account_id=a.id AND af.user_id=?) AS followed
+     FROM official_accounts a ORDER BY a.id`
+  ).all(payload.id);
+  res.json({ accounts });
+});
+// 账号文章：GET /api/accounts/:id/posts ; 关注/取关：POST /api/accounts/:id/follow { on }
+app.post('/api/accounts/:id/follow', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = Number(req.params.id);
+  if (!prepare('SELECT id FROM official_accounts WHERE id=?').get(id)) return res.status(404).json({ error: '公众号不存在' });
+  const on = req.body && req.body.on !== false;
+  if (on) prepare('INSERT OR IGNORE INTO account_follows(account_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
+  else prepare('DELETE FROM account_follows WHERE account_id=? AND user_id=?').run(id, payload.id);
+  persist();
+  res.json({ ok: true, followed: on });
+});
+app.get('/api/accounts/:id/posts', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = Number(req.params.id);
+  const posts = prepare('SELECT id,title,content,created_at AS createdAt FROM account_posts WHERE account_id=? ORDER BY created_at DESC').all(id);
+  res.json({ posts });
+});
+// 管理端发文章：POST /api/accounts/:id/post { title, content }
+app.post('/api/accounts/:id/post', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number(req.params.id);
+  const title = String((req.body || {}).title || '').trim();
+  const content = String((req.body || {}).content || '').trim();
+  if (!title || !content) return res.status(400).json({ error: '标题和内容不能为空' });
+  prepare('INSERT INTO account_posts(account_id,title,content,created_at) VALUES(?,?,?,?)').run(id, title, content, Date.now());
+  persist();
+  res.json({ ok: true });
+});
+
+// =============================== 小程序 ===============================
+app.get('/api/mini-apps', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const apps = prepare('SELECT id,name,icon,desc AS description,url FROM mini_apps ORDER BY id').all();
+  res.json({ apps });
+});
+
+// =============================== 拍一拍 ===============================
+// POST /api/poke { to }  —— 好友拍一拍
+app.post('/api/poke', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const to = Number((req.body || {}).to);
+  if (!to || !prepare('SELECT id FROM users WHERE id=?').get(to)) return res.status(404).json({ error: '用户不存在' });
+  if (to === payload.id) return res.status(400).json({ error: '不能拍自己' });
+  prepare('INSERT INTO pokes(from_id,to_id,created_at) VALUES(?,?,?)').run(payload.id, to, Date.now());
+  persist();
+  const me = prepare('SELECT nickname FROM users WHERE id=?').get(payload.id);
+  sendToUser(to, 'poke', { fromId: payload.id, fromNick: me.nickname, at: Date.now() });
+  res.json({ ok: true });
+});
+
+// =============================== 收藏 · 笔记 ===============================
+// 我的收藏/笔记列表：GET /api/favorites?type=note|message|file
+// 新建笔记：POST /api/notes { content }  删除：DELETE /api/notes/:id
+app.post('/api/notes', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const content = String((req.body || {}).content || '').trim();
+  if (!content) return res.status(400).json({ error: '内容不能为空' });
+  prepare('INSERT INTO favorites(user_id,type,content,created_at) VALUES(?,?,?,?)').run(payload.id, 'note', content, Date.now());
+  persist();
+  res.json({ ok: true });
+});
+app.get('/api/notes', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare('SELECT id,content,created_at AS createdAt FROM favorites WHERE user_id=? AND type="note" ORDER BY created_at DESC').all(payload.id);
+  res.json({ notes: rows });
+});
+app.delete('/api/notes/:id', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  prepare('DELETE FROM favorites WHERE id=? AND user_id=? AND type="note"').run(Number(req.params.id), payload.id);
+  persist();
+  res.json({ ok: true });
+});
+
 // ---------- 反馈 / Bug 上报 ----------
 // 提交反馈：POST /api/feedback { kind, content }
 app.post('/api/feedback', (req, res) => {
