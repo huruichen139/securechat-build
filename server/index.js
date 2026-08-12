@@ -1014,6 +1014,179 @@ app.get('/api/groups', (req, res) => {
   res.json({ groups: buildGroupsForUser(payload.id) });
 });
 
+// =============================== 朋友圈 ===============================
+// 发布动态：POST /api/moments { content, images:[] }
+app.post('/api/moments', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { content, images } = req.body || {};
+  if (typeof content !== 'string' || !content.trim()) {
+    return res.status(400).json({ error: '内容不能为空' });
+  }
+  const img = Array.isArray(images) ? JSON.stringify(images.slice(0, 9)) : '[]';
+  const info = prepare('INSERT INTO moments(user_id,content,images,visibility,created_at) VALUES(?,?,?,?,?)')
+    .run(payload.id, content.trim(), img, 'all', Date.now());
+  persist();
+  res.json({ ok: true, id: info.lastInsertRowid });
+});
+
+// 朋友圈 feed：GET /api/moments?offset=&limit=  （返回好友 + 自己，按时间倒序）
+app.get('/api/moments', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const offset = parseInt(req.query.offset || '0', 10) || 0;
+  const limit = Math.min(parseInt(req.query.limit || '20', 10) || 20, 50);
+  // 好友 id 集合 + 自己
+  const friendIds = prepare('SELECT friend_id FROM friends WHERE user_id=? AND status=1').all(payload.id).map(r => r.friend_id);
+  friendIds.push(payload.id);
+  // 取可见的动态（ALL；私密 nobody/just 暂只返回自己发的）
+  const rows = prepare(
+    `SELECT m.id,m.user_id AS userId,m.content AS content,m.images,m.created_at AS createdAt,
+            u.nickname,u.avatar,u.uid
+     FROM moments m JOIN users u ON u.id=m.user_id
+     WHERE m.user_id IN (${friendIds.map(()=>'?').join(',')})
+     ORDER BY m.created_at DESC LIMIT ? OFFSET ?`
+  ).all(...friendIds, limit, offset);
+  // 补点赞与评论
+  const data = rows.map(m => {
+    const likes = prepare('SELECT user_id FROM moment_likes WHERE moment_id=? ORDER BY created_at').all(m.id).map(r => r.user_id);
+    const comments = prepare(
+      `SELECT c.id,c.moment_id AS momentId,c.user_id AS userId,c.content AS content,c.created_at AS createdAt,u.nickname
+       FROM moment_comments c JOIN users u ON u.id=c.user_id WHERE c.moment_id=? ORDER BY c.created_at ASC`
+    ).all(m.id);
+    try { m.images = JSON.parse(m.images || '[]'); } catch { m.images = []; }
+    m.likeCount = likes.length;
+    m.likedByMe = likes.includes(payload.id);
+    m.comments = comments;
+    return m;
+  });
+  res.json({ moments: data, hasMore: rows.length === limit });
+});
+
+// 点赞/取消：POST /api/moments/:id/like { on:true|false }
+app.post('/api/moments/:id/like', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = parseInt(req.params.id, 10);
+  if (!prepare('SELECT id FROM moments WHERE id=?').get(id)) return res.status(404).json({ error: '动态不存在' });
+  const on = req.body && req.body.on !== false;
+  if (on) prepare('INSERT OR IGNORE INTO moment_likes(moment_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
+  else prepare('DELETE FROM moment_likes WHERE moment_id=? AND user_id=?').run(id, payload.id);
+  persist();
+  res.json({ ok: true, liked: on });
+});
+
+// 评论：POST /api/moments/:id/comment { content, replyToId? }
+app.post('/api/moments/:id/comment', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = parseInt(req.params.id, 10);
+  if (!prepare('SELECT id FROM moments WHERE id=?').get(id)) return res.status(404).json({ error: '动态不存在' });
+  const { content, replyToId } = req.body || {};
+  if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '评论不能为空' });
+  prepare('INSERT INTO moment_comments(moment_id,user_id,reply_to_id,content,created_at) VALUES(?,?,?,?,?)')
+    .run(id, payload.id, replyToId || null, content.trim(), Date.now());
+  persist();
+  res.json({ ok: true });
+});
+
+// =============================== 钱包 / 兑换码 ===============================
+// 我的钱包：GET /api/wallet
+app.get('/api/wallet', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  let w = prepare('SELECT balance,total_received FROM wallets WHERE user_id=?').get(payload.id);
+  if (!w) { prepare('INSERT INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(payload.id, Date.now()); w = { balance: 0, total_received: 0 }; }
+  res.json({ balance: w.balance, totalReceived: w.total_received });
+});
+
+// 兑换码充值：POST /api/wallet/redeem { code }
+app.post('/api/wallet/redeem', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const code = String((req.body && req.body.code) || '').trim().toUpperCase();
+  if (!code) return res.status(400).json({ error: '请输入兑换码' });
+  const c = prepare('SELECT code,value,claimed_by FROM redeem_codes WHERE code=?').get(code);
+  if (!c) return res.status(404).json({ error: '兑换码不存在' });
+  if (c.claimed_by) return res.status(409).json({ error: '兑换码已被使用' });
+  prepare('UPDATE redeem_codes SET claimed_by=?,claimed_at=? WHERE code=?').run(payload.id, Date.now(), code);
+  prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(c.value, c.value, Date.now(), payload.id);
+  prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)').run(payload.id, 'recharge', c.value, '兑换码充值', Date.now());
+  persist();
+  const w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
+  res.json({ ok: true, balance: w.balance, value: c.value });
+});
+
+// 转账：POST /api/wallet/transfer { toUid, amount, remark }
+app.post('/api/wallet/transfer', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { toUid, amount, remark } = req.body || {};
+  const target = prepare('SELECT id FROM users WHERE uid=?').get(String(toUid || ''));
+  if (!target) return res.status(404).json({ error: '收款人不存在' });
+  if (target.id === payload.id) return res.status(400).json({ error: '不能转给自己' });
+  const value = parseFloat(amount);
+  if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ error: '金额无效' });
+  const my = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
+  if (!my || my.balance < value) return res.status(400).json({ error: '余额不足' });
+  prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), payload.id);
+  prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(target.id, 0, 0, Date.now());
+  prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(value, value, Date.now(), target.id);
+  prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(payload.id, 'out', value, target.id, remark || '转账', Date.now());
+  prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(target.id, 'in', value, payload.id, remark || '收到转账', Date.now());
+  persist();
+  res.json({ ok: true, balance: (prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id)).balance });
+});
+
+// 我的交易记录：GET /api/wallet/txn
+app.get('/api/wallet/txn', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare(
+    `SELECT t.id,t.kind,t.amount,t.remark,t.created_at AS createdAt,u.nickname AS peerName,u.uid AS peerUid
+     FROM wallet_txn t LEFT JOIN users u ON u.id=t.peer_id WHERE t.user_id=? ORDER BY t.created_at DESC LIMIT 200`
+  ).all(payload.id);
+  res.json({ txn: rows });
+});
+
+// 状态：GET my status / SET 状态（微信『我的状态』）
+app.get('/api/status', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const s = prepare('SELECT text,icon,emoji,updated_at AS updatedAt FROM user_status WHERE user_id=?').get(payload.id);
+  res.json({ status: s || null });
+});
+app.post('/api/status', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { text, icon, emoji } = req.body || {};
+  prepare('INSERT INTO user_status(user_id,text,icon,emoji,updated_at) VALUES(?,?,?,?,?) ' +
+    'ON CONFLICT(user_id) DO UPDATE SET text=excluded.text,icon=excluded.icon,emoji=excluded.emoji,updated_at=excluded.updated_at')
+    .run(payload.id, text || '', icon || '', emoji || '', Date.now());
+  persist();
+  res.json({ ok: true });
+});
+
 // ---------- 反馈 / Bug 上报 ----------
 // 提交反馈：POST /api/feedback { kind, content }
 app.post('/api/feedback', (req, res) => {
@@ -1372,6 +1545,39 @@ app.post('/api/admin/version', (req, res) => {
   cfg.updatedAt = Date.now();
   saveVersionConfig(cfg);
   res.json({ ok: true, version: cfg });
+});
+
+// 管理员生成充值兑换码：POST /api/admin/redeem/issue { value, count }
+app.post('/api/admin/redeem/issue', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const value = parseFloat((req.body || {}).value);
+  const count = Math.min(parseInt((req.body || {}).count || '1', 10) || 1, 500);
+  if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ error: '面额无效' });
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const codes = [];
+  for (let i = 0; i < count; i++) {
+    let c; do { c = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join(''); }
+    while (prepare('SELECT 1 FROM redeem_codes WHERE code=?').get(c));
+    prepare('INSERT INTO redeem_codes(code,value,created_at) VALUES(?,?,?)').run(c, value, Date.now());
+    codes.push(c);
+  }
+  persist();
+  res.json({ ok: true, count: codes.length, value, codes });
+});
+
+// 管理员查看兑换码列表：GET /api/admin/redeem?claimed=0|1
+app.get('/api/admin/redeem', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const claimed = req.query.claimed;
+  let rows;
+  if (claimed === '0') rows = prepare('SELECT * FROM redeem_codes WHERE claimed_by IS NULL ORDER BY created_at DESC').all();
+  else if (claimed === '1') rows = prepare('SELECT * FROM redeem_codes WHERE claimed_by IS NOT NULL ORDER BY claimed_at DESC').all();
+  else rows = prepare('SELECT * FROM redeem_codes ORDER BY created_at DESC').all();
+  res.json({ codes: rows });
 });
 
 // 管理员上传安装包（无依赖二进制上传）：express.raw 直接解析 application/octet-stream 得到 Buffer，

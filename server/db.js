@@ -150,6 +150,105 @@ function init() {
       created_at INTEGER NOT NULL,
       UNIQUE(user_id, url)
     );
+    -- ============ 朋友圈 ============
+    CREATE TABLE IF NOT EXISTS moments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      images TEXT DEFAULT '',          -- JSON 数组: 图片地址
+      visibility TEXT DEFAULT 'all',   -- all|nobody(不给谁看,JSON ids)|just(仅谁看,JSON ids)
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_moments_user ON moments(user_id, created_at);
+    CREATE TABLE IF NOT EXISTS moment_likes (
+      moment_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(moment_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS moment_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      moment_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      reply_to_id INTEGER,             -- 回复某条评论，可空
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_moment_comments ON moment_comments(moment_id, created_at);
+    -- ============ 钱包 ============
+    CREATE TABLE IF NOT EXISTS wallets (
+      user_id INTEGER PRIMARY KEY,
+      balance FLOAT NOT NULL DEFAULT 0,
+      total_received FLOAT NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS wallet_txn (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,              -- in|out|recharge|transfer|red_packet
+      amount FLOAT NOT NULL,
+      peer_id INTEGER,                 -- 对手方用户(转账)
+      remark TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_wallet_txn_user ON wallet_txn(user_id, created_at);
+    CREATE TABLE IF NOT EXISTS redeem_codes (
+      code TEXT PRIMARY KEY,
+      value FLOAT NOT NULL,
+      claimed_by INTEGER,
+      created_at INTEGER NOT NULL,
+      claimed_at INTEGER
+    );
+    -- ============ 状态 ============
+    CREATE TABLE IF NOT EXISTS user_status (
+      user_id INTEGER PRIMARY KEY,
+      text TEXT,
+      icon TEXT,
+      emoji TEXT,
+      updated_at INTEGER NOT NULL
+    );
+    -- ============ 收藏 ============
+    CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL,              -- note|message|file
+      content TEXT,
+      meta TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_fav_user ON favorites(user_id, created_at);
+    -- ============ 公众号 ============
+    CREATE TABLE IF NOT EXISTS official_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      avatar TEXT,
+      intro TEXT,
+      owner_id INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS account_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      account_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS account_follows (
+      account_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY(account_id, user_id)
+    );
+    -- ============ 小程序 ============
+    CREATE TABLE IF NOT EXISTS mini_apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon TEXT,
+      desc TEXT,
+      url TEXT NOT NULL,
+      owner_id INTEGER,
+      created_at INTEGER NOT NULL
+    );
   `);
   // 迁移：给旧表加 uid 列（如果不存在）；给历史用户补 uid
   try {
