@@ -23,6 +23,10 @@ import 'features_center.dart';
 import 'ai_page.dart';
 import 'moments_page.dart';
 import 'wallet_page.dart';
+import 'videos_page.dart';
+import 'accounts_page.dart';
+import 'mini_apps_page.dart';
+import 'notebook_page.dart';
 
 import 'file_repository_page.dart';
 import 'update_service.dart';
@@ -539,6 +543,11 @@ class _ChatShellState extends State<ChatShell> {
               Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: '对方', config: widget.config)));
             }
           }
+        } else if (type == 'poke') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final nick = (p['fromNick'] ?? '某').toString();
+          if (!mounted) return;
+          try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$nick 拍了拍你'), duration: const Duration(seconds: 2))); } catch (_) {}
         }
       }, onError: (_) {});
     } catch (_) {}
@@ -548,6 +557,17 @@ class _ChatShellState extends State<ChatShell> {
     final conv = selConv;
     if (conv == null || conv['kind'] == 'group') return null;
     return conv['id'] as int;
+  }
+
+  Future<void> _poke() async {
+    final to = _talkId;
+    if (to == null) return;
+    try {
+      await widget.api.poke(to);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已拍一拍'), duration: const Duration(seconds: 1)));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('拍一拍失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
   }
 
   Future<void> _startCall(bool video) async {
@@ -908,6 +928,8 @@ class _ChatShellState extends State<ChatShell> {
         const Spacer(),
         IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
         IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
+        if (selConv != null && selConv!['kind'] == 'friend')
+          IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
         IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
         _contextMenu(),
       ])),
@@ -1320,7 +1342,11 @@ class _FeaturesSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = <(String, IconData, Widget)>[
       if (api != null && config != null) ('朋友圈', Icons.dynamic_feed_outlined, MomentsPage(api: api!, config: config!)),
+      if (api != null && config != null) ('视频号', Icons.video_library_outlined, VideosPage(api: api!, config: config!)),
+      if (api != null && config != null) ('公众号', Icons.article_outlined, AccountsPage(api: api!, config: config!)),
       if (api != null && config != null) ('钱包', Icons.account_balance_wallet_outlined, WalletPage(api: api!, config: config!)),
+      if (api != null && config != null) ('小程序', Icons.apps_rounded, MiniAppsPage(api: api!, config: config!)),
+      if (api != null && config != null) ('我的笔记', Icons.sticky_note_2_outlined, NotebookPage(api: api!, config: config!)),
       ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
       ('待办清单', Icons.checklist_rounded, const TodoPage()),
       ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
