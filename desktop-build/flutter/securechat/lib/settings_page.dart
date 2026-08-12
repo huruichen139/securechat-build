@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
@@ -145,23 +146,42 @@ class _SettingsPageState extends State<SettingsPage> {
               length: 5,
               child: Scaffold(
                 backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  backgroundColor: Colors.transparent,
-                  title: const Text('设置'),
-                  leading: const CloseButton(),
-                  bottom: TabBar(
-                    isScrollable: true,
-                    labelColor: config.primary,
-                    indicatorColor: config.primary,
-                    tabs: const [
-                      Tab(text: '外观'),
-                      Tab(text: '聊天'),
-                      Tab(text: '通用'),
-                      Tab(text: '隐私'),
-                      Tab(text: '存储'),
-                    ],
-                  ),
-                ),
+                appBar: Platform.isWindows
+                    ? AppBar(
+                        backgroundColor: Colors.transparent,
+                        flexibleSpace: DragToMoveArea(child: SizedBox.expand()),
+                        title: const Align(alignment: Alignment.centerLeft, child: Text('设置')),
+                        leading: const CloseButton(),
+                        bottom: TabBar(
+                          isScrollable: true,
+                          labelColor: config.primary,
+                          indicatorColor: config.primary,
+                          tabs: const [
+                            Tab(text: '外观'),
+                            Tab(text: '聊天'),
+                            Tab(text: '通用'),
+                            Tab(text: '隐私'),
+                            Tab(text: '存储'),
+                          ],
+                        ),
+                      )
+                    : AppBar(
+                        backgroundColor: Colors.transparent,
+                        title: const Text('设置'),
+                        leading: const CloseButton(),
+                        bottom: TabBar(
+                          isScrollable: true,
+                          labelColor: config.primary,
+                          indicatorColor: config.primary,
+                          tabs: const [
+                            Tab(text: '外观'),
+                            Tab(text: '聊天'),
+                            Tab(text: '通用'),
+                            Tab(text: '隐私'),
+                            Tab(text: '存储'),
+                          ],
+                        ),
+                      ),
                 body: TabBarView(
                   children: [
                     _appearance(config, t),
