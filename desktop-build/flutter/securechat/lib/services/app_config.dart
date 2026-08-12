@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 enum ThemeModeEx { light, dark, glass }
 
@@ -137,6 +139,16 @@ class AppConfig extends ChangeNotifier {
     effect = v;
     sp.setString(_kEffect, v.index.toString());
     notifyListeners();
+    // Windows 11: 切至「无效果」时把窗口背景设回不透明（盖住 Mica），
+    // 其余效果（Mica/Acrylic/Blur…）都把窗口背景设透明让系统级亚克力透出。
+    // C++ 端 runner/win32_window.cpp 已全局启用 DWMSBT_MAINWINDOW（Mica）。
+    if (Platform.isWindows) {
+      try {
+        windowManager.setBackgroundColor(
+          v == WindowEffectKind.none ? const Color(0xFFF7F7F7) : Colors.transparent,
+        );
+      } catch (_) {}
+    }
   }
 
   void setPrimary(Color v) {

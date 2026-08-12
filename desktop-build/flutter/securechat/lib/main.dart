@@ -35,6 +35,11 @@ Future<void> main() async {
       await windowManager.ensureInitialized();
       await windowManager.setMinimumSize(const Size(920, 640));
       await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: true);
+      // 启动时按已保存的 effect 切换背景：effect != none → 透明，让 Win11 Mica 透出
+      final eff = config.effect;
+      await windowManager.setBackgroundColor(
+        eff == WindowEffectKind.none ? const Color(0xFFF7F7F7) : Colors.transparent,
+      );
     } catch (_) {}
   }
   runApp(SecureChatApp(config: config, api: api));
