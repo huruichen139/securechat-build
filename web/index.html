@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="styles.css?v=nav-fix-20260805-1" />
   <style>
     /* ============ 真·亚克力效果 (内联，UTF-8，优先级高于外部 CSS) ============ */
-    /* 1) 给 body / .chat-wrap / .auth-wrap 加彩色渐变流动背景（这样 backdrop-filter 才有东西可模糊） */
+    /* 1) �?body / .chat-wrap / .auth-wrap 加彩色渐变流动背景（这样 backdrop-filter 才有东西可模糊） */
     html, body {
       min-height: 100%;
       background:
@@ -39,7 +39,7 @@
       50%  { transform: translate(2%, -1%) scale(1.06); }
       100% { transform: translate(-2%, 1%) scale(.96); }
     }
-    /* 2) 真半透明面板：让 backdrop-filter 模糊能看到底色 */
+    /* 2) 真半透明面板：让 backdrop-filter 模糊能看到底�?*/
     .chat-wrap, .auth-wrap { background: transparent !important; }
     .sidebar {
       background: rgba(255, 255, 255, .55) !important;
@@ -94,32 +94,30 @@
     }
     /* 让所有面板表面内文字保持高对比度 */
 
-    /* 4) 滚动条 */
+    /* 4) 滚动�?*/
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.35); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,.55); }
   </style>
 <script>
-  // API / WebSocket 自动跟随当前页面来源（同源），避免硬编码地址连不通。
-  (function () {
+  // API / WebSocket 自动跟随当前页面来源（同源），避免硬编码地址连不通�?  (function () {
     var host = location.hostname || '';
     window.SERVER_HOST = location.origin;
-    // 移动端独立 UI：m.chat.32768.top 或窄屏（<= 720px）启用单栏模式
-    window.IS_MOBILE = host.indexOf('m.') === 0 || window.matchMedia('(max-width: 720px)').matches;
+    // 移动端独�?UI：m.chat.32768.top 或窄屏（<= 720px）启用单栏模�?    window.IS_MOBILE = host.indexOf('m.') === 0 || window.matchMedia('(max-width: 720px)').matches;
     if (window.IS_MOBILE) document.documentElement.classList.add('is-mobile');
   })();
 </script>
 </head>
 <body>
   <div id="toastWrap" class="toast-wrap"></div>
-  <!-- 新消息浮层通知（右上角堆叠卡片） -->
+  <!-- 新消息浮层通知（右上角堆叠卡片�?-->
   <div id="messageNoticeStack" class="message-notice-stack"></div>
 
   <!-- 版本更新提示浮层 -->
   <div id="updateMask" class="update-mask" style="display:none">
     <div class="update-dialog">
-      <h3 id="updateTitle">发现新版本 vX.X.X</h3>
+      <h3 id="updateTitle">发现新版�?vX.X.X</h3>
       <div id="updateNotes" class="notes"></div>
       <div class="actions">
         <button id="updateNowBtn" class="ok">立即下载</button>
@@ -131,55 +129,55 @@
   <div id="authView" class="auth-wrap">
     <div class="auth-card">
       <div class="auth-logo">SecureChat</div>
-      <div class="auth-sub">端到端加密聊天</div>
+      <div class="auth-sub">端到端加密聊�?/div>
       <div class="tabs">
         <div class="tab on" data-tab="login" data-i18n="login">登录</div>
         <div class="tab" data-tab="register" data-i18n="register">注册</div>
       </div>
       <input id="username" class="input" placeholder="用户名或邮箱" autocomplete="off" data-i18n-placeholder="usernameOrEmail" />
-      <input id="password" class="input" type="password" placeholder="密码（至少6位）" autocomplete="off" data-i18n-placeholder="password" />
-      <!-- 登录方式切换（仅登录模式显示） -->
+      <input id="password" class="input" type="password" placeholder="密码（至�?位）" autocomplete="off" data-i18n-placeholder="password" />
+      <!-- 登录方式切换（仅登录模式显示�?-->
       <div id="loginModeRow" class="login-mode-row" style="display:none">
         <button type="button" class="login-mode-btn on" data-login-mode="password" data-i18n="passwordLogin">密码登录</button>
-        <button type="button" class="login-mode-btn" data-login-mode="code" data-i18n="codeLogin">验证码登录</button>
+        <button type="button" class="login-mode-btn" data-login-mode="code" data-i18n="codeLogin">验证码登�?/button>
         <button type="button" class="login-mode-btn" data-login-mode="qr" data-i18n="qrLogin">扫码登录</button>
       </div>
-      <input id="nickname" class="input" placeholder="昵称（注册时填写）" style="display:none" data-i18n-placeholder="nickname" />
-      <input id="customUid" class="input" placeholder="自定义ID（4-16位字母数字，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="customUid" />
+      <input id="nickname" class="input" placeholder="昵称（注册时填写�? style="display:none" data-i18n-placeholder="nickname" />
+      <input id="customUid" class="input" placeholder="自定义ID�?-16位字母数字，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="customUid" />
       <input id="country" class="input" placeholder="国家/地区（自由填写，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="country" />
-      <input id="province" class="input" placeholder="省/州（注册时可填，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="province" />
-      <input id="city" class="input" placeholder="城市（注册时可填，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="city" />
-      <!-- 注册专用：邮箱 + 验证码 -->
-      <input id="email" class="input" type="email" placeholder="邮箱（注册时填写）" style="display:none" autocomplete="off" data-i18n-placeholder="email" />
+      <input id="province" class="input" placeholder="�?州（注册时可填，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="province" />
+      <input id="city" class="input" placeholder="城市（注册时可填，可留空�? style="display:none" autocomplete="off" data-i18n-placeholder="city" />
+      <!-- 注册专用：邮�?+ 验证�?-->
+      <input id="email" class="input" type="email" placeholder="邮箱（注册时填写�? style="display:none" autocomplete="off" data-i18n-placeholder="email" />
       <div id="codeRow" class="code-row" style="display:none">
-        <input id="code" class="input code-input" placeholder="邮箱验证码" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
+        <input id="code" class="input code-input" placeholder="邮箱验证�? autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
         <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
       </div>
       <button id="authBtn" class="btn" data-i18n="login">登录</button>
       <div id="qrLoginArea" style="display:none">
-        <img id="qrImage" style="display:none" alt="扫码登录二维码" />
-        <p id="qrTip" class="qr-login-tip">请使用手机扫码登录</p>
-        <button id="qrRegenBtn" type="button" class="btn btn-secondary">刷新二维码</button>
+        <img id="qrImage" style="display:none" alt="扫码登录二维�? />
+        <p id="qrTip" class="qr-login-tip">请使用手机扫码登�?/p>
+        <button id="qrRegenBtn" type="button" class="btn btn-secondary">刷新二维�?/button>
       </div>
       <div id="authErr" class="err"></div>
     </div>
   </div>
 
-  <!-- 聊天主界面 -->
+  <!-- 聊天主界�?-->
   <div id="chatView" class="chat-wrap" style="display:none">
     <!-- 左侧 -->
     <div class="sidebar">
       <div class="sidebar-rail">
         <div class="sidebar-rail-brand">S</div>
         <div class="sidebar-rail-group">
-          <button class="side-tab on" data-side="friends" title="微信"><span class="rail-icon">聊</span><span data-i18n="friends">微信</span></button>
-          <button class="side-tab" data-side="groups" title="通讯录"><span class="rail-icon">录</span><span data-i18n="groups">通讯录</span></button>
-          <button class="side-tab" data-side="ai" title="发现"><span class="rail-icon">发</span><span data-i18n="ai">发现</span></button>
-          <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="我"><span class="rail-icon">我</span><span data-i18n="download">我</span></button>
+          <button class="side-tab on" data-side="friends" title="微信"><span class="rail-icon">�?/span><span data-i18n="friends">微信</span></button>
+          <button class="side-tab" data-side="groups" title="通讯�?><span class="rail-icon">�?/span><span data-i18n="groups">通讯�?/span></button>
+          <button class="side-tab" data-side="ai" title="发现"><span class="rail-icon">�?/span><span data-i18n="ai">发现</span></button>
+          <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="�?><span class="rail-icon">�?/span><span data-i18n="download">�?/span></button>
         </div>
         <div class="sidebar-rail-bottom">
           <button id="localeToggle" class="rail-action" title="切换语言" data-i18n="language">语言</button>
-          <button id="themeToggle" class="rail-action" title="切换深色模式" data-i18n="dark">夜</button>
+          <button id="themeToggle" class="rail-action" title="切换深色模式" data-i18n="dark">�?/button>
           <span class="rail-dot"></span>
         </div>
       </div>
@@ -190,14 +188,14 @@
           <span class="brand-status" title="服务在线"></span>
         </div>
         <div id="friendsSide" class="sidebar-tools">
-          <div class="section-label" data-i18n="contacts">联系人</div>
-          <div class="add-friend"><input id="addFriendInput" class="search" placeholder="输入对方 ID 加好友" /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">加好友</button></div>
+          <div class="section-label" data-i18n="contacts">联系�?/div>
+          <div class="add-friend"><input id="addFriendInput" class="search" placeholder="输入对方 ID 加好�? /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">加好�?/button></div>
           <div id="friendReqBar" class="friend-req-bar" style="display:none"><span id="friendReqText"></span><button id="acceptFriendBtn" class="btn-cn" data-i18n="add">接受</button><button id="rejectFriendBtn" class="btn-cn gray" data-i18n="close">拒绝</button></div>
-          <input id="search" class="search" placeholder="搜索联系人" data-i18n-placeholder="searchContacts" />
+          <input id="search" class="search" placeholder="搜索联系�? data-i18n-placeholder="searchContacts" />
         </div>
         <div id="groupsSide" class="sidebar-tools" style="display:none">
           <div class="section-label" data-i18n="groupManagement">群组管理</div>
-          <div class="group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">创建群</button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">加入群</button></div>
+          <div class="group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">创建�?/button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">加入�?/button></div>
         </div>
         <div class="sidebar-mini-stats"><span><b id="friendCount">0</b> <span data-i18n="friends">好友</span></span><span><b id="groupCount">0</b> <span data-i18n="groups">群组</span></span><span class="online-label"><i></i><span data-i18n="online">在线</span></span></div>
         <div class="list-heading"><span data-i18n="conversations">会话列表</span><span id="listCount"></span></div>
@@ -207,9 +205,9 @@
     </div>
     <!-- 右侧 -->
     <div class="main">
-      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系人</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话" data-i18n="search">搜索</button><button id="pinChatBtn" class="head-tool" title="置顶当前会话" data-i18n="pin">置顶</button><button id="muteChatBtn" class="head-tool" title="当前会话免打扰" data-i18n="mute">免打扰</button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录" data-i18n="clear">清空</button><button id="notifyBtn" class="head-tool" title="开启浏览器通知" data-i18n="notify">通知</button></div></div>
+      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系�?/span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话" data-i18n="search">搜索</button><button id="pinChatBtn" class="head-tool" title="置顶当前会话" data-i18n="pin">置顶</button><button id="muteChatBtn" class="head-tool" title="当前会话免打�? data-i18n="mute">免打�?/button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录" data-i18n="clear">清空</button><button id="notifyBtn" class="head-tool" title="开启浏览器通知" data-i18n="notify">通知</button></div></div>
       <div id="inviteBar" class="group-actions" style="display:none;padding:6px 12px">
-        <button id="inviteGroupBtn" class="add-btn" data-i18n="add">邀请成员</button>
+        <button id="inviteGroupBtn" class="add-btn" data-i18n="add">邀请成�?/button>
       </div>
       <div class="messages" id="messages">
         <div id="callReplayList" class="call-replay-list" style="display:none"></div>
@@ -217,10 +215,10 @@
           <div class="welcome-orb">S</div>
           <div class="welcome-kicker">SECURE COMMUNICATION</div>
           <h1 data-i18n="welcome">欢迎使用 SecureChat</h1>
-          <p class="welcome-sub" data-i18n="welcomeSub">选择一个联系人开始聊天，或者从下面快速开始。</p>
+          <p class="welcome-sub" data-i18n="welcomeSub">选择一个联系人开始聊天，或者从下面快速开始�?/p>
           <div class="welcome-actions">
             <button type="button" class="welcome-action" id="welcomeAddBtn"><span class="welcome-icon">添加</span><b data-i18n="addFriend">添加好友</b><small data-i18n="welcomeAddSub">通过 UID 找到朋友</small></button>
-            <button type="button" class="welcome-action" id="welcomeGroupBtn"><span class="welcome-icon" data-i18n="groupChat">群聊</span><b data-i18n="createGroup">创建群聊</b><small data-i18n="welcomeGroupSub">和多人一起交流</small></button>
+            <button type="button" class="welcome-action" id="welcomeGroupBtn"><span class="welcome-icon" data-i18n="groupChat">群聊</span><b data-i18n="createGroup">创建群聊</b><small data-i18n="welcomeGroupSub">和多人一起交�?/small></button>
             <button type="button" class="welcome-action" id="welcomeAiBtn"><span class="welcome-icon" data-i18n="assistant">助手</span><b data-i18n="ai">使用 AI 助手</b><small data-i18n="welcomeAiSub">快速问答与创作</small></button>
           </div>
           <div class="welcome-features"><span data-i18n="encrypted">加密传输</span><span data-i18n="realtime">实时同步</span><span data-i18n="voiceVideo">语音视频</span><span data-i18n="fileShare">文件分享</span></div>
@@ -245,14 +243,14 @@
       </div>
       <div class="composer">
         <div class="composer-tools">
-          <button id="fileBtn" class="tool" title="发送文件" data-i18n="files">文件</button>
-          <button id="voiceBtn" class="tool" title="点一下开始说话，再点一下发送" data-i18n="voice">语音</button>
-          <button id="speechBtn" class="tool" title="语音转文字" data-i18n="transcribe">转文字</button>
+          <button id="fileBtn" class="tool" title="发送文�? data-i18n="files">文件</button>
+          <button id="voiceBtn" class="tool" title="点一下开始说话，再点一下发�? data-i18n="voice">语音</button>
+          <button id="speechBtn" class="tool" title="语音转文�? data-i18n="transcribe">转文�?/button>
           <button id="audioBtn" class="tool" title="语音通话" data-i18n="audio">通话</button>
           <button id="videoBtn" class="tool" title="视频通话" data-i18n="video">视频</button>
         </div>
         <div class="composer-input-wrap"><textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftState" class="draft-state" data-i18n="draftAuto">草稿自动保存</span></div>
-        <button id="sendBtn" class="btn send" data-i18n="send">发送</button>
+        <button id="sendBtn" class="btn send" data-i18n="send">发�?/button>
       </div>
       <div id="voiceTip" class="voice-tip" style="display:none"></div>
       <div id="recBar" class="rec-bar" style="display:none">
@@ -265,23 +263,23 @@
     <div id="aiView" class="ai-view" style="display:none">
       <div class="ai-header">
         <span data-i18n="ai">AI 助手</span>
-        <button id="aiSettingsBtn" class="ai-btn-sm" title="配置 AI 提供商" data-i18n="settings">⚙️ 设置</button>
+        <button id="aiSettingsBtn" class="ai-btn-sm" title="配置 AI 提供�? data-i18n="settings">⚙️ 设置</button>
       </div>
-      <section class="mini-programs" aria-label="小程序">
-        <div class="mini-programs-title">小程序</div>
+      <section class="mini-programs" aria-label="小程�?>
+        <div class="mini-programs-title">小程�?/div>
         <div id="miniProgramList" class="mini-program-list"><span>正在加载...</span></div>
       </section>
       <div id="aiMessages" class="ai-msgs messages"></div>
       <div class="ai-composer">
-        <input id="aiInput" placeholder="向 AI 提问..." autocomplete="off" data-i18n-placeholder="aiInput" />
-        <button id="aiSendBtn" class="btn send" data-i18n="send">发送</button>
+        <input id="aiInput" placeholder="�?AI 提问..." autocomplete="off" data-i18n-placeholder="aiInput" />
+        <button id="aiSendBtn" class="btn send" data-i18n="send">发�?/button>
       </div>
     </div>
-    <!-- 下载视图（与聊天、AI 视图平级，只切换右侧内容） -->
+    <!-- 下载视图（与聊天、AI 视图平级，只切换右侧内容�?-->
      <div id="downloadView" class="download-view" style="display:none">
        <div class="download-header"><button id="downloadBackBtn" class="back-to-list-btn" type="button" data-i18n="back">返回</button><span>下载 SecureChat</span><span class="download-header-sub">多平台客户端</span></div>
       <div class="download-page">
-        <div id="downloadStatus" class="download-status" role="status" aria-live="polite">正在获取最新版本…</div>
+        <div id="downloadStatus" class="download-status" role="status" aria-live="polite">正在获取最新版本�?/div>
         <section id="recommended" class="download-recommend" aria-labelledby="recommended-title"></section>
         <details class="download-other" open>
           <summary>其他平台</summary>
@@ -295,14 +293,13 @@
 
 <script src="webrtc.js?v=1-24-3-26"></script>
 <script src="i18n.js?v=i18n-20260802-1"></script>
-<script src="ai.js?v=1-50-0-0"></script>
+<script src="ai.js?v=1-51-0-0"></script>
 <script src="download.js"></script>
 <script src="e2ee.js?v=e2ee-20260803-1"></script>
-<script src="jsqr.js?v=1-50-0-0"></script>
-<script src="app.js?v=1-50-0-0"></script>
+<script src="jsqr.js?v=1-51-0-0"></script>
+<script src="app.js?v=1-51-0-0"></script>
 <script>
-  // 注册 Service Worker（PWA 离线/加速；仅 HTTPS 环境生效）
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // 注册 Service Worker（PWA 离线/加速；�?HTTPS 环境生效�?  if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function () {});
     });
@@ -310,3 +307,4 @@
 </script>
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-﻿/* SecureChat Service Worker - network-first, cache static assets */
+/* SecureChat Service Worker - network-first, cache static assets */
 'use strict';
 
 const CACHE = 'securechat-auto-route-v50';
@@ -6,11 +6,11 @@ const CORE_ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
-  '/app.js?v=1-50-0-0',
+  '/app.js?v=1-51-0-0',
   '/e2ee.js',
-  '/jsqr.js?v=1-50-0-0',
+  '/jsqr.js?v=1-51-0-0',
   '/i18n.js',
-  '/ai.js?v=1-50-0-0',
+  '/ai.js?v=1-51-0-0',
   '/webrtc.js?v=1-24-3-26',
   '/manifest.json'
 ];
@@ -53,3 +53,4 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(req).then((hit) => hit || caches.match('/index.html')))
   );
 });
+

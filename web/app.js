@@ -1,7 +1,6 @@
 'use strict';
 
-// 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.50.0';
+// 客户端打包版本号；与服务�?/api/version.latest 比对，最新版后会弹更新浮层�?const PACKAGE_VERSION = '1.51.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -27,10 +26,8 @@ let state = {
   activePeer: null,
   unread: {},
   lastFrom: {},
-  // E2EE：本账号私钥（JWK），登录成功后填充
-  myPrivJwk: null,
-  // 已发送消息明文缓存：clientMsgId -> 明文，用于服务端回包替换密文显示原文字
-  sentPlain: {},
+  // E2EE：本账号私钥（JWK），登录成功后填�?  myPrivJwk: null,
+  // 已发送消息明文缓存：clientMsgId -> 明文，用于服务端回包替换密文显示原文�?  sentPlain: {},
   // 本地已发送（乐观渲染）消息：clientMsgId -> true，用于去重服务端回显
   pendingLocal: {},
   // 群组
@@ -38,17 +35,14 @@ let state = {
   groups: [],
   activeGroup: null,
   groupUnread: {},
-  groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当前/历史）
-};
+  groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当�?历史�?};
 
 const $ = (id) => document.getElementById(id);
 
-// i18n 短名：拿不到字典或字典里尚未收录该 key 时，回退到原中文，避免硬编码外文。
-function t(key, fallback) {
+// i18n 短名：拿不到字典或字典里尚未收录�?key 时，回退到原中文，避免硬编码外文�?function t(key, fallback) {
   if (window.SCI18N && typeof SCI18N.t === 'function') {
     const v = SCI18N.t(key);
-    // SCI18N.t 在缺失 key 时会返回 key 本身；此时落到 fallback。
-    if (v && v !== key) return v;
+    // SCI18N.t 在缺�?key 时会返回 key 本身；此时落�?fallback�?    if (v && v !== key) return v;
   }
   return (fallback != null ? fallback : key);
 }
@@ -80,29 +74,27 @@ function saveCurrentDraft() {
   if (value) drafts[key] = value;
   else delete drafts[key];
   localStorage.setItem(draftStorageKey(), JSON.stringify(drafts));
-  const hint = $('draftState'); if (hint) hint.textContent = value ? t('draftSaved','草稿已保存') : t('draftAuto','草稿自动保存');
+  const hint = $('draftState'); if (hint) hint.textContent = value ? t('draftSaved','草稿已保�?) : t('draftAuto','草稿自动保存');
 }
 function restoreCurrentDraft() {
   const key = activeConversationKey();
   const input = $('input');
   if (!input) return;
   input.value = key ? (readDrafts()[key] || '') : '';
-  const hint = $('draftState'); if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草稿') : t('draftAuto','草稿自动保存');
+  const hint = $('draftState'); if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草�?) : t('draftAuto','草稿自动保存');
 }
 
 // ============ 个人资料字段定义（≥100 项） ============
-// 独立列字段：nickname / country / province / city（不放进 extra）。
-// 其它字段全部存入 extra（JSON 对象，扁平 key-value）。
-const PROFILE_FIELDS = [
+// 独立列字段：nickname / country / province / city（不放进 extra）�?// 其它字段全部存入 extra（JSON 对象，扁�?key-value）�?const PROFILE_FIELDS = [
   { cat: '身份', items: [
-    { key: 'realname', label: '真实姓名', placeholder: '可不填' },
-    { key: 'englishName', label: '英文名' },
+    { key: 'realname', label: '真实姓名', placeholder: '可不�? },
+    { key: 'englishName', label: '英文�? },
     { key: 'alias', label: '别名 / 昵称' },
     { key: 'gender', label: '性别' },
-    { key: 'orientation', label: '性取向' },
+    { key: 'orientation', label: '性取�? },
     { key: 'marital', label: '婚姻状况' },
     { key: 'birthday', label: '生日', placeholder: 'YYYY-MM-DD' },
-    { key: 'bloodType', label: '血型' },
+    { key: 'bloodType', label: '血�? },
     { key: 'zodiac', label: '星座' },
     { key: 'chineseZodiac', label: '生肖' },
     { key: 'height', label: '身高(cm)' },
@@ -116,7 +108,7 @@ const PROFILE_FIELDS = [
     { key: 'timezone', label: '时区' },
     { key: 'language', label: '母语' },
     { key: 'languages2', label: '其它语言' },
-    { key: 'district', label: '区 / 县' },
+    { key: 'district', label: '�?/ �? },
     { key: 'street', label: '街道 / 地址' },
     { key: 'village', label: '小区' },
     { key: 'zip', label: '邮编' },
@@ -132,13 +124,13 @@ const PROFILE_FIELDS = [
     { key: 'industry', label: '行业' },
     { key: 'jobLevel', label: '职级' },
     { key: 'experience', label: '工作年限' },
-    { key: 'skills', label: '技能特长' },
-    { key: 'jobStatus', label: '在职状态' },
+    { key: 'skills', label: '技能特�? },
+    { key: 'jobStatus', label: '在职状�? },
     { key: 'salary', label: '薪资范围' },
     { key: 'gitHub', label: 'GitHub' },
   ] },
   { cat: '教育', items: [
-    { key: 'eduLevel', label: '最高学历' },
+    { key: 'eduLevel', label: '最高学�? },
     { key: 'school', label: '毕业院校' },
     { key: 'major', label: '专业' },
     { key: 'graduation', label: '毕业时间' },
@@ -152,7 +144,7 @@ const PROFILE_FIELDS = [
     { key: 'advisor', label: '导师' },
   ] },
   { cat: '联系方式', items: [
-    { key: 'phone', label: '手机号' },
+    { key: 'phone', label: '手机�? },
     { key: 'tel', label: '座机' },
     { key: 'fax', label: '传真' },
     { key: 'qq', label: 'QQ' },
@@ -163,7 +155,7 @@ const PROFILE_FIELDS = [
     { key: 'instagram', label: 'Instagram' },
     { key: 'discord', label: 'Discord' },
     { key: 'weibo', label: '微博' },
-    { key: 'bilibili', label: 'B 站 ID' },
+    { key: 'bilibili', label: 'B �?ID' },
     { key: 'zhihu', label: '知乎' },
     { key: 'website', label: '个人网站' },
     { key: 'blog', label: '博客' },
@@ -178,9 +170,9 @@ const PROFILE_FIELDS = [
     { key: 'sportTeam', label: '主队 / 球队' },
     { key: 'game', label: '游戏' },
     { key: 'gameId', label: '游戏 ID' },
-    { key: 'travel', label: '常去旅行地' },
-    { key: 'food', label: '喜欢的食物' },
-    { key: 'drink', label: '喜欢的饮料' },
+    { key: 'travel', label: '常去旅行�? },
+    { key: 'food', label: '喜欢的食�? },
+    { key: 'drink', label: '喜欢的饮�? },
     { key: 'pet', label: '宠物' },
     { key: 'plant', label: '植物' },
     { key: 'photo', label: '摄影' },
@@ -191,18 +183,18 @@ const PROFILE_FIELDS = [
     { key: 'anime', label: '动漫' },
   ] },
   { cat: '音乐/影视', items: [
-    { key: 'singer', label: '喜欢的歌手' },
-    { key: 'band', label: '喜欢的乐队' },
+    { key: 'singer', label: '喜欢的歌�? },
+    { key: 'band', label: '喜欢的乐�? },
     { key: 'song', label: '喜欢的歌' },
-    { key: 'album', label: '喜欢的专辑' },
+    { key: 'album', label: '喜欢的专�? },
     { key: 'musicType', label: '音乐类型' },
     { key: 'instrument', label: '乐器' },
-    { key: 'movie1', label: '喜欢的电影' },
-    { key: 'director', label: '喜欢的导演' },
-    { key: 'actor', label: '喜欢的演员' },
+    { key: 'movie1', label: '喜欢的电�? },
+    { key: 'director', label: '喜欢的导�? },
+    { key: 'actor', label: '喜欢的演�? },
     { key: 'actress', label: '喜欢的女演员' },
     { key: 'movieType', label: '电影类型' },
-    { key: 'tvShow', label: '追的剧' },
+    { key: 'tvShow', label: '追的�? },
     { key: 'show', label: '综艺节目' },
     { key: 'podcast', label: '听的播客' },
     { key: 'idol', label: '偶像' },
@@ -214,14 +206,14 @@ const PROFILE_FIELDS = [
     { key: 'diet', label: '饮食偏好' },
     { key: 'religion', label: '宗教信仰' },
     { key: 'political', label: '政治倾向' },
-    { key: 'vehicle', label: '出行交通' },
+    { key: 'vehicle', label: '出行交�? },
     { key: 'house', label: '住房' },
     { key: 'salaryIdeal', label: '理想收入' },
     { key: 'fitness', label: '健身频率' },
-    { key: 'cooking', label: '是否会做饭' },
+    { key: 'cooking', label: '是否会做�? },
   ] },
   { cat: '价值观', items: [
-    { key: 'motto', label: '座右铭' },
+    { key: 'motto', label: '座右�? },
     { key: 'dream', label: '理想 / 梦想' },
     { key: 'religionPref', label: '择偶信仰倾向' },
     { key: 'value1', label: '最看重的事 1' },
@@ -231,11 +223,11 @@ const PROFILE_FIELDS = [
     { key: 'idealHeight', label: '理想伴侣身高' },
     { key: 'idealJob', label: '理想伴侣职业' },
     { key: 'idealCharacter', label: '理想伴侣性格' },
-    { key: 'taboo', label: '不能接受的' },
+    { key: 'taboo', label: '不能接受�? },
   ] },
-  { cat: '个性签名', items: [
-    { key: 'signature', label: '个性签名' },
-    { key: 'status', label: '状态' },
+  { cat: '个性签�?, items: [
+    { key: 'signature', label: '个性签�? },
+    { key: 'status', label: '状�? },
     { key: 'intro', label: '自我介绍' },
     { key: 'nickname2', label: '其它昵称' },
     { key: 'tagline', label: '一句话标签' },
@@ -243,14 +235,13 @@ const PROFILE_FIELDS = [
   ] },
 ];
 
-// 自定义 Toast 提示（替代 alert）
-function toast(msg, kind /* info|success|error|warn */, ms) {
+// 自定�?Toast 提示（替�?alert�?function toast(msg, kind /* info|success|error|warn */, ms) {
   kind = kind || 'info';
   ms = ms || 2200;
   const wrap = $('toastWrap');
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
-  const ico = { info: 'i', success: '✓', error: '!', warn: '!' }[kind] || 'i';
+  const ico = { info: 'i', success: '�?, error: '!', warn: '!' }[kind] || 'i';
   el.innerHTML = '<div class="ico">' + ico + '</div><div>' + escapeHtml(msg) + '</div>';
   wrap.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
@@ -262,11 +253,9 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
 
 // ============ 登录/注册 ============
 let mode = 'login';
-let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
-let qrLoginTimer = null;
+let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效�?let qrLoginTimer = null;
 
-// 根据当前 mode 与 loginMode 统一刷新登录/注册表单字段的显隐
-function applyLoginMode() {
+// 根据当前 mode �?loginMode 统一刷新登录/注册表单字段的显�?function applyLoginMode() {
   const showReg = mode === 'register';
   $('nickname').style.display = showReg ? 'block' : 'none';
   $('customUid').style.display = showReg ? 'block' : 'none';
@@ -277,8 +266,7 @@ function applyLoginMode() {
   $('loginModeRow').style.display = showReg ? 'none' : 'flex';
   const useCode = !showReg && loginMode === 'code';
   const useQr = !showReg && loginMode === 'qr';
-  // 密码登录：用户名 + 密码；验证码登录：邮箱 + 验证码；扫码登录：表单内二维码
-  const showPw = showReg || (!useCode && !useQr);
+  // 密码登录：用户名 + 密码；验证码登录：邮�?+ 验证码；扫码登录：表单内二维�?  const showPw = showReg || (!useCode && !useQr);
   $('username').style.display = showPw ? 'block' : 'none';
   $('password').style.display = showPw ? 'block' : 'none';
   $('email').style.display = (showReg || useCode) ? 'block' : 'none';
@@ -292,10 +280,8 @@ function applyLoginMode() {
     clearInterval(qrLoginTimer);
     qrLoginTimer = null;
   }
-  // 密码登录时用户名输入框 placeholder 为「用户名或邮箱」；注册/验证码登录时为「用户名」
-  $('username').placeholder = (showReg || useCode || useQr) ? t('username', '用户名') : t('usernameOrEmail', '用户名或邮箱');
-  // 邮箱 placeholder：注册时提示「注册时填写」，登录验证码时提示「邮箱」
-  $('email').placeholder = showReg ? t('email', '邮箱（注册时填写）') : t('emailLogin', '邮箱');
+  // 密码登录时用户名输入�?placeholder 为「用户名或邮箱」；注册/验证码登录时为「用户名�?  $('username').placeholder = (showReg || useCode || useQr) ? t('username', '用户�?) : t('usernameOrEmail', '用户名或邮箱');
+  // 邮箱 placeholder：注册时提示「注册时填写」，登录验证码时提示「邮箱�?  $('email').placeholder = showReg ? t('email', '邮箱（注册时填写�?) : t('emailLogin', '邮箱');
   // 登录方式按钮高亮
   document.querySelectorAll('.login-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.loginMode === loginMode));
   $('authErr').textContent = '';
@@ -318,8 +304,7 @@ document.querySelectorAll('.login-mode-btn').forEach(b => {
   };
 });
 
-// 初始化登录页，首次打开时直接显示密码登录/验证码登录切换。
-applyLoginMode();
+// 初始化登录页，首次打开时直接显示密码登�?验证码登录切换�?applyLoginMode();
 
 $('authBtn').onclick = async () => {
   const username = $('username').value.trim();
@@ -333,15 +318,13 @@ $('authBtn').onclick = async () => {
   $('authErr').textContent = '';
   let endpoint, body;
   if (mode === 'register') {
-    // 注册：用户名 + 密码 + 邮箱 + 验证码
-    if (!username || !password) { $('authErr').textContent = '请输入用户名和密码'; return; }
-    if (!email) { $('authErr').textContent = '请填写邮箱'; return; }
+    // 注册：用户名 + 密码 + 邮箱 + 验证�?    if (!username || !password) { $('authErr').textContent = '请输入用户名和密�?; return; }
+    if (!email) { $('authErr').textContent = '请填写邮�?; return; }
     if (!code) { $('authErr').textContent = '请输入邮箱验证码'; return; }
     endpoint = '/api/register';
     body = { username, password, nickname, email, code, customUid: $('customUid').value.trim(), country, province, city };
   } else if (loginMode === 'code') {
-    // 登录-验证码：邮箱 + 验证码
-    if (!email) { $('authErr').textContent = '请填写邮箱'; return; }
+    // 登录-验证码：邮箱 + 验证�?    if (!email) { $('authErr').textContent = '请填写邮�?; return; }
     if (!code) { $('authErr').textContent = '请输入邮箱验证码'; return; }
     endpoint = '/api/login/code';
     body = { email, code };
@@ -349,14 +332,14 @@ $('authBtn').onclick = async () => {
     // 扫码登录：二维码在表单内渲染，authBtn 隐藏；此分支不应触发
     return;
   } else {
-    // 登录-密码：账号（用户名或邮箱）+ 密码
+    // 登录-密码：账号（用户名或邮箱�? 密码
     if (!username || !password) { $('authErr').textContent = '请输入用户名或邮箱和密码'; return; }
     endpoint = '/api/login';
     body = { account: username, password };
   }
   const btn = $('authBtn');
   btn.disabled = true;
-  btn.textContent = t('loggingIn', '登录中…');
+  btn.textContent = t('loggingIn', '登录中�?);
   try {
     const res = await fetch(state.serverHost + endpoint, {
       method: 'POST',
@@ -374,7 +357,7 @@ $('authBtn').onclick = async () => {
     $('authErr').textContent = '无法连接服务器：' + e.message;
   } finally {
     btn.disabled = false;
-    btn.textContent = mode === 'register' ? t('register', '注册') : (loginMode === 'code' ? t('codeLogin', '验证码登录') : t('login', '登录'));
+    btn.textContent = mode === 'register' ? t('register', '注册') : (loginMode === 'code' ? t('codeLogin', '验证码登�?) : t('login', '登录'));
   }
 };
 
@@ -386,9 +369,9 @@ async function setQrLogin() {
   try {
     const res = await fetch(state.serverHost + '/api/login/qr/create', { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '二维码生成失败');
+    if (!res.ok) throw new Error(data.error || '二维码生成失�?);
     if (img) { img.src = state.serverHost + '/api/login/qr/image?token=' + encodeURIComponent(data.token); img.style.display = 'block'; }
-    if (tip) tip.textContent = '请使用已登录的 SecureChat 手机端「扫一扫」扫描二维码登录，二维码 2 分钟内有效。';
+    if (tip) tip.textContent = '请使用已登录�?SecureChat 手机端「扫一扫」扫描二维码登录，二维码 2 分钟内有效�?;
     if ($('authErr')) $('authErr').textContent = '';
     let done = false;
     qrLoginTimer = setInterval(async () => {
@@ -410,19 +393,18 @@ async function setQrLogin() {
         }
       } catch (e) {}
     }, 2000);
-  } catch (e) { if (tip) tip.textContent = e.message || '二维码生成失败'; }
+  } catch (e) { if (tip) tip.textContent = e.message || '二维码生成失�?; }
 }
 
 const qrRegenBtnEl = $('qrRegenBtn');
 if (qrRegenBtnEl) qrRegenBtnEl.onclick = () => setQrLogin();
 
-// 发送邮箱验证码（注册用 purpose='register'；登录验证码登录用 purpose='login'）
-let codeTimer = null;
+// 发送邮箱验证码（注册用 purpose='register'；登录验证码登录�?purpose='login'�?let codeTimer = null;
 $('sendCodeBtn').onclick = async () => {
   const email = $('email').value.trim();
   if (!email) { $('authErr').textContent = '请先填写邮箱'; return; }
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { $('authErr').textContent = '邮箱格式错误'; return; }
-  // 根据当前状态决定验证码用途：注册 → register；登录+验证码登录 → login
+  // 根据当前状态决定验证码用途：注册 �?register；登�?验证码登�?�?login
   const purpose = mode === 'register' ? 'register' : 'login';
   $('sendCodeBtn').disabled = true;
   $('authErr').textContent = '正在发送验证码...';
@@ -432,11 +414,10 @@ $('sendCodeBtn').onclick = async () => {
       body: JSON.stringify({ email, purpose })
     });
     const data = await res.json();
-    if (!res.ok) { $('authErr').textContent = data.error || '发送失败'; $('sendCodeBtn').disabled = false; return; }
+    if (!res.ok) { $('authErr').textContent = data.error || '发送失�?; $('sendCodeBtn').disabled = false; return; }
     $('authErr').textContent = '';
-    toast('验证码已发送，请查收邮箱', 'success');
-    // 60s 倒计时
-    let n = 60;
+    toast('验证码已发送，请查收邮�?, 'success');
+    // 60s 倒计�?    let n = 60;
     $('sendCodeBtn').textContent = n + 's';
     if (codeTimer) clearInterval(codeTimer);
     codeTimer = setInterval(() => {
@@ -453,7 +434,7 @@ $('sendCodeBtn').onclick = async () => {
 
 $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('authBtn').click(); });
 
-// ---------- 自动检查更新 ----------
+// ---------- 自动检查更�?----------
 // 语义化版本比较：返回 -1/0/1
 function cmpVersion(a, b) {
   a = String(a || '0').split('.');
@@ -467,32 +448,28 @@ function cmpVersion(a, b) {
   }
   return 0;
 }
-// 每次（登录/进入聊天页）自动拉 /api/version，若 latest > 当前 PACKAGE_VERSION 则弹更新浮层。
-async function checkUpdate() {
+// 每次（登�?进入聊天页）自动�?/api/version，若 latest > 当前 PACKAGE_VERSION 则弹更新浮层�?async function checkUpdate() {
   if (/Electron\//i.test(navigator.userAgent || '')) return;
   try {
     const res = await fetch(state.serverHost + '/api/version');
     if (!res.ok) return;
     const data = await res.json();
     if (cmpVersion(PACKAGE_VERSION, data.latest) < 0) {
-      $('updateTitle').textContent = '发现新版本 v' + data.latest;
+      $('updateTitle').textContent = '发现新版�?v' + data.latest;
       let notes = (data.releaseNotes || '').trim();
-      // 把换行或分号切分为列表展示
-      let html = '';
+      // 把换行或分号切分为列表展�?      let html = '';
       String(notes || '').split(/\r?\n|;/).map(s => s.trim()).filter(Boolean)
-        .forEach(line => { html += '<div>• ' + escapeHtml(line) + '</div>'; });
-      if (!html) html = '<div>• ' + escapeHtml(data.latest || '') + '</div>';
+        .forEach(line => { html += '<div>�?' + escapeHtml(line) + '</div>'; });
+      if (!html) html = '<div>�?' + escapeHtml(data.latest || '') + '</div>';
       $('updateNotes').innerHTML = html;
       $('updateMask').style.display = 'flex';
-      // 绑定按钮（每次都重绑，防止旧闭包）
-      $('updateNowBtn').onclick = function () { window.open('download.html', '_blank'); };
+      // 绑定按钮（每次都重绑，防止旧闭包�?      $('updateNowBtn').onclick = function () { window.open('download.html', '_blank'); };
       $('updateLaterBtn').onclick = function () { $('updateMask').style.display = 'none'; };
     }
-  } catch (e) { /* 静默：检查更新失败不应打扰用户 */ }
+  } catch (e) { /* 静默：检查更新失败不应打扰用�?*/ }
 }
 
-// 自动恢复登录（先验证 token 再进聊天）
-function tryRestore() {
+// 自动恢复登录（先验证 token 再进聊天�?function tryRestore() {
   const savedToken = localStorage.getItem('sc_token');
   const savedMe = localStorage.getItem('sc_me');
   if (!savedToken || !savedMe) return;
@@ -520,16 +497,14 @@ function logout() {
   if (window.SCE2EE) window.SCE2EE._cache = {};
   if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
   if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
-  // 清掉当前会话/联系人状态
-  state.current = null;
+  // 清掉当前会话/联系人状�?  state.current = null;
   if (state.messages) state.messages = {};
-  // 切换回登录页并重置登录模式
-  $('chatView').style.display = 'none';
+  // 切换回登录页并重置登录模�?  $('chatView').style.display = 'none';
   $('authView').style.display = 'flex';
   mode = 'login';
   loginMode = 'password';
   try { applyLoginMode(); } catch {}
-  toast(t('logout', '已退出登录'), 'info');
+  toast(t('logout', '已退出登�?), 'info');
 }
 
 // ============ 进入聊天 ============
@@ -537,19 +512,16 @@ function enterChat() {
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
   renderMyInfo();
-  // 恢复该用户自定义聊天背景图（每个用户独立存储）
-  applyChatBg(getChatBg());
+  // 恢复该用户自定义聊天背景图（每个用户独立存储�?  applyChatBg(getChatBg());
   connectWS();
   loadFriends();
-  // E2EE 已停用：消息以明文发送，不再生成/上传密钥。
-}
+  // E2EE 已停用：消息以明文发送，不再生成/上传密钥�?}
 
 function renderMyInfo() {
   const hasImg = state.me && state.me.avatar;
   const avHtml = hasImg ? '<img src="' + state.me.avatar + '">'
     : avatarChar(state.me.nickname);
-  // 地区：country/province/city 是独立列；若三者皆空，再尝试从 extra 取现住地（currentAddress / hometown）
-  const c = (state.me && state.me.country) || '';
+  // 地区：country/province/city 是独立列；若三者皆空，再尝试从 extra 取现住地（currentAddress / hometown�?  const c = (state.me && state.me.country) || '';
   const p = (state.me && state.me.province) || '';
   const ct = (state.me && state.me.city) || '';
   const regionParts = [c, p, ct].filter(Boolean);
@@ -563,31 +535,30 @@ function renderMyInfo() {
   if (regionText) {
     regionHtml = '<div class="my-id region-display" style="cursor:pointer" title="点击编辑资料">' + escapeHtml(regionText) + '</div>';
   } else {
-    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">地区：未设置，点“资料”填写</div>';
+    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">地区：未设置，点“资料”填�?/div>';
   }
   const dark = document.body.classList.contains('dark-mode');
   $('myInfo').innerHTML = '<div class="account-card">'
     + '<div class="account-main">'
-    + '<div class="avatar my-avatar" id="myAvatar" title="点击换头像">' + avHtml + '</div>'
+    + '<div class="avatar my-avatar" id="myAvatar" title="点击换头�?>' + avHtml + '</div>'
     + '<div class="account-copy"><div class="my-name">' + escapeHtml(state.me.nickname) + '</div>'
     + '<div class="my-id" id="myIdText" style="cursor:pointer" title="点击复制ID">ID: ' + (state.me.uid || '') + '</div></div>'
-    + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', '退出登录')) + '">' + escapeHtml(t('logout', '退出')) + '</button>'
+    + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', '退出登�?)) + '">' + escapeHtml(t('logout', '退�?)) + '</button>'
     + '</div>'
     + '<div class="account-region">' + regionHtml + '</div>'
     + '<div class="account-toolbar">'
     + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', '资料')) + '</button>'
-    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '改 ID')) + '</button>'
+    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '�?ID')) + '</button>'
     + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', '名片')) + '</button>'
-    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', '扫一扫')) + '</button>'
+    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', '扫一�?)) + '</button>'
     + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
     + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
     + '<span class="theme-switch" role="group" aria-label="外观主题">'
-    + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', '日')) + '</button>'
-    + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', '夜')) + '</button>'
+    + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', '�?)) + '</button>'
+    + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', '�?)) + '</button>'
     + '</span></div>'
     + '</div>';
-  // 账户卡里若子标签后续加了 data-i18n，apply() 会兜底；这里再扫一次。
-  if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
+  // 账户卡里若子标签后续加了 data-i18n，apply() 会兜底；这里再扫一次�?  if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
   $('myAvatar').onclick = pickAvatar;
   $('bgBtn').onclick = pickChatBg;
   $('editUidBtn').onclick = editUid;
@@ -607,10 +578,10 @@ function renderMyInfo() {
   $('logoutBtn').onclick = logout;
   $('myIdText').onclick = () => {
     const uid = state.me && state.me.uid;
-    if (!uid) { toast('暂无ID可复制', 'warn', 1000); return; }
+    if (!uid) { toast('暂无ID可复�?, 'warn', 1000); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(String(uid))
-        .then(() => toast('ID 已复制', 'success', 1000))
+        .then(() => toast('ID 已复�?, 'success', 1000))
         .catch(() => toast('复制失败', 'error', 1000));
     } else {
       toast('当前浏览器不支持复制', 'warn', 1000);
@@ -620,7 +591,7 @@ function renderMyInfo() {
 
 // 展示我的名片（加好友二维码）
 function showMyCard() {
-  if (!state.me || !state.me.uid) { toast('暂无ID，无法生成名片', 'warn', 1500); return; }
+  if (!state.me || !state.me.uid) { toast('暂无ID，无法生成名�?, 'warn', 1500); return; }
   const uid = String(state.me.uid);
   const qrText = 'securechat://friend?uid=' + encodeURIComponent(uid);
   const imgUrl = state.serverHost + '/api/qrcode/render?text=' + encodeURIComponent(qrText) + '&w=300';
@@ -637,10 +608,10 @@ function showMyCard() {
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
   body.style.cssText = 'text-align:center;padding:6px 0 4px';
-  body.innerHTML = '<img src="' + imgUrl + '" alt="名片二维码" style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
+  body.innerHTML = '<img src="' + imgUrl + '" alt="名片二维�? style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
     + '<div style="margin-top:12px;font-size:14px;font-weight:600">' + escapeHtml(state.me.nickname) + '</div>'
     + '<div style="font-size:12px;color:#64748b;margin-top:3px">ID: ' + escapeHtml(uid) + '</div>'
-    + '<div style="margin-top:8px;font-size:12px;color:#64748b">让朋友用手机「扫一扫」添加我为好友</div>';
+    + '<div style="margin-top:8px;font-size:12px;color:#64748b">让朋友用手机「扫一扫」添加我为好�?/div>';
   box.appendChild(body);
   const acts = document.createElement('div');
   acts.className = 'modal-actions';
@@ -655,17 +626,15 @@ function showMyCard() {
   document.addEventListener('keydown', onKey);
 }
 
-// 从图像的 ImageData 解码二维码（jsQR 为同步纯前端解码，图片不上传）
-function decodeQRFromImageData(imageData) {
-  if (typeof jsQR !== 'function') throw new Error('二维码解码库未加载');
+// 从图像的 ImageData 解码二维码（jsQR 为同步纯前端解码，图片不上传�?function decodeQRFromImageData(imageData) {
+  if (typeof jsQR !== 'function') throw new Error('二维码解码库未加�?);
   const res = jsQR(imageData.data, imageData.width, imageData.height, {
     inversionAttempts: 'dontInvert'
   });
   return res ? res.data : null;
 }
 
-// 渲染图片到 canvas，返回 ImageData 和原始位图
-function renderToImageData(img) {
+// 渲染图片�?canvas，返�?ImageData 和原始位�?function renderToImageData(img) {
   const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
   const h = Math.max(1, Math.round(img.naturalHeight * scale));
@@ -677,39 +646,37 @@ function renderToImageData(img) {
   return ctx.getImageData(0, 0, w, h);
 }
 
-// 处理扫描结果：好友码 → 加好友；登录码 → 确认登录
+// 处理扫描结果：好友码 �?加好友；登录�?�?确认登录
 async function handleScanText(text) {
   const raw = String(text || '').trim();
-  if (!raw) throw new Error('未识别到二维码内容');
-  // 好友码
-  let uid = null;
+  if (!raw) throw new Error('未识别到二维码内�?);
+  // 好友�?  let uid = null;
   try {
     const u = new URL(raw);
     if (u.protocol === 'securechat:' && (u.hostname === 'friend' || u.pathname.indexOf('/friend') === 0)) uid = u.searchParams.get('uid');
-  } catch (_) { /* 非 URL 则尝试裸格式 */ }
+  } catch (_) { /* �?URL 则尝试裸格式 */ }
   if (!uid && raw.startsWith('securechat://friend')) {
     const m = raw.match(/uid=(.+?)(&|$)/i);
     if (m) uid = m[1];
   }
   if (uid) {
-    const ok = await confirmOpen('扫一扫', '识别到好友二维码，ID：' + uid + '。确认发送好友请求？');
-    if (!ok) return '已取消';
+    const ok = await confirmOpen('扫一�?, '识别到好友二维码，ID�? + uid + '。确认发送好友请求？');
+    if (!ok) return '已取�?;
     const res = await fetch(state.serverHost + '/api/friend/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ friendUid: String(uid).trim() })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || '加好友失败');
+    if (!res.ok) throw new Error(data.error || '加好友失�?);
     return '好友请求已发送：' + ((data.friend && (data.friend.nickname || data.friend.username)) || uid);
   }
-  // 登录码：已登录设备扫码确认，目标设备即可登录为当前账号
-  if (raw.startsWith('securechat://login')) {
+  // 登录码：已登录设备扫码确认，目标设备即可登录为当前账�?  if (raw.startsWith('securechat://login')) {
     const m = raw.match(/token=(.+?)(&|$)/i);
     const token = m ? m[1] : null;
-    if (!token) throw new Error('登录二维码无效');
-    const ok = await confirmOpen('扫一扫', '确认允许另一台设备登录 SecureChat 吗？');
-    if (!ok) return '已取消';
+    if (!token) throw new Error('登录二维码无�?);
+    const ok = await confirmOpen('扫一�?, '确认允许另一台设备登�?SecureChat 吗？');
+    if (!ok) return '已取�?;
     const res = await fetch(state.serverHost + '/api/login/qr/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
@@ -717,13 +684,12 @@ async function handleScanText(text) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || '确认失败');
-    return '已确认，目标设备可登录';
+    return '已确认，目标设备可登�?;
   }
-  throw new Error('不是 SecureChat 二维码');
+  throw new Error('不是 SecureChat 二维�?);
 }
 
-// 确认弹窗（复用 openModal 风格）
-function confirmOpen(title, message) {
+// 确认弹窗（复�?openModal 风格�?function confirmOpen(title, message) {
   return new Promise((resolve) => {
     const mask = document.createElement('div');
     mask.className = 'modal-mask';
@@ -750,7 +716,7 @@ function confirmOpen(title, message) {
   });
 }
 
-// 打开扫一扫弹窗：支持选择图片 / 拖拽 / 粘贴剪贴板图片，前端用 jsQR 解码
+// 打开扫一扫弹窗：支持选择图片 / 拖拽 / 粘贴剪贴板图片，前端�?jsQR 解码
 function openQrScanner() {
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
@@ -758,7 +724,7 @@ function openQrScanner() {
   box.className = 'modal';
   const head = document.createElement('div');
   head.className = 'modal-head';
-  const h3 = document.createElement('h3'); h3.textContent = t('scan', '扫一扫');
+  const h3 = document.createElement('h3'); h3.textContent = t('scan', '扫一�?);
   const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
@@ -768,8 +734,8 @@ function openQrScanner() {
   const dropId = 'scanDrop_' + Date.now();
   drop.className = 'scan-drop'; drop.id = dropId;
   drop.innerHTML = '<div style="font-size:40px;opacity:.6">&#128269;</div>'
-    + '<div style="margin-top:8px;font-size:14px">选择或拖拽二维码图片到此处</div>'
-    + '<div style="margin-top:4px;font-size:12px;color:#64748b">也支持 Ctrl+V 粘贴图片，图片仅在本机解码</div>';
+    + '<div style="margin-top:8px;font-size:14px">选择或拖拽二维码图片到此�?/div>'
+    + '<div style="margin-top:4px;font-size:12px;color:#64748b">也支�?Ctrl+V 粘贴图片，图片仅在本机解�?/div>';
   const preview = document.createElement('img');
   preview.style.cssText = 'max-width:240px;max-height:240px;margin-top:12px;border-radius:10px;border:1px solid var(--border);display:none';
   const btnRow = document.createElement('div');
@@ -815,10 +781,10 @@ function openQrScanner() {
     try {
       const { data, url } = await renderFileToImageData(file);
       preview.src = url; preview.style.display = 'block';
-      status.textContent = '正在识别…';
+      status.textContent = '正在识别�?;
       const text = decodeQRFromImageData(data);
-      if (text === null) { status.textContent = '未识别到二维码，请换一张更清晰的图片'; return; }
-      status.textContent = '识别成功，处理中…';
+      if (text === null) { status.textContent = '未识别到二维码，请换一张更清晰的图�?; return; }
+      status.textContent = '识别成功，处理中�?;
       const result = await handleScanText(text);
       status.textContent = result || '处理完成';
     } catch (e) {
@@ -849,8 +815,7 @@ function openQrScanner() {
   });
 }
 
-// 通用模态弹窗（替代浏览器 prompt/confirm）
-function openModal(title, fields, onOk) {
+// 通用模态弹窗（替代浏览�?prompt/confirm�?function openModal(title, fields, onOk) {
   // fields: [{key, label, value, placeholder}]
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
@@ -897,25 +862,20 @@ function openModal(title, fields, onOk) {
     fields.forEach(f => out[f.key] = f._el.value.trim());
     onOk(out, close);
   };
-  // 点遮罩关闭
-  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  // 点遮罩关�?  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
   // ESC 关闭
   const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
-  // 自动聚焦第一个
-  if (fields[0] && fields[0]._el) fields[0]._el.focus();
+  // 自动聚焦第一�?  if (fields[0] && fields[0]._el) fields[0]._el.focus();
 }
 
-// 编辑个人资料：滚动 modal，按 PROFILE_FIELDS 分类列出所有字段。
-// nickname/country/province/city 走独立列；其余所有字段全部塞进 extra。
-function editProfile() {
+// 编辑个人资料：滚�?modal，按 PROFILE_FIELDS 分类列出所有字段�?// nickname/country/province/city 走独立列；其余所有字段全部塞�?extra�?function editProfile() {
   if (!state.me) return;
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
   box.className = 'modal modal-scroll';
-  // 顶部带叉叉的标题栏
-  const head = document.createElement('div');
+  // 顶部带叉叉的标题�?  const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
   h3.textContent = '编辑个人资料';
@@ -927,16 +887,15 @@ function editProfile() {
   head.appendChild(h3);
   head.appendChild(xBtn);
   box.appendChild(head);
-  // 顶部第一个分类：身份信息（昵称独立列）
-  const headCat = document.createElement('div');
+  // 顶部第一个分类：身份信息（昵称独立列�?  const headCat = document.createElement('div');
   headCat.className = 'field-cat';
   headCat.textContent = '基本信息';
   box.appendChild(headCat);
   const builtIn = [
     { key: 'nickname', label: '昵称', value: state.me.nickname || '', placeholder: '你的昵称' },
     { key: 'country',  label: '国家 / 地区', value: state.me.country || '', placeholder: '如：中国' },
-    { key: 'province', label: '省 / 州', value: state.me.province || '', placeholder: '可留空' },
-    { key: 'city',     label: '城市', value: state.me.city || '', placeholder: '可留空' }
+    { key: 'province', label: '�?/ �?, value: state.me.province || '', placeholder: '可留�? },
+    { key: 'city',     label: '城市', value: state.me.city || '', placeholder: '可留�? }
   ];
   const builtInEls = {};
   builtIn.forEach(f => appendFieldRow(box, f.key, f.label, f.value, f.placeholder, builtInEls));
@@ -1014,21 +973,20 @@ async function saveProfile(patch) {
     if (data.user) state.me = data.user;
     localStorage.setItem('sc_me', JSON.stringify(state.me));
     renderMyInfo();
-    toast('资料已更新', 'success');
+    toast('资料已更�?, 'success');
   } catch (e) {
-    toast('保存失败：' + e.message, 'error');
+    toast('保存失败�? + e.message, 'error');
   }
 }
 
-// 修改自定义ID（一个月只能改一次，后端控制）
-function editUid() {
+// 修改自定义ID（一个月只能改一次，后端控制�?function editUid() {
   if (!state.me) return;
   openModal('修改 ID', [{
-    key: 'uid', label: '新ID（4-16位字母数字）', value: state.me.uid || '', placeholder: 'xY7mK3n4'
+    key: 'uid', label: '新ID�?-16位字母数字）', value: state.me.uid || '', placeholder: 'xY7mK3n4'
   }], async (out, close) => {
     const uid = out.uid;
     if (!uid) { toast('ID 不能为空', 'warn', 1000); return; }
-    if (!/^[A-Za-z0-9]{4,16}$/.test(uid)) { toast('ID 需为 4-16 位字母数字', 'warn', 1500); return; }
+    if (!/^[A-Za-z0-9]{4,16}$/.test(uid)) { toast('ID 需�?4-16 位字母数�?, 'warn', 1500); return; }
     close();
     try {
       const res = await fetch(state.serverHost + '/api/uid', {
@@ -1042,22 +1000,22 @@ function editUid() {
       else state.me.uid = data.uid || uid;
       localStorage.setItem('sc_me', JSON.stringify(state.me));
       renderMyInfo();
-      toast('ID 已更新', 'success');
+      toast('ID 已更�?, 'success');
     } catch (e) {
-      toast('请求失败：' + e.message, 'error');
+      toast('请求失败�? + e.message, 'error');
     }
   });
 }
 
-// 反馈 / Bug 上报：弹出 modal，提交到 /api/feedback
+// 反馈 / Bug 上报：弹�?modal，提交到 /api/feedback
 function openFeedback() {
   if (!state.me) return;
   openModal('反馈 / Bug 上报', [
-    { key: 'kind', label: '类型（bug/suggestion/complaint/other）', value: 'bug' },
+    { key: 'kind', label: '类型（bug/suggestion/complaint/other�?, value: 'bug' },
     { key: 'content', label: '内容', placeholder: '详细描述（≥10字）' }
   ], async (out, close) => {
     if (!out.kind || !out.content || out.content.length < 10) {
-      toast('内容至少 10 字', 'warn');
+      toast('内容至少 10 �?, 'warn');
       return;
     }
     close();
@@ -1069,7 +1027,7 @@ function openFeedback() {
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '提交失败', 'error'); return; }
-      toast('已提交，感谢反馈！', 'success');
+      toast('已提交，感谢反馈�?, 'success');
     } catch (e) {
       toast(e.message || '提交失败', 'error');
     }
@@ -1084,13 +1042,12 @@ function setChatBg(uri) {
   else localStorage.removeItem(bgKey());
 }
 
-// 选择并上传头像
-function pickAvatar() {
+// 选择并上传头�?function pickAvatar() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    if (f.size > 500 * 1024) { toast('头像图片过大（限500KB）', 'warn'); return; }
+    if (f.size > 500 * 1024) { toast('头像图片过大（限500KB�?, 'warn'); return; }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -1104,26 +1061,25 @@ function pickAvatar() {
         state.me.avatar = data.user.avatar;
         localStorage.setItem('sc_me', JSON.stringify(state.me));
         renderMyInfo();
-        toast('头像已更新', 'success');
-      } catch (e) { toast('上传失败：' + e.message, 'error'); }
+        toast('头像已更�?, 'success');
+      } catch (e) { toast('上传失败�? + e.message, 'error'); }
     };
     reader.readAsDataURL(f);
   };
   inp.click();
 }
 
-// 上传图片作为聊天界面背景（整个 chat-view）
-function pickChatBg() {
+// 上传图片作为聊天界面背景（整�?chat-view�?function pickChatBg() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    if (f.size > 4 * 1024 * 1024) { toast('背景图片过大（限4MB）', 'warn'); return; }
+    if (f.size > 4 * 1024 * 1024) { toast('背景图片过大（限4MB�?, 'warn'); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setChatBg(reader.result);
       applyChatBg(reader.result);
-      toast('背景已应用', 'success');
+      toast('背景已应�?, 'success');
     };
     reader.onerror = () => toast('读取失败', 'error');
     reader.readAsDataURL(f);
@@ -1143,11 +1099,11 @@ function applyChatBg(uri) {
     view.style.backgroundColor = '';
   }
 }
-function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
+function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背�?, 'info', 1000); }
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 
-// 登录后自检媒体权限，避免"点接听没反应"
+// 登录后自检媒体权限，避�?点接听没反应"
 async function checkMediaPermissionHint() {
   try {
     if (!navigator.permissions || !navigator.permissions.query) return;
@@ -1157,7 +1113,7 @@ async function checkMediaPermissionHint() {
     ]);
     const states = checks.map((c) => c.status === 'fulfilled' ? c.value : 'prompt');
     if (states.indexOf('denied') >= 0) {
-      toast('摄像头/麦克风权限已被拒绝：点击地址栏 🔒 → 网站设置 → 允许"摄像头/麦克风"后即可通话', 'error', 6000);
+      toast('摄像�?麦克风权限已被拒绝：点击地址�?🔒 �?网站设置 �?允许"摄像�?麦克�?后即可通话', 'error', 6000);
     }
   } catch (e) {}
 }
@@ -1229,8 +1185,7 @@ function handleServer(data) {
     case P.S_GROUP_LIST:
       state.groups = payload.groups || [];
       if (state.tabContact === 'groups') renderContacts();
-      // 若当前选中的群还在列表里，刷新一下顶部 header 与在线状态
-      if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {
+      // 若当前选中的群还在列表里，刷新一下顶�?header 与在线状�?      if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {
         renderChatHeader();
       }
       break;
@@ -1269,19 +1224,18 @@ function renderContacts() {
     renderGroupList();
     return;
   }
-  // 默认：好友
-  const friends = state.friends.filter(u => !kw
+  // 默认：好�?  const friends = state.friends.filter(u => !kw
     || (u.nickname || '').toLowerCase().includes(kw)
     || (u.username || '').toLowerCase().includes(kw)
     || String(u.id).includes(kw)).sort((a, b) => Number(!!chatPrefs().pinned['u:' + b.id]) - Number(!!chatPrefs().pinned['u:' + a.id]) || (a.nickname || '').localeCompare(b.nickname || ''));
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
   const count = $('listCount');
-  if (count) count.textContent = friends.length + ' 位好友';
+  if (count) count.textContent = friends.length + ' 位好�?;
   if (!friends.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? '没有匹配的好友' : '还没有好友，输入对方ID加好友开始聊天';
+    tip.textContent = kw ? '没有匹配的好�? : '还没有好友，输入对方ID加好友开始聊�?;
     list.appendChild(tip);
     return;
   }
@@ -1322,7 +1276,7 @@ function renderGroupList() {
   if (!groups.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? '没有匹配的群' : '还没有加入任何群，点击"创建群"或"加入群"';
+    tip.textContent = kw ? '没有匹配的群' : '还没有加入任何群，点�?创建�?�?加入�?';
     list.appendChild(tip);
     return;
   }
@@ -1333,7 +1287,7 @@ function renderGroupList() {
     const isOwner = state.me && g.ownerId === state.me.id;
     const ownerMark = isOwner ? ' (群主)' : '';
     const memberCnt = (g.members || []).length;
-    const lastMsg = g.lastMessage && g.lastMessage.content ? g.lastMessage.content : ('成员 ' + memberCnt + ' 人');
+    const lastMsg = g.lastMessage && g.lastMessage.content ? g.lastMessage.content : ('成员 ' + memberCnt + ' �?);
     const isPinned = !!chatPrefs().pinned['g:' + g.id];
     const isMuted = !!chatPrefs().muted['g:' + g.id];
     div.innerHTML = `<div class="avatar">${(g.name || '?').charAt(0).toUpperCase()}</div>
@@ -1363,8 +1317,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === tt));
     syncMobileNav(tt.dataset.side);
 
-    // AI tab：切到 AI 助手视图，隐藏主聊天区
-    if (tt.dataset.side === 'ai') {
+    // AI tab：切�?AI 助手视图，隐藏主聊天�?    if (tt.dataset.side === 'ai') {
       const main = document.querySelector('.main');
       if (main) main.style.display = 'none';
       const downloadView = $('downloadView');
@@ -1374,11 +1327,9 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       // 侧边区域隐藏（AI 不需要加好友/群按钮）
       const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
       const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
-      // 调用 ai.js 里的 switchToAi：它负责未配置 apiKey 时弹设置、聚焦输入
-      if (window.switchToAi) window.switchToAi();
+      // 调用 ai.js 里的 switchToAi：它负责未配�?apiKey 时弹设置、聚焦输�?      if (window.switchToAi) window.switchToAi();
       loadMiniPrograms();
-      // 移动端：切到 AI 视图也要进入"聊天态"（AI 视图与 .main 平级，靠 mobile-chat-active 移入屏内）
-       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+      // 移动端：切到 AI 视图也要进入"聊天�?（AI 视图�?.main 平级，靠 mobile-chat-active 移入屏内�?       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
        return;
     }
 
@@ -1397,15 +1348,14 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // 切回好友/群组：恢复 .main 显示，隐藏 AI 视图
+    // 切回好友/群组：恢�?.main 显示，隐�?AI 视图
     const aiView2 = $('aiView');
     if (aiView2) aiView2.style.display = 'none';
     const downloadView2 = $('downloadView');
     if (downloadView2) downloadView2.style.display = 'none';
     const main2 = document.querySelector('.main');
     if (main2) main2.style.display = 'flex';
-    // 移动端：切回好友/群组 tab，回到列表态
-    if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
+    // 移动端：切回好友/群组 tab，回到列表�?    if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
 
     const showFriends = state.tabContact === 'friends';
     const fs = $('friendsSide'); if (fs) fs.style.display = showFriends ? '' : 'none';
@@ -1443,9 +1393,8 @@ if (downloadBackBtn) downloadBackBtn.onclick = () => {
   if (tab) tab.click();
 };
 
-// 创建群 / 加入群
-$('createGroupBtn').onclick = () => {
-  openModal('创建群', [{ key: 'name', label: '群名' }], async (out, close) => {
+// 创建�?/ 加入�?$('createGroupBtn').onclick = () => {
+  openModal('创建�?, [{ key: 'name', label: '群名' }], async (out, close) => {
     if (!out.name) { toast('群名不能为空', 'warn', 1000); return; }
     close();
     try {
@@ -1456,15 +1405,15 @@ $('createGroupBtn').onclick = () => {
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '创建失败', 'error'); return; }
-      toast('群「' + (data.group && data.group.name) + '」已创建（ID: ' + (data.group && data.group.id) + '）', 'success');
+      toast('群�? + (data.group && data.group.name) + '」已创建（ID: ' + (data.group && data.group.id) + '�?, 'success');
       // 强制切到群组 tab
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
-    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+    } catch (e) { toast('请求失败�? + e.message, 'error'); }
   });
 };
 $('joinGroupBtn').onclick = () => {
-  openModal('加入群', [{ key: 'groupId', label: '群 ID（创建群成功后弹出的数字）', placeholder: '示例：1' }], async (out, close) => {
+  openModal('加入�?, [{ key: 'groupId', label: '�?ID（创建群成功后弹出的数字�?, placeholder: '示例�?' }], async (out, close) => {
     if (!out.groupId) { toast('群ID不能为空', 'warn', 1000); return; }
     close();
     try {
@@ -1478,14 +1427,13 @@ $('joinGroupBtn').onclick = () => {
       toast('已加入群', 'success');
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
-    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+    } catch (e) { toast('请求失败�? + e.message, 'error'); }
   });
 };
 
-// 邀请进群
-$('inviteGroupBtn').onclick = () => {
+// 邀请进�?$('inviteGroupBtn').onclick = () => {
   if (!state.activeGroup) { toast('请先选择一个群', 'warn', 1000); return; }
-  openModal('邀请成员进群', [{ key: 'uid', label: '对方 UID（4-16 位字母或数字）', placeholder: '示例：xY7mK3n4' }], async (out, close) => {
+  openModal('邀请成员进�?, [{ key: 'uid', label: '对方 UID�?-16 位字母或数字�?, placeholder: '示例：xY7mK3n4' }], async (out, close) => {
     if (!out.uid) { toast('UID 不能为空', 'warn', 1000); return; }
     close();
     try {
@@ -1495,18 +1443,17 @@ $('inviteGroupBtn').onclick = () => {
         body: JSON.stringify({ groupId: state.activeGroup, uid: out.uid })
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || '邀请失败', 'error'); return; }
-      toast('邀请成功', 'success');
-    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+      if (!res.ok) { toast(data.error || '邀请失�?, 'error'); return; }
+      toast('邀请成�?, 'success');
+    } catch (e) { toast('请求失败�? + e.message, 'error'); }
   });
 };
 
-// 统一渲染顶部 header（根据联系人/群而异）
-function renderChatHeader() {
+// 统一渲染顶部 header（根据联系人/群而异�?function renderChatHeader() {
   if (state.activeGroup) {
     const g = state.groups.find(x => x.id === state.activeGroup);
-    const name = g ? g.name : ('群 #' + state.activeGroup);
-    $('chatHeader').textContent = '群聊：' + name;
+    const name = g ? g.name : ('�?#' + state.activeGroup);
+    $('chatHeader').textContent = '群聊�? + name;
     $('inviteBar').style.display = '';
     return;
   }
@@ -1514,13 +1461,12 @@ function renderChatHeader() {
     const peer = state.friends.find(u => u.id === state.activePeer);
     $('chatHeader').textContent = peer ? peer.nickname : '聊天';
   } else {
-    $('chatHeader').textContent = t('noConversation', '请选择联系人');
+    $('chatHeader').textContent = t('noConversation', '请选择联系�?);
   }
   $('inviteBar').style.display = 'none';
 }
 
-// 选择群 + 加载群历史
-async function selectGroup(groupId) {
+// 选择�?+ 加载群历�?async function selectGroup(groupId) {
   state.activeGroup = groupId;
   state.activePeer = null;
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
@@ -1541,8 +1487,7 @@ async function selectGroup(groupId) {
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
-  // 移动端：选中群组后切换到聊天区
-  if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+  // 移动端：选中群组后切换到聊天�?  if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
 }
 
 function renderGroupMessages(msgs) {
@@ -1552,8 +1497,7 @@ function renderGroupMessages(msgs) {
   box.scrollTop = box.scrollHeight;
 }
 
-// 群聊消息气泡（带昵称）
-function appendGroupMessage(m, prepend) {
+// 群聊消息气泡（带昵称�?function appendGroupMessage(m, prepend) {
   // 群聊语音：复用气泡结构，但带上发送人昵称/头像
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
     const rest = m.content.slice(VOICE_PREFIX.length);
@@ -1611,22 +1555,20 @@ function appendGroupMessage(m, prepend) {
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
-// 收到群消息推送
-function onIncomingGroupMsg(payload) {
+// 收到群消息推�?function onIncomingGroupMsg(payload) {
   if (state.activeGroup === payload.groupId) {
     appendGroupMessage(payload, false);
   } else {
    	state.groupUnread[payload.groupId] = (state.groupUnread[payload.groupId] || 0) + 1;
     const fromName = (payload.fromUser && payload.fromUser.nickname) || ('用户' + payload.from);
     const g = state.groups.find(x => x.id === payload.groupId);
-    const gname = g ? g.name : ('群#' + payload.groupId);
+    const gname = g ? g.name : ('�?' + payload.groupId);
     showMessageNotice({ from: payload.from, content: payload.content }, gname + ' ' + fromName);
     renderContacts();
   }
 }
 
-// 群发送消息
-function sendCurrentGroup() {
+// 群发送消�?function sendCurrentGroup() {
   if (!state.activeGroup) return false;
   const text = $('input').value.trim();
   if (!text) return true;
@@ -1639,7 +1581,7 @@ function sendCurrentGroup() {
 
 $('search').oninput = renderContacts;
 
-// ============ 加好友 ============
+// ============ 加好�?============
 $('addFriendBtn').onclick = async () => {
   const fid = $('addFriendInput').value.trim();
   if (!fid) return;
@@ -1650,14 +1592,13 @@ $('addFriendBtn').onclick = async () => {
       body: JSON.stringify({ friendUid: fid })
     });
     const data = await res.json();
-    if (!res.ok) { toast(data.error || '加好友失败', 'error'); return; }
+    if (!res.ok) { toast(data.error || '加好友失�?, 'error'); return; }
     $('addFriendInput').value = '';
     toast('已发送好友请求，等待对方接受', 'success');
-  } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  } catch (e) { toast('请求失败�? + e.message, 'error'); }
 };
 
-// 好友请求提示条
-function showFriendReqBar() {
+// 好友请求提示�?function showFriendReqBar() {
   const req = state.pendingReq[0];
   if (!req || !req.fromUser) { $('friendReqBar').style.display = 'none'; return; }
   $('friendReqText').textContent = req.fromUser.nickname + '（ID:' + req.fromUser.uid + '）请求加你为好友';
@@ -1676,7 +1617,7 @@ $('acceptFriendBtn').onclick = async () => {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     state.pendingReq.shift();
   } catch (e) {
-    toast('接受好友请求失败：' + e.message, 'error');
+    toast('接受好友请求失败�? + e.message, 'error');
     showFriendReqBar();
     return;
   }
@@ -1696,14 +1637,14 @@ $('rejectFriendBtn').onclick = async () => {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     state.pendingReq.shift();
   } catch (e) {
-    toast('拒绝好友请求失败：' + e.message, 'error');
+    toast('拒绝好友请求失败�? + e.message, 'error');
     showFriendReqBar();
     return;
   }
   showFriendReqBar();
 };
 
-// ============ 选择联系人 + 历史 ============
+// ============ 选择联系�?+ 历史 ============
 async function selectPeer(peerId) {
   state.activePeer = peerId;
   state.activeGroup = null;
@@ -1742,8 +1683,8 @@ function refreshConversationButtons() {
   const key = activeConversationKey();
   const prefs = chatPrefs();
   const pin = $('pinChatBtn'); const mute = $('muteChatBtn');
-  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','已置顶') : t('pin','置顶'); }
-  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','已静音') : t('mute','免打扰'); }
+  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','已置�?) : t('pin','置顶'); }
+  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','已静�?) : t('mute','免打�?); }
 }
 
 function wireConversationTools() {
@@ -1751,8 +1692,7 @@ function wireConversationTools() {
   const clear = $('clearChatBtn');
   const searchBtn = $('messageSearchBtn'); const searchBar = $('messageSearchBar');
   const searchInput = $('messageSearchInput'); const searchClose = $('messageSearchClose');
-  // 移动端返回按钮：回到会话列表，并清空当前会话选中态
-  const backBtn = $('backToListBtn');
+  // 移动端返回按钮：回到会话列表，并清空当前会话选中�?  const backBtn = $('backToListBtn');
   if (backBtn) backBtn.onclick = () => {
     const cv = document.getElementById('chatView');
     if (cv) cv.classList.remove('mobile-chat-active');
@@ -1776,11 +1716,11 @@ function wireConversationTools() {
     const permission = await Notification.requestPermission();
     notify.classList.toggle('active', permission === 'granted');
     notify.textContent = permission === 'granted' ? t('notifyOn','通知已开') : t('notify','通知');
-    toast(permission === 'granted' ? '浏览器通知已开启' : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
+    toast(permission === 'granted' ? '浏览器通知已开�? : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
   };
   if (clear) clear.onclick = async () => {
-    if (!state.activePeer) return toast('请先选择联系人', 'warn', 1200);
-    if (!confirm('确定清空当前聊天记录吗？此操作不可恢复。')) return;
+    if (!state.activePeer) return toast('请先选择联系�?, 'warn', 1200);
+    if (!confirm('确定清空当前聊天记录吗？此操作不可恢复�?)) return;
     clear.disabled = true;
     try {
       const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
@@ -1789,8 +1729,8 @@ function wireConversationTools() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '清空失败');
       $('messages').innerHTML = '';
-      toast('当前聊天记录已清空', 'success', 1500);
-    } catch (e) { toast('清空失败：' + e.message, 'error'); }
+      toast('当前聊天记录已清�?, 'success', 1500);
+    } catch (e) { toast('清空失败�? + e.message, 'error'); }
     finally { clear.disabled = false; }
   };
   function applySearch() {
@@ -1805,8 +1745,7 @@ function wireConversationTools() {
   if (searchClose && searchBar) searchClose.onclick = () => { searchBar.style.display = 'none'; if (searchInput) searchInput.value = ''; applySearch(); };
 }
 
-// 欢迎工作台快捷入口
-const welcomeAddBtn = $('welcomeAddBtn');
+// 欢迎工作台快捷入�?const welcomeAddBtn = $('welcomeAddBtn');
 const welcomeGroupBtn = $('welcomeGroupBtn');
 const welcomeAiBtn = $('welcomeAiBtn');
 if (welcomeAddBtn) welcomeAddBtn.onclick = () => { const input = $('addFriendInput'); if (input) input.focus(); };
@@ -1830,7 +1769,7 @@ function appendMessage(m, prepend) {
   const fullTime = new Date(m.createdAt).toLocaleString();
   row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span><div class="message-actions"><button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
+    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复�?, 'success', 1200); }
     catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
@@ -1907,25 +1846,24 @@ function stopCallRingtone() {
   if (callRingtoneTimer) { clearInterval(callRingtoneTimer); callRingtoneTimer = null; }
 }
 function showMessageNotice(m, name) {
-  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文件' : String(m.content || '').slice(0, 240);
+  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文�? : String(m.content || '').slice(0, 240);
   playMessageNoticeSound();
   const stack = $('messageNoticeStack');
   if (stack) {
     const item = document.createElement('div'); item.className = 'message-notice';
-    item.innerHTML = '<strong>' + escapeHtml(name || '新消息') + '</strong><span>' + escapeHtml(text || '收到新消息') + '</span>';
+    item.innerHTML = '<strong>' + escapeHtml(name || '新消�?) + '</strong><span>' + escapeHtml(text || '收到新消�?) + '</span>';
     item.onclick = () => { if (state.activePeer !== m.from) selectPeer(m.from); item.remove(); };
     stack.appendChild(item); setTimeout(() => item.remove(), 6500);
   }
   if ('Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from }); } catch {}
+    try { new Notification(name || '新消�?, { body: text || '收到新消�?, tag: 'securechat-' + m.from }); } catch {}
   }
   if (window.chatAPI) window.chatAPI.notify(name + ' 发来消息', text);
 }
 
-// ============ 收消息 ============
+// ============ 收消�?============
 async function onIncomingMsg(m) {
-  // 明文模式：不再做 E2EE 解密，直接显示原文。
-  if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
+  // 明文模式：不再做 E2EE 解密，直接显示原文�?  if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
     m.content = state.sentPlain[m.clientMsgId];
     delete state.sentPlain[m.clientMsgId];
   }
@@ -1935,21 +1873,20 @@ async function onIncomingMsg(m) {
     renderContacts();
     return;
   }
-  // 服务端会回显发送者自己的消息；自己的消息也必须渲染到当前会话。
-  if (m.from === state.me.id || state.activePeer === m.from) {
+  // 服务端会回显发送者自己的消息；自己的消息也必须渲染到当前会话�?  if (m.from === state.me.id || state.activePeer === m.from) {
     appendMessage(m);
     if (m.from !== state.me.id) send(P.C_READ, { from: m.from });
   } else {
     state.unread[m.from] = (state.unread[m.from] || 0) + 1;
     const fromUser = state.friends.find(u => u.id === m.from);
-    const name = fromUser ? fromUser.nickname : '新消息';
+    const name = fromUser ? fromUser.nickname : '新消�?;
     showMessageNotice(m, name);
   }
   state.lastFrom[m.from] = m.content;
   renderContacts();
 }
 
-// ============ 发送 ============
+// ============ 发�?============
 function sendCurrent() {
   if (state.activeGroup) { sendCurrentGroup(); return; }
   const input = $('input');
@@ -1962,16 +1899,15 @@ function sendCurrent() {
   input.value = '';
   saveCurrentDraft();
   appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: Date.now(), clientMsgId }, false);
-  // UI 先完成；文字通过 REST 持久化，不依赖浏览器 WebSocket 状态。
-  fetch(state.serverHost + '/api/messages', {
+  // UI 先完成；文字通过 REST 持久化，不依赖浏览器 WebSocket 状态�?  fetch(state.serverHost + '/api/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
     body: JSON.stringify(payload)
   }).then(async (res) => {
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '发送失败');
+    if (!res.ok) throw new Error(data.error || '发送失�?);
     delete state.pendingLocal[clientMsgId];
-  }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
+  }).catch((e) => toast('消息保存失败�? + e.message, 'error'));
 }
 
 $('sendBtn').type = 'button';
@@ -1990,20 +1926,18 @@ $('input').addEventListener('input', () => {
   }
 });
 
-// 本地主题切换，不影响账号和聊天数据
-const themeToggle = $('themeToggle');
+// 本地主题切换，不影响账号和聊天数�?const themeToggle = $('themeToggle');
 const savedTheme = localStorage.getItem('sc_theme');
 if (savedTheme === 'dark') document.body.classList.add('dark-mode');
 if (themeToggle) themeToggle.onclick = () => {
   const dark = document.body.classList.toggle('dark-mode');
   localStorage.setItem('sc_theme', dark ? 'dark' : 'light');
-  themeToggle.textContent = dark ? t('light', '日') : t('dark', '夜');
+  themeToggle.textContent = dark ? t('light', '�?) : t('dark', '�?);
 };
-if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', '日');
+if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', '�?);
 
 // ============ 语言切换浮层 ============
-// 点击侧边栏底部 localeToggle 弹出语言选择菜单；选择后交给 SCI18N.setLocale。
-const localeToggle = $('localeToggle');
+// 点击侧边栏底�?localeToggle 弹出语言选择菜单；选择后交�?SCI18N.setLocale�?const localeToggle = $('localeToggle');
 let localeMenu = null;
 function closeLocaleMenu() {
   if (localeMenu && localeMenu.parentNode) localeMenu.parentNode.removeChild(localeMenu);
@@ -2030,27 +1964,24 @@ function openLocaleMenu() {
     };
     menu.appendChild(item);
   });
-  // 定位交给 CSS（.locale-menu fixed 定位到屏幕左下、rail 底部上方）。
-  // 关键：加 .open class 才会把 display:none 变为 flex，菜单才可见。
-  menu.classList.add('open');
+  // 定位交给 CSS�?locale-menu fixed 定位到屏幕左下、rail 底部上方）�?  // 关键：加 .open class 才会�?display:none 变为 flex，菜单才可见�?  menu.classList.add('open');
   document.body.appendChild(menu);
   localeMenu = menu;
   document.addEventListener('keydown', onLocaleMenuEsc, true);
 }
 if (localeToggle) localeToggle.onclick = (e) => { e.stopPropagation(); openLocaleMenu(); };
-// 点击浮层外关闭
-document.addEventListener('click', (e) => {
+// 点击浮层外关�?document.addEventListener('click', (e) => {
   if (!localeMenu) return;
   if (localeMenu.contains(e.target) || e.target === localeToggle) return;
   closeLocaleMenu();
 });
-// 切换语言后：重新渲染账户卡 / 重新翻译静态 DOM / 同步主题按钮文案
+// 切换语言后：重新渲染账户�?/ 重新翻译静�?DOM / 同步主题按钮文案
 document.addEventListener('sc-locale-change', () => {
   if (state.me) renderMyInfo();
   // 刷新 chatHeader 静态文案（如“请选择联系人”）
-  if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', '请选择联系人');
+  if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', '请选择联系�?);
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply();
-  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', '日') : t('dark', '夜');
+  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', '�?) : t('dark', '�?);
 });
 
 window.addEventListener('focus', () => { if (window.chatAPI) window.chatAPI.stopFlash(); });
@@ -2062,7 +1993,7 @@ function escapeHtml(s) {
   }[c]));
 }
 
-// ============ WebRTC：文件 / 语音 / 视频 ============
+// ============ WebRTC：文�?/ 语音 / 视频 ============
 let rtc, callPeer = null, callKind = null, incomingCall = null, localStream = null;
 let pendingRemoteStream = null;
 let callRecorder = null, callRecordChunks = [], callRecordStartedAt = 0;
@@ -2100,7 +2031,7 @@ function startCallRecording(remoteStream) {
       const peerId = callPeer;
       fetch(state.serverHost + '/api/call-recordings?to=' + encodeURIComponent(peerId) + '&kind=' + encodeURIComponent(kind), { method: 'POST', body: blob, headers: { 'Content-Type': 'video/webm', 'Authorization': 'Bearer ' + state.token } })
         .then(() => loadCallReplays(peerId))
-        .catch((e) => toast('回放上传失败：' + e.message, 'error'));
+        .catch((e) => toast('回放上传失败�? + e.message, 'error'));
       callRecorder = null; callRecordChunks = [];
     };
     callRecorder.start(1000);
@@ -2110,17 +2041,15 @@ function stopCallRecording() {
   if (callRecorder && callRecorder.state !== 'inactive') callRecorder.stop();
 }
 
-// 通话超时/恢复/远端画面显示（顶层函数，供 initRtc 事件与通话按钮共用）
-let callTimer = null;
+// 通话超时/恢复/远端画面显示（顶层函数，�?initRtc 事件与通话按钮共用�?let callTimer = null;
 function clearCallTimer() { if (callTimer) { clearTimeout(callTimer); callTimer = null; } }
 function startCallTimer() {
-  // 若已有计时器或已接通则不重复
-  if (callTimer) return;
+  // 若已有计时器或已接通则不重�?  if (callTimer) return;
   callTimer = setTimeout(() => {
     callTimer = null;
     // 8 秒后仍未恢复则关闭通话
     closeCallBar();
-    toast('网络连接中断，通话已结束', 'warn');
+    toast('网络连接中断，通话已结�?, 'warn');
   }, 8000);
 }
 function startCallTimeout() {
@@ -2135,19 +2064,15 @@ function startCallTimeout() {
   }, 30000);
 }
 function maybeShowRemote(peerId) {
-  // 显示规则：必须已"接通"——incomingCall=null（已接听，从来电状态过渡）
-  // 且当前 callPeer = 该 peer；或主动呼出方无需"接听"动作，对方一搭上就显示
-  if (!pendingRemoteStream) return;
+  // 显示规则：必须已"接�?——incomingCall=null（已接听，从来电状态过渡）
+  // 且当�?callPeer = �?peer；或主动呼出方无需"接听"动作，对方一搭上就显�?  if (!pendingRemoteStream) return;
   if (!callPeer) return;
   // 主呼方：incomingCall 一直为 null 即可显示
-  // 被呼方：必须 incomingCall=null（已 acceptIncomingCall 清空）
-  if (incomingCall) return; // 还在待接听
-  const v = $('remoteVideo');
+  // 被呼方：必须 incomingCall=null（已 acceptIncomingCall 清空�?  if (incomingCall) return; // 还在待接�?  const v = $('remoteVideo');
   if (!v) return;
   v.srcObject = pendingRemoteStream;
   v.style.display = '';
-  // WebView 默认禁止无手势自动播放，必须显式 play()，否则接通后无声/无画面
-  try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  // WebView 默认禁止无手势自动播放，必须显式 play()，否则接通后无声/无画�?  try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
   if (callKind === 'video') $('callBar').classList.add('with-video');
   $('callBar').style.display = 'flex';
   showCallDuration();
@@ -2176,24 +2101,24 @@ function initRtc() {
       if (rtc && callPeer) rtc.hangup(callPeer);
     }
     if (e.detail.state === 'closed') { clearCallTimer(); stopCallDuration(); closeCallBar(); }
-    // disconnected：不立即关闭，等待恢复；超过 8s 仍 disconnected 则按失败处理
+    // disconnected：不立即关闭，等待恢复；超过 8s �?disconnected 则按失败处理
     if (e.detail.state === 'disconnected') startCallTimer();
   });
   window.addEventListener('call-incoming', (e) => {
     clearCallTimer();
     startCallRingtone();
     incomingCall = { from: e.detail.from, kind: e.detail.kind };
-    $('callText').textContent = (e.detail.kind === 'video' ? '视频' : '语音') + '来电（来自用户 ' + e.detail.from + '）';
+    $('callText').textContent = (e.detail.kind === 'video' ? '视频' : '语音') + '来电（来自用�?' + e.detail.from + '�?;
     $('acceptCallBtn').style.display = ''; $('rejectCallBtn').style.display = ''; $('hangupBtn').style.display = 'none';
     $('callBar').classList.remove('with-video'); $('callBar').style.display = 'flex';
     callTimer = setTimeout(() => {
       if (incomingCall) rejectIncomingCall();
     }, 30000);
   });
-  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('对方已拒绝', 'warn'); closeCallBar(); });
-  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('对方不在线', 'warn'); closeCallBar(); });
-  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('对方已挂断', 'info'); closeCallBar(); });
-  window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收：' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
+  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('对方已拒�?, 'warn'); closeCallBar(); });
+  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('对方不在�?, 'warn'); closeCallBar(); });
+  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('对方已挂�?, 'info'); closeCallBar(); });
+  window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收�? + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {
     $('fileText').textContent = '已接收：' + e.detail.name; setProgress(1);
@@ -2215,18 +2140,17 @@ async function loadMiniPrograms() {
       item.type = 'button'; item.className = 'mini-program-item';
       item.innerHTML = '<strong>' + escapeHtml(program.name) + '</strong><span>v' + escapeHtml(program.version) + '</span>';
       item.onclick = () => {
-        if (!String(program.entry).startsWith('/mini-programs/')) return toast('小程序入口不受信任', 'error');
+        if (!String(program.entry).startsWith('/mini-programs/')) return toast('小程序入口不受信�?, 'error');
         window.open(state.serverHost + program.entry, '_blank', 'noopener');
       };
       list.appendChild(item);
     });
-  } catch (e) { list.textContent = '小程序暂不可用'; }
+  } catch (e) { list.textContent = '小程序暂不可�?; }
 }
 function setProgress(r) { $('fileProgress').style.width = Math.round(r * 100) + '%'; }
 function humanSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1)+' KB'; if (b < 1073741824) return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }
 
-// 通话时长计时（接通后显示 通话中 MM:SS）
-let durationTimer = null;
+// 通话时长计时（接通后显示 通话�?MM:SS�?let durationTimer = null;
 let callStartAt = 0;
 function showCallDuration() {
   if (durationTimer) return;
@@ -2236,15 +2160,14 @@ function showCallDuration() {
     const s = Math.floor((Date.now() - callStartAt) / 1000);
     const mm = String(Math.floor(s / 60)).padStart(2, '0');
     const ss = String(s % 60).padStart(2, '0');
-    $('callText').textContent = '通话中 ' + mm + ':' + ss;
+    $('callText').textContent = '通话�?' + mm + ':' + ss;
   }, 1000);
 }
 function stopCallDuration() {
   if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
 }
 
-// 释放本地媒体设备（每次发起/接听/挂断前调用，防止"Device in use"）
-function releaseLocalMedia() {
+// 释放本地媒体设备（每次发�?接听/挂断前调用，防止"Device in use"�?function releaseLocalMedia() {
   if (localStream) {
     try { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); } catch (e) {}
     localStream = null;
@@ -2260,7 +2183,7 @@ function releaseLocalMedia() {
 
 function startOutgoingCall(kind) {
   stopCallRingtone();
-  if (!state.activePeer) return toast('请先选择联系人', 'warn');
+  if (!state.activePeer) return toast('请先选择联系�?, 'warn');
   // 若正在通话或设备被占用，先彻底释放
   releaseLocalMedia();
   if (rtc && callPeer) rtc.hangup(callPeer);
@@ -2269,13 +2192,13 @@ function startOutgoingCall(kind) {
   $('callText').textContent = '正在呼叫(' + (kind==='video'?'视频':'语音') + ')...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   $('callBar').style.display = 'flex';
-  if (!window.getLocalStream) return toast('WebRTC 不可用', 'error');
+  if (!window.getLocalStream) return toast('WebRTC 不可�?, 'error');
   window.getLocalStream(kind).then((s) => {
     localStream = s;
     const v = $('localVideo'); if (v && kind==='video') v.srcObject = s;
     rtc.startCall(callPeer, kind, s);
     startCallTimeout();
-  }).catch((e) => { toast('无法获取媒体：'+e.message, 'error'); closeCallBar(); });
+  }).catch((e) => { toast('无法获取媒体�?+e.message, 'error'); closeCallBar(); });
 }
 async function acceptIncomingCall() {
   if (!incomingCall) {
@@ -2286,12 +2209,12 @@ async function acceptIncomingCall() {
   clearCallTimer();
   const pendingCall = incomingCall;
   callPeer = pendingCall.from; callKind = pendingCall.kind;
-  $('callText').textContent = '通话中...';
+  $('callText').textContent = '通话�?..';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   try {
-    if (!window.getLocalStream) throw new Error('WebRTC 不可用');
-    $('callText').textContent = '正在请求麦克风/摄像头权限...';
-    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('浏览器权限请求超时，请允许摄像头和麦克风权限后重试')), 12000));
+    if (!window.getLocalStream) throw new Error('WebRTC 不可�?);
+    $('callText').textContent = '正在请求麦克�?摄像头权�?..';
+    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('浏览器权限请求超时，请允许摄像头和麦克风权限后重�?)), 12000));
     localStream = await Promise.race([window.getLocalStream(callKind), mediaTimeout]);
     incomingCall = null;
     const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream;
@@ -2301,9 +2224,9 @@ async function acceptIncomingCall() {
     incomingCall = pendingCall;
     const code = e && e.code;
     const isPerm = code === 'PERMISSION' || code === 'NOT_SUPPORTED' || /NotAllowed|Permission|denied|拒绝|安全/i.test(String(e && e.message || e && e.name || ''));
-    $('callText').textContent = isPerm ? '需要摄像头/麦克风权限才能接听' : '接听失败，请重试';
+    $('callText').textContent = isPerm ? '需要摄像头/麦克风权限才能接�? : '接听失败，请重试';
     $('acceptCallBtn').style.display=''; $('rejectCallBtn').style.display=''; $('hangupBtn').style.display='none';
-    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点击 🔒 → 网站设置 → 允许"摄像头/麦克风"，然后重新接听' : '无法获取媒体：') + (e.message || e.name || ''), 'error', 5000);
+    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点�?🔒 �?网站设置 �?允许"摄像�?麦克�?，然后重新接�? : '无法获取媒体�?) + (e.message || e.name || ''), 'error', 5000);
     clearCallTimer();
     callTimer = setTimeout(() => { if (incomingCall === pendingCall) rejectIncomingCall(); }, 30000);
   }
@@ -2322,7 +2245,7 @@ function closeCallBar() {
   callPeer=null; callKind=null; incomingCall=null;
 }
 $('fileBtn').onclick = () => {
-  if (!state.activePeer) return toast('请先选择联系人', 'warn');
+  if (!state.activePeer) return toast('请先选择联系�?, 'warn');
   const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
     $('fileBar').style.display=''; $('fileText').textContent='发送：'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
@@ -2339,7 +2262,7 @@ $('fileBtn').onclick = () => {
 };
 function appendFileMsg(mine, name, size, fileId, createdAt) {
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
-  row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+  row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">�?/div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
   const download = row.querySelector('.file-download');
   if (download) download.onclick = async () => {
     download.disabled = true;
@@ -2373,7 +2296,7 @@ const VOICE_PREFIX = '__VOICE__';
 
 async function startVoiceRec() {
   if (recState) return;
-  if (!state.activePeer) { toast('请先选择联系人', 'warn'); return; }
+  if (!state.activePeer) { toast('请先选择联系�?, 'warn'); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mr = new MediaRecorder(stream);
@@ -2415,7 +2338,7 @@ async function startVoiceRec() {
       if (s >= 60) stopVoiceRec();
     }, 100);
   } catch (e) {
-    toast('无法访问麦克风: ' + e.message, 'error');
+    toast('无法访问麦克�? ' + e.message, 'error');
   }
 }
 
@@ -2432,27 +2355,23 @@ function stopVoiceRec(cancel) {
   document.dispatchEvent(new Event('recrecstate'));
 }
 
-// 点击语音按钮 = 开始录音；再点击 = 发送
-(function bindVoiceButton() {
+// 点击语音按钮 = 开始录音；再点�?= 发�?(function bindVoiceButton() {
   const btn = $('voiceBtn');
   btn.addEventListener('click', () => {
     if (recState) {
-      stopVoiceRec(false); // 再点一次 = 发送
-    } else {
+      stopVoiceRec(false); // 再点一�?= 发�?    } else {
       startVoiceRec();
     }
   });
 })();
 
-// 浏览器语音转文字：使用 Web Speech API，识别结果写入普通消息输入框。
-// Chrome / Edge 支持较好；不支持时给出清晰提示，不影响语音消息功能。
-(function bindSpeechToText() {
+// 浏览器语音转文字：使�?Web Speech API，识别结果写入普通消息输入框�?// Chrome / Edge 支持较好；不支持时给出清晰提示，不影响语音消息功能�?(function bindSpeechToText() {
   const btn = $('speechBtn');
   if (!btn) return;
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Recognition) {
-    btn.title = '当前浏览器不支持语音转文字';
-    btn.onclick = () => toast('当前浏览器不支持语音转文字，请使用最新版 Chrome 或 Edge', 'warn', 2200);
+    btn.title = '当前浏览器不支持语音转文�?;
+    btn.onclick = () => toast('当前浏览器不支持语音转文字，请使用最新版 Chrome �?Edge', 'warn', 2200);
     return;
   }
   let recognition = null;
@@ -2488,15 +2407,15 @@ function stopVoiceRec(cancel) {
     recognition.onend = () => {
       active = false;
       btn.classList.remove('transcribing');
-      btn.textContent = t('transcribe','转文字');
+      btn.textContent = t('transcribe','转文�?);
       saveCurrentDraft();
     };
     try { recognition.start(); toast('开始语音转文字，再次点击可停止', 'info', 1400); }
-    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','转文字'); }
+    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','转文�?); }
   };
 })();
 
-// 发送/收到语音气泡
+// 发�?收到语音气泡
 function appendVoiceMsg(mine, durationSec, b64) {
   const box = $('messages');
   const row = document.createElement('div');
@@ -2524,7 +2443,7 @@ function appendVoiceMsg(mine, durationSec, b64) {
   }
 }
 
-// 在 onIncomingMsg / renderMessages 里识别并特殊处理 voice
+// �?onIncomingMsg / renderMessages 里识别并特殊处理 voice
 const _orig_onIncomingMsg = onIncomingMsg;
 onIncomingMsg = function (m) {
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
@@ -2538,7 +2457,7 @@ onIncomingMsg = function (m) {
     } else {
       state.unread[m.from] = (state.unread[m.from] || 0) + 1;
       const fromUser = state.friends.find(u => u.id === m.from);
-      if (window.chatAPI) window.chatAPI.notify((fromUser ? fromUser.nickname : '新消息') + ' 发来语音', '');
+      if (window.chatAPI) window.chatAPI.notify((fromUser ? fromUser.nickname : '新消�?) + ' 发来语音', '');
     }
     state.lastFrom[m.from] = '[语音]';
     renderContacts();
@@ -2547,8 +2466,7 @@ onIncomingMsg = function (m) {
   _orig_onIncomingMsg(m);
 };
 
-// 历史：识别语音消息格式，B做显示（无 b64 不能播但显示时长）
-const _orig_appendMessage = appendMessage;
+// 历史：识别语音消息格式，B做显示（�?b64 不能播但显示时长�?const _orig_appendMessage = appendMessage;
 appendMessage = function (m, prepend) {
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
     const rest = m.content.slice(VOICE_PREFIX.length);
@@ -2564,10 +2482,10 @@ tryRestore();
 checkUpdate();
 wireConversationTools();
 
-// i18n 兜底：i18n.js 在 DOMContentLoaded 时已自行 apply() 一次；
-// 这里再补一次，覆盖 app.js 在 DOMContentLoaded 之前或之后执行的场景，确保静态 DOM 译好。
-if (window.SCI18N && typeof SCI18N.apply === 'function') {
+// i18n 兜底：i18n.js �?DOMContentLoaded 时已自行 apply() 一次；
+// 这里再补一次，覆盖 app.js �?DOMContentLoaded 之前或之后执行的场景，确保静�?DOM 译好�?if (window.SCI18N && typeof SCI18N.apply === 'function') {
   const _applyI18n = () => SCI18N.apply();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _applyI18n, { once: true });
   else _applyI18n();
 }
+

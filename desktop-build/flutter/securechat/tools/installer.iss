@@ -31,6 +31,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
 DisableProgramGroupPage=auto
+CloseApplications=no
 
 [Languages]
 ; GitHub runner 的 Inno Setup 未打包中文语言文件，这里仅用 English 以避免缺失报错。
