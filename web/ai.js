@@ -14,6 +14,12 @@ const AI_PRESETS = {
     defaultModel: 'deepseek-ai/deepseek-v4-flash',
     desc: 'AQUA 公益 AI OpenAI 兼容接口'
   },
+  ai32768: {
+    name: '32768',
+    baseUrl: 'https://ai.32768.top/v1',
+    defaultModel: 'gpt-4o-mini',
+    desc: '32768 OpenAI 兼容代理'
+  },
   openai: {
     name: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
