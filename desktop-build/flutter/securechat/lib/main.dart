@@ -13,6 +13,7 @@ import 'package:window_manager/window_manager.dart';
 import 'services/securechat_api.dart';
 import 'services/app_config.dart';
 import 'services/chat_crypto.dart';
+import 'services/x3dh.dart';
 import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
@@ -406,6 +407,9 @@ class _ChatShellState extends State<ChatShell> {
         conversations.clear();
         for (final f in friends) {
           final settings = csMap[f['id']];
+          final fId = f['id'];
+          final fPub = (f['pubkey'] ?? f['publicKey'] ?? f['identityKey'] ?? '').toString();
+          if (fId is int && fPub.isNotEmpty) cacheIdentityPub(fId, fPub);
           conversations.add({'kind': 'friend', 'id': f['id'], 'name': (f['nickname'] ?? f['username'] ?? '').toString(), 'icon': Icons.person, 'online': f['online'] == true, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
         for (final g in groups) {
@@ -483,8 +487,10 @@ class _ChatShellState extends State<ChatShell> {
 
   void _connect() {
     try {
-      socket = widget.api.connect();
+socket = widget.api.connect();
       myId = widget.api.myId;
+      x3dhApi = widget.api;
+      uploadMyPrekeys(widget.api);
         socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];

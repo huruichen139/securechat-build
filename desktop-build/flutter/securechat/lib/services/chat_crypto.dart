@@ -17,6 +17,8 @@ import 'package:pointycastle/export.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ratchet.dart';
+import 'securechat_api.dart';
+import 'x3dh.dart';
 
 // ============================================================
 // 身份密钥（ECDH P-256），持久化在 SharedPreferences
@@ -105,17 +107,76 @@ class PeerSessionStore {
 }
 
 // ============================================================
-// 加密 / 解密入口
+// X3DH + 双棘轮会话初始化
 // ============================================================
 
-// 对 peerKey 加密一条消息（用该会话的 ratchet 状态）
+// 从 peerKey（如 "$peerId"）解析出整数 peerId；解析失败返回 null
+int? _peerIdFromKey(String peerKey) => int.tryParse(peerKey);
+
+/// 发起方首次与 peer 通信：identity-only X3DH 协商出 sk，初始化双棘轮 sender 态
+/// 返回初始化后的 RatchetState；条件不足（无 api / 拿不到对方身份公钥）返回 null
+Future<RatchetState?> x3dhInitSender(int peerId, String peerKey) async {
+  final peerPubB64 = await getPeerIdentityPub(peerId);
+  if (peerPubB64 == null) return null;
+  final my = await getOrCreateIdentity();
+  final peerPub = base64ToPub(peerPubB64);
+  final sk = deriveSk(my.toPair().priv, peerPub);
+  await PeerSessionStore.saveSk(peerKey, sk);
+  final state = initAsSender(sk, peerPub);
+  await PeerSessionStore.save(peerKey, state);
+  return state;
+}
+
+/// 接收方首次收到 peer 消息：用自己身份私钥 + 对方身份公钥算同一 sk，
+/// 初始化双棘轮 receiver 态。返回 null 表示无法建立会话（回退明文）
+Future<RatchetState?> x3dhInitReceiver(int peerId, String peerKey) async {
+  final peerPubB64 = await getPeerIdentityPub(peerId);
+  if (peerPubB64 == null) return null;
+  final my = await getOrCreateIdentity();
+  final peerPub = base64ToPub(peerPubB64);
+  final sk = deriveSk(my.toPair().priv, peerPub);
+  await PeerSessionStore.saveSk(peerKey, sk);
+  final state = initAsReceiver(sk, my.toPair());
+  await PeerSessionStore.save(peerKey, state);
+  return state;
+}
+
+/// 上传我方 signed prekey 与一批 one-time prekey（服务器 bundle 分发）。
+/// 签名可选，identity-only 模式不校验，用占位签名。
+Future<void> uploadMyPrekeys(SecureChatApi api) async {
+  final my = await getOrCreateIdentity();
+  final idPub = pubToBase64(my.pub);
+  final signKeyId = 'sp_${DateTime.now().millisecondsSinceEpoch}';
+  // X3DH 签名可选；此处用占位签名（identity-only 模式不校验签名）
+  final signature = base64.encode(utf8.encode('x3dh:$idPub'));
+
+  try {
+    await api.uploadSignedPreKey(signKeyId, idPub, signature);
+    const count = 10;
+    final list = <Map<String, String>>[];
+    for (var i = 0; i < count; i++) {
+      final kp = genEcKeyPair();
+      list.add({
+        'keyId': 'ot_${DateTime.now().microsecondsSinceEpoch}_$i',
+        'pubKey': pubToBase64(kp.pub),
+      });
+    }
+    await api.uploadOneTimePreKeys(list);
+  } catch (_) {
+    // 上传失败不阻断主流程
+  }
+}
+
+/// 加密入口：无会话时若能从 peerKey 解析出 peerId 且有全局 api，则自动 X3DH
 Future<String> e2eeEncrypt(String peerKey, String plain) async {
   var state = await PeerSessionStore.load(peerKey);
   if (state == null) {
-    // 无会话：无法加密（应由调用方先完成 X3DH 协商）。此处直接明文回退并告警。
-    // TODO: 接入 X3DH 后替换为正常协商
-    return plain;
+    final peerId = _peerIdFromKey(peerKey);
+    if (peerId != null && x3dhApi != null) {
+      state = await x3dhInitSender(peerId, peerKey);
+    }
   }
+  if (state == null) return plain; // 条件不足：明文回退
   final ct = encryptMessage(state, plain);
   await PeerSessionStore.save(peerKey, state);
   return ct;
@@ -125,6 +186,12 @@ Future<String> e2eeEncrypt(String peerKey, String plain) async {
 Future<String> e2eeDecrypt(String peerKey, String b64) async {
   if (!looksLikeRatchetCipher(b64)) return b64; // 明文或媒体占位，原样返回
   var state = await PeerSessionStore.load(peerKey);
+  if (state == null) {
+    final peerId = _peerIdFromKey(peerKey);
+    if (peerId != null && x3dhApi != null) {
+      state = await x3dhInitReceiver(peerId, peerKey);
+    }
+  }
   if (state == null) return b64;
   try {
     final plain = decryptMessage(state, b64);
