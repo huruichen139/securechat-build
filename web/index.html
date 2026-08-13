@@ -177,8 +177,9 @@
            <button class="side-tab" data-side="pay" title="转账"><span class="rail-icon">转</span>转账</button>
            <button class="side-tab" data-side="ai" title="发现"><span class="rail-icon">发</span><span data-i18n="ai">发现</span></button>
           <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="我"><span class="rail-icon">我</span><span data-i18n="download">我</span></button>
-          <button id="featureCenterEntry" class="side-tab" data-side="more" type="button" title="更多功能"><span class="rail-icon">＋</span><span data-i18n="more">更多</span></button>
-        </div>
+           <button id="featureCenterEntry" class="side-tab" data-side="more" type="button" title="更多功能"><span class="rail-icon">＋</span><span data-i18n="more">更多</span></button>
+           <button id="adminEntry" class="side-tab" data-side="admin" type="button" title="管理后台" style="display:none"><span class="rail-icon">⚙</span>管理</button>
+         </div>
         <div class="sidebar-rail-bottom">
           <button id="localeToggle" class="rail-action" title="切换语言" data-i18n="language">语言</button>
           <button id="themeToggle" class="rail-action" title="切换深色模式" data-i18n="dark">夜</button>
@@ -345,9 +346,50 @@
           <summary>其他平台</summary>
           <div id="platform-list" class="download-platform-list"></div>
         </details>
-      </div>
-    </div>
-  </div>
+       </div>
+     </div>
+    <!-- 管理后台视图 -->
+     <div id="adminView" class="download-view" style="display:none">
+       <div class="download-header">
+         <button id="adminBackBtn" class="back-to-list-btn" type="button">返回</button>
+         <span>管理后台</span>
+       </div>
+       <div class="download-page">
+         <section class="admin-section">
+           <h3>生成余额兑换码</h3>
+           <div class="admin-form">
+             <div class="admin-field">
+               <label>面值(元)</label>
+               <input id="adminRedeemValue" type="number" step="0.01" min="0.01" value="10" placeholder="面值">
+             </div>
+             <div class="admin-field">
+               <label>数量</label>
+               <input id="adminRedeemCount" type="number" min="1" max="500" value="10" placeholder="1-500">
+             </div>
+             <button id="adminIssueBtn" type="button" class="btn-cn">生成兑换码</button>
+           </div>
+           <div id="adminIssueResult" class="admin-result" style="display:none">
+             <div class="admin-result-header">
+               <span>已生成 <b id="adminIssueCount"></b> 个兑换码</span>
+               <button id="adminCopyAllBtn" type="button" class="btn-cn small">复制全部</button>
+             </div>
+             <div id="adminCodeList" class="admin-code-list"></div>
+           </div>
+         </section>
+         <section class="admin-section">
+           <h3>兑换码列表</h3>
+           <div class="admin-tabs">
+             <button class="admin-tab on" data-claimed="">全部</button>
+             <button class="admin-tab" data-claimed="0">未使用</button>
+             <button class="admin-tab" data-claimed="1">已使用</button>
+           </div>
+           <div id="adminCodeTable" class="admin-code-table">
+             <div style="padding:20px;color:#999;text-align:center">加载中...</div>
+           </div>
+         </section>
+       </div>
+     </div>
+   </div>
 
 <div class="mobile-bottom-nav" id="mobileBottomNav"></div>
 

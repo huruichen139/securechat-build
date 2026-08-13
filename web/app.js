@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
 const PACKAGE_VERSION = '1.52.0';
@@ -3226,4 +3226,113 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
   }
   document.addEventListener('securechat.login', warmup, { once: false });
   if (state && state.me) warmup();
+})();
+
+
+// ============ 管理后台：余额兑换码生成与管理 ============
+(function initAdminPanel() {
+  const adminEntry = $('adminEntry');
+  if (!adminEntry) return;
+  // 仅管理员可见
+  function isAdminUser() {
+    if (!state.me || !state.me.email) return false;
+    try {
+      const admins = (localStorage.getItem('sc_admin_emails') || '3529403074@qq.com').split(',').map(s => s.trim().toLowerCase());
+      return admins.includes(state.me.email.toLowerCase());
+    } catch { return false; }
+  }
+  function showAdminView() {
+    document.querySelector('.main').style.display = 'none';
+    const av = $('adminView'); if (av) av.style.display = 'flex';
+    if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+    loadAdminCodes('');
+  }
+  function hideAdminView() {
+    const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
+    const av = $('adminView'); if (av) av.style.display = 'none';
+    if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
+  }
+  adminEntry.onclick = () => {
+    if (!isAdminUser()) { toast('无管理权限', 'warn'); return; }
+    // 切换 admin tab 高亮
+    document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === adminEntry));
+    syncMobileNav('admin');
+    if (document.querySelector('.main')) document.querySelector('.main').style.display = 'none';
+    const av = $('adminView'); if (av) av.style.display = 'flex';
+    if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+    loadAdminCodes('');
+  };
+  // 返回按钮
+  const adminBackBtn = $('adminBackBtn');
+  if (adminBackBtn) adminBackBtn.onclick = () => {
+    const friendsTab = document.querySelector('.side-tab[data-side="friends"]');
+    if (friendsTab) friendsTab.click();
+    else { document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === 'friends')); syncMobileNav('friends'); }
+    hideAdminView();
+  };
+  // 生成兑换码
+  const adminIssueBtn = $('adminIssueBtn');
+  if (adminIssueBtn) {
+    adminIssueBtn.onclick = async () => {
+      const value = parseFloat($('adminRedeemValue').value);
+      const count = Math.min(parseInt($('adminRedeemCount').value) || 1, 500);
+      if (!value || value <= 0) { toast('请输入有效面值', 'warn'); return; }
+      adminIssueBtn.disabled = true; adminIssueBtn.textContent = '生成中...';
+      try {
+        const res = await fetch(state.serverHost + '/api/admin/redeem/issue', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+          body: JSON.stringify({ value, count })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '生成失败');
+        $('adminIssueCount').textContent = data.count;
+        const list = $('adminCodeList');
+        list.innerHTML = (data.codes || []).map(c => '<span class="admin-code-item" title="点击复制">' + escapeHtml(c) + '</span>').join('');
+        list.querySelectorAll('.admin-code-item').forEach(el => {
+          el.onclick = () => { navigator.clipboard.writeText(el.textContent).then(() => toast('已复制: ' + el.textContent, 'success', 1200)); };
+        });
+        $('adminIssueResult').style.display = '';
+        toast('成功生成 ' + data.count + ' 个兑换码', 'success');
+        loadAdminCodes('');
+      } catch (e) { toast('生成失败：' + e.message, 'error'); }
+      finally { adminIssueBtn.disabled = false; adminIssueBtn.textContent = '生成兑换码'; }
+    };
+  }
+  // 复制全部
+  const adminCopyAllBtn = $('adminCopyAllBtn');
+  if (adminCopyAllBtn) {
+    adminCopyAllBtn.onclick = () => {
+      const codes = Array.from($('adminCodeList').querySelectorAll('.admin-code-item')).map(el => el.textContent).join('\n');
+      navigator.clipboard.writeText(codes).then(() => toast('已复制全部兑换码', 'success'));
+    };
+  }
+  // 兑换码列表 tab 切换
+  document.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      loadAdminCodes(tab.dataset.claimed);
+    };
+  });
+  // 加载兑换码列表
+  window.loadAdminCodes = async function(claimed) {
+    const tbl = $('adminCodeTable');
+    if (!tbl) return;
+    tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">加载中...</div>';
+    try {
+      const res = await fetch(state.serverHost + '/api/admin/redeem' + (claimed !== undefined && claimed !== '' ? '?claimed=' + claimed : ''), {
+        headers: { 'Authorization': 'Bearer ' + state.token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '加载失败');
+      const codes = data.codes || [];
+      if (!codes.length) { tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">暂无兑换码</div>'; return; }
+      tbl.innerHTML = codes.map(c => {
+        const claimedAt = c.claimed_at ? new Date(c.claimed_at).toLocaleString() : '-';
+        const statusCls = c.claimed_by ? 'used' : 'unused';
+        const statusText = c.claimed_by ? '已使用' : '未使用';
+        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><span class="value">' + c.value + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
+      }).join('');
+    } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
+  };
 })();
