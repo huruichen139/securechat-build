@@ -1172,7 +1172,26 @@ function openFeatureModalFrom(feature, method, hint) {
   if (!feature) { toast('该功能组件未加载' + (hint ? '（' + hint + '）' : ''), 'warn'); return; }
   const call = feature[method] || feature.open || feature.homePanel;
   if (typeof call !== 'function') { toast('该功能暂未提供入口', 'warn'); return; }
-  try { call(); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
+  try {
+    // 为需要 container 参数的方法（如 homePanel）自动创建容器
+    if (method === 'homePanel' || method === 'mount' || method === 'open') {
+      const mask = document.createElement('div'); mask.className = 'modal-mask';
+      const box = document.createElement('div'); box.className = 'modal';
+      box.style.cssText = 'width:min(620px,94vw);max-height:88vh;overflow:auto';
+      const head = document.createElement('div'); head.className = 'modal-head';
+      const h3 = document.createElement('h3'); h3.textContent = (feature._title || method) + '';
+      const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
+      head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
+      const host = document.createElement('div'); box.appendChild(host);
+      mask.appendChild(box); document.body.appendChild(mask);
+      xBtn.onclick = () => mask.remove();
+      mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
+      document.addEventListener('keydown', function onKey(ev) { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } });
+      call(host);
+    } else {
+      call();
+    }
+  } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
 }
 
 // 编辑个人资料：滚动 modal，按 PROFILE_FIELDS 分类列出所有字段。
