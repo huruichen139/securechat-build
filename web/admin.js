@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 /* SecureChat 管理员后台 —— 只读看板，调用 /api/admin/overview */
 (function () {
   const API = window.SERVER_HOST || ''; // 同源部署时为 ''，跨源时形如 'https://mc.32768.top:5432'
@@ -678,7 +678,7 @@
           ? '<span class="admin-badge banned">已使用</span>'
           : '<span class="admin-badge online">未使用</span>';
         const claimedAt = c.claimed_at ? fmtTime(c.claimed_at) : '-';
-        constclaimer = c.claimed_by ? String(c.claimed_by).slice(0, 8) : '-';
+        const claimer = c.claimed_by ? String(c.claimed_by).slice(0, 8) : '-';
         return `<tr>
           <td><code>${escapeHtml(c.code)}</code></td>
           <td>${c.value}元</td>

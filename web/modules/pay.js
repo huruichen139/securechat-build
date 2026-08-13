@@ -1,4 +1,4 @@
-/* module: pay (worker batch6) */
+﻿/* module: pay (worker batch6) */
 /* SecureChat 支付与生活 Web 模块（独立，不依赖 web/app.js 巨石文件）
    提供：收付款码、付款码收款/付款码付款、转账、群收款+接龙、生活缴费/手机充值演示、钱包账单。
    复用全局工具：window.SecureChatExt._util.api / getToken / getMyId（registry.js），
@@ -184,7 +184,7 @@
         try {
           const r = await Pay.createReceiveCode(a || undefined, rm.inp.value.trim());
           close();
-          showCodePanel(r.code, 'receive');
+          showCodePanel({ qrText: r.qrText }, "receive");
         } catch (e) { showToast('生成失败：' + e.message, 'error'); }
       };
       acts.appendChild(ok);
@@ -536,7 +536,7 @@
     const items = [
       { label: '转账', icon: '→', fn: openTransfer },
       { label: '收款码', icon: '￥', fn: () => showReceiveCodeFlow() },
-      { label: '付款码', icon: '◈', fn: () => Pay.createPayCode().then(r => showCodePanel(r.code, 'pay')).catch(e => showToast('生成失败：' + e.message, 'error')) },
+      { label: '付款码', icon: '◈', fn: () => Pay.createPayCode().then(r => showCodePanel({ qrText: r.qrText }, "pay")).catch(e => showToast('生成失败：' + e.message, 'error')) },
       { label: '扫一扫', icon: '▦', fn: () => scanFlow('receive') },
       { label: '群收款', icon: '群', fn: () => openGroupCollect() },
       { label: '群接龙', icon: '接', fn: () => openGroupSolection() },
