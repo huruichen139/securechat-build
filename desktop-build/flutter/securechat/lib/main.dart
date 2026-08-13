@@ -4,11 +4,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import 'services/securechat_api.dart';
 import 'services/app_config.dart';
@@ -28,9 +28,24 @@ import 'videos_page.dart';
 import 'accounts_page.dart';
 import 'mini_apps_page.dart';
 import 'notebook_page.dart';
-
 import 'file_repository_page.dart';
 import 'update_service.dart';
+import 'group_page.dart';
+import 'chat_ext_page.dart';
+import 'filehelper_page.dart';
+import 'community_tools_page.dart';
+import 'status_page.dart';
+import 'wallet_extra_page.dart';
+import 'miniapp_page.dart';
+import 'nearby_page.dart';
+import 'shake_page.dart';
+import 'scan_page.dart';
+import 'favorites_page.dart' as fav;
+import 'discover_page.dart';
+import 'me_page.dart';
+
+const Color _wechatGreen = Color(0xff07c160);
+const Color _wechatBubbleMine = Color(0xff95EC69);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +57,6 @@ Future<void> main() async {
       await windowManager.ensureInitialized();
       await windowManager.setMinimumSize(const Size(920, 640));
       await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: true);
-      // 启动时按已保存的 effect 切换背景：effect != none → 透明，让 Win11 Mica 透出
       final eff = config.effect;
       await windowManager.setBackgroundColor(
         eff == WindowEffectKind.none ? const Color(0xFFF7F7F7) : Colors.transparent,
@@ -309,11 +323,17 @@ class _LoginPageState extends State<LoginPage> {
 class WelcomePanel extends StatelessWidget {
   const WelcomePanel({super.key});
   @override
-  Widget build(BuildContext context) => Container(decoration: const BoxDecoration(color: Color(0xff163d32), borderRadius: BorderRadius.horizontal(left: Radius.circular(24))), padding: const EdgeInsets.all(52), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-    Container(width: 54, height: 54, decoration: BoxDecoration(color: const Color(0xff23b878), borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.lock_rounded, color: Colors.white, size: 28)),
-    const SizedBox(height: 30), const Text('私密地聊天，\n自然地沟通。', style: TextStyle(color: Colors.white, fontSize: 34, height: 1.08, fontWeight: FontWeight.w800)),
-    const SizedBox(height: 20), const Text('端到端加密 · 多端同步 · 音视频通话', style: TextStyle(color: Color(0xffa9d9c4), fontSize: 14)),
-  ]));
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(color: Color(0xff163d32), borderRadius: BorderRadius.horizontal(left: Radius.circular(24))),
+    padding: const EdgeInsets.all(52),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+      Container(width: 54, height: 54, decoration: BoxDecoration(color: _wechatGreen, borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.lock_rounded, color: Colors.white, size: 28)),
+      const SizedBox(height: 30),
+      const Text('私密地聊天，\n自然地沟通。', style: TextStyle(color: Colors.white, fontSize: 34, height: 1.08, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 20),
+      const Text('端到端加密 · 多端同步 · 音视频通话', style: TextStyle(color: Color(0xffa9d9c4), fontSize: 14)),
+    ]),
+  );
 }
 
 class _QrPlaceholder extends StatelessWidget {
@@ -350,7 +370,77 @@ class ChatShell extends StatefulWidget {
 }
 
 class _ChatShellState extends State<ChatShell> {
-  int selected = 0;
+  int _tab = 0;
+  final _chatViewState = GlobalKey<_ChatViewStateState>();
+  final _contactsViewState = GlobalKey<_ContactsViewStateState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final config = widget.config;
+    return AnimatedBuilder(
+      animation: config,
+      builder: (context, _) {
+        return AppScaffold(
+          config: config,
+          body: SafeArea(
+            child: Column(
+              children: [
+                if (Platform.isWindows) const _WindowDragBar(),
+                Expanded(
+                  child: <Widget>[
+                    _ChatView(key: _chatViewState, api: widget.api, config: config),
+                    ContactsView(key: _contactsViewState, api: widget.api, config: config),
+                    const DiscoverPage(),
+                    const MePage(),
+                  ][_tab],
+                ),
+                _bottomNav(context),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bottomNav(BuildContext context) {
+    final t = widget.config.theme;
+    return Container(
+      color: t.panel,
+      child: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
+          currentIndex: _tab,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: _wechatGreen,
+          unselectedItemColor: t.subText,
+          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat), label: '微信'),
+            BottomNavigationBarItem(icon: Icon(Icons.contacts_outlined), activeIcon: Icon(Icons.contacts), label: '通讯录'),
+            BottomNavigationBarItem(icon: Icon(Icons.explore_outlined), activeIcon: Icon(Icons.explore), label: '发现'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: '我'),
+          ],
+          onTap: (i) => setState(() => _tab = i),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 微信 Tab：会话列表 + 聊天窗口 ───────────────────────────────────────────
+
+class _ChatView extends StatefulWidget {
+  const _ChatView({super.key, required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_ChatView> createState() => _ChatViewStateState();
+}
+
+class _ChatViewStateState extends State<_ChatView> {
+  int selected = -1;
   final input = TextEditingController();
   final messages = <Map<String, dynamic>>[];
   final conversations = <Map<String, dynamic>>[];
@@ -366,6 +456,8 @@ class _ChatShellState extends State<ChatShell> {
   int? replyingTo;
   String? replyPreview;
   final inputFocus = FocusNode();
+  final searchCtrl = TextEditingController();
+  String _search = '';
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -385,10 +477,7 @@ class _ChatShellState extends State<ChatShell> {
       final info = await svc.check();
       if (info == null || !mounted) return;
       _updatePrompted = true;
-      showDialog(
-        context: context,
-        builder: (_) => _UpdateDialog(info: info, service: svc),
-      );
+      showDialog(context: context, builder: (_) => _UpdateDialog(info: info, service: svc));
     } catch (_) {}
   }
 
@@ -427,7 +516,7 @@ class _ChatShellState extends State<ChatShell> {
 
   Future<void> _openConversation(int index) async {
     final conv = conversations[index];
-    setState(() => selected = index);
+    setState(() { selected = index; });
     messages.clear();
     if (conv['kind'] == 'group') {
       if (mounted) setState(() => selName = conv['name'].toString());
@@ -468,11 +557,7 @@ class _ChatShellState extends State<ChatShell> {
             : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']});
       }
       if (!mounted) return;
-      setState(() {
-        messages
-          ..clear()
-          ..addAll(msgs);
-      });
+      setState(() { messages..clear()..addAll(msgs); });
     } catch (_) {}
   }
 
@@ -487,21 +572,18 @@ class _ChatShellState extends State<ChatShell> {
 
   void _connect() {
     try {
-socket = widget.api.connect();
+      socket = widget.api.connect();
       myId = widget.api.myId;
       x3dhApi = widget.api;
       uploadMyPrekeys(widget.api);
-        socket!.stream.listen((event) async {
+      socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
         if (type == 'msg') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
           final cmid = (p['clientMsgId'] ?? '').toString();
-          if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
-            _sentIds.remove(cmid);
-            return;
-          }
+          if (cmid.isNotEmpty && _sentIds.contains(cmid)) { _sentIds.remove(cmid); return; }
           final conv = selConv;
           final from = p['from'];
           final to = p['to'];
@@ -520,10 +602,7 @@ socket = widget.api.connect();
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
           final cmid = (p['clientMsgId'] ?? '').toString();
-          if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
-            _sentIds.remove(cmid);
-            return;
-          }
+          if (cmid.isNotEmpty && _sentIds.contains(cmid)) { _sentIds.remove(cmid); return; }
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
@@ -570,7 +649,7 @@ socket = widget.api.connect();
     if (to == null) return;
     try {
       await widget.api.poke(to);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已拍一拍'), duration: const Duration(seconds: 1)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已拍一拍'), duration: const Duration(seconds: 1)));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('拍一拍失败：${e.toString().replaceFirst('Bad state: ', '')}')));
     }
@@ -638,308 +717,151 @@ socket = widget.api.connect();
     recorder.dispose();
     input.dispose();
     inputFocus.dispose();
+    searchCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
-    return AnimatedBuilder(
-      animation: config,
-      builder: (context, _) {
-        return AppScaffold(
-          config: config,
-          body: SafeArea(
-            child: Column(
-              children: [
-                if (Platform.isWindows) const _WindowDragBar(),
-                Expanded(
-                  child: LayoutBuilder(builder: (context, c) {
-                    final desktop = c.maxWidth >= 760;
-                    return Column(children: [
-                      Expanded(
-                        child: Row(children: [
-                          if (desktop) _sidebar(c.maxWidth),
-                          Expanded(child: SizedBox(width: double.infinity, child: _conversation())),
-                        ]),
-                      ),
-                      if (!desktop) _mobileNav(context),
-                    ]);
-                  }),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    return Row(children: [
+      _leftPanel(config),
+      VerticalDivider(width: 1, thickness: 1, color: config.theme.div),
+      Expanded(child: _chatArea(config)),
+    ]);
   }
 
-  Widget _sidebar(double width) {
-    final theme = widget.config.theme;
-    final text = theme.text;
-    final sub = theme.subText;
-    return SizedBox(
-      width: width < 1000 ? 290 : 330,
-      child: ColoredBox(
-        color: theme.sidebar.withValues(alpha: 0.82),
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 20, 14, 12),
-            child: Row(children: [
-              CircleAvatar(radius: 18, backgroundColor: widget.config.primary, child: Text('S', style: TextStyle(color: widget.config.theme.onAccent, fontWeight: FontWeight.bold))),
-              const SizedBox(width: 10),
-              Expanded(child: Text('我的消息', style: TextStyle(color: text, fontSize: 17, fontWeight: FontWeight.w700))),
-              IconButton(onPressed: () {}, icon: Icon(Icons.edit_square, color: sub)),
-            ]),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: TextField(
-              style: TextStyle(color: text),
-              decoration: InputDecoration(
-                hintText: '搜索会话',
-                hintStyle: TextStyle(color: sub),
-                prefixIcon: Icon(Icons.search, color: sub),
-                fillColor: theme.inputBg,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Expanded(child: ListView(children: [
-            for (var i = 0; i < conversations.length; i++) _conversationTile(i, conversations[i]),
-          ])),
-          Divider(height: 1, thickness: 1, color: theme.div),
-          _navRow(Icons.qr_code_2, '我的名片', () => _showMyCard(context), color: sub),
-          _navRow(Icons.dynamic_feed_outlined, '朋友圈', () => Navigator.push(context, MaterialPageRoute(builder: (_) => MomentsPage(api: widget.api, config: widget.config))), color: sub),
-          _navRow(Icons.account_balance_wallet_outlined, '钱包', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config))), color: sub),
-          _navRow(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), color: sub),
-          _navRow(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), color: sub),
-          _navRow(Icons.apps_rounded, '功能中心', () => _openFeatures(context), color: sub),
-        ]),
-      ),
-    );
-  }
-
-  Widget _navRow(IconData icon, String label, VoidCallback onTap, {required Color color}) => InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Row(children: [
-            Icon(icon, color: color, size: 19),
-            const SizedBox(width: 10),
-            Text(label, style: TextStyle(color: color)),
-          ]),
-        ),
-      );
-
-  Widget _mobileNav(BuildContext context) {
-    Widget tile(IconData icon, String label, VoidCallback onTap) => InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: 22, color: widget.config.primary),
-              const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 10, color: widget.config.theme.text)),
-            ]),
-          ),
-        );
+  Widget _leftPanel(AppConfig config) {
+    final theme = config.theme;
+    final items = conversations.where((c) =>
+      _search.isEmpty || (c['name'] as String).toLowerCase().contains(_search.toLowerCase())
+    ).toList();
     return Container(
-      color: widget.config.theme.panel,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              tile(Icons.chat_bubble_outline, '会话', () {}),
-              if (Platform.isAndroid || Platform.isIOS) tile(Icons.qr_code_scanner, '扫一扫', () => _showScanner(context)),
-              tile(Icons.qr_code_2, '名片', () => _showMyCard(context)),
-              tile(Icons.auto_awesome_outlined, 'AI', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config)))),
-              tile(Icons.apps_rounded, '功能', () => _openFeatures(context)),
-              tile(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api)))),
-            ],
+      width: 280,
+      color: theme.panel,
+      child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+          child: Row(children: [
+            CircleAvatar(radius: 20, backgroundColor: config.primary, child: Text('S', style: TextStyle(color: theme.onAccent, fontWeight: FontWeight.bold, fontSize: 14))),
+            const SizedBox(width: 10),
+            Expanded(child: Text('微信', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: TextField(
+            controller: searchCtrl,
+            style: TextStyle(color: theme.text),
+            decoration: InputDecoration(
+              hintText: '搜索',
+              hintStyle: TextStyle(color: theme.subText),
+              prefixIcon: Icon(Icons.search, color: theme.subText),
+              fillColor: theme.inputBg,
+              filled: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            ),
+            onChanged: (v) => setState(() => _search = v),
           ),
         ),
+        const Divider(height: 1),
+        Expanded(child: ListView.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, i) {
+            final conv = items[i];
+            final origIdx = conversations.indexOf(conv);
+            final isSelected = origIdx == selected;
+            return Material(
+              color: isSelected ? config.primary.withValues(alpha: theme.isDark ? 0.28 : 0.12) : Colors.transparent,
+              child: InkWell(
+                onTap: () => _openConversation(origIdx),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(children: [
+                    CircleAvatar(radius: 22, backgroundColor: theme.primary.withValues(alpha: theme.isDark ? 0.25 : 0.14), child: Icon(conv['icon'] as IconData, color: config.primary, size: 22)),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        if (conv['pinned'] == true) const Icon(Icons.push_pin, size: 13, color: Color(0xffe67e22)),
+                        if (conv['pinned'] == true) const SizedBox(width: 3),
+                        Expanded(child: Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontWeight: FontWeight.w600, fontSize: 14))),
+                      ]),
+                      const SizedBox(height: 3),
+                      Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), style: TextStyle(color: theme.subText, fontSize: 12)),
+                    ])),
+                  ]),
+                ),
+              ),
+            );
+          },
+        )),
+        const Divider(height: 1),
+        _sidebarAction(Icons.qr_code_2, '我的名片', () => _showMyCard(context), config),
+        _sidebarAction(Icons.dynamic_feed_outlined, '朋友圈', () => Navigator.push(context, MaterialPageRoute(builder: (_) => MomentsPage(api: widget.api, config: widget.config))), config),
+        _sidebarAction(Icons.account_balance_wallet_outlined, '钱包', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config))), config),
+        _sidebarAction(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), config),
+        _sidebarAction(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), config),
+        _sidebarAction(Icons.apps_rounded, '功能中心', () => _openFeatures(context), config),
+      ]),
+    );
+  }
+
+  Widget _sidebarAction(IconData icon, String label, VoidCallback onTap, AppConfig config) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Icon(icon, color: config.theme.subText, size: 19),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(color: config.theme.subText, fontSize: 13)),
+        ]),
       ),
     );
   }
 
-  void _openFeatures(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _FeaturesSheet(api: widget.api, config: widget.config),
-    );
-  }
-
-  Future<void> _showChatInfo(BuildContext context) async {
-    final conv = selConv;
-    if (conv == null) return;
-    final theme = widget.config.theme;
-    if (conv['kind'] == 'group') {
-      List<Map<String, dynamic>> members;
-      try {
-        members = await widget.api.groupMembers(conv['id'] as int);
-      } catch (_) {
-        members = const [];
-      }
-      if (!mounted) return;
-      showDialog(context: context, builder: (ctx) => Dialog(child: SizedBox(width: 360, child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.groups_rounded, color: widget.config.primary),
-          const SizedBox(width: 8),
-          Expanded(child: Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16), overflow: TextOverflow.ellipsis)),
-          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-        ]),
-        const SizedBox(height: 6),
-        Text('群成员（${members.length}）', style: TextStyle(color: theme.subText, fontSize: 12)),
-        const SizedBox(height: 8),
-        Flexible(child: ListView(shrinkWrap: true, children: [
-          for (final m in members)
-            ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: CircleAvatar(radius: 16, child: Text((m['nickname'] ?? m['username'] ?? '?').toString()[0])), title: Text((m['nickname'] ?? m['username'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontSize: 14))),
-        ])),
-        const SizedBox(height: 8),
-        SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))),
-      ]), ))));
-      return;
-    }
-    // 好友资料
-    showDialog(context: context, builder: (ctx) => Dialog(child: SizedBox(width: 320, child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        CircleAvatar(backgroundColor: widget.config.primary.withValues(alpha: 0.2), child: Icon(Icons.person, color: widget.config.primary)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          Text(conv['online'] == true ? '在线' : '离线', style: TextStyle(color: theme.subText, fontSize: 12)),
-        ])),
-        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-      ]),
-      const SizedBox(height: 12),
-      const Divider(height: 1),
-      ListTile(leading: const Icon(Icons.cleaning_services_outlined), title: const Text('清空聊天记录'), onTap: () { Navigator.pop(ctx); _clearConversation(); }),
-      ListTile(leading: const Icon(Icons.push_pin_outlined), title: Text(conv['pinned'] == true ? '取消置顶' : '置顶会话'), onTap: () { Navigator.pop(ctx); _togglePin(selected, !(conv['pinned'] == true)); }),
-      ListTile(leading: const Icon(Icons.notifications_none), title: Text(conv['muted'] == true ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(ctx); _toggleMute(selected, !(conv['muted'] == true)); }),
-    ]), ))));
-  }
-
-  Future<void> _showMyCard(BuildContext context) async {
-    Map<String, dynamic> card;
-    try {
-      card = await widget.api.myCard();
-    } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('获取名片失败：${e.toString().replaceFirst('Bad state: ', '')}')));
-      return;
-    }
-    final uid = (card['uid'] ?? '').toString();
-    if (uid.isEmpty) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未获取到您的 UID，无法生成名片')));
-      return;
-    }
-    final name = (card['name'] ?? (card['nickname'] ?? (card['username'] ?? ''))).toString();
-    if (context.mounted) {
-      showDialog(context: context, builder: (_) => Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('我的名片', style: TextStyle(fontWeight: FontWeight.w700, color: widget.config.theme.text)),
-        const SizedBox(height: 14),
-        Text(name.isNotEmpty ? name : uid, style: const TextStyle(fontSize: 13, color: Colors.black54)),
-        const SizedBox(height: 16),
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: widget.config.theme.div), borderRadius: BorderRadius.circular(16)), child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200)),
-        const SizedBox(height: 12),
-        Text('让朋友用手机「扫一扫」这个二维码，即可添加我为好友。', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
-        const SizedBox(height: 6),
-        Text('UID：$uid', style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
-        const SizedBox(height: 10),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))),
-      ]))));
-    }
-  }
-
-  void _showScanner(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api, config: widget.config)));
-  }
-
-  Widget _contextMenu() => PopupMenuButton<int>(
-        icon: const Icon(Icons.more_horiz),
-        onSelected: (v) => _onContextMenu(v),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 0, child: Text('发起群聊')),
-          PopupMenuItem(value: 1, child: Text('发起音视频会议')),
-          PopupMenuItem(value: 2, child: Text('添加好友')),
-          PopupMenuItem(value: 3, child: Text('查看聊天资料')),
-          PopupMenuItem(value: 4, child: Text('我的名片')),
-          PopupMenuItem(value: 5, child: Text('扫一扫')),
-        ],
-      );
-
-  void _onContextMenu(int v) {
-    if (v == 3) _showChatInfo(context);
-    if (v == 4) _showMyCard(context);
-    if (v == 5) {
-      if (Platform.isAndroid || Platform.isIOS) {
-        _showScanner(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('扫描仅支持手机端')));
-      }
-    }
-  }
-
-  Widget _conversationTile(int index, Map<String, dynamic> conv) {
-    final t = widget.config.theme;
-    final selected = index == this.selected;
-    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
-    final avPin = conv['pinned'] == true;
-    return InkWell(
-        onTap: () => _openConversation(index),
-        onLongPress: () => _convMenu(context, index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: selected ? widget.config.primary.withValues(alpha: t.isDark ? 0.30 : 0.14) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: selected ? Border.all(color: widget.config.primary.withValues(alpha: t.isDark ? 0.30 : 0.18)) : null,
-          ),
-          child: Row(children: [
-            CircleAvatar(radius: 22, backgroundColor: avatarBg, child: Icon(conv['icon'] as IconData, color: widget.config.primary)),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                if (avPin) const Icon(Icons.push_pin, size: 14, color: Color(0xffe67e22)),
-                if (avPin) const SizedBox(width: 4),
-                Expanded(child: Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.text, fontWeight: FontWeight.w600))),
-              ]),
-              const SizedBox(height: 4),
-              Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12)),
-            ])),
-          ]),
-        ),
-      );
-  }
-
-  Widget _conversation() {
-    final t = widget.config.theme;
+  Widget _chatArea(AppConfig config) {
+    final t = config.theme;
     final border = Border(bottom: BorderSide(color: t.div));
-    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
+    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.28 : 0.14);
     return Column(children: [
-      Container(height: 70, padding: const EdgeInsets.symmetric(horizontal: 24), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
-        CircleAvatar(backgroundColor: avatarBg, child: Icon(Icons.person, color: t.primary)),
-        const SizedBox(width: 12),
+      Container(height: 60, padding: const EdgeInsets.symmetric(horizontal: 20), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
+        CircleAvatar(backgroundColor: avatarBg, child: Icon(selConv?['icon'] ?? Icons.person, color: t.primary, size: 22)),
+        const SizedBox(width: 10),
         Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.text)),
-          Text('SecureChat', style: TextStyle(color: t.primary, fontSize: 12)),
+          Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.text)),
+          Text(selConv != null ? (selConv!['kind'] == 'group' ? '群聊' : '在线') : '', style: TextStyle(color: t.subText, fontSize: 11)),
         ]),
         const Spacer(),
-        IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
-        IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
-        if (selConv != null && selConv!['kind'] == 'friend')
-          IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
-        IconButton(tooltip: '清空聊天', onPressed: selConv == null ? null : () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
-        _contextMenu(),
+        if (selConv != null) ...[
+          IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
+          IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
+          if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
+          IconButton(tooltip: '清空聊天', onPressed: () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
+          PopupMenuButton<int>(
+            icon: const Icon(Icons.more_horiz),
+            onSelected: (v) => _onContextMenu(v, context),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 0, child: Text('发起群聊')),
+              PopupMenuItem(value: 1, child: Text('发起音视频会议')),
+              PopupMenuItem(value: 2, child: Text('添加好友')),
+              PopupMenuItem(value: 3, child: Text('查看聊天资料')),
+              PopupMenuItem(value: 4, child: Text('我的名片')),
+              PopupMenuItem(value: 5, child: Text('扫一扫')),
+            ],
+          ),
+        ],
       ])),
-      Expanded(child: messages.isEmpty ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText))) : ListView.builder(padding: const EdgeInsets.fromLTRB(24, 22, 24, 16), itemCount: messages.length, itemBuilder: (_, i) => _bubble(messages[i]))),
+      Expanded(
+        child: messages.isEmpty
+            ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText)))
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                itemCount: messages.length,
+                itemBuilder: (_, i) => _bubble(messages[i]),
+              ),
+      ),
       if (replyingTo != null) _replyBar(),
       _composer(),
     ]);
@@ -948,13 +870,13 @@ socket = widget.api.connect();
   Widget _replyBar() {
     final t = widget.config.theme;
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 2),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
       color: t.panel.withValues(alpha: 0.5),
       child: Row(children: [
-        Icon(Icons.reply, color: widget.config.primary, size: 16),
+        Icon(Icons.reply, color: _wechatGreen, size: 16),
         const SizedBox(width: 8),
         Expanded(child: Text('回复：${replyPreview ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12))),
-        IconButton(icon: Icon(Icons.close, size: 16), onPressed: _cancelReply, color: t.subText),
+        IconButton(icon: const Icon(Icons.close, size: 16), onPressed: _cancelReply, color: t.subText),
       ]),
     );
   }
@@ -963,36 +885,66 @@ socket = widget.api.connect();
     final mine = msg['mine'] as bool;
     final voiceId = msg['voiceId'] as String?;
     final t = widget.config.theme;
-    final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.30 : 0.16);
     final replyText = (msg['replyTo'] != null && msg['replyTo'] != 0) ? '回复了一条消息' : null;
     final content = voiceId != null
         ? _voiceBubble(mine, voiceId)
         : _textBubble(mine, msg, t);
-    return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(bottom: 14), child: GestureDetector(
-      onLongPress: () => _bubbleMenu(context, msg),
-      child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-        if (!mine) CircleAvatar(radius: 16, backgroundColor: avatarBg, child: Icon(Icons.person, size: 17, color: t.primary)),
-        if (!mine) const SizedBox(width: 8),
-        Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-          if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group')
-            Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: t.subText, fontSize: 11))),
-          if (replyText != null)
-            Container(margin: const EdgeInsets.only(bottom: 3), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: mine ? Colors.white10 : Colors.black.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(6)),
-              child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 11, fontStyle: FontStyle.italic))),
-          content,
-          const SizedBox(height: 4),
-          Padding(padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 18), child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10))),
-        ]),
-      ]),
-    )));
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: GestureDetector(
+          onLongPress: () => _bubbleMenu(context, msg),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!mine) ...[
+                CircleAvatar(radius: 16, backgroundColor: t.primary.withValues(alpha: t.isDark ? 0.25 : 0.14), child: const Icon(Icons.person, size: 17, color: _wechatGreen)),
+                const SizedBox(width: 8),
+              ],
+              Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+                if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group')
+                  Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: t.subText, fontSize: 11))),
+                if (replyText != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: mine ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 11, fontStyle: FontStyle.italic)),
+                  ),
+                content,
+                const SizedBox(height: 3),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 16),
+                  child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _textBubble(bool mine, Map<String, dynamic> msg, dynamic t) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 520),
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-      decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]),
-      child: SelectableText(msg['text'] as String, style: TextStyle(color: t.text, fontSize: 14, height: 1.4)),
+      constraints: const BoxConstraints(maxWidth: 480),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: mine ? _wechatBubbleMine : Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(4),
+          topRight: const Radius.circular(4),
+          bottomLeft: Radius.circular(mine ? 4 : 14),
+          bottomRight: Radius.circular(mine ? 14 : 4),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff1a1a1a) : t.text, fontSize: 14, height: 1.4)),
     );
   }
 
@@ -1011,18 +963,26 @@ socket = widget.api.connect();
   Widget _voiceBubble(bool mine, String id) {
     final playing = playingVoiceId == id;
     final t = widget.config.theme;
-    final acc = widget.config.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(color: mine ? t.bubbleMine : t.bubbleOther, borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: Radius.circular(mine ? 16 : 4), bottomRight: Radius.circular(mine ? 4 : 16)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]),
+      decoration: BoxDecoration(
+        color: mine ? _wechatBubbleMine : Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(4),
+          topRight: const Radius.circular(4),
+          bottomLeft: Radius.circular(mine ? 4 : 14),
+          bottomRight: Radius.circular(mine ? 14 : 4),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: acc, onPressed: () => _toggleVoice(id)),
+        IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: _wechatGreen, onPressed: () => _toggleVoice(id)),
         Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: List.generate(12, (i) {
           final h = 6.0 + ((i * 7 + (playing ? 3 : 0)) % 16);
-          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? acc : t.subText, borderRadius: BorderRadius.circular(2)));
+          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? _wechatGreen : t.subText, borderRadius: BorderRadius.circular(2)));
         })),
         const SizedBox(width: 8),
-        Text('语音', style: TextStyle(fontSize: 12, color: mine ? acc : t.subText)),
+        Text('语音', style: TextStyle(fontSize: 12, color: mine ? const Color(0xff1a1a1a) : t.subText)),
       ]),
     );
   }
@@ -1054,13 +1014,28 @@ socket = widget.api.connect();
     final conv = selConv;
     final canSend = conv != null;
     final t = widget.config.theme;
-    return Container(padding: const EdgeInsets.fromLTRB(18, 12, 18, 16), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
-      IconButton(tooltip: '附件', onPressed: () {}, icon: Icon(Icons.add_circle_outline, color: t.text)),
-      Expanded(child: TextField(controller: input, focusNode: inputFocus, minLines: 1, maxLines: 4, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
-      const SizedBox(width: 10),
-      SizedBox(height: 42, child: FilledButton(onPressed: canSend ? () => _sendText() : null, child: const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('发送')))),
-    ]));
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
+        IconButton(tooltip: '附件', onPressed: () {}, icon: Icon(Icons.add_circle_outline, color: t.text)),
+        Expanded(child: TextField(
+          controller: input,
+          focusNode: inputFocus,
+          minLines: 1,
+          maxLines: 4,
+          style: TextStyle(color: t.text),
+          decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
+        )),
+        const SizedBox(width: 8),
+        SizedBox(height: 42, child: FilledButton(
+          onPressed: canSend ? () => _sendText() : null,
+          style: FilledButton.styleFrom(backgroundColor: _wechatGreen, foregroundColor: Colors.white),
+          child: const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('发送')),
+        )),
+      ]),
+    );
   }
 
   Future<void> _sendText() async {
@@ -1153,6 +1128,19 @@ socket = widget.api.connect();
     }
   }
 
+  Future<void> _pinMessage(Map<String, dynamic> msg) async {
+    final id = msg['id'] as int?;
+    if (id == null) return;
+    try {
+      await widget.api.pinMessage(id, true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已置顶消息')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('置顶失败：$e')));
+    }
+  }
+
   void _deleteLocalMessage(Map<String, dynamic> msg) {
     setState(() => messages.remove(msg));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除（仅本端）')));
@@ -1204,25 +1192,23 @@ socket = widget.api.connect();
           ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
-          ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
+          ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('置顶消息'), onTap: () { Navigator.pop(sheetCtx); _pinMessage(msg); }),
+            ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
         ]),
       ),
     );
   }
 
-  void _convMenu(BuildContext context, int index) {
-    final conv = conversations[index];
-    final isPinned = conv['pinned'] == true;
-    final isMuted = conv['muted'] == true;
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetCtx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(leading: Icon(isPinned ? Icons.push_pin : Icons.push_pin_outlined), title: Text(isPinned ? '取消置顶' : '置顶会话'), onTap: () { Navigator.pop(sheetCtx); _togglePin(index, !isPinned); }),
-          ListTile(leading: Icon(isMuted ? Icons.notifications_off : Icons.notifications_none), title: Text(isMuted ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(sheetCtx); _toggleMute(index, !isMuted); }),
-        ]),
-      ),
-    );
+  void _onContextMenu(int v, BuildContext ctx) {
+    if (v == 3) _showChatInfo(ctx);
+    if (v == 4) _showMyCard(ctx);
+    if (v == 5) {
+      if (Platform.isAndroid || Platform.isIOS) {
+        Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api, config: widget.config)));
+      } else {
+        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('扫描仅支持手机端')));
+      }
+    }
   }
 
   Future<void> _togglePin(int index, bool pinned) async {
@@ -1254,15 +1240,203 @@ socket = widget.api.connect();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
     }
   }
+
+  void _openFeatures(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FeaturesSheet(api: widget.api, config: widget.config),
+    );
+  }
+
+  Future<void> _showChatInfo(BuildContext context) async {
+    final conv = selConv;
+    if (conv == null) return;
+    final theme = widget.config.theme;
+    if (conv['kind'] == 'group') {
+      List<Map<String, dynamic>> members;
+      try {
+        members = await widget.api.groupMembers(conv['id'] as int);
+      } catch (_) {
+        members = const [];
+      }
+      if (!mounted) return;
+      showDialog(context: context, builder: (ctx) => Dialog(child: SizedBox(width: 360, child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.groups_rounded, color: _wechatGreen),
+          const SizedBox(width: 8),
+          Expanded(child: Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16), overflow: TextOverflow.ellipsis)),
+          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+        ]),
+        const SizedBox(height: 6),
+        Text('群成员（${members.length}）', style: TextStyle(color: theme.subText, fontSize: 12)),
+        const SizedBox(height: 8),
+        Flexible(child: ListView(shrinkWrap: true, children: [
+          for (final m in members)
+            ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: CircleAvatar(radius: 16, child: Text((m['nickname'] ?? m['username'] ?? '?').toString()[0])), title: Text((m['nickname'] ?? m['username'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontSize: 14))),
+        ])),
+        const SizedBox(height: 8),
+        SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))),
+      ]), ))));
+      return;
+    }
+    showDialog(context: context, builder: (ctx) => Dialog(child: SizedBox(width: 320, child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        CircleAvatar(backgroundColor: _wechatGreen.withValues(alpha: 0.18), child: Icon(Icons.person, color: _wechatGreen)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(conv['online'] == true ? '在线' : '离线', style: TextStyle(color: theme.subText, fontSize: 12)),
+        ])),
+        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+      ]),
+      const SizedBox(height: 12),
+      const Divider(height: 1),
+      ListTile(leading: const Icon(Icons.cleaning_services_outlined), title: const Text('清空聊天记录'), onTap: () { Navigator.pop(ctx); _clearConversation(); }),
+      ListTile(leading: const Icon(Icons.push_pin_outlined), title: Text(conv['pinned'] == true ? '取消置顶' : '置顶会话'), onTap: () { Navigator.pop(ctx); _togglePin(selected, !(conv['pinned'] == true)); }),
+      ListTile(leading: const Icon(Icons.notifications_none), title: Text(conv['muted'] == true ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(ctx); _toggleMute(selected, !(conv['muted'] == true)); }),
+    ]), ))));
+  }
+
+  Future<void> _showMyCard(BuildContext context) async {
+    Map<String, dynamic> card;
+    try {
+      card = await widget.api.myCard();
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('获取名片失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+      return;
+    }
+    final uid = (card['uid'] ?? '').toString();
+    if (uid.isEmpty) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未获取到您的 UID，无法生成名片')));
+      return;
+    }
+    final name = (card['name'] ?? (card['nickname'] ?? (card['username'] ?? ''))).toString();
+    if (context.mounted) {
+      showDialog(context: context, builder: (_) => Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('我的名片', style: TextStyle(fontWeight: FontWeight.w700, color: widget.config.theme.text)),
+        const SizedBox(height: 14),
+        Text(name.isNotEmpty ? name : uid, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        const SizedBox(height: 16),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: widget.config.theme.div), borderRadius: BorderRadius.circular(16)), child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200)),
+        const SizedBox(height: 12),
+        Text('让朋友用手机「扫一扫」这个二维码，即可添加我为好友。', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
+        const SizedBox(height: 6),
+        Text('UID：$uid', style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
+        const SizedBox(height: 10),
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))),
+      ]))));
+    }
+  }
 }
+
+// ─── 通讯录 Tab ──────────────────────────────────────────────────────────────
+
+class ContactsView extends StatefulWidget {
+  const ContactsView({super.key, required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<ContactsView> createState() => _ContactsViewStateState();
+}
+
+class _ContactsViewStateState extends State<ContactsView> {
+  final contacts = <Map<String, dynamic>>[];
+  final groups = <Map<String, dynamic>>[];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final friends = await widget.api.friends();
+      final grp = await widget.api.groups();
+      if (!mounted) return;
+      setState(() {
+        contacts.clear();
+        groups.clear();
+        for (final f in friends) {
+          contacts.add({
+            'name': (f['nickname'] ?? f['username'] ?? '').toString(),
+            'online': f['online'] == true,
+            'icon': Icons.person,
+          });
+        }
+        for (final g in grp) {
+          groups.add({
+            'name': (g['name'] ?? '群聊').toString(),
+            'icon': Icons.groups_rounded,
+          });
+        }
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.config.theme;
+    return Container(color: t.bg, child: _loading
+        ? const Center(child: CircularProgressIndicator())
+        : CustomScrollView(
+            slivers: [
+              _contactSection('联系人', contacts, t),
+              _contactSection('群聊', groups, t),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
+    );
+  }
+
+  Widget _contactSection(String title, List<Map<String, dynamic>> list, AppTheme t) {
+    if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) {
+        if (index == 0) {
+          return Container(
+            margin: const EdgeInsets.only(top: 12, left: 16, right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: t.div, borderRadius: BorderRadius.circular(6)),
+            child: Text(title, style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
+          );
+        }
+        final item = list[index - 1];
+        final name = item['name'] as String;
+        final icon = item['icon'] as IconData;
+        final online = item['online'] as bool?;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {},
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(children: [
+                CircleAvatar(radius: 20, backgroundColor: t.primary.withValues(alpha: 0.14), child: Icon(icon, color: _wechatGreen, size: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(name, style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w500))),
+                if (online == true) Container(width: 8, height: 8, decoration: const BoxDecoration(color: _wechatGreen, shape: BoxShape.circle)),
+              ]),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ─── 底部导航 + 窗口拖拽条 ────────────────────────────────────────────────────
 
 class _WindowDragBar extends StatelessWidget {
   const _WindowDragBar();
 
   void _action(Future<void> Function() fn) {
-    try {
-      fn();
-    } catch (_) {}
+    try { fn(); } catch (_) {}
   }
 
   @override
@@ -1273,15 +1447,9 @@ class _WindowDragBar extends StatelessWidget {
     Widget btn(IconData icon, Future<void> Function() act, {bool danger = false}) {
       return InkWell(
         onTap: () => _action(act),
-        child: Container(
-          width: 46,
-          height: 40,
-          alignment: Alignment.center,
-          child: Icon(icon, size: 16, color: danger ? const Color(0xffe74c3c) : fg),
-        ),
+        child: Container(width: 46, height: 40, alignment: Alignment.center, child: Icon(icon, size: 16, color: danger ? const Color(0xffe74c3c) : fg)),
       );
     }
-
     return Container(
       color: bg,
       height: 40,
@@ -1296,7 +1464,7 @@ class _WindowDragBar extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Row(children: [
-                      const Icon(Icons.lock_outline, size: 15, color: Color(0xff18a66a)),
+                      const Icon(Icons.lock_outline, size: 15, color: _wechatGreen),
                       const SizedBox(width: 8),
                       const Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ]),
@@ -1304,24 +1472,14 @@ class _WindowDragBar extends StatelessWidget {
                 ),
               ),
             ),
-            // 窗口控制按钮固定在右侧，不影响拖动区
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: Row(children: [
-                btn(Icons.remove_rounded, windowManager.minimize),
-                btn(Icons.crop_square_rounded, () async {
-                  final m = await windowManager.isMaximized();
-                  if (m) {
-                    await windowManager.unmaximize();
-                  } else {
-                    await windowManager.maximize();
-                  }
-                }),
-                btn(Icons.close_rounded, windowManager.close, danger: true),
-              ]),
-            ),
+            Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
+              btn(Icons.remove_rounded, windowManager.minimize),
+              btn(Icons.crop_square_rounded, () async {
+                final m = await windowManager.isMaximized();
+                if (m) { await windowManager.unmaximize(); } else { await windowManager.maximize(); }
+              }),
+              btn(Icons.close_rounded, windowManager.close, danger: true),
+            ])),
           ]),
         ),
         const Divider(height: 1, thickness: 1),
@@ -1330,18 +1488,17 @@ class _WindowDragBar extends StatelessWidget {
   }
 }
 
+// ─── 功能中心 BottomSheet ─────────────────────────────────────────────────────
+
 class _FeaturesSheet extends StatelessWidget {
   const _FeaturesSheet({this.api, this.config});
-
   final SecureChatApi? api;
   final AppConfig? config;
 
   Future<void> _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
   void _openUrl(String url) {
-    try {
-      Process.start('cmd', ['/c', 'start', '', url]);
-    } catch (_) {}
+    try { Process.start('cmd', ['/c', 'start', '', url]); } catch (_) {}
   }
 
   @override
@@ -1356,10 +1513,21 @@ class _FeaturesSheet extends StatelessWidget {
       ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
       ('待办清单', Icons.checklist_rounded, const TodoPage()),
       ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
-      ('文件仓库', Icons.folder_outlined, api != null && config != null ? FileRepositoryPage(api: api!, config: config!) : FileCenterPage(api: api)),
+      if (api != null && config != null) ('文件仓库', Icons.folder_outlined, FileRepositoryPage(api: api!, config: config!)),
       ('我的收藏', Icons.favorite_outline, FavoritesPage(api: api)),
       ('定时提醒', Icons.alarm_outlined, const ReminderPage()),
       ('在线状态', Icons.mood_outlined, const MoodStatusPage()),
+      if (api != null && config != null) ('群聊', Icons.group_outlined, GroupPage(api: api!, config: config!)),
+      if (api != null && config != null) ('聊天增强', Icons.auto_fix_high, ChatExtPage(api: api!, config: config!)),
+      if (api != null && config != null) ('文件助手', Icons.folder_shared_outlined, FilehelperPage(baseUrl: api!.baseUrl, token: api!.token, config: config!)),
+      if (api != null && config != null) ('社区工具', Icons.handyman_outlined, CommunityToolsPage(api: api!, config: config!)),
+      if (api != null && config != null) ('我的状态', Icons.face_outlined, StatusPage(api: api!, config: config!)),
+      if (api != null && config != null) ('收藏中心', Icons.collections_bookmark_outlined, fav.FavoritesPage(api: api!, config: config!)),
+      if (api != null && config != null) ('支付生活', Icons.payments_outlined, WalletExtraPage(api: api!, config: config!)),
+      if (api != null && config != null) ('小程序商店', Icons.storefront_outlined, MiniAppStorePage(api: api!, config: config!)),
+      if (api != null && config != null) ('附近的人', Icons.near_me_outlined, NearbyPage(api: api!, config: config!)),
+      if (api != null && config != null) ('摇一摇', Icons.vibration_outlined, ShakePage(api: api!, config: config!)),
+      if (api != null && config != null) ('扫一扫', Icons.qr_code_scanner_outlined, ScanPage(api: api!, config: config!)),
     ];
     final webServices = <(String, IconData, String)>[
       ('网盘', Icons.cloud_outlined, 'http://mc.32768.top:5213'),
@@ -1377,15 +1545,13 @@ class _FeaturesSheet extends StatelessWidget {
           Text('功能中心', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor)),
           const SizedBox(height: 14),
           Wrap(spacing: 14, runSpacing: 14, children: [
-            for (final e in entries)
-              _gridItem(context, e.$1, e.$2, () => _push(context, e.$3)),
+            for (final e in entries) _gridItem(context, e.$1, e.$2, () => _push(context, e.$3)),
           ]),
           const SizedBox(height: 18),
           Text('我的服务', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor)),
           const SizedBox(height: 14),
           Wrap(spacing: 14, runSpacing: 14, children: [
-            for (final s in webServices)
-              _gridItem(context, s.$1, s.$2, () => _openUrl(s.$3)),
+            for (final s in webServices) _gridItem(context, s.$1, s.$2, () => _openUrl(s.$3)),
           ]),
           const SizedBox(height: 6),
         ]),
@@ -1395,7 +1561,7 @@ class _FeaturesSheet extends StatelessWidget {
 
   Widget _gridItem(BuildContext context, String label, IconData icon, VoidCallback onTap) {
     final t = config?.theme;
-    final primary = config?.primary ?? const Color(0xff18a66a);
+    final primary = config?.primary ?? _wechatGreen;
     final scheme = Theme.of(context).colorScheme;
     final textColor = t?.text ?? scheme.onSurface;
     return InkWell(
@@ -1404,7 +1570,12 @@ class _FeaturesSheet extends StatelessWidget {
       child: Container(
         width: 84,
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(color: (t?.card ?? scheme.surface), borderRadius: BorderRadius.circular(16), border: Border.all(color: (t?.div ?? scheme.outlineVariant).withValues(alpha: 0.5)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t?.isDark == true ? 0.15 : 0.04), blurRadius: 8, offset: const Offset(0, 2))]),
+        decoration: BoxDecoration(
+          color: (t?.card ?? scheme.surface),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: (t?.div ?? scheme.outlineVariant).withValues(alpha: 0.5)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t?.isDark == true ? 0.15 : 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
         child: Column(children: [
           Icon(icon, color: primary, size: 26),
           const SizedBox(height: 8),
@@ -1414,6 +1585,8 @@ class _FeaturesSheet extends StatelessWidget {
     );
   }
 }
+
+// ─── 忘记密码 Dialog ──────────────────────────────────────────────────────────
 
 class _ForgotPasswordDialog extends StatefulWidget {
   const _ForgotPasswordDialog({required this.api});
@@ -1452,10 +1625,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       timer?.cancel();
       timer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) { t.cancel(); return; }
-        setState(() {
-          countdown--;
-          if (countdown <= 0) t.cancel();
-        });
+        setState(() { countdown--; if (countdown <= 0) t.cancel(); });
       });
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
@@ -1508,6 +1678,8 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       );
 }
 
+// ─── 更新 Dialog ──────────────────────────────────────────────────────────────
+
 class _UpdateDialog extends StatefulWidget {
   const _UpdateDialog({required this.info, required this.service});
   final Map<String, dynamic> info;
@@ -1524,32 +1696,14 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
   Future<void> _startDownload() async {
     final down = (widget.info['download'] ?? '').toString();
-    if (down.isEmpty) {
-      setState(() => _msg = '安装包暂未发布，请稍后再试或前往官网下载。');
-      return;
-    }
-    setState(() {
-      _downloading = true;
-      _progress = 0;
-      _msg = '';
+    if (down.isEmpty) { setState(() => _msg = '安装包暂未发布，请稍后再试或前往官网下载。'); return; }
+    setState(() { _downloading = true; _progress = 0; _msg = ''; });
+    final path = await widget.service.download(down, onProgress: (loaded, total) {
+      if (mounted) setState(() => _progress = total > 0 ? loaded / total : 0);
     });
-    final path = await widget.service.download(
-      down,
-      onProgress: (loaded, total) {
-        if (mounted) {
-          setState(() => _progress = total > 0 ? loaded / total : 0);
-        }
-      },
-    );
     if (!mounted) return;
-    setState(() {
-      _downloading = false;
-      _savedPath = path;
-    });
-    if (path == null) {
-      setState(() => _msg = '下载失败，请检查网络后重试');
-      return;
-    }
+    setState(() { _downloading = false; _savedPath = path; });
+    if (path == null) { setState(() => _msg = '下载失败，请检查网络后重试'); return; }
   }
 
   Future<void> _run() async {
@@ -1557,11 +1711,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     if (p == null) return;
     final ok = await widget.service.launchInstaller(p);
     if (!mounted) return;
-    if (ok) {
-      Navigator.of(context).pop();
-    } else {
-      setState(() => _msg = '无法自动启动安装程序，请手动打开：$p');
-    }
+    if (ok) { Navigator.of(context).pop(); } else { setState(() => _msg = '无法自动启动安装程序，请手动打开：$p'); }
   }
 
   @override
@@ -1570,21 +1720,16 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     final notes = (widget.info['releaseNotes'] ?? '').toString();
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(children: [
-        Icon(Icons.system_update_alt, color: Color(0xff18a66a)),
-        SizedBox(width: 10),
-        Text('发现新版本'),
-      ]),
+      title: const Row(children: [Icon(Icons.system_update_alt, color: _wechatGreen), SizedBox(width: 10), Text('发现新版本')]),
       content: SizedBox(
         width: 380,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('当前：v$kAppVersion   最新：v$latest', style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          if (notes.isNotEmpty)
-            Text(notes, style: const TextStyle(color: Color(0xff5b6670), height: 1.4)),
+          if (notes.isNotEmpty) Text(notes, style: const TextStyle(color: Color(0xff5b6670), height: 1.4)),
           const SizedBox(height: 14),
           if (_downloading) ...[
-            LinearProgressIndicator(value: _progress.clamp(0, 1), color: const Color(0xff18a66a)),
+            LinearProgressIndicator(value: _progress.clamp(0, 1), color: _wechatGreen),
             const SizedBox(height: 6),
             Text('正在下载安装包… ${(_progress * 100).round()}%', style: const TextStyle(color: Color(0xff5b6670), fontSize: 12)),
           ] else if (_msg.isNotEmpty)
@@ -1592,7 +1737,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           if (_savedPath != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('已下载：$_savedPath', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff18a66a), fontSize: 11)),
+              child: Text('已下载：$_savedPath', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _wechatGreen, fontSize: 11)),
             ),
         ]),
       ),

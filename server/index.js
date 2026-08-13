@@ -1044,11 +1044,13 @@ app.get('/api/group/:id/messages', (req, res) => {
     `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
             u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
       FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
+      LEFT JOIN group_message_meta gmm ON gmm.message_id = gm.id
       WHERE gm.group_id=? ORDER BY gm.created_at ASC`
   ).all(groupId);
   const msgs = rows.map(r => ({
     id: r.id, groupId: r.groupId, from: r.fromId, content: r.content, createdAt: r.createdAt,
-    fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid }
+    fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid },
+    pinned: !!r.pinned, replyTo: r.replyTo || null
   }));
   res.json({ messages: msgs });
 });
@@ -2332,10 +2334,50 @@ function broadcastUserList() {
   broadcastGroups();
 }
 
+// ---------- 挂载增强业务模块（独立 worker 产物，认证遵循各模块约定）----------
+// 各 routes/*.js 与 chat-ext.js 均采用 registerXxx(app, db, auth) 签名。
+//  - db   : 向各模块提供 { prepare, run, exec, persist, persistNow }。run 直通原始 sql.js db（用于 DDL），
+//           prepare/persist 复用 db.js 的统一落盘实现。
+//  - auth : 分组传参。groups/payment 期望 (req,res,next) 中间件并设置 req.user，故传 null 让其用内置 JWT 回退；
+//           rtc/media/lifestyle/status-collar/lifestyle-msg 期望 auth(req) 返回 payload，传 apiUser；
+//           chat-ext 期望 { sendToUser, onlineAny, P } 辅助对象。
+// 单模块挂载失败记录日志但不阻断启动，避免一处影响全站。
+function mountFeatureRoutes(app, db) {
+  const rx = (m, args) => { try { require(m).apply(null, args); } catch (e) { console.error('[routes] 挂载失败 ' + m + ' : ' + (e && e.message || e)); } };
+
+  // ---------- 表结构兼容（防止巨石 db.js 已建表但缺少数个列，导致新模块 INSERT/SELECT 报 no such column）----
+  // status-collar 依赖的 user_status / favorites 由 db.js 先行建表，但缺 bg_url/created_at/expires_at（状态）、
+  // name/icon/updated_at（收藏夹）。这里幂等补列，避免改动 db.js / routes/*.js。
+  if (db.run) {
+    const addCol = (table, col, ddl) => { try { db.run('ALTER TABLE ' + table + ' ADD COLUMN ' + ddl); } catch (_) { /* 已存在则忽略 */ } };
+    try { db.run('CREATE INDEX IF NOT EXISTS idx_user_status_expires ON user_status(expires_at)'); } catch (_) {}
+    addCol('user_status', 'bg_url', 'bg_url TEXT DEFAULT \'\'');
+    addCol('user_status', 'created_at', 'created_at INTEGER DEFAULT 0');
+    addCol('user_status', 'expires_at', 'expires_at INTEGER DEFAULT 0');
+    addCol('favorites', 'name', 'name TEXT');
+    addCol('favorites', 'icon', 'icon TEXT');
+    addCol('favorites', 'updated_at', 'updated_at INTEGER DEFAULT 0');
+  }
+
+  rx('./routes/groups', [app, db, null]);
+  rx('./chat-ext', [app, db, { sendToUser, onlineAny: onlineAny, P }]);
+  rx('./routes/rtc', [app, db, apiUser]);
+  rx('./routes/media', [app, db, apiUser]);
+  rx('./routes/lifestyle', [app, db, apiUser]);
+  rx('./routes/payment', [app, db, null]);
+  rx('./routes/status-collar', [app, db, apiUser]);
+  rx('./routes/lifestyle-msg', [app, db, apiUser]);
+}
+
 // 启动：先初始化数据库
 (async () => {
-  await getDb();
+  const rawDb = await getDb();
   ready = true;
+  const routeDb = {
+    prepare, run: (...a) => rawDb.run(...a), exec: (...a) => rawDb.exec(...a),
+    persist, persistNow, getDb, genUid
+  };
+  mountFeatureRoutes(app, routeDb);
   server.listen(PORT, '0.0.0.0', () => {
     const proto = process.env.USE_HTTPS === '1' ? 'https' : 'http';
     console.log(`[SecureChat] server running on ${proto}://0.0.0.0:${PORT} (ws: /ws)`);

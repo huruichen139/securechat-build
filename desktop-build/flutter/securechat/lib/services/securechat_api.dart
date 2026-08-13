@@ -173,6 +173,10 @@ class SecureChatApi {
     await _json('POST', '/api/messages/$messageId/favorite', body: {'favorite': favorite});
   }
 
+  Future<void> pinMessage(int messageId, bool pinned) async {
+    await _json('POST', '/api/messages/$messageId/pin', body: {'pinned': pinned});
+  }
+
   Future<Map<String, dynamic>> checkVersion() async {
     return _json('GET', '/api/version', auth: false);
   }
