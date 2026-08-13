@@ -72,6 +72,7 @@
       <button class="admin-nav-item" data-admin-section="storage"><span data-i18n="storage">存储</span><small>数据空间</small></button>
       <button class="admin-nav-item" data-admin-section="security"><span data-i18n="security">安全</span><small>权限与配置</small></button>
       <button class="admin-nav-item" data-admin-section="versions"><span data-i18n="versions">版本</span><small>发布与安装包</small></button>
+      <button class="admin-nav-item" data-admin-section="redeem"><span>兑换码</span><small>生成与管理</small></button>
     </nav>
     <div class="admin-side-bottom"><span class="admin-live-dot"></span><span data-i18n="serviceOnline">服务在线</span></div>
   </aside>
@@ -207,6 +208,42 @@
       </div>
       <input type="file" id="pkgFileInput" style="display:none" />
       <div id="pkgProgress" class="admin-hint" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- 兑换码管理 -->
+   <section id="adminSectionRedeem" class="admin-section" data-admin-panel="redeem">
+    <h3>余额兑换码管理</h3>
+    <div class="admin-panel">
+      <h4 class="admin-subh4">生成兑换码</h4>
+      <div class="admin-panel-row">
+        <label>面值(元)
+          <input id="redeemValue" type="number" step="0.01" min="0.01" value="10" style="font-family:monospace;width:100px" />
+        </label>
+        <label>数量(1-500)
+          <input id="redeemCount" type="number" min="1" max="500" value="10" style="font-family:monospace;width:80px" />
+        </label>
+        <button id="redeemIssueBtn" class="admin-btn primary">生成兑换码</button>
+      </div>
+    </div>
+    <div id="redeemResult" class="admin-panel" style="display:none">
+      <div class="admin-panel-row">
+        <span>已生成 <b id="redeemResultCount" style="color:#07c160"></b> 个兑换码</span>
+        <button id="redeemCopyAllBtn" class="admin-btn">复制全部</button>
+      </div>
+      <div id="redeemCodeList" class="admin-redeem-list"></div>
+    </div>
+    <h4 class="admin-subh4">兑换码列表</h4>
+    <div class="admin-panel-row" style="margin-bottom:12px">
+      <button class="admin-redeem-tab on" data-claimed="">全部</button>
+      <button class="admin-redeem-tab" data-claimed="0">未使用</button>
+      <button class="admin-redeem-tab" data-claimed="1">已使用</button>
+    </div>
+    <div id="redeemTable" class="admin-tablewrap">
+      <table class="admin-table">
+        <thead><tr><th>兑换码</th><th>面值</th><th>状态</th><th>使用时间</th><th>使用人</th></tr></thead>
+        <tbody id="redeemTbody"></tbody>
+      </table>
     </div>
   </section>
 

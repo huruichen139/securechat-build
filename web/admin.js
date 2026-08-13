@@ -657,4 +657,88 @@
   });
 
   window.addEventListener('beforeunload', () => { if (refreshTimer) clearInterval(refreshTimer); });
+
+  // ============ 兑换码管理 ============
+  let redeemClaimedFilter = '';
+  function loadRedeemCodes(claimed) {
+    redeemClaimedFilter = claimed || '';
+    const tb = el('redeemTbody');
+    if (!tb) return;
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">加载中...</td></tr>';
+    const token = getToken();
+    if (!token) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c0392b">请先登录</td></tr>'; return; }
+    fetch(API + '/api/admin/redeem' + (claimed !== undefined && claimed !== '' ? '?claimed=' + claimed : ''), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(r => r.json()).then(data => {
+      const codes = data.codes || [];
+      if (!codes.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">暂无兑换码</td></tr>'; return; }
+      tb.innerHTML = codes.map(c => {
+        const used = !!c.claimed_by;
+        const statusHtml = used
+          ? '<span class="admin-badge banned">已使用</span>'
+          : '<span class="admin-badge online">未使用</span>';
+        const claimedAt = c.claimed_at ? fmtTime(c.claimed_at) : '-';
+        constclaimer = c.claimed_by ? String(c.claimed_by).slice(0, 8) : '-';
+        return `<tr>
+          <td><code>${escapeHtml(c.code)}</code></td>
+          <td>${c.value}元</td>
+          <td>${statusHtml}</td>
+          <td>${claimedAt}</td>
+          <td>${escapeHtml(claimer)}</td>
+        </tr>`;
+      }).join('');
+    }).catch(e => { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c0392b">加载失败: ' + escapeHtml(e.message) + '</td></tr>'; });
+  }
+  function renderRedeemResult(codes, value) {
+    const list = el('redeemCodeList');
+    const countEl = el('redeemResultCount');
+    const resultDiv = el('redeemResult');
+    if (!list || !countEl || !resultDiv) return;
+    countEl.textContent = codes.length;
+    list.innerHTML = codes.map(c => `<code class="admin-redeem-code" title="点击复制">${escapeHtml(c)}</code>`).join('');
+    resultDiv.style.display = '';
+    list.querySelectorAll('.admin-redeem-code').forEach(el => {
+      el.addEventListener('click', () => {
+        navigator.clipboard.writeText(el.textContent).then(() => {
+          const orig = el.textContent;
+          el.textContent = '✓ 已复制';
+          setTimeout(() => { el.textContent = orig; }, 1200);
+        });
+      });
+    });
+  }
+  el('redeemIssueBtn').addEventListener('click', () => {
+    const value = parseFloat(el('redeemValue').value);
+    const count = Math.min(parseInt(el('redeemCount').value) || 1, 500);
+    if (!value || value <= 0) { alert('请输入有效面值'); return; }
+    const btn = el('redeemIssueBtn');
+    btn.disabled = true; btn.textContent = '生成中...';
+    const token = getToken();
+    fetch(API + '/api/admin/redeem/issue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ value, count })
+    }).then(r => r.json()).then(data => {
+      if (!data.ok) throw new Error(data.error || '生成失败');
+      renderRedeemResult(data.codes, value);
+      loadRedeemCodes(redeemClaimedFilter);
+    }).catch(e => { alert('生成失败: ' + e.message); }).finally(() => { btn.disabled = false; btn.textContent = '生成兑换码'; });
+  });
+  el('redeemCopyAllBtn').addEventListener('click', () => {
+    const codes = Array.from(el('redeemCodeList').querySelectorAll('.admin-redeem-code')).map(e => e.textContent);
+    navigator.clipboard.writeText(codes.join('\n')).then(() => alert('已复制 ' + codes.length + ' 个兑换码'));
+  });
+  document.querySelectorAll('.admin-redeem-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.admin-redeem-tab').forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      loadRedeemCodes(tab.dataset.claimed);
+    });
+  });
+  // 切换到兑换码面板时自动加载
+  document.querySelectorAll('.admin-nav-item').forEach(btn => {
+    if (btn.dataset.adminSection === 'redeem') {
+      btn.addEventListener('click', () => loadRedeemCodes(redeemClaimedFilter));
+    }
+  });
 })();
