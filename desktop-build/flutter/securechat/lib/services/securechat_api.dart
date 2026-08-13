@@ -304,6 +304,21 @@ class SecureChatApi {
   // ============ 拍一拍 ============
   Future<void> poke(int to) => _json('POST', '/api/poke', body: {'to': to});
 
+  // ============ X3DH 预钥 ============
+  /// 上传签名预钥 (signed prekey)
+  Future<Map<String, dynamic>> uploadSignedPreKey(String keyId, String pubKey, String signature) =>
+      _json('POST', '/api/keys/signed-prekey', body: {'keyId': keyId, 'pubKey': pubKey, 'signature': signature});
+
+  /// 批量上传一次性预钥 (one-time prekeys)
+  Future<Map<String, dynamic>> uploadOneTimePreKeys(List<Map<String, String>> prekeys) =>
+      _json('POST', '/api/keys/prekeys', body: {'prekeys': prekeys});
+
+  /// 取对方完整 X3DH bundle（身分公钥 + signedPreKey + 一条 oneTimePreKey）
+  /// userId 对方用户 id
+  /// 返回 { identityKey, signedPreKey: { keyId, pubKey, signature } | null, oneTimePreKey: { keyId, pubKey } | null, registrationId }
+  Future<Map<String, dynamic>> fetchKeyBundle(int userId) =>
+      _json('GET', '/api/keys/bundle/$userId');
+
   // ============ 收藏笔记 ============
   Future<void> addNote(String content) => _json('POST', '/api/notes', body: {'content': content});
   Future<List<Map<String, dynamic>>> notes() async {

@@ -12,7 +12,6 @@ const { WebSocketServer } = require('ws');
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
 const { getDb, prepare, persist, persistNow, genUid } = require('./db');
-const { encrypt, decrypt } = require('../shared/crypto');
 const P = require('../shared/protocol');
 const execFile = util.promisify(childProcess.execFile);
 
@@ -572,6 +571,73 @@ app.post('/api/keys', (req, res) => {
   prepare('UPDATE users SET pubkey=? WHERE id=?').run(pubkey, payload.id);
   broadcastUserList();
   res.json({ ok: true });
+});
+
+// 上传/更新签名预钥：POST /api/keys/signed-prekey { keyId, pubKey, signature }
+app.post('/api/keys/signed-prekey', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { keyId, pubKey, signature } = req.body || {};
+  if (typeof keyId !== 'string' || !keyId) return res.status(400).json({ error: 'keyId 不能为空' });
+  if (typeof pubKey !== 'string' || pubKey.length < 30 || pubKey.length > 1000) return res.status(400).json({ error: '公钥格式错误' });
+  if (typeof signature !== 'string' || !signature) return res.status(400).json({ error: 'signature 不能为空' });
+  const now = Date.now();
+  const existing = prepare('SELECT id FROM signed_prekeys WHERE user_id=? AND key_id=?').get(payload.id, keyId);
+  if (existing) {
+    prepare('UPDATE signed_prekeys SET pub_key=?, signature=?, updated_at=? WHERE id=?').run(pubKey, signature, now, existing.id);
+  } else {
+    prepare('INSERT INTO signed_prekeys (user_id, key_id, pub_key, signature, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(payload.id, keyId, pubKey, signature, now, now);
+  }
+  res.json({ ok: true });
+});
+
+// 批量上传一次性预钥：POST /api/keys/prekeys { prekeys: [{ keyId, pubKey }, ...] }
+app.post('/api/keys/prekeys', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const list = (req.body || {}).prekeys;
+  if (!Array.isArray(list)) return res.status(400).json({ error: 'prekeys 必须是数组' });
+  if (list.length > 50) return res.status(400).json({ error: '一次最多 50 条预钥' });
+  for (const item of list) {
+    if (!item || typeof item.keyId !== 'string' || !item.keyId) return res.status(400).json({ error: 'keyId 不能为空' });
+    if (typeof item.pubKey !== 'string' || item.pubKey.length < 30 || item.pubKey.length > 1000) return res.status(400).json({ error: '公钥格式错误' });
+  }
+  const now = Date.now();
+  for (const item of list) {
+    const existing = prepare('SELECT id FROM prekeys WHERE user_id=? AND key_id=?').get(payload.id, item.keyId);
+    if (existing) {
+      prepare('UPDATE prekeys SET pub_key=?, used=0, created_at=? WHERE id=?').run(item.pubKey, now, existing.id);
+    } else {
+      prepare('INSERT INTO prekeys (user_id, key_id, pub_key, created_at) VALUES (?, ?, ?, ?)').run(payload.id, item.keyId, item.pubKey, now);
+    }
+  }
+  res.json({ ok: true, count: list.length });
+});
+
+// 取对方 X3DH bundle：GET /api/keys/bundle/:userId
+app.get('/api/keys/bundle/:userId', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const targetId = parseInt(req.params.userId, 10);
+  if (!Number.isInteger(targetId)) return res.status(400).json({ error: 'userId 无效' });
+  const u = prepare('SELECT id, pubkey FROM users WHERE id=?').get(targetId);
+  if (!u) return res.status(404).json({ error: '用户不存在' });
+  const spk = prepare('SELECT key_id AS keyId, pub_key AS pubKey, signature FROM signed_prekeys WHERE user_id=? ORDER BY created_at DESC LIMIT 1').get(targetId) || null;
+  const opk = prepare('SELECT id, key_id AS keyId, pub_key AS pubKey FROM prekeys WHERE user_id=? AND used=0 ORDER BY created_at ASC LIMIT 1').get(targetId) || null;
+  let oneTimePreKey = null;
+  if (opk) {
+    prepare('UPDATE prekeys SET used=1 WHERE id=?').run(opk.id);
+    oneTimePreKey = { keyId: opk.keyId, pubKey: opk.pubKey };
+  }
+  res.json({
+    identityKey: u.pubkey || null,
+    signedPreKey: spk ? { keyId: spk.keyId, pubKey: spk.pubKey, signature: spk.signature } : null,
+    oneTimePreKey,
+    registrationId: u.id
+  });
 });
 
 // 修改个人资料：POST /api/profile { nickname?, country?, province?, city?, extra? }

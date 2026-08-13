@@ -470,6 +470,20 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       )),
+      _sectionTitle(t, '账户'),
+      _card(t, child: Column(
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.logout),
+            title: const Text('退出登录'),
+            onTap: () async {
+              await widget.api.clearSession();
+              Navigator.of(context).popUntil((r) => r.isFirst);
+            },
+          ),
+        ],
+      )),
     ]);
   }
 
@@ -592,22 +606,8 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: t.div.withValues(alpha: 0.5)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.2 : 0.05), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-      ]),
-      _sectionTitle(t, '账户'),
-      _card(t, child: Column(
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.logout),
-            title: const Text('退出登录'),
-            onTap: () async {
-              await widget.api.clearSession();
-              Navigator.of(context).popUntil((r) => r.isFirst);
-            },
-          ),
-        ],
-      )),
+      ),
+      child: child,
     );
   }
 

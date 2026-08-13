@@ -286,6 +286,27 @@ function init() {
       read_at INTEGER NOT NULL,
       PRIMARY KEY(message_id, user_id)
     );
+    -- ============ X3DH 预钥包 ============
+    CREATE TABLE IF NOT EXISTS prekeys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      key_id TEXT NOT NULL,
+      pub_key TEXT NOT NULL,
+      priv_key TEXT,
+      used INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_prekeys_user ON prekeys(user_id, used);
+    CREATE TABLE IF NOT EXISTS signed_prekeys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      key_id TEXT NOT NULL,
+      pub_key TEXT NOT NULL,
+      signature TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_signed_prekeys_user ON signed_prekeys(user_id);
   `);
   // 迁移：给旧表加 uid 列（如果不存在）；给历史用户补 uid
   try {

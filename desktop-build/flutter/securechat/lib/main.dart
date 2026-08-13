@@ -434,7 +434,7 @@ class _ChatShellState extends State<ChatShell> {
         final msgs = <Map<String, dynamic>>[];
         for (final m in ghis) {
           final content = (m['content'] ?? '').toString();
-          final text = readChatText(content);
+          final text = await e2eeDecrypt('$gid', content);
           final from = m['from'];
           final mine = from == myId;
           final sender = (m['fromUser'] is Map) ? (((m['fromUser'] as Map)['nickname'] ?? (m['fromUser'] as Map)['username']) ?? '').toString() : null;
@@ -456,7 +456,7 @@ class _ChatShellState extends State<ChatShell> {
       final msgs = <Map<String, dynamic>>[];
       for (final m in history) {
         final content = (m['content'] ?? '').toString();
-        final text = readChatText(content);
+        final text = await e2eeDecrypt('$peerId', content);
         final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
         msgs.add(voice != null
@@ -485,7 +485,7 @@ class _ChatShellState extends State<ChatShell> {
     try {
       socket = widget.api.connect();
       myId = widget.api.myId;
-      socket!.stream.listen((event) {
+        socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
         if (type == 'msg') {
@@ -501,7 +501,7 @@ class _ChatShellState extends State<ChatShell> {
           final to = p['to'];
           final talkingToPeer = conv != null && conv['kind'] == 'friend' && (from == conv['id'] || to == conv['id']);
           final content = (p['content'] ?? '').toString();
-          final text = readChatText(content);
+          final text = await e2eeDecrypt('$from', content);
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
           setState(() {
             if (conv == null || talkingToPeer) {
@@ -521,7 +521,7 @@ class _ChatShellState extends State<ChatShell> {
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
-          final text = readChatText(content);
+          final text = await e2eeDecrypt('$gid', content);
           final from = p['from'];
           final fromUser = p['fromUser'];
           final sender = (fromUser is Map) ? (((fromUser)['nickname'] ?? fromUser['username']) ?? '').toString() : null;
@@ -1068,14 +1068,14 @@ class _ChatShellState extends State<ChatShell> {
     if (conv['kind'] == 'group') {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': writeChatText(text), 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', text), 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
       setState(() => messages.add({'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}));
       return;
     }
     final to = conv['id'] as int;
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
-    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': writeChatText(text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
+    socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
     setState(() { messages.add({'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}); });
   }
 
@@ -1179,11 +1179,11 @@ class _ChatShellState extends State<ChatShell> {
     if (conv['kind'] == 'group') {
       final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': writeChatText(content), 'clientMsgId': gcmid}}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': gcmid}}));
     } else {
       final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(cmid);
-      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': writeChatText(content), 'clientMsgId': cmid}}));
+      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': cmid}}));
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已转发')));
