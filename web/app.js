@@ -551,6 +551,11 @@ function enterChat() {
   connectWS();
   loadFriends();
   // E2EE 已停用：消息以明文发送，不再生成/上传密钥。
+  // 移动端：登录后默认显示联系人列表（不自动进入聊天态）
+  if (window.IS_MOBILE) {
+    const cv = document.getElementById('chatView');
+    if (cv) cv.classList.remove('mobile-chat-active');
+  }
 }
 
 function renderMyInfo() {
@@ -1665,6 +1670,27 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
       if (window.initDownloadView) window.initDownloadView(downloadView);
       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+      return;
+    }
+
+    // 转账 tab：打开转账弹窗
+    if (tt.dataset.side === 'pay') {
+      if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
+      const main2 = document.querySelector('.main');
+      if (main2) main2.style.display = 'flex';
+      const aiView2 = $('aiView'); if (aiView2) aiView2.style.display = 'none';
+      const downloadView2 = $('downloadView'); if (downloadView2) downloadView2.style.display = 'none';
+      const fs = $('friendsSide'); if (fs) fs.style.display = '';
+      const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
+      // 直接打开转账弹窗
+      if (window.godoMods && window.godoMods.pay && typeof window.godoMods.pay.openTransfer === 'function') {
+        window.godoMods.pay.openTransfer();
+      } else if (window.SecureChatExt && typeof window.SecureChatExt.getFeature === 'function') {
+        const payFeat = window.SecureChatExt.getFeature('pay');
+        if (payFeat && typeof payFeat.openTransfer === 'function') payFeat.openTransfer();
+      } else {
+        toast('转账功能暂未加载，请在「更多」中进入', 'warn');
+      }
       return;
     }
 
