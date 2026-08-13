@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.50.0';
+const PACKAGE_VERSION = '1.51.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -76,18 +76,27 @@ function saveCurrentDraft() {
   const key = activeConversationKey();
   if (!key) return;
   const drafts = readDrafts();
-  const value = $('input').value;
+  const cv = document.getElementById('chatView');
+  const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
+  const input = isMobileChat ? $('input') : (document.getElementById('desktopInput') || $('input'));
+  const value = input ? input.value : '';
   if (value) drafts[key] = value;
   else delete drafts[key];
   localStorage.setItem(draftStorageKey(), JSON.stringify(drafts));
-  const hint = $('draftState'); if (hint) hint.textContent = value ? t('draftSaved','草稿已保存') : t('draftAuto','草稿自动保存');
+  const hintId = isMobileChat ? 'draftState' : 'draftStateDesktop';
+  const hint = document.getElementById(hintId);
+  if (hint) hint.textContent = value ? t('draftSaved','草稿已保存') : t('draftAuto','草稿自动保存');
 }
 function restoreCurrentDraft() {
   const key = activeConversationKey();
-  const input = $('input');
+  const cv = document.getElementById('chatView');
+  const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
+  const input = isMobileChat ? $('input') : (document.getElementById('desktopInput') || $('input'));
   if (!input) return;
   input.value = key ? (readDrafts()[key] || '') : '';
-  const hint = $('draftState'); if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草稿') : t('draftAuto','草稿自动保存');
+  const hintId = isMobileChat ? 'draftState' : 'draftStateDesktop';
+  const hint = document.getElementById(hintId);
+  if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草稿') : t('draftAuto','草稿自动保存');
 }
 
 // ============ 个人资料字段定义（≥100 项） ============
@@ -906,6 +915,260 @@ function openModal(title, fields, onOk) {
   if (fields[0] && fields[0]._el) fields[0]._el.focus();
 }
 
+// ---------- 特性发现中心（更多功能入口）----------
+// 聚合各业务模块（groups/chat-ext/rtc/media/lifestyle/payment/status-collar 等）的
+// 入口到一个分类面板。所有模块都通过 window.SecureChatExt.registerFeature 登记，
+// 这里统一用 SecureChatExt.getFeature(name) 取用，避免耦合具体模块的实现细节。
+// 说明：feature.open 有两种形态——
+//   ① 自带浮层（oa/videos/live/nearby/shake/scan/miniapp/groups/pay 等）：直接 feature.open()；
+//   ② 需要容器（status/favorites/moment-ext）：feature.open(containerEl)。
+// openFeatureCenter 对前者调用 open()，对后者新建 modal 并把内容容器传给 feature.open(container)。
+// 每个入口的渐变配色（135deg）：微信「发现」页风格彩色圆角方块。
+const FEATURE_GRADS = [
+  'linear-gradient(135deg,#07c160,#06ad56)',
+  'linear-gradient(135deg,#10aeff,#0a7fe0)',
+  'linear-gradient(135deg,#fa9d3b,#f97316)',
+  'linear-gradient(135deg,#ff5b5b,#ef4444)',
+  'linear-gradient(135deg,#9a6bff,#7c3aed)',
+  'linear-gradient(135deg,#00bcd4,#0097a7)',
+  'linear-gradient(135deg,#ff9800,#f57c00)',
+  'linear-gradient(135deg,#8bc34a,#689f38)',
+  'linear-gradient(135deg,#e91e63,#d81b60)',
+  'linear-gradient(135deg,#3f51b5,#303f9f)',
+  'linear-gradient(135deg,#00c853,#009624)',
+  'linear-gradient(135deg,#ff4081,#f50057)',
+];
+function featureGrad(i) {
+  const list = FEATURE_GRADS;
+  return list[i % list.length];
+}
+
+// 「选择群」对话框：列出当前用户群列表，选定后回调 group。无群则提示先进入目标群聊。
+function pickGroupDialog(title, onPick) {
+  const get = (name) => window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(name);
+  const groups = get('groups');
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.cssText = 'width:min(520px,92vw);max-height:82vh;overflow:auto';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const h3 = document.createElement('h3');
+  h3.textContent = title || '选择群';
+  const xBtn = document.createElement('button');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '关闭');
+  xBtn.innerHTML = '&times;';
+  head.appendChild(h3); head.appendChild(xBtn);
+  box.appendChild(head);
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:4px 2px 8px';
+  const tip = document.createElement('div');
+  tip.style.cssText = 'font-size:12px;color:#999;padding:4px 6px 10px';
+  tip.textContent = '该工具需要选定一个目标群聊：';
+  body.appendChild(tip);
+  const list = document.createElement('div');
+  list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+  body.appendChild(list);
+  box.appendChild(body);
+  mask.appendChild(box);
+  document.body.appendChild(mask);
+  const close = () => mask.remove();
+  xBtn.onclick = close;
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  document.addEventListener('keydown', function onKey(ev) { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } });
+
+  const loading = document.createElement('div');
+  loading.style.cssText = 'text-align:center;color:#999;padding:30px 0';
+  loading.textContent = '正在加载群列表…';
+  list.appendChild(loading);
+
+  const load = () => {
+    if (!groups || typeof groups.listGroups !== 'function') {
+      list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">暂未获取到群列表，请先进入目标群聊，用群工具面板操作</div>';
+      return;
+    }
+    groups.listGroups().then((d) => {
+      const arr = (d && d.groups) || [];
+      list.innerHTML = '';
+      if (!arr.length) {
+        list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">还没有群聊，请先创建一个群</div>';
+        return;
+      }
+      arr.forEach((g) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid #eee;border-radius:10px;cursor:pointer;background:#fff;text-align:left;box-sizing:border-box';
+        row.onmouseenter = () => { row.style.background = '#f5f5f5'; };
+        row.onmouseleave = () => { row.style.background = '#fff'; };
+        const av = document.createElement('div');
+        av.style.cssText = 'width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0';
+        av.textContent = (g.displayName || g.name || '?').charAt(0);
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1;overflow:hidden';
+        const n1 = document.createElement('div');
+        n1.textContent = g.displayName || g.name || ('群 #' + g.id);
+        n1.style.cssText = 'font-size:14px;font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        const n2 = document.createElement('div');
+        n2.style.cssText = 'font-size:12px;color:#999';
+        n2.textContent = (g.memberCount != null ? g.memberCount + ' 成员' : (g.members ? g.members.length + ' 成员' : ''));
+        info.appendChild(n1); info.appendChild(n2);
+        row.appendChild(av); row.appendChild(info);
+        row.onclick = () => {
+          close();
+          if (typeof onPick === 'function') { try { onPick(g); } catch (e) { console.error('[feature] 执行失败', e); toast('操作失败：' + (e && e.message || e), 'error'); } }
+        };
+        list.appendChild(row);
+      });
+    }).catch((e) => {
+      list.innerHTML = '<div style="text-align:center;color:#c0392b;padding:30px 0">载入群列表失败：' + escapeHtml((e && e.message) || e) + '</div>';
+    });
+  };
+  load();
+}
+
+// 供 polls/todos 等群内工具选群后调用：先 loadByGroup 再 openCreate。
+function openGroupTool(name, openMethod) {
+  const get = (nm) => window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(nm);
+  const feature = get(name);
+  if (!feature) { toast('该功能组件未加载', 'warn'); return; }
+  pickGroupDialog('选定目标群', async (g) => {
+    if (feature.loadByGroup) { try { await feature.loadByGroup(g.id); } catch (e) { /* loadByGroup 内部已 toast */ } }
+    const fn = feature[openMethod] || feature.openCreate;
+    if (typeof fn !== 'function') { toast('该功能暂未提供入口', 'warn'); return; }
+    fn(g.id);
+  });
+}
+
+function openFeatureCenter() {
+  if (!window.SecureChatExt || typeof window.SecureChatExt.getFeature !== 'function') {
+    toast('功能模块尚未加载，请刷新页面重试', 'warn');
+    return;
+  }
+  const get = (name) => window.SecureChatExt.getFeature(name);
+
+  // 每个条目：{label, short, grad, open}，short 为图标方块内显示的完整短名（2-4 字），grad 为渐变配色索引。
+  // 分类：社区 / 内容 / 生活 / 工具
+  const groups = [
+    { label: '社区', items: [
+      { label: '群聊管理', short: '群聊', grad: 0, open: () => openFeatureModalFrom(get('groups'), 'openManager') },
+      { label: '投票接龙', short: '投票', grad: 1, open: () => openGroupTool('polls', 'openCreate') },
+      { label: '群待办', short: '待办', grad: 2, open: () => openGroupTool('todos', 'openCreate') },
+      { label: '定时提醒', short: '提醒', grad: 3, open: () => pickGroupDialog('选定目标群', (g) => {
+          const feature = get('remind');
+          if (!feature || typeof feature.openCreate !== 'function') { toast('该功能组件未加载', 'warn'); return; }
+          feature.openCreate({ targetType: 'group', targetId: g.id, defaultContent: '' });
+        }) },
+      { label: '翻译', short: '翻译', grad: 4, open: () => toast('请在聊天消息上右键（或长按）使用翻译', 'info') },
+      { label: '朋友圈增强', short: '朋友圈', grad: 5, open: () => openContainerFeature(get('moment-ext'), '朋友圈管理') },
+    ]},
+    { label: '内容', items: [
+      { label: '视频号', short: '视频号', grad: 6, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
+      { label: '公众号', short: '公众号', grad: 7, open: () => window.SecureChatOa && window.SecureChatOa.open() },
+      { label: '直播', short: '直播', grad: 8, open: () => window.SecureChatLive && window.SecureChatLive.open() },
+      { label: '小程序', short: '小程序', grad: 9, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
+    ]},
+    { label: '生活', items: [
+      { label: '附近的人', short: '附近', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
+      { label: '摇一摇', short: '摇一摇', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
+      { label: '扫一扫', short: '扫一扫', grad: 0, open: () => window.SecureChatScan && window.SecureChatScan.open() },
+      { label: '支付生活', short: '支付', grad: 1, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
+    ]},
+    { label: '工具', items: [
+      { label: '我的状态', short: '状态', grad: 2, open: () => openContainerFeature(get('status'), '我的状态') },
+      { label: '我的收藏', short: '收藏', grad: 3, open: () => openContainerFeature(get('favorites'), '我的收藏') },
+      { label: '收付款码', short: '收付款', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'showReceiveCodeFlow') },
+    ]},
+  ];
+
+  // 渲染遮罩
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.cssText = 'width:min(680px,94vw);max-height:88vh;overflow:auto';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const h3 = document.createElement('h3');
+  h3.textContent = '更多功能';
+  const xBtn = document.createElement('button');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '关闭');
+  xBtn.innerHTML = '&times;';
+  head.appendChild(h3); head.appendChild(xBtn);
+  box.appendChild(head);
+
+  const body = document.createElement('div');
+  groups.forEach(cat => {
+    const sec = document.createElement('div');
+    sec.className = 'feature-cat';
+    const t = document.createElement('div');
+    t.className = 'feature-cat-title';
+    t.textContent = cat.label;
+    sec.appendChild(t);
+    const grid = document.createElement('div');
+    grid.className = 'feature-grid';
+    cat.items.forEach(it => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'feature-item';
+      b.innerHTML =
+        '<span class="feature-icon" style="background:' + featureGrad(it.grad) + '">' + escapeHtml(it.short || it.label || '+') + '</span>' +
+        '<span class="feature-label">' + escapeHtml(it.label) + '</span>';
+      b.onclick = () => {
+        mask.remove();
+        try { it.open(); } catch (e) { console.error('[feature] 打开失败 ' + it.label, e); toast('打开「' + it.label + '」失败', 'error'); }
+      };
+      grid.appendChild(b);
+    });
+    sec.appendChild(grid);
+    body.appendChild(sec);
+  });
+  box.appendChild(body);
+
+  mask.appendChild(box);
+  document.body.appendChild(mask);
+  xBtn.onclick = () => mask.remove();
+  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
+  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+}
+
+// 打开「容器型」特性：为它新建一个 modal 容器并传给 feature.open(container)
+function openContainerFeature(feature, title) {
+  if (!feature || typeof feature.open !== 'function') { toast('该功能组件未加载', 'warn'); return; }
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.cssText = 'width:min(620px,94vw);max-height:88vh;overflow:auto';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const h3 = document.createElement('h3');
+  h3.textContent = title || '功能';
+  const xBtn = document.createElement('button');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '关闭');
+  xBtn.innerHTML = '&times;';
+  head.appendChild(h3); head.appendChild(xBtn);
+  box.appendChild(head);
+  const host = document.createElement('div');
+  box.appendChild(host);
+  mask.appendChild(box);
+  document.body.appendChild(mask);
+  xBtn.onclick = () => mask.remove();
+  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
+  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+  try { feature.open(host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
+}
+
+// 打开「自带浮层」特性：feature[method] 为方法名（缺省用 open），且该方法可能接受容器参数。
+function openFeatureModalFrom(feature, method, hint) {
+  if (!feature) { toast('该功能组件未加载' + (hint ? '（' + hint + '）' : ''), 'warn'); return; }
+  const call = feature[method] || feature.open || feature.homePanel;
+  if (typeof call !== 'function') { toast('该功能暂未提供入口', 'warn'); return; }
+  try { call(); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
+}
+
 // 编辑个人资料：滚动 modal，按 PROFILE_FIELDS 分类列出所有字段。
 // nickname/country/province/city 走独立列；其余所有字段全部塞进 extra。
 function editProfile() {
@@ -1206,6 +1469,7 @@ function handleServer(data) {
       renderContacts();
       break;
     case P.S_MSG:
+      maybeDecryptLive(payload);
       onIncomingMsg(payload);
       break;
     case P.S_TYPING:
@@ -1380,6 +1644,13 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       // 移动端：切到 AI 视图也要进入"聊天态"（AI 视图与 .main 平级，靠 mobile-chat-active 移入屏内）
        if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
        return;
+    }
+
+    // 更多功能 tab：打开特性发现中心（新增业务模块统一入口）
+    if (tt.dataset.side === 'more') {
+      tt.classList.remove('on'); // 不占据常驻高亮，点击即弹出后复归
+      openFeatureCenter();
+      return;
     }
 
     // 下载 tab：复用下载页逻辑，但保持在主站右侧视图内
@@ -1625,14 +1896,29 @@ function onIncomingGroupMsg(payload) {
   }
 }
 
-// 群发送消息
+// 群发送消息（E2E 加密：若会话已建立则先加密再发，失败自动降级明文）
 function sendCurrentGroup() {
   if (!state.activeGroup) return false;
-  const text = $('input').value.trim();
+  const cv = document.getElementById('chatView');
+  const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
+  const input = isMobileChat ? $('input') : (document.getElementById('desktopInput') || $('input'));
+  const text = input.value.trim();
   if (!text) return true;
-  send(P.C_GROUP_MSG, { groupId: state.activeGroup, content: text });
-  $('input').value = '';
-  saveCurrentDraft();
+  const gid = state.activeGroup;
+  const enc = window.SCE2EE ? window.SCE2EE.encryptFor(gid, text) : text;
+  if (enc && typeof enc.then === 'function') {
+    enc.then((ct) => {
+      const content = ct || text;
+      send(P.C_GROUP_MSG, { groupId: gid, content });
+      $('input').value = ''; saveCurrentDraft();
+    }).catch(() => {
+      send(P.C_GROUP_MSG, { groupId: gid, content: text });
+      $('input').value = ''; saveCurrentDraft();
+    });
+    return true;
+  }
+  send(P.C_GROUP_MSG, { groupId: gid, content: enc || text });
+  $('input').value = ''; saveCurrentDraft();
   return true;
 }
 
@@ -1923,6 +2209,18 @@ function showMessageNotice(m, name) {
 }
 
 // ============ 收消息 ============
+// 实时回包：若是其它端发的 0x02 双棘轮密文，先做 E2E 解密再进入展示逻辑。
+async function maybeDecryptLive(m) {
+  if (!m || typeof m.content !== 'string') return;
+  if (m.from === state.me.id) return; // 自己发的（回声）由 sentPlain 替换，不重复解密
+  if (!window.SCE2EE || !SCE2EE.isRatchetCipher(m.content)) return;
+  try {
+    const plain = await SCE2EE.decryptFrom(m.from, m.content);
+    if (typeof plain === 'string' && plain !== m.content) {
+      m.content = plain;
+    }
+  } catch {}
+}
 async function onIncomingMsg(m) {
   // 明文模式：不再做 E2EE 解密，直接显示原文。
   if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
@@ -1950,33 +2248,64 @@ async function onIncomingMsg(m) {
 }
 
 // ============ 发送 ============
+// E2E 加密辅助：若 SCE2EE 就绪则加密，失败降级明文
+async function _e2eeSendContent(peerId, text) {
+  if (!peerId || !text) return text;
+  if (window.SCE2EE) {
+    try { const e = window.SCE2EE.encryptFor(peerId, text); if (e && typeof e.then === 'function') return await e; return e || text; } catch {}
+  }
+  return text;
+}
 function sendCurrent() {
   if (state.activeGroup) { sendCurrentGroup(); return; }
-  const input = $('input');
+  const cv = document.getElementById('chatView');
+  const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
+  const input = isMobileChat ? $('input') : (document.getElementById('desktopInput') || $('input'));
   const text = input.value.trim();
   if (!text || !state.activePeer) return;
   const clientMsgId = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
   const peerId = state.activePeer;
-  const payload = { to: peerId, content: text, clientMsgId };
   state.pendingLocal[clientMsgId] = true;
   input.value = '';
   saveCurrentDraft();
+  // UI 先展示明文；实际存储走加密内容
   appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: Date.now(), clientMsgId }, false);
-  // UI 先完成；文字通过 REST 持久化，不依赖浏览器 WebSocket 状态。
-  fetch(state.serverHost + '/api/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-    body: JSON.stringify(payload)
-  }).then(async (res) => {
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '发送失败');
-    delete state.pendingLocal[clientMsgId];
-  }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
+  _e2eeSendContent(peerId, text).then(async (ct) => {
+    const payload = { to: peerId, content: ct || text, clientMsgId };
+    fetch(state.serverHost + '/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify(payload)
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '发送失败');
+      delete state.pendingLocal[clientMsgId];
+    }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
+  }).catch(() => {
+    // 加密失败降级明文
+    const payload = { to: peerId, content: text, clientMsgId };
+    fetch(state.serverHost + '/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify(payload)
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '发送失败');
+      delete state.pendingLocal[clientMsgId];
+    }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
+  });
 }
 
 $('sendBtn').type = 'button';
 $('sendBtn').onclick = (event) => { event.preventDefault(); sendCurrent(); };
+// 桌面端发送按钮
+const desktopSendBtnEl = document.getElementById('desktopSendBtn');
+if (desktopSendBtnEl) { desktopSendBtnEl.type = 'button'; desktopSendBtnEl.onclick = (event) => { event.preventDefault(); sendCurrent(); }; }
 $('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
+});
+const desktopInput = document.getElementById('desktopInput');
+if (desktopInput) desktopInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
 });
 let typingSent = 0;
@@ -1984,10 +2313,13 @@ $('input').addEventListener('input', () => {
   saveCurrentDraft();
   if (!state.activePeer) return;
   const now = Date.now();
-  if (now - typingSent > 2000) {
-    send(P.C_TYPING, { to: state.activePeer });
-    typingSent = now;
-  }
+  if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
+});
+if (desktopInput) desktopInput.addEventListener('input', () => {
+  saveCurrentDraft();
+  if (!state.activePeer) return;
+  const now = Date.now();
+  if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
 });
 
 // 本地主题切换，不影响账号和聊天数据
@@ -2560,6 +2892,293 @@ appendMessage = function (m, prepend) {
   }
   _orig_appendMessage(m, prepend);
 };
+
+// ============ 微信式移动端页面导航 ============
+function showMobileChatView() {
+  const chatView = document.getElementById('chatView');
+  if (!chatView) return;
+  chatView.classList.add('mobile-chat-active');
+  hideMobilePages();
+  const chatHeader = document.getElementById('chatMobileHeader');
+  if (chatHeader) chatHeader.style.display = 'flex';
+  const chatComposer = document.getElementById('chatMobileComposer');
+  if (chatComposer) chatComposer.style.display = 'flex';
+  const desktopComposer = document.getElementById('chatDesktopComposer');
+  if (desktopComposer) desktopComposer.style.display = 'none';
+}
+function hideMobileChatView() {
+  const chatView = document.getElementById('chatView');
+  if (chatView) chatView.classList.remove('mobile-chat-active');
+  const chatHeader = document.getElementById('chatMobileHeader');
+  if (chatHeader) chatHeader.style.display = 'none';
+  const chatComposer = document.getElementById('chatMobileComposer');
+  if (chatComposer) chatComposer.style.display = 'none';
+  const desktopComposer = document.getElementById('chatDesktopComposer');
+  if (desktopComposer) desktopComposer.style.display = '';
+}
+function hideMobilePages() {
+  ['discoverPage', 'mePage', 'contactsPage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+}
+function showMobilePage(pageId) {
+  hideMobilePages();
+  const el = document.getElementById(pageId);
+  if (el) el.classList.add('active');
+  const chatView = document.getElementById('chatView');
+  if (chatView) chatView.classList.remove('mobile-chat-active');
+  const chatHeader = document.getElementById('chatMobileHeader');
+  if (chatHeader) chatHeader.style.display = 'none';
+  const chatComposer = document.getElementById('chatMobileComposer');
+  if (chatComposer) chatComposer.style.display = 'none';
+}
+
+// 发现页渲染
+function renderDiscoverPage() {
+  const list = document.getElementById('discoverList');
+  if (!list) return;
+  const items = [
+    { name: '朋友圈', desc: '看看好友在做什么', grad: 'linear-gradient(135deg,#07c160,#06ad56)', icon: '📷', action: () => toast('朋友圈功能开发中', 'info') },
+    { name: '视频号', desc: '短内容、直播', grad: 'linear-gradient(135deg,#10aeff,#0a7fe0)', icon: '▶', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
+    { name: '看一看', desc: '推荐文章', grad: 'linear-gradient(135deg,#fa9d3b,#f97316)', icon: '👁', action: () => toast('看一看功能开发中', 'info') },
+    { name: '搜一搜', desc: '搜索公众号、文章', grad: 'linear-gradient(135deg,#ff5b5b,#ef4444)', icon: '🔍', action: () => toast('搜一搜功能开发中', 'info') },
+    { name: '直播', desc: '关注的主播', grad: 'linear-gradient(135deg,#9a6bff,#7c3aed)', icon: '📡', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('直播功能开发中', 'info'); } },
+    { name: '附近', desc: '附近的人/动态', grad: 'linear-gradient(135deg,#00bcd4,#0097a7)', icon: '📍', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
+    { name: '购物', desc: '小程序商城', grad: 'linear-gradient(135deg,#ff9800,#f57c00)', icon: '🛒', action: () => toast('购物功能开发中', 'info') },
+    { name: '游戏', desc: '微信小程序游戏', grad: 'linear-gradient(135deg,#8bc34a,#689f38)', icon: '🎮', action: () => toast('游戏功能开发中', 'info') },
+  ];
+  list.innerHTML = items.map((it, i) => `
+    <div class="discover-item" data-idx="${i}">
+      <div class="discover-icon" style="background:${it.grad}">${it.icon}</div>
+      <div class="discover-info">
+        <div class="discover-name">${it.name}</div>
+        <div class="discover-desc">${it.desc}</div>
+      </div>
+      <span class="discover-arrow">›</span>
+    </div>`).join('');
+  list.querySelectorAll('.discover-item').forEach((el, i) => {
+    el.onclick = () => items[i].action();
+  });
+}
+
+// 我的页渲染
+function renderMePage() {
+  if (!state.me) return;
+  const header = document.getElementById('meHeaderContent');
+  if (!header) return;
+  const hasImg = state.me.avatar;
+  const avHtml = hasImg ? `<img src="${state.me.avatar}">` : avatarChar(state.me.nickname);
+  header.innerHTML = `
+    <div class="me-avatar">${avHtml}</div>
+    <div class="me-info">
+      <div class="me-name">${escapeHtml(state.me.nickname)}</div>
+      <div class="me-id">微信号：${escapeHtml(state.me.uid || '')}</div>
+      <div class="me-services">
+        <button class="me-service-btn" id="meQrBtn">扫一扫</button>
+        <button class="me-service-btn" id="meCardBtn">名片</button>
+      </div>
+    </div>`;
+  const qrBtn = document.getElementById('meQrBtn');
+  if (qrBtn) qrBtn.onclick = () => openQrScanner();
+  const cardBtn = document.getElementById('meCardBtn');
+  if (cardBtn) cardBtn.onclick = () => showMyCard();
+
+  const svc = document.getElementById('meServicesCard');
+  if (!svc) return;
+  const services = [
+    { name: '支付', icon: '💳', grad: 'linear-gradient(135deg,#07c160,#06ad56)', action: () => { if (window.SecureChatPay) window.SecureChatPay.homePanel(); else toast('支付功能开发中', 'info'); } },
+    { name: '收藏', icon: '⭐', grad: 'linear-gradient(135deg,#ffa726,#f57c00)', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
+    { name: '相册', icon: '🖼', grad: 'linear-gradient(135deg,#42a5f5,#1e88e5)', action: () => toast('相册功能开发中', 'info') },
+    { name: '卡包', icon: '🎫', grad: 'linear-gradient(135deg,#ab47bc,#8e24aa)', action: () => toast('卡包功能开发中', 'info') },
+    { name: '表情', icon: '😀', grad: 'linear-gradient(135deg,#ef5350,#e53935)', action: () => toast('表情功能开发中', 'info') },
+    { name: '设置', icon: '⚙', grad: 'linear-gradient(135deg,#78909c,#546e7a)', action: () => { if (window.switchToAi) window.switchToAi(); else toast('设置功能开发中', 'info'); } },
+  ];
+  svc.innerHTML = services.map(s => `
+    <div class="me-card-item">
+      <div class="me-card-icon" style="background:${s.grad}">${s.icon}</div>
+      <span class="me-card-label">${s.name}</span>
+      <span class="me-card-arrow">›</span>
+    </div>`).join('');
+  svc.querySelectorAll('.me-card-item').forEach((el, i) => { el.onclick = services[i].action; });
+}
+
+// 通讯录页渲染
+function renderContactsPage() {
+  const kw = (document.getElementById('contactsSearch') || {}).value || '';
+  const newFEl = document.getElementById('contactsNewFriends');
+  const grpEl = document.getElementById('contactsGroups');
+  const alpEl = document.getElementById('contactsAlphabetSection');
+  if (!newFEl || !grpEl || !alpEl) return;
+
+  // 新好友（pending requests）
+  newFEl.innerHTML = state.pendingReq.length ? state.pendingReq.map(r => {
+    const u = r.fromUser || {};
+    return `<div class="contact" data-uid="${r.from}">
+      <div class="avatar">${u.avatar ? '<img src="'+u.avatar+'">' : avatarChar(u.nickname)}</div>
+      <div style="flex:1;overflow:hidden">
+        <div class="name">${escapeHtml(u.nickname || '未知')}</div>
+        <div class="last">ID: ${escapeHtml(String(r.from))}</div>
+      </div>
+      <button class="btn-cn" style="padding:4px 10px;font-size:12px;margin-right:4px" data-accept="${r.from}">接受</button>
+      <button class="btn-cn gray" style="padding:4px 10px;font-size:12px" data-reject="${r.from}">拒绝</button>
+    </div>`;
+  }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无新好友请求</div>';
+  newFEl.querySelectorAll('[data-accept]').forEach(btn => {
+    btn.onclick = () => {
+      const uid = btn.dataset.accept;
+      state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
+      renderContactsPage();
+      loadFriends();
+    };
+  });
+  newFEl.querySelectorAll('[data-reject]').forEach(btn => {
+    btn.onclick = () => {
+      const uid = btn.dataset.reject;
+      state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
+      renderContactsPage();
+    };
+  });
+
+  // 朋友群
+  const friendGroups = state.groups.filter(g => {
+    const m = (g.members || []);
+    return m.some(mid => state.friends.some(f => f.id === mid));
+  });
+  grpEl.innerHTML = friendGroups.length ? friendGroups.map(g => `
+    <div class="contact" data-gid="${g.id}">
+      <div class="avatar">${(g.name || '?').charAt(0).toUpperCase()}</div>
+      <div style="flex:1;overflow:hidden">
+        <div class="name">${escapeHtml(g.name)}</div>
+        <div class="last">${(g.members || []).length} 成员</div>
+      </div>
+    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无朋友群</div>';
+  grpEl.querySelectorAll('[data-gid]').forEach(btn => {
+    btn.onclick = () => { const gid = parseInt(btn.dataset.gid); if (gid) selectGroup(gid); };
+  });
+
+  // 字母索引好友
+  const allFriends = state.friends.filter(u =>
+    !kw || (u.nickname || '').toLowerCase().includes(kw) ||
+    (u.username || '').toLowerCase().includes(kw) ||
+    String(u.id).includes(kw)
+  ).sort((a, b) => (a.nickname || '').localeCompare(b.nickname || '', 'zh'));
+
+  const groups = {};
+  allFriends.forEach(u => {
+    const ch = (u.nickname || '?').charAt(0).toUpperCase();
+    const key = /^[A-Za-z]$/.test(ch) ? ch : '#';
+    (groups[key] || (groups[key] = [])).push(u);
+  });
+  const sortedKeys = Object.keys(groups).sort();
+  alpEl.innerHTML = sortedKeys.map(k => `
+    <div class="contact-group-label">${k}</div>
+    <div class="contact-section">
+      ${groups[k].map(u => `
+        <div class="contact" data-uid="${u.id}">
+          <div class="avatar">${u.avatar ? '<img src="'+u.avatar+'">' : avatarChar(u.nickname)}</div>
+          <div style="flex:1;overflow:hidden">
+            <div class="name">${escapeHtml(u.nickname)}</div>
+            <div class="last">${u.online ? '<span class="dot online"></span> 在线' : '离线'}</div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+  alpEl.querySelectorAll('[data-uid]').forEach(el => {
+    el.onclick = () => selectPeer(parseInt(el.dataset.uid));
+  });
+}
+
+// 侧边栏 Tab → 微信式移动端页面路由
+(function initWechatMobileNav() {
+  if (!window.IS_MOBILE) return;
+  // 发现 tab → 发现页
+  const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
+  if (discoverTab) {
+    discoverTab.onclick = (e) => {
+      e.stopPropagation();
+      renderDiscoverPage();
+      showMobilePage('discoverPage');
+    };
+  }
+  // 我 tab → 我的页
+  const meTab = document.querySelector('.sidebar-rail .side-tab[data-side="downloads"]');
+  if (meTab) {
+    meTab.onclick = (e) => {
+      e.stopPropagation();
+      renderMePage();
+      showMobilePage('mePage');
+    };
+  }
+  // 通讯录 tab（原 groups）→ 通讯录页
+  const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="groups"]');
+  if (contactsTab) {
+    contactsTab.onclick = (e) => {
+      e.stopPropagation();
+      renderContactsPage();
+      showMobilePage('contactsPage');
+    };
+  }
+  // 返回按钮（发现页 / 我的页 / 通讯录页）
+  const pages = [
+    { id: 'discoverPage', tab: 'ai' },
+    { id: 'mePage', tab: 'downloads' },
+    { id: 'contactsPage', tab: 'groups' },
+  ];
+  pages.forEach(p => {
+    const backBtn = document.getElementById(p.id.replace('Page', '') + 'BackBtn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        const tab = document.querySelector('.sidebar-rail .side-tab[data-side="' + p.tab + '"]');
+        if (tab) tab.click();
+        else {
+          document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === p.tab));
+          syncMobileNav(p.tab);
+        }
+        hideMobilePages();
+        const chatView = document.getElementById('chatView');
+        if (chatView) chatView.classList.add('mobile-chat-active');
+      };
+    }
+  });
+  // 通讯录返回
+  const contactsBackBtn = document.getElementById('contactsBackBtn');
+  if (contactsBackBtn) {
+    contactsBackBtn.onclick = () => {
+      const tab = document.querySelector('.sidebar-rail .side-tab[data-side="groups"]');
+      if (tab) tab.click();
+      hideMobilePages();
+      const chatView = document.getElementById('chatView');
+      if (chatView) chatView.classList.add('mobile-chat-active');
+    };
+  }
+  // 聊天返回按钮
+  const chatMobileBackBtn = document.getElementById('chatMobileBackBtn');
+  if (chatMobileBackBtn) {
+    chatMobileBackBtn.onclick = () => {
+      hideMobileChatView();
+      state.activePeer = null;
+      state.activeGroup = null;
+      renderChatHeader();
+      $('inviteBar').style.display = 'none';
+      const welcome = $('welcomePanel'); if (welcome) welcome.style.display = '';
+      renderContacts();
+    };
+  }
+  // 更多按钮（聊天头部）
+  const chatMobileMoreBtn = document.getElementById('chatMobileMoreBtn');
+  if (chatMobileMoreBtn) {
+    chatMobileMoreBtn.onclick = () => openFeatureCenter();
+  }
+  // 语音图标 → 触发录音
+  const voiceIconBtn = document.getElementById('voiceIconBtn');
+  if (voiceIconBtn) {
+    voiceIconBtn.onclick = () => {
+      const realBtn = $('voiceBtn');
+      if (realBtn) realBtn.click();
+    };
+  }
+})();
+
 tryRestore();
 checkUpdate();
 wireConversationTools();
@@ -2571,3 +3190,14 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _applyI18n, { once: true });
   else _applyI18n();
 }
+// E2EE 握手预热：登录后立即初始化 identity key 并上传 prekey bundle，
+// 确保收到第一条 Flutter 密文时能够立即解密。
+(function initE2EEOnLogin() {
+  function warmup() {
+    if (window.SCE2EE && state && state.me) {
+      window.SCE2EE.ensureKeyPair().catch(() => {});
+    }
+  }
+  document.addEventListener('securechat.login', warmup, { once: false });
+  if (state && state.me) warmup();
+})();

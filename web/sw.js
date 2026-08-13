@@ -1,7 +1,7 @@
 /* SecureChat Service Worker - network-first, cache static assets */
 'use strict';
 
-const CACHE = 'securechat-auto-route-v50';
+const CACHE = 'securechat-auto-route-v51';
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -12,7 +12,28 @@ const CORE_ASSETS = [
   '/i18n.js',
   '/ai.js?v=1-51-0-0',
   '/webrtc.js?v=1-24-3-26',
-  '/manifest.json'
+  '/manifest.json',
+  '/modules/registry.js?v=1-51-0-1',
+  '/modules/groups.js?v=1-51-0-1',
+  '/modules/chat-ext.js?v=1-51-0-1',
+  '/modules/rtc.js?v=1-51-0-1',
+  '/modules/voicemsg.js?v=1-51-0-1',
+  '/modules/filehelper.js?v=1-51-0-1',
+  '/modules/oa.js?v=1-51-0-1',
+  '/modules/videos.js?v=1-51-0-1',
+  '/modules/live.js?v=1-51-0-1',
+  '/modules/miniapp.js?v=1-51-0-1',
+  '/modules/nearby.js?v=1-51-0-1',
+  '/modules/shake.js?v=1-51-0-1',
+  '/modules/scan.js?v=1-51-0-1',
+  '/modules/pay.js?v=1-51-0-1',
+  '/modules/status.js?v=1-51-0-1',
+  '/modules/favorites.js?v=1-51-0-1',
+  '/modules/moment-ext.js?v=1-51-0-1',
+  '/modules/polls.js?v=1-51-0-1',
+  '/modules/remind.js?v=1-51-0-1',
+  '/modules/todos.js?v=1-51-0-1',
+  '/modules/translate.js?v=1-51-0-1'
 ];
 
 self.addEventListener('install', (e) => {

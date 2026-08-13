@@ -84,7 +84,7 @@ class AppConfig extends ChangeNotifier {
 
   ThemeModeEx mode = ThemeModeEx.light;
   WindowEffectKind effect = WindowEffectKind.acrylic;
-  Color primary = const Color(0xff18a66a);
+  Color primary = const Color(0xff07c160);
   double fontScale = 1.0;
   int bgKind = 0; // 0 纯色 1 渐变 2 图片
   Color bgColor = const Color(0xff2c3e50);
@@ -112,7 +112,7 @@ class AppConfig extends ChangeNotifier {
     final c = AppConfig(sp: sp)
       ..mode = ThemeModeEx.values[int.tryParse(sp.getString(_kTheme) ?? '') ?? 0]
       ..effect = WindowEffectKind.values[int.tryParse(sp.getString(_kEffect) ?? '') ?? 1]
-      ..primary = Color(int.tryParse(sp.getString(_kPrimary) ?? '') ?? const Color(0xff18a66a).toARGB32())
+      ..primary = Color(int.tryParse(sp.getString(_kPrimary) ?? '') ?? const Color(0xff07c160).toARGB32())
       ..fontScale = double.tryParse(sp.getString(_kFont) ?? '') ?? 1.0
       ..bgKind = int.tryParse(sp.getString(_kBgKind) ?? '') ?? 0
       ..bgColor = Color(int.tryParse(sp.getString(_kBgColor) ?? '') ?? const Color(0xff2c3e50).toARGB32())
@@ -228,10 +228,9 @@ class AppConfig extends ChangeNotifier {
   }
 
   static const List<Color> presetColors = [
-    Color(0xff18a66a),
+    Color(0xff07c160),
     Color(0xff3b82f6),
     Color(0xff8b5cf6),
-    Color(0xffec4899),
     Color(0xfff59e0b),
     Color(0xffef4444),
     Color(0xff14b8a6),
