@@ -154,7 +154,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       width: 320,
       padding: const EdgeInsets.all(16),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(type == 'pay' ? '我的付款码（2 分钟内有效）' : '收款码', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Text(type == 'pay' ? '我的付款码（10 分钟内有效）' : '收款码', style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
         Image.network(imgUrl, width: 260, height: 260, errorBuilder: (_, _, _) => const Icon(Icons.qr_code, size: 200)),
         const SizedBox(height: 8),
