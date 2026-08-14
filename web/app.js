@@ -1084,7 +1084,7 @@ function openFeatureCenter() {
     { label: '工具', items: [
       { label: '我的状态', short: '状态', grad: 2, open: () => openContainerFeature(get('status'), '我的状态') },
       { label: '我的收藏', short: '收藏', grad: 3, open: () => openContainerFeature(get('favorites'), '我的收藏') },
-      { label: '收付款码', short: '收付款', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'showReceiveCodeFlow') },
+      { label: '收付款码', short: '收付款', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
       { label: '兑换码充值', short: '兑换', grad: 5, open: () => { const p = get('pay'); if (p && typeof p.redeemFlow === 'function') p.redeemFlow(); else toast('兑换功能未加载', 'warn'); } },
     ]},
   ];
