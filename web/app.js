@@ -3087,7 +3087,11 @@ function renderMePage() {
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
   const services = [
-    { name: '支付', icon: '支付', action: () => { if (window.SecureChatPay) window.SecureChatPay.homePanel(); else toast('支付功能开发中', 'info'); } },
+    { name: '支付', icon: '支付', action: () => {
+      const pay = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
+      if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
+      else toast('支付功能开发中', 'info');
+    } },
     { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
     { name: '相册', icon: '相', action: () => toast('相册功能开发中', 'info') },
     { name: '卡包', icon: '卡', action: () => toast('卡包功能开发中', 'info') },
@@ -3174,7 +3178,7 @@ function renderContactsPage() {
   });
   const sortedKeys = Object.keys(groups).sort();
   alpEl.innerHTML = sortedKeys.map(k => `
-    <div class="contact-group-label">${k}</div>
+    <div class="contact-group-label" id="contact-letter-${k === '#' ? 'hash' : k}">${k}</div>
     <div class="contact-section">
       ${groups[k].map(u => `
         <div class="contact" data-uid="${u.id}">
@@ -3188,6 +3192,20 @@ function renderContactsPage() {
   alpEl.querySelectorAll('[data-uid]').forEach(el => {
     el.onclick = () => selectPeer(parseInt(el.dataset.uid));
   });
+
+  const page = document.getElementById('contactsPage');
+  if (page) {
+    let index = page.querySelector('.contact-alphabet-index');
+    if (!index) { index = document.createElement('div'); index.className = 'contact-alphabet-index'; page.appendChild(index); }
+    index.innerHTML = sortedKeys.map(k => `<span data-letter="${k}">${k}</span>`).join('');
+    index.querySelectorAll('[data-letter]').forEach(el => {
+      el.onclick = () => {
+        const key = el.dataset.letter;
+        const target = document.getElementById('contact-letter-' + (key === '#' ? 'hash' : key));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    });
+  }
 }
 
 // 侧边栏 Tab → 微信式移动端页面路由

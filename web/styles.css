@@ -1798,7 +1798,7 @@ body.dark-mode .feature-item .feature-label{color:#e0e0e0}
 .wx-ico-sm { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #00b26a; color: #fff; font-size: 13px; }
 
 /* 通讯录字母索引 */
-.contact-alphabet-index { position: fixed; right: 4px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; font-size: 10px; color: #576b95; text-align: center; z-index: 10; }
+.contact-alphabet-index { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; font-size: 10px; color: #576b95; text-align: center; z-index: 10; padding: 5px 3px; border-radius: 10px; background: rgba(255,255,255,.78); backdrop-filter: blur(6px); }
 .contact-alphabet-index span { padding: 1px 0; cursor: pointer; line-height: 1.3; }
 .contact-alphabet-index span:hover { font-weight: 700; }
 .contact-section { background: #fff; margin-bottom: 8px; }
