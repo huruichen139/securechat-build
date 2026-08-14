@@ -1788,7 +1788,10 @@ document.querySelectorAll('.side-tab').forEach(tt => {
 (function initMobileBottomNav() {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
+  // 微信式底部导航：仅保留 4 个核心 Tab（微信 / 通讯录 / 发现 / 我）
+  const CORE_TABS = ['friends', 'groups', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
+    if (!CORE_TABS.includes(src.dataset.side)) return;
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'side-tab' + (src.classList.contains('on') ? ' on' : '');
@@ -3033,35 +3036,38 @@ function showMobilePage(pageId) {
   if (chatComposer) chatComposer.style.display = 'none';
 }
 
-// 发现页渲染
+// 发现页渲染（微信式列表）
 function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
   const items = [
-    { name: '朋友圈', desc: '看看好友在做什么', grad: 'linear-gradient(135deg,#07c160,#06ad56)', icon: '📷', action: () => toast('朋友圈功能开发中', 'info') },
-    { name: '视频号', desc: '短内容、直播', grad: 'linear-gradient(135deg,#10aeff,#0a7fe0)', icon: '▶', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
-    { name: '看一看', desc: '推荐文章', grad: 'linear-gradient(135deg,#fa9d3b,#f97316)', icon: '👁', action: () => toast('看一看功能开发中', 'info') },
-    { name: '搜一搜', desc: '搜索公众号、文章', grad: 'linear-gradient(135deg,#ff5b5b,#ef4444)', icon: '🔍', action: () => toast('搜一搜功能开发中', 'info') },
-    { name: '直播', desc: '关注的主播', grad: 'linear-gradient(135deg,#9a6bff,#7c3aed)', icon: '📡', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('直播功能开发中', 'info'); } },
-    { name: '附近', desc: '附近的人/动态', grad: 'linear-gradient(135deg,#00bcd4,#0097a7)', icon: '📍', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
-    { name: '购物', desc: '小程序商城', grad: 'linear-gradient(135deg,#ff9800,#f57c00)', icon: '🛒', action: () => toast('购物功能开发中', 'info') },
-    { name: '游戏', desc: '微信小程序游戏', grad: 'linear-gradient(135deg,#8bc34a,#689f38)', icon: '🎮', action: () => toast('游戏功能开发中', 'info') },
+    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
+    { name: '视频号', icon: '视频', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
+    { name: '看一看', icon: '看', action: () => toast('看一看功能开发中', 'info') },
+    { name: '搜一搜', icon: '搜', action: () => toast('搜一搜功能开发中', 'info') },
+    { name: '直播', icon: '直播', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('直播功能开发中', 'info'); } },
+    { name: '附近', icon: '附', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
+    { name: '购物', icon: '购', action: () => toast('购物功能开发中', 'info') },
+    { name: '游戏', icon: '游', action: () => toast('游戏功能开发中', 'info') },
   ];
-  list.innerHTML = items.map((it, i) => `
-    <div class="discover-item" data-idx="${i}">
-      <div class="discover-icon" style="background:${it.grad}">${it.icon}</div>
-      <div class="discover-info">
-        <div class="discover-name">${it.name}</div>
-        <div class="discover-desc">${it.desc}</div>
-      </div>
-      <span class="discover-arrow">›</span>
-    </div>`).join('');
-  list.querySelectorAll('.discover-item').forEach((el, i) => {
+  // 分组：顶部常用，中间小程序区
+  const group1 = items.slice(0, 3);
+  const group2 = items.slice(3);
+  const itemHtml = (it, i) => `
+    <div class="wx-discover-item" data-idx="${i}">
+      <div class="wx-discover-icon">${it.icon}</div>
+      <div class="wx-discover-name">${it.name}</div>
+      <span class="wx-discover-arrow">›</span>
+    </div>`;
+  list.innerHTML = `
+    <div class="wx-group">${group1.map((it, i) => itemHtml(it, i)).join('')}</div>
+    <div class="wx-group">${group2.map((it, i) => itemHtml(it, i + group1.length)).join('')}</div>`;
+  list.querySelectorAll('.wx-discover-item').forEach((el, i) => {
     el.onclick = () => items[i].action();
   });
 }
 
-// 我的页渲染
+// 我的页渲染（微信式）
 function renderMePage() {
   if (!state.me) return;
   const header = document.getElementById('meHeaderContent');
@@ -3073,33 +3079,30 @@ function renderMePage() {
     <div class="me-info">
       <div class="me-name">${escapeHtml(state.me.nickname)}</div>
       <div class="me-id">微信号：${escapeHtml(state.me.uid || '')}</div>
-      <div class="me-services">
-        <button class="me-service-btn" id="meQrBtn">扫一扫</button>
-        <button class="me-service-btn" id="meCardBtn">名片</button>
-      </div>
-    </div>`;
+    </div>
+    <span class="me-qr" id="meQrBtn"><span class="wx-ico-sm">扫</span></span>`;
   const qrBtn = document.getElementById('meQrBtn');
   if (qrBtn) qrBtn.onclick = () => openQrScanner();
-  const cardBtn = document.getElementById('meCardBtn');
-  if (cardBtn) cardBtn.onclick = () => showMyCard();
 
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
   const services = [
-    { name: '支付', icon: '💳', grad: 'linear-gradient(135deg,#07c160,#06ad56)', action: () => { if (window.SecureChatPay) window.SecureChatPay.homePanel(); else toast('支付功能开发中', 'info'); } },
-    { name: '收藏', icon: '⭐', grad: 'linear-gradient(135deg,#ffa726,#f57c00)', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
-    { name: '相册', icon: '🖼', grad: 'linear-gradient(135deg,#42a5f5,#1e88e5)', action: () => toast('相册功能开发中', 'info') },
-    { name: '卡包', icon: '🎫', grad: 'linear-gradient(135deg,#ab47bc,#8e24aa)', action: () => toast('卡包功能开发中', 'info') },
-    { name: '表情', icon: '😀', grad: 'linear-gradient(135deg,#ef5350,#e53935)', action: () => toast('表情功能开发中', 'info') },
-    { name: '设置', icon: '⚙', grad: 'linear-gradient(135deg,#78909c,#546e7a)', action: () => { if (window.switchToAi) window.switchToAi(); else toast('设置功能开发中', 'info'); } },
+    { name: '支付', icon: '支付', action: () => { if (window.SecureChatPay) window.SecureChatPay.homePanel(); else toast('支付功能开发中', 'info'); } },
+    { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
+    { name: '相册', icon: '相', action: () => toast('相册功能开发中', 'info') },
+    { name: '卡包', icon: '卡', action: () => toast('卡包功能开发中', 'info') },
+    { name: '表情', icon: '☺', action: () => toast('表情功能开发中', 'info') },
+    { name: '设置', icon: '设', action: () => { if (window.switchToAi) window.switchToAi(); else toast('设置功能开发中', 'info'); } },
   ];
-  svc.innerHTML = services.map(s => `
-    <div class="me-card-item">
-      <div class="me-card-icon" style="background:${s.grad}">${s.icon}</div>
-      <span class="me-card-label">${s.name}</span>
-      <span class="me-card-arrow">›</span>
-    </div>`).join('');
-  svc.querySelectorAll('.me-card-item').forEach((el, i) => { el.onclick = services[i].action; });
+  // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 设置
+  svc.innerHTML = `
+    <div class="wx-me-group">${services.slice(0, 2).map((s, i) => meItemHtml(s, i)).join('')}</div>
+    <div class="wx-me-group">${services.slice(2, 5).map((s, i) => meItemHtml(s, i + 2)).join('')}</div>
+    <div class="wx-me-group">${meItemHtml(services[5], 5)}</div>`;
+  svc.querySelectorAll('.wx-me-item').forEach((el, i) => { el.onclick = services[Number(el.dataset.si)].action; });
+}
+function meItemHtml(s, i) {
+  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">›</span></div>`;
 }
 
 // 通讯录页渲染
