@@ -413,7 +413,7 @@
 <script src="modules/nearby.js?v=1-53-0-2"></script>
 <script src="modules/shake.js?v=1-53-0-2"></script>
 <script src="modules/scan.js?v=1-53-0-2"></script>
-<script src="modules/pay.js?v=1-53-0-2"></script>
+<script src="modules/pay_v153.js?v=1-53-0-3"></script>
 <script src="modules/status.js?v=1-53-0-2"></script>
 <script src="modules/favorites.js?v=1-53-0-2"></script>
 <script src="modules/moment-ext.js?v=1-53-0-2"></script>
@@ -422,10 +422,12 @@
 <script src="modules/todos.js?v=1-53-0-2"></script>
 <script src="modules/translate.js?v=1-53-0-2"></script>
 <script>
-  // 注册 Service Worker（PWA 离线/加速；仅 HTTPS 环境生效）
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // 不再注册新的 Service Worker，并注销任何已存在的 SW，避免旧缓存顽固拦截静态资源。
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.getRegistrations().then(function (list) {
+        list.forEach(function (reg) { reg.unregister(); });
+      }).catch(function () {});
     });
   }
 </script>
