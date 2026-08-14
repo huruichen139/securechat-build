@@ -191,7 +191,7 @@ module.exports = function registerPayment(app, db, auth) {
   app.post('/api/pay/code/pay', mw, (req, res) => {
     const ownerId = req.user.id;
     const token = crypto.randomBytes(16).toString('base64url');
-    const expiresAt = Date.now() + 2 * 60 * 1000;
+    const expiresAt = Date.now() + 10 * 60 * 1000;
     prepare('INSERT INTO pay_codes(owner_id,type,token,amount,remark,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?)')
       .run(ownerId, 'pay', token, null, '', 'active', expiresAt, Date.now());
     const code = prepare('SELECT * FROM pay_codes WHERE token=?').get(token);

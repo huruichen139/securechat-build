@@ -199,7 +199,7 @@
     img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:#fff';
     const info = document.createElement('div');
     info.style.cssText = 'text-align:center;font-size:14px;color:#333';
-    info.textContent = isPay ? '付款码（2 分钟内有效，请勿截图外传）' : ((code.amount ? '收款 ¥' + code.amount : '收款码') + (code.remark ? ' · ' + code.remark : ''));
+    info.textContent = isPay ? '付款码（10 分钟内有效，请勿截图外传）' : ((code.amount ? '收款 ¥' + code.amount : '收款码') + (code.remark ? ' · ' + code.remark : ''));
     const tip = document.createElement('div');
     tip.style.cssText = 'text-align:center;font-size:12px;color:#999;margin-top:8px';
     tip.textContent = '扫码后跳转 securechat://pay 解码确认';
