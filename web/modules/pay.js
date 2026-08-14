@@ -191,17 +191,40 @@
     });
   }
 
-  // 展示二维码 + 复制/扫码说明
-  function showCodePanel(code, type) {
+  // 展示二维码 + 复制/扫码说明；pay 类型可传入 regen 回调在临近过期时自动刷新
+  function showCodePanel(code, type, regen) {
     const isPay = type === 'pay';
     const img = document.createElement('img');
-    img.src = qrUrl(code.qrText || code.text || '', 340);
-    img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:#fff';
     const info = document.createElement('div');
     info.style.cssText = 'text-align:center;font-size:14px;color:#333';
-    info.textContent = isPay ? '付款码（10 分钟内有效，请勿截图外传）' : ((code.amount ? '收款 ¥' + code.amount : '收款码') + (code.remark ? ' · ' + code.remark : ''));
     const tip = document.createElement('div');
     tip.style.cssText = 'text-align:center;font-size:12px;color:#999;margin-top:8px';
+
+    let timer = null;
+    function render(c) {
+      img.src = qrUrl(c.qrText || c.text || '', 340);
+      const secs = c.expiresAt ? Math.max(0, Math.round((c.expiresAt - Date.now()) / 1000)) : 0;
+      const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+      const ss = String(secs % 60).padStart(2, '0');
+      info.textContent = isPay ? ('付款码（' + mm + ':' + ss + ' 后失效，请勿截图外传）') : ((c.amount ? '收款 ¥' + c.amount : '收款码') + (c.remark ? ' · ' + c.remark : ''));
+    }
+    function start() {
+      if (timer) clearInterval(timer);
+      render(code);
+      if (isPay && regen) {
+        timer = setInterval(() => {
+          const remain = code.expiresAt ? (code.expiresAt - Date.now()) : 0;
+          render(code);
+          if (remain <= 30000) {
+            clearInterval(timer);
+            regen().then((r) => {
+              if (r && r.qrText) { code = r; start(); }
+            }).catch((e) => showToast('刷新失败：' + e.message, 'error'));
+          }
+        }, 1000);
+      }
+    }
+    img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:#fff';
     tip.textContent = '扫码后跳转 securechat://pay 解码确认';
     const acts = [info, img, tip];
     modal(isPay ? '我的付款码' : '收款码', (body) => {
@@ -209,8 +232,10 @@
     }, (actsBox, close) => {
       const b = document.createElement('button');
       b.className = 'btn-cn'; b.textContent = '关闭';
-      b.onclick = close; actsBox.appendChild(b);
+      b.onclick = () => { if (timer) clearInterval(timer); close(); };
+      actsBox.appendChild(b);
     });
+    start();
   }
 
   // 扫码输入 token → 解码跳转 → 执行付款/收款
@@ -536,7 +561,7 @@
     const items = [
       { label: '转账', icon: '→', fn: openTransfer },
       { label: '收款码', icon: '￥', fn: () => showReceiveCodeFlow() },
-      { label: '付款码', icon: '◈', fn: () => Pay.createPayCode().then(r => showCodePanel({ qrText: r.qrText }, "pay")).catch(e => showToast('生成失败：' + e.message, 'error')) },
+      { label: '付款码', icon: '◈', fn: () => Pay.createPayCode().then(r => showCodePanel(r, "pay", () => Pay.createPayCode())).catch(e => showToast('生成失败：' + e.message, 'error')) },
       { label: '扫一扫', icon: '▦', fn: () => scanFlow('receive') },
       { label: '群收款', icon: '群', fn: () => openGroupCollect() },
       { label: '群接龙', icon: '接', fn: () => openGroupSolection() },
