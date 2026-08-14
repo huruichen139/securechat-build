@@ -28,6 +28,9 @@ let state = {
   activePeer: null,
   unread: {},
   lastFrom: {},
+  lastMsgTime: {},
+  groupLastMsg: {},
+  groupLastMsgTime: {},
   // E2EE：本账号私钥（JWK），登录成功后填充
   myPrivJwk: null,
   // 已发送消息明文缓存：clientMsgId -> 明文，用于服务端回包替换密文显示原文字
@@ -1634,12 +1637,16 @@ function renderContacts() {
     const avHtml = u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname);
     const isPinned = !!chatPrefs().pinned['u:' + u.id];
     const isMuted = !!chatPrefs().muted['u:' + u.id];
+    const lastMsg = state.lastFrom[u.id];
+    const lastTime = state.lastMsgTime ? state.lastMsgTime[u.id] : 0;
+    const preview = lastMsg ? escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30)) : (u.online ? '在线' : '离线');
+    const timeStr = lastTime ? fmtChatListTime(lastTime) : '';
     div.innerHTML = `<div class="avatar">${avHtml}</div>
       <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(u.nickname)}</div>
-        <div class="last">${u.online ? '在线' : '离线'}</div>
+        <div class="last">${preview}</div>
       </div>
-      ${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}<span class="dot ${u.online ? 'online' : ''}"></span>
+      ${timeStr ? `<span class="chat-time">${timeStr}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}
       ${unread ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}`;
     div.onclick = () => selectPeer(u.id);
     if (state.activePeer === u.id && unread) {
@@ -1675,14 +1682,16 @@ function renderGroupList() {
     const isOwner = state.me && g.ownerId === state.me.id;
     const ownerMark = isOwner ? ' (群主)' : '';
     const memberCnt = (g.members || []).length;
-    const lastMsg = g.lastMessage && g.lastMessage.content ? g.lastMessage.content : ('成员 ' + memberCnt + ' 人');
+    const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('成员 ' + memberCnt + ' 人');
+    const groupTime = state.groupLastMsgTime[g.id] ? fmtChatListTime(state.groupLastMsgTime[g.id]) : '';
     const isPinned = !!chatPrefs().pinned['g:' + g.id];
     const isMuted = !!chatPrefs().muted['g:' + g.id];
     div.innerHTML = `<div class="avatar">${(g.name || '?').charAt(0).toUpperCase()}</div>
-      <div style="flex:1;overflow:hidden">
+       <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(g.name)}<span class="last" style="margin-left:6px">ID:${g.id}${ownerMark}</span></div>
         <div class="last">${escapeHtml(String(lastMsg).slice(0, 30))}</div>
-      </div>
+       </div>
+       ${groupTime ? `<span class="chat-time">${groupTime}</span>` : ''}
       ${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}`;
     div.onclick = () => selectGroup(g.id);
     if (state.activeGroup === g.id && unread) {
@@ -1986,6 +1995,8 @@ function appendGroupMessage(m, prepend) {
 
 // 收到群消息推送
 function onIncomingGroupMsg(payload) {
+  state.groupLastMsg[payload.groupId] = payload.content || '[消息]';
+  state.groupLastMsgTime[payload.groupId] = payload.createdAt || Date.now();
   if (state.activeGroup === payload.groupId) {
     appendGroupMessage(payload, false);
   } else {
@@ -2238,6 +2249,19 @@ function fmtTime(t) {
   return hh + ':' + mm;
 }
 
+function fmtChatListTime(t) {
+  const d = new Date(Number(t));
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.floor((today - day) / 86400000);
+  if (diff === 0) return fmtTime(t);
+  if (diff === 1) return '昨天';
+  if (diff < 7) return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
 let noticeAudioContext = null;
 document.addEventListener('pointerdown', () => {
   try {
@@ -2332,6 +2356,7 @@ async function onIncomingMsg(m) {
   if (m.from === state.me.id && m.clientMsgId && state.pendingLocal[m.clientMsgId]) {
     delete state.pendingLocal[m.clientMsgId];
     state.lastFrom[m.from] = m.content;
+    state.lastMsgTime[m.from] = m.createdAt || Date.now();
     renderContacts();
     return;
   }
@@ -2346,6 +2371,7 @@ async function onIncomingMsg(m) {
     showMessageNotice(m, name);
   }
   state.lastFrom[m.from] = m.content;
+  state.lastMsgTime[m.from] = m.createdAt || Date.now();
   renderContacts();
 }
 
@@ -2371,7 +2397,10 @@ function sendCurrent() {
   input.value = '';
   saveCurrentDraft();
   // UI 先展示明文；实际存储走加密内容
-  appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: Date.now(), clientMsgId }, false);
+  const localCreatedAt = Date.now();
+  state.lastFrom[peerId] = text;
+  state.lastMsgTime[peerId] = localCreatedAt;
+  appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId }, false);
   _e2eeSendContent(peerId, text).then(async (ct) => {
     const payload = { to: peerId, content: ct || text, clientMsgId };
     fetch(state.serverHost + '/api/messages', {
