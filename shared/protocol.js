@@ -29,5 +29,10 @@ module.exports = {
   C_GROUP_READ: 'group_read',   // 客户端 -> 服务端 payload {groupId}（标记已读）
   S_GROUP_MSG: 'group_msg',     // 服务端 -> 客户端 payload {groupId, from, fromUid, content, createdAt}
   S_GROUP_LIST: 'group_list',   // 服务端 -> 客户端 payload {groups:[...]}
+  // 系统公告（管理员广播）
+  S_ANNOUNCEMENT: 'announcement',   // 服务端 -> 客户端 payload {announcement}
+  C_ANNOUNCEMENT_READ: 'announcement_read', // 客户端 -> 服务端 payload {id} 标记公告已读
+  // 强制下线
+  S_KICKED: 'kicked',
 };
 

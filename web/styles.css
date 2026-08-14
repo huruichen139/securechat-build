@@ -340,6 +340,22 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .update-dialog .actions .ok { background: var(--primary); color: #fff; }
 .update-dialog .actions .cancel { background: #f0f0f0; color: #666; }
 
+/* ============ 系统公告弹窗 ============ */
+.announcement-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.announcement-box { width: 360px; max-width: 90vw; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 12px 48px rgba(0,0,0,.25); text-align: center; animation: sc-ann-in .25s ease; }
+.announcement-box.warning { border-top: 4px solid #ef9b2d; }
+.announcement-box.danger { border-top: 4px solid #e15252; }
+.announcement-box.info { border-top: 4px solid #07c160; }
+@keyframes sc-ann-in { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+.announcement-badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 12px; color: #fff; margin-bottom: 12px; }
+.announcement-box.danger .announcement-badge { background: #e15252; }
+.announcement-box.warning .announcement-badge { background: #ef9b2d; }
+.announcement-box.info .announcement-badge { background: #07c160; }
+.announcement-title { font-size: 18px; font-weight: 700; color: #1f2937; margin-bottom: 10px; }
+.announcement-content { font-size: 14px; color: #4b5563; line-height: 1.7; margin-bottom: 18px; word-break: break-word; max-height: 240px; overflow-y: auto; }
+.announcement-actions .announcement-ok { padding: 9px 32px; border: none; border-radius: 6px; background: #07c160; color: #fff; font-size: 14px; cursor: pointer; font-weight: 600; }
+.announcement-actions .announcement-ok:hover { opacity: .9; }
+
 /* ============ 下载页 ============ */
 .dl-page { min-height: 100vh; background: linear-gradient(135deg, #fff, #f0f5f3); padding: 40px 20px; text-align: center; }
 .dl-page .dl-hero { max-width: 900px; margin: 0 auto 10px; }
@@ -445,6 +461,11 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .fb-kind.kind-suggestion { background: #3aa15a; }
 .fb-kind.kind-complaint { background: #ef9b2d; }
 .fb-kind.kind-other { background: #888; }
+.fb-kind.kind-warning { background: #ef9b2d; }
+.fb-kind.kind-danger { background: #e15252; }
+.admin-actions-col { white-space: nowrap; }
+.admin-actions-col .admin-action-btn { margin: 2px; }
+.admin-check { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .fb-status { color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 11px; }
 .fb-status.open { background: #ef9b2d; }
 .fb-status.processing { background: #2d8cef; }

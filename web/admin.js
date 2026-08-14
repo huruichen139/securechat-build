@@ -45,13 +45,18 @@
     const q = (el('adminUserSearch') && el('adminUserSearch').value || '').trim().toLowerCase();
     const filtered = q ? list.filter(u => [u.username, u.nickname, u.uid, u.email].some(v => String(v || '').toLowerCase().includes(q))) : list;
     el('onlineCountTag').textContent = '(' + filtered.length + (q ? '/' + list.length : '') + ')';
-    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">没有匹配的用户</td></tr>'; return; }
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">没有匹配的用户</td></tr>'; return; }
     tb.innerHTML = filtered.map(u => {
       const onlineBadge = u.online ? '<span class="admin-badge online">在线</span>' : '<span class="admin-badge offline">离线</span>';
       const banBadge = u.banned ? '<span class="admin-badge banned" title="' + escapeHtml(u.banReason || '') + '">已封禁</span>' : '';
-      const action = u.banned
-        ? '<button class="admin-action-btn" data-unban="' + u.id + '">解封</button>'
-        : '<button class="admin-action-btn danger" data-ban="' + u.id + '">封禁</button>';
+      const roleText = (u.role || 'user') === 'admin' ? '管理员' : ((u.role || 'user') === 'vip' ? 'VIP' : '普通');
+      const actions = [];
+      if (u.banned) actions.push('<button class="admin-action-btn" data-unban="' + u.id + '">解封</button>');
+      else actions.push('<button class="admin-action-btn danger" data-ban="' + u.id + '">封禁</button>');
+      if (u.online) actions.push('<button class="admin-action-btn" data-kick="' + u.id + '">踢下线</button>');
+      actions.push('<button class="admin-action-btn" data-role="' + u.id + '" data-role-cur="' + escapeHtml(u.role || 'user') + '">改角色</button>');
+      actions.push('<button class="admin-action-btn" data-nick="' + u.id + '">改昵称</button>');
+      actions.push('<button class="admin-action-btn" data-resetpw="' + u.id + '">重置密码</button>');
       return `
       <tr>
         <td>${u.id}</td>
@@ -59,13 +64,91 @@
         <td>${escapeHtml(u.nickname)}</td>
         <td><code>${escapeHtml(u.uid)}</code></td>
         <td>${escapeHtml(u.email || '-')}</td>
+        <td>${roleText}</td>
         <td>${onlineBadge} ${banBadge}</td>
         <td>${fmtTime(u.createdAt)}</td>
-        <td>${action}</td>
+        <td class="admin-actions-col">${actions.join(' ')}</td>
       </tr>`;
     }).join('');
     tb.querySelectorAll('[data-ban]').forEach(btn => btn.addEventListener('click', () => toggleBan(Number(btn.dataset.ban), true)));
     tb.querySelectorAll('[data-unban]').forEach(btn => btn.addEventListener('click', () => toggleBan(Number(btn.dataset.unban), false)));
+    tb.querySelectorAll('[data-kick]').forEach(btn => btn.addEventListener('click', () => kickUser(Number(btn.dataset.kick))));
+    tb.querySelectorAll('[data-role]').forEach(btn => btn.addEventListener('click', () => changeRole(Number(btn.dataset.role), btn.dataset.roleCur)));
+    tb.querySelectorAll('[data-nick]').forEach(btn => btn.addEventListener('click', () => changeNick(Number(btn.dataset.nick))));
+    tb.querySelectorAll('[data-resetpw]').forEach(btn => btn.addEventListener('click', () => resetPassword(Number(btn.dataset.resetpw))));
+  }
+
+  // 踢下线
+  async function kickUser(id) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认强制下线该用户？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/kick', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '操作失败', 'error'); return; }
+      toast('已强制下线', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 修改角色
+  async function changeRole(id, cur) {
+    const next = window.prompt('输入新角色（user / vip / admin），当前：' + cur, cur || 'user');
+    if (next === null) return;
+    const role = next.trim().toLowerCase();
+    if (!['user', 'vip', 'admin'].includes(role)) { toast('角色无效', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/user/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, role })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '修改失败', 'error'); return; }
+      toast('角色已修改', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 修改昵称
+  async function changeNick(id) {
+    const nick = window.prompt('输入新昵称：', '');
+    if (nick === null || !nick.trim()) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/user/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, nickname: nick.trim() })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '修改失败', 'error'); return; }
+      toast('昵称已修改', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 重置密码
+  async function resetPassword(id) {
+    const pwd = window.prompt('输入新密码（至少6位），该用户将被强制下线：', '');
+    if (pwd === null || !pwd.trim()) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/user/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, password: pwd.trim() })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '重置失败', 'error'); return; }
+      toast('密码已重置并强制下线', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
   }
 
   // 封禁 / 解封
@@ -104,14 +187,96 @@
 
   function renderGroups(rows) {
     const tb = el('groupsTbody');
-    if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="4" class="empty">暂无群组</td></tr>'; return; }
+    if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">暂无群组</td></tr>'; return; }
     tb.innerHTML = rows.map(g => `
       <tr>
         <td>${g.id}</td>
         <td>${escapeHtml(g.name)}</td>
         <td>${g.ownerId}</td>
         <td>${g.memberCount}</td>
+        <td>${g.msgCount || 0}</td>
+        <td class="admin-actions-col">
+          <button class="admin-action-btn" data-gdetail="${g.id}">成员</button>
+          <button class="admin-action-btn danger" data-gdissolve="${g.id}" data-gname="${escapeHtml(g.name)}">解散</button>
+        </td>
       </tr>`).join('');
+    tb.querySelectorAll('[data-gdetail]').forEach(btn => btn.addEventListener('click', () => loadGroupDetail(Number(btn.dataset.gdetail))));
+    tb.querySelectorAll('[data-gdissolve]').forEach(btn => btn.addEventListener('click', () => dissolveGroup(Number(btn.dataset.gdissolve), btn.dataset.gname)));
+  }
+
+  // 加载全部群组（可搜索）
+  async function loadAllGroups(kw) {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const q = kw ? ('?q=' + encodeURIComponent(kw)) : '';
+      const resp = await fetch(API + '/api/admin/groups' + q, { headers: { 'Authorization': 'Bearer ' + token } });
+      if (resp.status !== 200) return;
+      const data = await resp.json();
+      renderGroups(data.groups || []);
+    } catch {}
+  }
+
+  // 解散群
+  async function dissolveGroup(id, name) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认解散群「' + name + '」？将删除该群所有成员和消息，不可恢复！')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/group/dissolve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '解散失败', 'error'); return; }
+      toast('群已解散', 'success');
+      hide(el('groupDetail'));
+      await loadAllGroups();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 群详情
+  async function loadGroupDetail(id) {
+    const token = getToken();
+    if (!token) return;
+    const detail = el('groupDetail');
+    if (!detail) return;
+    try {
+      const resp = await fetch(API + '/api/admin/group/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '加载失败', 'error'); return; }
+      show(detail);
+      el('groupDetailInfo').innerHTML = '群名：<b>' + escapeHtml(data.group.name) + '</b>　群主ID：' + data.group.ownerId + '　创建：' + fmtTime(data.group.createdAt);
+      const tb = el('groupDetailTbody');
+      const members = data.members || [];
+      if (!members.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">暂无成员</td></tr>'; return; }
+      tb.innerHTML = members.map(m => `
+        <tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.username)}</td>
+          <td>${escapeHtml(m.nickname)}</td>
+          <td><code>${escapeHtml(m.uid || '')}</code></td>
+          <td>${m.banned ? '<span class="admin-badge banned">已封禁</span>' : '<button class="admin-action-btn danger" data-grm="${id}" data-grmu="${m.id}">移除</button>'}</td>
+        </tr>`).join('');
+      tb.querySelectorAll('[data-grm]').forEach(btn => btn.addEventListener('click', () => removeGroupMember(Number(btn.dataset.grm), Number(btn.dataset.grmu))));
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 移除群成员
+  async function removeGroupMember(groupId, userId) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认从群中移除该成员？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/group/remove-member', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ groupId, userId })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '移除失败', 'error'); return; }
+      toast('成员已移除', 'success');
+      loadGroupDetail(groupId);
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
   }
 
   function renderFeedbacks(list, byKind) {
@@ -617,6 +782,192 @@
     } catch {}
   }
 
+  // ============ 公告管理 ============
+  async function publishAnnouncement() {
+    const title = (el('annTitle').value || '').trim();
+    const content = (el('annContent').value || '').trim();
+    const level = el('annLevel').value;
+    const top = el('annTop').checked;
+    if (!title || !content) { toast('标题和内容不能为空', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/announcements', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ title, content, level, top })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '发布失败', 'error'); return; }
+      toast('公告已发布并广播', 'success');
+      el('annTitle').value = ''; el('annContent').value = '';
+      el('annResult').textContent = '已发布 #' + data.announcement.id;
+      loadAnnouncements();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+  async function loadAnnouncements() {
+    const token = getToken();
+    if (!token) return;
+    const list = el('annList');
+    if (!list) return;
+    try {
+      const resp = await fetch(API + '/api/admin/announcements', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const anns = data.announcements || [];
+      if (!anns.length) { list.innerHTML = '<div class="admin-empty">暂无公告</div>'; return; }
+      list.innerHTML = anns.map(a => `
+        <div class="fb-item">
+          <div class="fb-head">
+            <span class="fb-id">#${a.id}</span>
+            <span class="fb-kind kind-${escapeHtml(a.level)}">${escapeHtml(a.level)}</span>
+            ${a.top ? '<span class="admin-badge banned">置顶</span>' : ''}
+            <span class="fb-time">${fmtTime(a.createdAt)}</span>
+          </div>
+          <div class="fb-body"><b>${escapeHtml(a.title)}</b><br>${escapeHtml(a.content)}</div>
+          <div class="fb-actions"><button class="admin-action-btn danger" data-ann-del="${a.id}">删除</button></div>
+        </div>`).join('');
+      list.querySelectorAll('[data-ann-del]').forEach(btn => btn.addEventListener('click', () => deleteAnnouncement(Number(btn.dataset.annDel))));
+    } catch {}
+  }
+  async function deleteAnnouncement(id) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认删除该公告？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/announcements?id=' + id, {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '删除失败', 'error'); return; }
+      toast('公告已删除', 'success');
+      loadAnnouncements();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 封禁 IP ============
+  async function banIp() {
+    const ip = (el('ipInput').value || '').trim();
+    const reason = (el('ipReason').value || '').trim();
+    if (!ip) { toast('请输入IP', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/ban-ip', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ ip, reason })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '封禁失败', 'error'); return; }
+      toast('IP 已封禁', 'success');
+      el('ipInput').value = ''; el('ipReason').value = '';
+      loadBannedIps();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+  async function loadBannedIps() {
+    const token = getToken();
+    if (!token) return;
+    const tb = el('ipTbody');
+    if (!tb) return;
+    try {
+      const resp = await fetch(API + '/api/admin/banned-ips', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const ips = data.ips || [];
+      if (!ips.length) { tb.innerHTML = '<tr><td colspan="4" class="empty">暂无封禁IP</td></tr>'; return; }
+      tb.innerHTML = ips.map(r => `
+        <tr>
+          <td><code>${escapeHtml(r.ip)}</code></td>
+          <td>${escapeHtml(r.reason || '-')}</td>
+          <td>${fmtTime(r.created_at)}</td>
+          <td><button class="admin-action-btn" data-unbanip="${escapeHtml(r.ip)}">解封</button></td>
+        </tr>`).join('');
+      tb.querySelectorAll('[data-unbanip]').forEach(btn => btn.addEventListener('click', () => unbanIp(btn.dataset.unbanip)));
+    } catch {}
+  }
+  async function unbanIp(ip) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认解封IP ' + ip + '？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/banned-ips?ip=' + encodeURIComponent(ip), {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '解封失败', 'error'); return; }
+      toast('IP 已解封', 'success');
+      loadBannedIps();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 敏感词 ============
+  async function addSensitiveWord() {
+    const word = (el('sensitiveInput').value || '').trim();
+    if (!word) { toast('请输入敏感词', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/sensitive-words', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ word })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '添加失败', 'error'); return; }
+      toast('敏感词已添加', 'success');
+      el('sensitiveInput').value = '';
+      loadSensitiveWords();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+  async function loadSensitiveWords() {
+    const token = getToken();
+    if (!token) return;
+    const list = el('sensitiveList');
+    if (!list) return;
+    try {
+      const resp = await fetch(API + '/api/admin/sensitive-words', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const words = data.words || [];
+      if (!words.length) { list.innerHTML = '<div class="admin-empty">暂无敏感词</div>'; return; }
+      list.innerHTML = words.map(w => '<span class="admin-code-item" title="点击删除" data-sens="' + escapeHtml(w.word) + '">' + escapeHtml(w.word) + ' ×</span>').join('');
+      list.querySelectorAll('[data-sens]').forEach(span => span.addEventListener('click', () => removeSensitiveWord(span.dataset.sens)));
+    } catch {}
+  }
+  async function removeSensitiveWord(word) {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/sensitive-words?word=' + encodeURIComponent(word), {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '删除失败', 'error'); return; }
+      toast('已删除', 'success');
+      loadSensitiveWords();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 审计日志 ============
+  async function loadAuditLogs() {
+    const token = getToken();
+    if (!token) return;
+    const tb = el('auditTbody');
+    if (!tb) return;
+    const action = el('auditActionFilter').value;
+    try {
+      const q = action ? ('?action=' + encodeURIComponent(action)) : '';
+      const resp = await fetch(API + '/api/admin/audit' + q, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const logs = data.logs || [];
+      if (!logs.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">暂无日志</td></tr>'; return; }
+      tb.innerHTML = logs.map(l => `
+        <tr>
+          <td>${fmtTime(l.createdAt)}</td>
+          <td>${l.adminId || '-'}</td>
+          <td>${escapeHtml(l.action)}</td>
+          <td>${l.targetType ? escapeHtml(l.targetType) + ':' + (l.targetId || '-') : '-'}</td>
+          <td>${escapeHtml(l.detail || '-')}</td>
+          <td><code>${escapeHtml(l.ip || '-')}</code></td>
+        </tr>`).join('');
+    } catch {}
+  }
+
   // 启动
   document.addEventListener('DOMContentLoaded', () => {
     // 左侧后台分区导航：只切换内容面板，不刷新页面、不丢失滚动位置
@@ -629,6 +980,12 @@
         });
         const main = el('adminMain');
         if (main) main.scrollTop = 0;
+        // 按需加载分区数据
+        if (target === 'social') loadAllGroups();
+        if (target === 'announce') loadAnnouncements();
+        if (target === 'ips') loadBannedIps();
+        if (target === 'sensitive') loadSensitiveWords();
+        if (target === 'audit') loadAuditLogs();
       });
     });
     el('refreshBtn').addEventListener('click', refresh);
@@ -645,6 +1002,18 @@
     if (el('loginEmail')) el('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') adminSendCode(); });
     el('verSaveBtn').addEventListener('click', saveVersion);
     bindPkgUploads();
+    // 公告
+    if (el('annPublishBtn')) el('annPublishBtn').addEventListener('click', publishAnnouncement);
+    // 封禁IP
+    if (el('ipBanBtn')) el('ipBanBtn').addEventListener('click', banIp);
+    // 敏感词
+    if (el('sensitiveAddBtn')) el('sensitiveAddBtn').addEventListener('click', addSensitiveWord);
+    // 审计日志
+    if (el('auditRefreshBtn')) el('auditRefreshBtn').addEventListener('click', loadAuditLogs);
+    // 群组
+    if (el('groupSearchBtn')) el('groupSearchBtn').addEventListener('click', () => loadAllGroups(el('groupSearch').value.trim()));
+    if (el('groupLoadBtn')) el('groupLoadBtn').addEventListener('click', () => loadAllGroups());
+    if (el('groupDetailClose')) el('groupDetailClose').addEventListener('click', () => hide(el('groupDetail')));
     // 自动刷新开关
     el('autoBtn').addEventListener('click', () => {
       autoRefreshEnabled = !autoRefreshEnabled;

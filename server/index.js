@@ -980,6 +980,8 @@ app.post('/api/group/create', (req, res) => {
   const name = (req.body || {}).name;
   if (!name || !String(name).trim()) return res.status(400).json({ error: '群名不能为空' });
   const groupName = String(name).trim().slice(0, 50);
+  const sw = checkSensitive(groupName);
+  if (sw) return res.status(400).json({ error: '群名包含敏感词：' + sw });
   const now = Date.now();
   const info = prepare('INSERT INTO groups(name,owner_id,created_at) VALUES(?,?,?)')
     .run(groupName, payload.id, now);
@@ -1428,6 +1430,8 @@ app.post('/api/feedback', (req, res) => {
   if (typeof content !== 'string' || content.trim().length < 10) {
     return res.status(400).json({ error: '内容至少 10 字' });
   }
+  const sw = checkSensitive(content);
+  if (sw) return res.status(400).json({ error: '内容包含敏感词：' + sw });
   const now = Date.now();
   prepare('INSERT INTO feedbacks(user_id,kind,content,status,created_at) VALUES(?,?,?,?,?)')
     .run(payload.id, kind, content.trim(), 'open', now);
@@ -2052,7 +2056,7 @@ app.get('/api/admin/users', (req, res) => {
   const guard = adminGuard(req, res);
   if (guard.sent) return;
   const rows = prepare(
-    'SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,banned,banned_at,banned_by,ban_reason,created_at FROM users ORDER BY created_at DESC'
+    'SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,banned,banned_at,banned_by,ban_reason,role,last_login_at,created_at FROM users ORDER BY created_at DESC'
   ).all();
   const onlineIds = new Set();
   for (const id of online.keys()) onlineIds.add(id);
@@ -2064,6 +2068,8 @@ app.get('/api/admin/users', (req, res) => {
     bannedAt: u.banned_at || null,
     bannedBy: u.banned_by || null,
     banReason: u.ban_reason || '',
+    role: u.role || 'user',
+    lastLoginAt: u.last_login_at || null,
     createdAt: u.created_at
   }));
   res.json({ users: list, total: list.length });
@@ -2094,6 +2100,305 @@ app.post('/api/admin/ban', (req, res) => {
   }
   try { online.delete(id); } catch {}
   res.json({ ok: true, id, banned });
+});
+
+// ---------- 通用：审计日志 + 客户端IP ----------
+function clientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress || '').replace('::ffff:', '') || '';
+}
+function logAudit(adminId, action, targetId, targetType, detail, ip) {
+  try {
+    prepare('INSERT INTO audit_logs(admin_id,action,target_id,target_type,detail,ip,created_at) VALUES(?,?,?,?,?,?,?)')
+      .run(adminId || null, action, targetId || null, targetType || '', detail || '', ip || '', Date.now());
+  } catch (e) { console.error('[audit] 写入失败', e.message); }
+}
+
+// GET /api/admin/audit —— 审计日志列表
+app.get('/api/admin/audit', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const limit = Math.min(parseInt((req.query || {}).limit || '200', 10) || 200, 1000);
+  const action = String((req.query || {}).action || '').trim();
+  let rows;
+  try {
+    rows = action
+      ? prepare('SELECT * FROM audit_logs WHERE action=? ORDER BY created_at DESC LIMIT ?').all(action, limit)
+      : prepare('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ?').all(limit);
+  } catch (e) { return res.json({ logs: [] }); }
+  res.json({ logs: rows.map(r => ({ id: r.id, adminId: r.admin_id, action: r.action, targetId: r.target_id, targetType: r.target_type, detail: r.detail, ip: r.ip, createdAt: r.created_at })) });
+});
+
+// POST /api/admin/kick —— 强制下线（不封禁）
+app.post('/api/admin/kick', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number((req.body || {}).id);
+  if (!id) return res.status(400).json({ error: '缺少用户ID' });
+  const target = prepare('SELECT id,username FROM users WHERE id=?').get(id);
+  if (!target) return res.status(404).json({ error: '用户不存在' });
+  for (const ws of online.get(id) || []) { try { send(ws, P.S_KICKED, { reason: (req.body || {}).reason || '已被管理员强制下线' }); } catch {} }
+  try { online.delete(id); } catch {}
+  logAudit(guard.u.id, 'kick', id, 'user', '强制下线 ' + target.username, clientIp(req));
+  broadcastUserList();
+  res.json({ ok: true, id });
+});
+
+// POST /api/admin/ban-ip —— 封禁 IP { ip, reason }
+app.post('/api/admin/ban-ip', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const ip = String((req.body || {}).ip || '').trim();
+  if (!ip) return res.status(400).json({ error: '缺少IP' });
+  const reason = String((req.body || {}).reason || '').trim().slice(0, 200);
+  try { prepare('INSERT OR IGNORE INTO banned_ips(ip,reason,created_by,created_at) VALUES(?,?,?,?)').run(ip, reason, guard.u.id, Date.now()); } catch (e) {}
+  // 将该 IP 的所有在线用户踢下线
+  const targetIp = ip;
+  for (const [uid, list] of online.entries()) {
+    for (const ws of list) {
+      if (ws._ip === targetIp) { try { send(ws, P.S_KICKED, { reason: 'IP 已被封禁' }); } catch {} }
+    }
+  }
+  logAudit(guard.u.id, 'ban_ip', null, 'ip', '封禁IP ' + ip + (reason ? ' (' + reason + ')' : ''), clientIp(req));
+  res.json({ ok: true, ip });
+});
+
+// GET /api/admin/banned-ips / DELETE /api/admin/banned-ips
+app.get('/api/admin/banned-ips', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  let rows;
+  try { rows = prepare('SELECT * FROM banned_ips ORDER BY created_at DESC').all(); } catch (e) { rows = []; }
+  res.json({ ips: rows });
+});
+app.delete('/api/admin/banned-ips', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const ip = String((req.query || {}).ip || (req.body || {}).ip || '').trim();
+  if (!ip) return res.status(400).json({ error: '缺少IP' });
+  try { prepare('DELETE FROM banned_ips WHERE ip=?').run(ip); } catch (e) {}
+  logAudit(guard.u.id, 'unban_ip', null, 'ip', '解封IP ' + ip, clientIp(req));
+  res.json({ ok: true, ip });
+});
+
+// POST /api/admin/user/update —— 修改昵称/角色/头像等 { id, nickname?, role?, avatar? }
+app.post('/api/admin/user/update', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number((req.body || {}).id);
+  const b = req.body || {};
+  if (!id) return res.status(400).json({ error: '缺少用户ID' });
+  const target = prepare('SELECT id,username,nickname,role FROM users WHERE id=?').get(id);
+  if (!target) return res.status(404).json({ error: '用户不存在' });
+  if (b.nickname !== undefined) {
+    const nickname = String(b.nickname).trim().slice(0, 30);
+    if (nickname) prepare('UPDATE users SET nickname=? WHERE id=?').run(nickname, id);
+  }
+  if (b.role !== undefined) {
+    const role = String(b.role).trim();
+    if (['user', 'vip', 'admin'].includes(role)) {
+      if (role === 'admin' && isAdmin(target)) return res.status(400).json({ error: '不能修改管理员角色' });
+      prepare('UPDATE users SET role=? WHERE id=?').run(role, id);
+    }
+  }
+  logAudit(guard.u.id, 'user_update', id, 'user', '修改用户 ' + target.username, clientIp(req));
+  res.json({ ok: true, id });
+});
+
+// POST /api/admin/user/reset-password —— 重置密码为随机
+app.post('/api/admin/user/reset-password', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number((req.body || {}).id);
+  if (!id) return res.status(400).json({ error: '缺少用户ID' });
+  const target = prepare('SELECT id,username FROM users WHERE id=?').get(id);
+  if (!target) return res.status(404).json({ error: '用户不存在' });
+  if (isAdmin(target)) return res.status(400).json({ error: '不能重置管理员密码' });
+  const pwd = String((req.body || {}).password || '').trim();
+  if (!pwd) return res.status(400).json({ error: '缺少新密码' });
+  if (pwd.length < 6) return res.status(400).json({ error: '密码至少6位' });
+  const bcrypt = require('bcryptjs');
+  const hash = bcrypt.hashSync(pwd, 10);
+  prepare('UPDATE users SET password=? WHERE id=?').run(hash, id);
+  // 重置后强制下线
+  for (const ws of online.get(id) || []) { try { send(ws, P.S_KICKED, { reason: '密码已被管理员重置' }); } catch {} }
+  try { online.delete(id); } catch {}
+  logAudit(guard.u.id, 'reset_password', id, 'user', '重置密码 ' + target.username, clientIp(req));
+  res.json({ ok: true, id });
+});
+
+// ---------- 系统公告 ----------
+// POST /api/admin/announcements { title, content, level?, top? }
+app.post('/api/admin/announcements', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const title = String((req.body || {}).title || '').trim().slice(0, 100);
+  const content = String((req.body || {}).content || '').trim();
+  if (!title || !content) return res.status(400).json({ error: '标题和内容不能为空' });
+  const level = ['info', 'warning', 'danger'].includes((req.body || {}).level) ? (req.body || {}).level : 'info';
+  const top = !!(req.body || {}).top ? 1 : 0;
+  const row = prepare('INSERT INTO announcements(title,content,level,top,created_by,created_at) VALUES(?,?,?,?,?,?)')
+    .run(title, content, level, top, guard.u.id, Date.now());
+  const ann = { id: row.lastInsertRowid, title, content, level, top, createdBy: guard.u.id, createdAt: Date.now() };
+  // 广播给所有在线用户
+  for (const uid of online.keys()) sendToUser(uid, P.S_ANNOUNCEMENT, { announcement: ann });
+  logAudit(guard.u.id, 'announce', null, 'announcement', '发布公告: ' + title, clientIp(req));
+  res.json({ ok: true, announcement: ann });
+});
+
+// GET /api/admin/announcements —— 管理员查看全部
+app.get('/api/admin/announcements', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  let rows;
+  try { rows = prepare('SELECT * FROM announcements ORDER BY top DESC, id DESC').all(); } catch (e) { rows = []; }
+  res.json({ announcements: rows.map(a => ({ id: a.id, title: a.title, content: a.content, level: a.level, top: a.top, createdBy: a.created_by, createdAt: a.created_at, expiresAt: a.expires_at })) });
+});
+
+// DELETE /api/admin/announcements?id=
+app.delete('/api/admin/announcements', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number((req.query || {}).id || (req.body || {}).id);
+  if (!id) return res.status(400).json({ error: '缺少公告ID' });
+  try { prepare('DELETE FROM announcements WHERE id=?').run(id); } catch (e) {}
+  logAudit(guard.u.id, 'announce_delete', id, 'announcement', '删除公告 #' + id, clientIp(req));
+  res.json({ ok: true, id });
+});
+
+// GET /api/announcements —— 用户拉取有效公告（未过期，最多5条）
+app.get('/api/announcements', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const now = Date.now();
+  let rows;
+  try {
+    rows = prepare('SELECT * FROM announcements WHERE (expires_at IS NULL OR expires_at > ?) ORDER BY top DESC, id DESC LIMIT 5').all(now);
+  } catch (e) { rows = []; }
+  res.json({ announcements: rows.map(a => ({ id: a.id, title: a.title, content: a.content, level: a.level, top: a.top, createdAt: a.created_at })) });
+});
+
+// ---------- 敏感词 ----------
+// GET /api/admin/sensitive-words
+app.get('/api/admin/sensitive-words', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  let rows;
+  try { rows = prepare('SELECT * FROM sensitive_words ORDER BY id DESC').all(); } catch (e) { rows = []; }
+  res.json({ words: rows });
+});
+// POST /api/admin/sensitive-words { word }
+app.post('/api/admin/sensitive-words', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const word = String((req.body || {}).word || '').trim();
+  if (!word) return res.status(400).json({ error: '缺少敏感词' });
+  try { prepare('INSERT OR IGNORE INTO sensitive_words(word,created_by,created_at) VALUES(?,?,?)').run(word, guard.u.id, Date.now()); } catch (e) {}
+  logAudit(guard.u.id, 'sensitive_add', null, 'sensitive', '添加敏感词: ' + word, clientIp(req));
+  res.json({ ok: true, word });
+});
+// DELETE /api/admin/sensitive-words?word=
+app.delete('/api/admin/sensitive-words', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const word = String((req.query || {}).word || (req.body || {}).word || '').trim();
+  if (!word) return res.status(400).json({ error: '缺少敏感词' });
+  try { prepare('DELETE FROM sensitive_words WHERE word=?').run(word); } catch (e) {}
+  logAudit(guard.u.id, 'sensitive_del', null, 'sensitive', '删除敏感词: ' + word, clientIp(req));
+  res.json({ ok: true, word });
+});
+// 消息敏感词检查（供发消息时调用）
+function checkSensitive(content) {
+  try {
+    const words = prepare('SELECT word FROM sensitive_words').all();
+    if (!words.length) return null;
+    const c = String(content || '');
+    for (const w of words) {
+      if (w.word && c.includes(w.word)) return w.word;
+    }
+  } catch (e) {}
+  return null;
+}
+
+// ---------- 群组管理 ----------
+// GET /api/admin/groups —— 全部群组(含成员数/消息数)
+app.get('/api/admin/groups', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const kw = String((req.query || {}).q || '').trim().toLowerCase();
+  let rows;
+  try {
+    rows = prepare(
+      `SELECT g.id,g.name,g.owner_id AS ownerId,g.created_at,
+        (SELECT COUNT(*) FROM group_members m WHERE m.group_id=g.id) AS memberCount,
+        (SELECT COUNT(*) FROM group_messages gm WHERE gm.group_id=g.id) AS msgCount
+       FROM groups g`
+    ).all();
+  } catch (e) { rows = []; }
+  let list = rows;
+  if (kw) list = rows.filter(g => String(g.name || '').toLowerCase().includes(kw));
+  res.json({ groups: list });
+});
+// POST /api/admin/group/dissolve { id }
+app.post('/api/admin/group/dissolve', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number((req.body || {}).id);
+  if (!id) return res.status(400).json({ error: '缺少群ID' });
+  const g = prepare('SELECT id,name FROM groups WHERE id=?').get(id);
+  if (!g) return res.status(404).json({ error: '群不存在' });
+  try { prepare('DELETE FROM group_messages WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_members WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM groups WHERE id=?').run(id); } catch (e) {}
+  logAudit(guard.u.id, 'group_dissolve', id, 'group', '解散群: ' + g.name, clientIp(req));
+  broadcastGroups();
+  res.json({ ok: true, id });
+});
+// POST /api/admin/group/remove-member { groupId, userId }
+app.post('/api/admin/group/remove-member', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const groupId = Number((req.body || {}).groupId);
+  const userId = Number((req.body || {}).userId);
+  if (!groupId || !userId) return res.status(400).json({ error: '缺少参数' });
+  try { prepare('DELETE FROM group_members WHERE group_id=? AND user_id=?').run(groupId, userId); } catch (e) {}
+  logAudit(guard.u.id, 'group_remove_member', userId, 'user', '从群 #' + groupId + ' 移除成员', clientIp(req));
+  broadcastGroups();
+  res.json({ ok: true });
+});
+// GET /api/admin/group/:id —— 群详情(成员列表)
+app.get('/api/admin/group/:id', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: '缺少群ID' });
+  const g = prepare('SELECT * FROM groups WHERE id=?').get(id);
+  if (!g) return res.status(404).json({ error: '群不存在' });
+  let members;
+  try {
+    members = prepare(
+      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.banned
+       FROM group_members m JOIN users u ON u.id=m.user_id WHERE m.group_id=?`
+    ).all(id);
+  } catch (e) { members = []; }
+  res.json({ group: { id: g.id, name: g.name, ownerId: g.owner_id, createdAt: g.created_at }, members });
 });
 
 
@@ -2195,6 +2500,12 @@ wss.on('connection', (ws) => {
       if (dbUser.banned) return send(ws, P.S_AUTH_FAIL, { error: '该账号已被封禁' + (dbUser.ban_reason ? '：' + dbUser.ban_reason : '') });
       ws.uid = dbUser.id;
       ws.user = publicUser(dbUser);
+      ws._ip = clientIp({ headers: {}, socket: ws._socket || ws._req || {} });
+      // IP 封禁校验
+      try {
+        const bip = ws._ip ? prepare('SELECT ip FROM banned_ips WHERE ip=?').get(ws._ip) : null;
+        if (bip) return send(ws, P.S_AUTH_FAIL, { error: '当前IP已被封禁' });
+      } catch (e) {}
       // 多端登录：同一 uid 允许多个 WS 连接（Map 存数组）
       const list = online.get(dbUser.id) || [];
       list.push(ws);
@@ -2211,6 +2522,8 @@ wss.on('connection', (ws) => {
          WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
       ).all(dbUser.id);
       for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
+      // 记录最后登录时间与 IP
+      try { prepare('UPDATE users SET last_login_at=?, last_ip=? WHERE id=?').run(Date.now(), ws._ip || '', dbUser.id); } catch (e) {}
       return;
     }
 

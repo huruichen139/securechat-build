@@ -73,6 +73,10 @@
       <button class="admin-nav-item" data-admin-section="security"><span data-i18n="security">安全</span><small>权限与配置</small></button>
       <button class="admin-nav-item" data-admin-section="versions"><span data-i18n="versions">版本</span><small>发布与安装包</small></button>
       <button class="admin-nav-item" data-admin-section="redeem"><span>兑换码</span><small>生成与管理</small></button>
+      <button class="admin-nav-item" data-admin-section="announce"><span>公告</span><small>系统广播</small></button>
+      <button class="admin-nav-item" data-admin-section="ips"><span>封禁IP</span><small>IP管控</small></button>
+      <button class="admin-nav-item" data-admin-section="sensitive"><span>敏感词</span><small>内容过滤</small></button>
+      <button class="admin-nav-item" data-admin-section="audit"><span>审计日志</span><small>操作记录</small></button>
     </nav>
     <div class="admin-side-bottom"><span class="admin-live-dot"></span><span data-i18n="serviceOnline">服务在线</span></div>
   </aside>
@@ -102,7 +106,7 @@
     <h4 class="admin-subh4"><span data-i18n="online">全部用户</span> <span id="onlineCountTag" class="admin-tag"></span></h4>
     <div id="onlineList" class="admin-tablewrap">
       <table class="admin-table">
-        <thead><tr><th>ID</th><th data-i18n="username">用户名</th><th data-i18n="nickname">昵称</th><th>UID</th><th data-i18n="email">邮箱</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>ID</th><th data-i18n="username">用户名</th><th data-i18n="nickname">昵称</th><th>UID</th><th data-i18n="email">邮箱</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
         <tbody id="onlineTbody"></tbody>
       </table>
     </div>
@@ -112,12 +116,23 @@
    <section id="adminSectionSocial" class="admin-section" data-admin-panel="social">
     <h3><span data-i18n="friends">好友</span> / <span data-i18n="groups">群组</span></h3>
     <div id="socialGrid" class="admin-grid"></div>
-    <h4 class="admin-subh4">Top 群组</h4>
+    <h4 class="admin-subh4">全部群组管理</h4>
+    <div class="admin-inline-tools"><input id="groupSearch" class="admin-search" placeholder="搜索群名" /><button id="groupSearchBtn" class="admin-btn">搜索</button><button id="groupLoadBtn" class="admin-btn">刷新</button></div>
     <div class="admin-tablewrap">
       <table class="admin-table">
-        <thead><tr><th>ID</th><th data-i18n="groups">群名</th><th>群主ID</th><th data-i18n="add">成员数</th></tr></thead>
+        <thead><tr><th>ID</th><th data-i18n="groups">群名</th><th>群主ID</th><th data-i18n="add">成员数</th><th>消息数</th><th>操作</th></tr></thead>
         <tbody id="groupsTbody"></tbody>
       </table>
+    </div>
+    <div id="groupDetail" class="admin-panel" style="display:none;margin-top:12px">
+      <h4 class="admin-subh4">群详情 <button id="groupDetailClose" class="admin-btn" style="float:right">关闭</button></h4>
+      <div id="groupDetailInfo"></div>
+      <div id="groupDetailMembers" class="admin-tablewrap">
+        <table class="admin-table">
+          <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>UID</th><th>操作</th></tr></thead>
+          <tbody id="groupDetailTbody"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -243,6 +258,107 @@
       <table class="admin-table">
         <thead><tr><th>兑换码</th><th>面值</th><th>状态</th><th>使用时间</th><th>使用人</th></tr></thead>
         <tbody id="redeemTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 公告管理 -->
+  <section id="adminSectionAnnounce" class="admin-section" data-admin-panel="announce">
+    <h3>系统公告 / 广播</h3>
+    <div class="admin-panel">
+      <h4 class="admin-subh4">发布公告</h4>
+      <div class="admin-panel-row">
+        <label>标题
+          <input id="annTitle" type="text" maxlength="100" placeholder="公告标题" />
+        </label>
+        <label>级别
+          <select id="annLevel">
+            <option value="info">info（普通）</option>
+            <option value="warning">warning（警告）</option>
+            <option value="danger">danger（重要）</option>
+          </select>
+        </label>
+        <label class="admin-check"><input id="annTop" type="checkbox" /> 置顶</label>
+      </div>
+      <div class="admin-panel-row">
+        <label style="width:100%">内容
+          <textarea id="annContent" rows="4" placeholder="公告内容，将实时推送给所有在线用户"></textarea>
+        </label>
+      </div>
+      <div class="admin-panel-row">
+        <button id="annPublishBtn" class="admin-btn primary">发布公告</button>
+        <span id="annResult" class="admin-hint"></span>
+      </div>
+    </div>
+    <h4 class="admin-subh4">历史公告</h4>
+    <div id="annList" class="admin-fblist"></div>
+  </section>
+
+  <!-- 封禁IP -->
+  <section id="adminSectionIps" class="admin-section" data-admin-panel="ips">
+    <h3>封禁 IP 管理</h3>
+    <div class="admin-panel">
+      <div class="admin-panel-row">
+        <label>IP 地址
+          <input id="ipInput" type="text" placeholder="如 203.0.113.5" />
+        </label>
+        <label>原因
+          <input id="ipReason" type="text" placeholder="封禁原因（可选）" />
+        </label>
+        <button id="ipBanBtn" class="admin-btn danger">封禁 IP</button>
+      </div>
+    </div>
+    <h4 class="admin-subh4">已封禁 IP</h4>
+    <div id="ipList" class="admin-tablewrap">
+      <table class="admin-table">
+        <thead><tr><th>IP</th><th>原因</th><th>封禁时间</th><th>操作</th></tr></thead>
+        <tbody id="ipTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 敏感词 -->
+  <section id="adminSectionSensitive" class="admin-section" data-admin-panel="sensitive">
+    <h3>敏感词过滤</h3>
+    <div class="admin-panel">
+      <div class="admin-panel-row">
+        <label>敏感词
+          <input id="sensitiveInput" type="text" placeholder="要屏蔽的词" />
+        </label>
+        <button id="sensitiveAddBtn" class="admin-btn primary">添加</button>
+      </div>
+      <p class="admin-hint">命中敏感词将拦截：群名创建、反馈内容提交。</p>
+    </div>
+    <h4 class="admin-subh4">敏感词列表</h4>
+    <div id="sensitiveList" class="admin-code-list"></div>
+  </section>
+
+  <!-- 审计日志 -->
+  <section id="adminSectionAudit" class="admin-section" data-admin-panel="audit">
+    <h3>审计日志</h3>
+    <div class="admin-panel">
+      <div class="admin-panel-row">
+        <label>按操作类型筛选
+          <select id="auditActionFilter">
+            <option value="">全部</option>
+            <option value="ban">封禁</option>
+            <option value="unban">解封</option>
+            <option value="kick">强制下线</option>
+            <option value="ban_ip">封禁IP</option>
+            <option value="unban_ip">解封IP</option>
+            <option value="announce">公告</option>
+            <option value="sensitive_add">添加敏感词</option>
+            <option value="group_dissolve">解散群</option>
+            <option value="reset_password">重置密码</option>
+          </select>
+        </label>
+        <button id="auditRefreshBtn" class="admin-btn">刷新</button>
+      </div>
+    </div>
+    <div id="auditList" class="admin-tablewrap">
+      <table class="admin-table">
+        <thead><tr><th>时间</th><th>管理员ID</th><th>操作</th><th>目标</th><th>详情</th><th>IP</th></tr></thead>
+        <tbody id="auditTbody"></tbody>
       </table>
     </div>
   </section>

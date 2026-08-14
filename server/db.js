@@ -307,6 +307,44 @@ function init() {
       updated_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_signed_prekeys_user ON signed_prekeys(user_id);
+    -- ============ 系统公告 ============
+    CREATE TABLE IF NOT EXISTS announcements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      level TEXT DEFAULT 'info',        -- info | warning | danger
+      top INTEGER DEFAULT 0,
+      created_by INTEGER,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER
+    );
+    -- ============ 封禁 IP ============
+    CREATE TABLE IF NOT EXISTS banned_ips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ip TEXT UNIQUE NOT NULL,
+      reason TEXT,
+      created_by INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    -- ============ 敏感词 ============
+    CREATE TABLE IF NOT EXISTS sensitive_words (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      word TEXT UNIQUE NOT NULL,
+      created_by INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    -- ============ 审计日志 ============
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admin_id INTEGER,
+      action TEXT NOT NULL,             -- ban | unban | kick | announce | sensitive | group_dissolve | ...
+      target_id INTEGER,
+      target_type TEXT,
+      detail TEXT,
+      ip TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
   `);
   // 迁移：给旧表加 uid 列（如果不存在）；给历史用户补 uid
   try {
@@ -347,6 +385,18 @@ function init() {
   } catch (e) { /* 列已存在 */ }
   try {
     db.run('ALTER TABLE users ADD COLUMN ban_reason TEXT');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN role TEXT DEFAULT "user"');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN last_login_at INTEGER');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN last_ip TEXT');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN created_ip TEXT');
   } catch (e) { /* 列已存在 */ }
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
   // 给缺 uid 的老数据补一个

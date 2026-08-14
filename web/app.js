@@ -11,7 +11,8 @@ const P = {
   S_USER_LIST: 'user_list', S_TYPING: 'typing', S_ERROR: 'error',
   S_SIGNAL: 'signal',
   S_FRIEND_REQ: 'friend_req', S_FRIEND_LIST: 'friend_list',
-  S_GROUP_MSG: 'group_msg', S_GROUP_LIST: 'group_list'
+  S_GROUP_MSG: 'group_msg', S_GROUP_LIST: 'group_list',
+  S_ANNOUNCEMENT: 'announcement', S_KICKED: 'kicked'
 };
 
 let state = {
@@ -379,6 +380,7 @@ $('authBtn').onclick = async () => {
     localStorage.setItem('sc_token', state.token);
     localStorage.setItem('sc_me', JSON.stringify(state.me));
     enterChat();
+    fetchAnnouncements();
   } catch (e) {
     $('authErr').textContent = '无法连接服务器：' + e.message;
   } finally {
@@ -515,7 +517,7 @@ function tryRestore() {
   }
   fetch(state.serverHost + '/api/users', { headers: { 'Authorization': 'Bearer ' + state.token } })
     .then((res) => {
-      if (res.ok) enterChat();
+      if (res.ok) { enterChat(); fetchAnnouncements(); }
       else { localStorage.removeItem('sc_token'); localStorage.removeItem('sc_me'); state.token = null; state.me = null; }
     })
     .catch(() => { localStorage.removeItem('sc_token'); localStorage.removeItem('sc_me'); state.token = null; state.me = null; });
@@ -1526,7 +1528,58 @@ function handleServer(data) {
     case P.S_GROUP_MSG:
       onIncomingGroupMsg(payload);
       break;
+    case P.S_ANNOUNCEMENT:
+      if (payload && payload.announcement) showAnnouncement(payload.announcement, true);
+      break;
+    case P.S_KICKED:
+      toast(payload.reason || '已被强制下线', 'error');
+      logout();
+      break;
   }
+}
+
+// ============ 系统公告展示 ============
+let shownAnnouncements = new Set();
+function announcementLevelClass(l) { return l === 'danger' ? 'danger' : (l === 'warning' ? 'warning' : 'info'); }
+function showAnnouncement(ann, force) {
+  if (!ann || !ann.id) return;
+  if (shownAnnouncements.has(ann.id) && !force) return;
+  shownAnnouncements.add(ann.id);
+  const title = ann.title || '系统公告';
+  const cls = announcementLevelClass(ann.level);
+  // 复用 toast 系统，但用更醒目的横幅
+  try {
+    const mask = document.createElement('div');
+    mask.className = 'announcement-mask';
+    mask.innerHTML =
+      '<div class="announcement-box ' + cls + '">' +
+      '<div class="announcement-badge">' + (ann.level === 'danger' ? '重要通知' : (ann.level === 'warning' ? '系统警告' : '系统公告')) + '</div>' +
+      '<div class="announcement-title">' + escapeHtml(title) + '</div>' +
+      '<div class="announcement-content">' + escapeHtml(ann.content || '').replace(/\n/g, '<br>') + '</div>' +
+      '<div class="announcement-actions"><button class="announcement-ok">知道了</button></div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    const ok = mask.querySelector('.announcement-ok');
+    ok.onclick = () => mask.remove();
+    mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
+  } catch (e) {
+    toast(title + '：' + ann.content, 'info');
+  }
+}
+
+// 登录后拉取未读公告
+async function fetchAnnouncements() {
+  if (!state.token) return;
+  try {
+    const res = await fetch(state.serverHost + '/api/announcements', {
+      headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const anns = data.announcements || [];
+    // 倒序弹（最新在最前，但先弹旧的再弹新的体验更好）
+    for (let i = anns.length - 1; i >= 0; i--) showAnnouncement(anns[i], false);
+  } catch (e) {}
 }
 
 let typingTimer = null;
