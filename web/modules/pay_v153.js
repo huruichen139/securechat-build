@@ -184,7 +184,7 @@
         try {
           const r = await Pay.createReceiveCode(a || undefined, rm.inp.value.trim());
           close();
-          showCodePanel({ qrText: r.qrText }, "receive");
+          showCodePanel(r, "receive");
         } catch (e) { showToast('生成失败：' + e.message, 'error'); }
       };
       acts.appendChild(ok);
@@ -212,7 +212,10 @@
         countdown.textContent = mm + ':' + ss;
         info.textContent = '付款码有效倒计时（请勿截图外传）';
       } else {
-        countdown.textContent = '';
+        const days = Math.floor(secs / 86400);
+        const hours = Math.floor((secs % 86400) / 3600);
+        const minutes = Math.floor((secs % 3600) / 60);
+        countdown.textContent = c.expiresAt ? ('剩余 ' + days + '天' + String(hours).padStart(2, '0') + '时' + String(minutes).padStart(2, '0') + '分') : '';
         info.textContent = (c.amount ? '收款 ¥' + c.amount : '收款码') + (c.remark ? ' · ' + c.remark : '');
       }
     }
@@ -234,7 +237,7 @@
     }
     img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:#fff';
     tip.textContent = '扫码后跳转 securechat://pay 解码确认';
-    const acts = isPay ? [countdown, info, img, tip] : [info, img, tip];
+    const acts = [countdown, info, img, tip];
     modal(isPay ? '我的付款码 v1.53.0' : '收款码', (body) => {
       acts.forEach((a) => body.appendChild(a));
     }, (actsBox, close) => {
