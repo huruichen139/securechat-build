@@ -103,7 +103,59 @@
       return;
     }
 
-    status('未识别的二维码内容', statusEl);
+    // WiFi 二维码：WIFI:T:WPA;S:<ssid>;P:<pass>;; → 展示连接信息
+    if (/^WIFI:/i.test(text)) {
+      showGenericResult(text, 'WiFi 二维码', statusEl);
+      if (onDone) onDone();
+      return;
+    }
+
+    // mailto / tel / sms → 系统级打开
+    if (/^mailto:/i.test(text)) { status('打开邮件…', statusEl); openUrl(text); if (onDone) onDone(); return; }
+    if (/^tel:/i.test(text)) { status('拨打电话…', statusEl); openUrl(text); if (onDone) onDone(); return; }
+    if (/^sms:/i.test(text)) { status('发送短信…', statusEl); openUrl(text); if (onDone) onDone(); return; }
+
+    // 名片：BEGIN:VCARD… → 展示名片文本
+    if (/^BEGIN:VCARD/i.test(text)) {
+      showGenericResult(text, '电子名片', statusEl);
+      if (onDone) onDone();
+      return;
+    }
+
+    // 其它任意内容 → 以文本形式展示并允许复制，尽量"扫得动"
+    showGenericResult(text, '二维码内容', statusEl);
+    if (onDone) onDone();
+  }
+
+  // 兜底：把任意识别内容展示为可复制文本（保证"扫任何二维码都有结果"）
+  function showGenericResult(text, title, statusEl) {
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    const box = document.createElement('div');
+    box.className = 'modal scan-text-view';
+    box.style.cssText = 'width:min(420px,88vw);max-height:80vh;overflow:auto;padding:18px 20px;box-sizing:border-box';
+    const escText = esc(text);
+    box.innerHTML =
+      '<div style="font-size:16px;font-weight:700;margin-bottom:10px">' + esc(title) + '</div>' +
+      '<div style="font-size:13px;color:#888;margin-bottom:12px">识别到以下内容，可复制使用：</div>' +
+      '<textarea readonly style="width:100%;box-sizing:border-box;min-height:90px;padding:10px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#f8fafc;color:#333;resize:vertical">' + escText + '</textarea>' +
+      '<div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">' +
+        '<button class="scan-text-copy" type="button" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">复制</button>' +
+        '<button class="scan-text-close" type="button" style="padding:8px 16px;border:none;border-radius:8px;background:#07c160;color:#fff;cursor:pointer;font-size:13px">完成</button>' +
+      '</div>';
+    mask.appendChild(box);
+    document.body.appendChild(mask);
+    box.querySelector('.scan-text-close').addEventListener('click', function () { mask.remove(); });
+    mask.addEventListener('click', function (e) { if (e.target === mask) mask.remove(); });
+    box.querySelector('.scan-text-copy').addEventListener('click', function () {
+      var ta = box.querySelector('textarea');
+      ta.removeAttribute('readonly');
+      ta.select();
+      try { document.execCommand('copy'); toastMsg('已复制', 'success'); }
+      catch (e) { toastMsg('复制失败，请手动复制', 'warn'); }
+      ta.setAttribute('readonly', 'readonly');
+    });
+    status(title + '：' + (text.length > 30 ? text.slice(0, 30) + '…' : text), statusEl);
   }
 
   // 网页跳转：优先新标签页（外部），内嵌留给 code 明确 mini 时用
