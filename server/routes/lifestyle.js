@@ -66,7 +66,7 @@ module.exports = function registerLifestyle(app, db, auth) {
     try { prepare('ALTER TABLE ' + table + ' ADD COLUMN ' + ddl).run(); } catch (_) { /* 已存在则忽略 */ }
   }
 
-  // ---------- 建表（IF NOT EXISTS） ----------
+  // ---------- 建表（IF NOT EXISTS，必须 .run() 才真正执行） ----------
   prepare(`
     CREATE TABLE IF NOT EXISTS mini_programs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +78,7 @@ module.exports = function registerLifestyle(app, db, auth) {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_mini_owner ON mini_programs(owner_id);
-  `);
+  `).run();
   prepare(`
     CREATE TABLE IF NOT EXISTS mini_usage (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +88,7 @@ module.exports = function registerLifestyle(app, db, auth) {
       count INTEGER NOT NULL DEFAULT 1,
       UNIQUE(user_id, app_id)
     );
-  `);
+  `).run();
   prepare(`
     CREATE TABLE IF NOT EXISTS mini_favorites (
       user_id INTEGER NOT NULL,
@@ -96,7 +96,7 @@ module.exports = function registerLifestyle(app, db, auth) {
       created_at INTEGER NOT NULL,
       PRIMARY KEY(user_id, app_id)
     );
-  `);
+  `).run();
   prepare(`
     CREATE TABLE IF NOT EXISTS nearby_markers (
       user_id INTEGER PRIMARY KEY,
@@ -106,7 +106,7 @@ module.exports = function registerLifestyle(app, db, auth) {
       lng REAL DEFAULT 0,
       last_seen INTEGER NOT NULL
     );
-  `);
+  `).run();
   prepare(`
     CREATE TABLE IF NOT EXISTS shake_sessions (
       session_id TEXT PRIMARY KEY,
@@ -115,7 +115,7 @@ module.exports = function registerLifestyle(app, db, auth) {
       expires_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_shake_expires ON shake_sessions(expires_at);
-  `);
+  `).run();
   // 用户表若缺城市列则补齐（profile 接口可能已建）
   ensureColumn('users', 'city TEXT', 'city TEXT');
 

@@ -1,9 +1,15 @@
 'use strict';
 // module: groups (worker batch1)
-// 缇よ亰浣撶郴鐙珛妯″潡锛氬垱寤虹兢/瑙ｆ暎缇?閫€鍑虹兢/閭€璇?绉婚櫎鎴愬憳銆佺兢鍏憡(缃《路闈炵鐞嗗憳鍙)銆?// 缇ゆ枃浠躲€佺兢鑱婅缃?鍏嶆墦鎵?缇ゅ娉?缇ゆ垚鍛樺垪琛?鏈兢鏄电О)銆佺兢娑堟伅鏀跺彂銆?// 瀵煎嚭 CommonJS锛歮odule.exports = function registerGroups(app, db, auth)
-//   - app  : express 瀹炰緥
-//   - db   : sql.js 鏁版嵁搴撳璞★紙id 鍙傝€?server/db.js锛?//   - auth : 閴存潈涓棿浠?(req,res,next)銆傝嫢鏈彁渚涳紝鍒欑敤鍐呯疆 JWT 鏍￠獙锛堜笌 server/index.js 鐩稿悓 secret锛夈€?//
-// 浠呬緵鍚堝苟锛氭湰妯″潡浣跨敤 require('../db') 鐨?prepare/persist 鑷冻杩愯锛?// 涓嶅奖鍝?server/index.js / server/db.js 宸ㄧ煶鏂囦欢銆?const path = require('path');
+// 群聊体系独立模块：创建群/解散群/退出群/邀请/移除成员、群公告(置顶·非管理员只读)、
+// 群文件、群聊设置(免打扰/群备注/我在本群的昵称)、群成员列表、群消息收发。
+// 导出 CommonJS：module.exports = function registerGroups(app, db, auth)
+//   - app  : express 实例
+//   - db   : sql.js 数据库对象（id 参考 server/db.js）
+//   - auth : 鉴权中间件 (req,res,next)。若未提供，则用内置 JWT 校验（与 server/index.js 相同 secret）。
+//
+// 仅供合并：本模块使用 require('../db') 的 prepare/persist 自足运行，
+// 不影响 server/index.js / server/db.js 巨石文件。
+const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -13,16 +19,18 @@ const gdb = require('../db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
 
-// ---------- 缇ゆ枃浠跺瓨鍌ㄧ洰褰曪紙涓?server/files 鍚岀骇锛岄伩鍏嶄緷璧栧法鐭虫枃浠跺父閲忥級----------
+// ---------- 群文件存储目录（与 server/files 同级，避免依赖巨石文件常量）----------
 const GROUP_FILES_DIR = process.env.GROUP_FILES_DIR || path.join(__dirname, '..', 'group-files');
-try { fs.mkdirSync(GROUP_FILES_DIR, { recursive: true }); } catch (e) { /* 蹇界暐 */ }
+try { fs.mkdirSync(GROUP_FILES_DIR, { recursive: true }); } catch (e) { /* 忽略 */ }
 
-// ---------- 鍏变韩 prepare锛氫紭鍏堢敤 db.js 鐨勶紙鑷甫钀界洏锛?---------
-// p 鍦?registerGroups 鍐呰璧嬪€硷紱鍏朵綑鍐呴儴鍑芥暟鍧囬€氳繃闂寘鍙橀噺 p 璁块棶銆?let P = null;
+// ---------- 共享 prepare：优先用 db.js 的（自带落盘）----------
+// p 在 registerGroups 内被赋值；其余内部函数均通过闭包变量 p 访问。
+let P = null;
 let EDB = null;
 function eof(sp) { return gdb && typeof gdb.prepare === 'function'; }
 function prep() {
-  // 閫€璺細鐩存帴鍩轰簬浼犲叆 EDB锛堜笉鑷姩钀界洏锛屽悎骞舵椂鍙嚜琛岀簿绠€锛?  return (sql) => {
+  // 退路：直接基于传入 EDB（不自动落盘，合并时可自行精简）
+  return (sql) => {
     const stmt = EDB.prepare(sql);
     return {
       run(...args) { stmt.run(args); try { const row = EDB.exec('SELECT last_insert_rowid() as id'); return { lastInsertRowid: row && row.length ? row[0].values[0][0] : 0 }; } catch (e) { return { changes: 0 }; } },
@@ -31,9 +39,10 @@ function prep() {
     };
   };
 }
-const p = { get: (...a) => P.get(...a), all: (...a) => P.all(...a), run: (...a) => P.run(...a) };
+const p = { get: (sql, ...a) => P(sql).get(...a), all: (sql, ...a) => P(sql).all(...a), run: (sql, ...a) => P(sql).run(...a) };
 
-// 鍐呭缓 publicUser锛堜笌 index.js 涓€鑷达級锛岄伩鍏嶄緷璧栧法鐭冲眬閮ㄥ嚱鏁?function publicUser(u) {
+// 内建 publicUser（与 index.js 一致），避免依赖巨石局部函数
+function publicUser(u) {
   if (!u) return null;
   let extra = {};
   try { extra = JSON.parse((u.extra && u.extra) || '{}') || {}; } catch (e) { extra = {}; }
@@ -53,15 +62,15 @@ function apiUser(req) {
   try { return verifyUser(req); } catch (e) { return null; }
 }
 function fail(res, code, error) { res.status(code).json({ error }); }
-// 鍐呯疆閴存潈涓棿浠讹紙褰撳閮ㄦ湭娉ㄥ叆 auth 鏃朵娇鐢級
+// 内置鉴权中间件（当外部未注入 auth 时使用）
 function defaultAuth(req, res, next) {
   const payload = apiUser(req);
-  if (!payload) return fail(res, 401, '鏈巿鏉?);
+  if (!payload) return fail(res, 401, '未授权');
   req.user = payload;
   next();
 }
 
-// 鏄惁缇ゆ垚鍛橈紱杩斿洖鎴愬憳琛屾垨 null
+// 是否群成员；返回成员行或 null
 function memberOf(groupId, userId) {
   return p.get('SELECT gm.id, gm.group_id AS groupId, gm.user_id AS userId FROM group_members gm WHERE gm.group_id=? AND gm.user_id=?', groupId, userId);
 }
@@ -100,13 +109,13 @@ function myGroups(userId) {
   });
 }
 
-// 缇ゆ秷鎭繑鍥炰綋琛ュ叏 sender 鏄电О锛堣€冭檻銆屾湰缇ゆ樀绉般€嶈鐩栵級
+// 群消息返回体补全 sender 昵称（考虑「本群昵称」覆盖）
 function groupMsgDto(r) {
   const sender = p.get(
     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname
      FROM users u LEFT JOIN group_member_settings gms ON gms.group_id=? AND gms.user_id=u.id
      WHERE u.id=?`, r.from_id, r.from_id);
-  const name = (sender && (sender.my_nickname || sender.nickname)) || ('鐢ㄦ埛' + r.from_id);
+  const name = (sender && (sender.my_nickname || sender.nickname)) || ('用户' + r.from_id);
   return {
     id: r.id, groupId: r.group_id, from: r.from_id,
     content: r.content, createdAt: r.created_at,
@@ -114,7 +123,7 @@ function groupMsgDto(r) {
   };
 }
 
-// 杩藉姞缇ゆ秷鎭苟灏濊瘯瀹炴椂鍒嗗彂锛堣嫢宸ㄧ煶 worker 閫氳繃 require.cache 娉ㄥ叆鍒嗗彂鍣級
+// 追加群消息并尝试实时分发（若巨石 worker 通过 require.cache 注入分发器）
 function insertGroupMessage(groupId, fromId, content, clientMsgId) {
   const now = Date.now();
   const info = p.run(
@@ -122,7 +131,8 @@ function insertGroupMessage(groupId, fromId, content, clientMsgId) {
     groupId, fromId, content, now);
   const id = info.lastInsertRowid;
   const msg = { id, groupId, from: fromId, content, createdAt: now };
-  // 浜嬩欢鍒嗗彂閽╁瓙锛歳egisterGroups 浼氫粠 app.locals 璇诲彇鍚堝苟鏂规敞鍏ョ殑鍙€夊箍鎾?  broadcastHook && broadcastHook(groupId, msg);
+  // 事件分发钩子：registerGroups 会从 app.locals 读取合并方注入的可选广播
+  broadcastHook && broadcastHook(groupId, msg);
   return msg;
 }
 
@@ -130,9 +140,9 @@ let broadcastHook = null;
 function setBroadcastHook(fn) { broadcastHook = fn || null; }
 
 module.exports = function registerGroups(app, db, auth) {
-  // 鏋勯€?prepare锛氫紭鍏?db.js 鐨勶紙鑷甫钀界洏锛夛紱鍚﹀垯閫€鍥炵函 sql.js
+  // 构造 prepare：优先用 db.js 的（自带落盘）；否则退回纯 sql.js
   if (gdb && typeof gdb.prepare === 'function') {
-    // gdb.prepare(sql) 杩斿洖 { run, get, all }
+    // gdb.prepare(sql) 返回 { run, get, all }
     P = (sql) => gdb.prepare(sql);
     EDB = db;
   } else {
@@ -141,7 +151,7 @@ module.exports = function registerGroups(app, db, auth) {
   }
   if (!EDB) { EDB = { run: () => {}, exec: () => [], prepare: () => ({}) }; }
 
-  // ---------- 鑷缓琛紙IF NOT EXISTS锛屽畨鍏ㄥ箓绛夛級----------
+  // ---------- 自建表（IF NOT EXISTS，安全幂等）----------
   try {
     const dbObj = EDB;
     dbObj.run(`
@@ -186,14 +196,14 @@ module.exports = function registerGroups(app, db, auth) {
         updated_at INTEGER NOT NULL
       );
       `);
-    } catch (e) { /* 琛ㄥ凡瀛樺湪鎴栧紓鍦板簱涓嶅彲鐢紝蹇界暐 */ }
+    } catch (e) { /* 表已存在或异地库不可用，忽略 */ }
 
   const mw = (typeof auth === 'function') ? auth : defaultAuth;
 
-  // ---------- 鍒涘缓缇わ細POST /api/groups { name, memberUids:[] } ----------
+  // ---------- 创建群：POST /api/groups { name, memberUids:[] } ----------
   app.post('/api/groups', mw, (req, res) => {
     const name = String((req.body || {}).name || '').trim();
-    if (!name) return fail(res, 400, '缇ゅ悕涓嶈兘涓虹┖');
+    if (!name) return fail(res, 400, '群名不能为空');
     const groupName = name.slice(0, 50);
     const memberUids = Array.isArray((req.body || {}).memberUids) ? (req.body.memberUids) : [];
     let uidList = [];
@@ -218,18 +228,18 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ ok: true, group: { id: groupId, name: groupName, ownerId: req.user.id }, added });
   });
 
-  // ---------- 鎴戠殑缇ゅ垪琛紙澧炲己锛夛細GET /api/groups/enhanced ----------
+  // ---------- 我的群列表（增强）：GET /api/groups/enhanced ----------
   app.get('/api/groups/enhanced', mw, (req, res) => {
     res.json({ groups: myGroups(req.user.id) });
   });
 
-  // ---------- 缇よ鎯咃細GET /api/groups/:id ----------
+  // ---------- 群详情：GET /api/groups/:id ----------
   app.get('/api/groups/:id', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!g) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const ann = p.get('SELECT content, publisher_id AS publisherId, pinned, created_at AS createdAt, updated_at AS updatedAt FROM group_announcements WHERE group_id=?', groupId) || null;
     const members = p.all(
       `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname,gms.muted
@@ -248,12 +258,12 @@ module.exports = function registerGroups(app, db, auth) {
     });
   });
 
-  // ---------- 閭€璇峰叆缇わ細POST /api/groups/:id/invite { uids:[] , uid } ----------
+  // ---------- 邀请入群：POST /api/groups/:id/invite { uids:[] , uid } ----------
   app.post('/api/groups/:id/invite', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const body = req.body || {};
     let uids = [];
     if (Array.isArray(body.uids)) uids = body.uids;
@@ -271,44 +281,44 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ ok: true, added, count: added.length });
   });
 
-  // ---------- 绉婚櫎鎴愬憳锛歅OST /api/groups/:id/remove { userId } ----------
+  // ---------- 移除成员：POST /api/groups/:id/remove { userId } ----------
   app.post('/api/groups/:id/remove', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (g.owner_id !== req.user.id) return fail(res, 403, '浠呯兢涓诲彲绉婚櫎鎴愬憳');
+    if (!g) return fail(res, 404, '群不存在');
+    if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可移除成员');
     const targetId = parseInt((req.body || {}).userId, 10);
-    if (!targetId || targetId === req.user.id) return fail(res, 400, '鐩爣鏃犳晥');
-    if (!memberOf(groupId, targetId)) return fail(res, 404, '璇ユ垚鍛樹笉鍦ㄧ兢涓?);
+    if (!targetId || targetId === req.user.id) return fail(res, 400, '目标无效');
+    if (!memberOf(groupId, targetId)) return fail(res, 404, '该成员不在群中');
     p.run('DELETE FROM group_members WHERE group_id=? AND user_id=?', groupId, targetId);
     p.run('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, targetId);
     p.run('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?', groupId, targetId);
     res.json({ ok: true });
   });
 
-  // ---------- 閫€鍑虹兢锛歅OST /api/groups/:id/leave ----------
+  // ---------- 退出群：POST /api/groups/:id/leave ----------
   app.post('/api/groups/:id/leave', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
-    // 缇や富涓嶅彲閫€鍑猴紙搴斿厛瑙ｆ暎锛夛紝鐩存帴鎶ラ敊鎻愮ず
-    if (g.owner_id === req.user.id) return fail(res, 400, '缇や富涓嶈兘閫€鍑虹兢锛岃瑙ｆ暎缇ゆ垨杞缇や富鍚庨€€鍑?);
+    if (!g) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    // 群主不可退出（应先解散），直接报错提示
+    if (g.owner_id === req.user.id) return fail(res, 400, '群主不能退出群，请解散群或转让群主后退出');
     p.run('DELETE FROM group_members WHERE group_id=? AND user_id=?', groupId, req.user.id);
     p.run('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, req.user.id);
     p.run('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?', groupId, req.user.id);
     res.json({ ok: true });
   });
 
-  // ---------- 瑙ｆ暎缇わ細POST /api/groups/:id/dissolve ----------
+  // ---------- 解散群：POST /api/groups/:id/dissolve ----------
   app.post('/api/groups/:id/dissolve', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (g.owner_id !== req.user.id) return fail(res, 403, '浠呯兢涓诲彲瑙ｆ暎缇?);
+    if (!g) return fail(res, 404, '群不存在');
+    if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可解散群');
     p.run('DELETE FROM groups WHERE id=?', groupId);
     p.run('DELETE FROM group_members WHERE group_id=?', groupId);
     p.run('DELETE FROM group_messages WHERE group_id=?', groupId);
@@ -316,43 +326,43 @@ module.exports = function registerGroups(app, db, auth) {
     p.run('DELETE FROM group_member_settings WHERE group_id=?', groupId);
     p.run('DELETE FROM group_setting_notes WHERE group_id=?', groupId);
     const files = p.all('SELECT id,name FROM group_files WHERE group_id=?', groupId);
-    for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id)); } catch (e) { /* 蹇界暐 */ } }
+    for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id)); } catch (e) { /* 忽略 */ } }
     p.run('DELETE FROM group_files WHERE group_id=?', groupId);
     res.json({ ok: true });
   });
 
-  // ---------- 缇ゆ秷鎭巻鍙诧細GET /api/groups/:id/messages ----------
+  // ---------- 群消息历史：GET /api/groups/:id/messages ----------
   app.get('/api/groups/:id/messages', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const rows = p.all(
       'SELECT * FROM group_messages WHERE group_id=? ORDER BY created_at ASC', groupId);
     res.json({ messages: rows.map(groupMsgDto) });
   });
 
-  // ---------- 鍙戠兢娑堟伅锛歅OST /api/groups/:id/messages { content } ----------
+  // ---------- 发群消息：POST /api/groups/:id/messages { content } ----------
   app.post('/api/groups/:id/messages', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const content = String((req.body || {}).content || '');
-    if (!content) return fail(res, 400, '娑堟伅鍐呭涓嶈兘涓虹┖');
+    if (!content) return fail(res, 400, '消息内容不能为空');
     const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''));
     res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt } });
   });
 
-  // ---------- 缇ゅ叕鍛婏細POST /api/groups/:id/announcement { content } ----------
-  // 浠呯鐞嗗憳锛堢兢涓伙級鍙紪杈戯紱鍏朵綑鎴愬憳鍙
+  // ---------- 群公告：POST /api/groups/:id/announcement { content } ----------
+  // 仅管理员（群主）可编辑；其余成员只读
   app.post('/api/groups/:id/announcement', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
-    if (g.owner_id !== req.user.id) return fail(res, 403, '浠呯兢涓诲彲缂栬緫缇ゅ叕鍛?);
+    if (!g) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可编辑群公告');
     const content = String((req.body || {}).content || '').slice(0, 2000);
     const now = Date.now();
     p.run(`INSERT INTO group_announcements(group_id,content,publisher_id,pinned,created_at,updated_at)
@@ -362,25 +372,26 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ ok: true, announcement: { content, publisherId: req.user.id, updatedAt: now } });
   });
 
-  // 缃《/鍙栨秷缃《鍏憡锛歅OST /api/groups/:id/announcement/pin { on }
+  // 置顶/取消置顶公告：POST /api/groups/:id/announcement/pin { on }
   app.post('/api/groups/:id/announcement/pin', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
-    if (g.owner_id !== req.user.id) return fail(res, 403, '浠呯兢涓诲彲缃《鍏憡');
+    if (!g) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可置顶公告');
     const on = (req.body || {}).on !== false;
     p.run('UPDATE group_announcements SET pinned=? , updated_at=? WHERE group_id=?', on ? 1 : 0, Date.now(), groupId);
     res.json({ ok: true, pinned: on });
   });
 
-  // ---------- 缇よ亰璁剧疆锛歅OST /api/groups/:id/settings { muted?, note? } ----------
-  // 鍏嶆墦鎵?+ 缇ゅ娉紙瀵规湰浜虹殑鏄剧ず鍚?鍒悕锛?  app.post('/api/groups/:id/settings', mw, (req, res) => {
+  // ---------- 群聊设置：POST /api/groups/:id/settings { muted?, note? } ----------
+  // 免打扰 + 群备注（对本人显示名/别名）
+  app.post('/api/groups/:id/settings', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const body = req.body || {};
     const now = Date.now();
     if (body.muted !== undefined || body.nickname !== undefined) {
@@ -402,12 +413,12 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ ok: true, muted: !!mine.muted, myNickname: mine.my_nickname || null, note: note.note || '' });
   });
 
-  // 鍒悕锛歅OST /api/groups/:id/nickname { nickname }
+  // 别名：POST /api/groups/:id/nickname { nickname }
   app.post('/api/groups/:id/nickname', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const nickname = String((req.body || {}).nickname || '').trim();
     p.run(`INSERT INTO group_member_settings(group_id,user_id,my_nickname,updated_at) VALUES(?,?,?,?)
       ON CONFLICT(group_id,user_id) DO UPDATE SET my_nickname=excluded.my_nickname,updated_at=excluded.updated_at`,
@@ -415,13 +426,13 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ ok: true, myNickname: nickname || null });
   });
 
-  // ---------- 缇ゆ垚鍛樺垪琛細GET /api/groups/:id/members ----------
+  // ---------- 群成员列表：GET /api/groups/:id/members ----------
   app.get('/api/groups/:id/members', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!g) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const members = p.all(
       `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname,gms.muted
        FROM group_members m JOIN users u ON u.id=m.user_id
@@ -431,13 +442,13 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ members: members.map(m => ({ ...publicUser(m), myNickname: m.my_nickname || null })), ownerId: g.owner_id, myNickname: mine.my_nickname || null });
   });
 
-  // ---------- 缇ゆ枃浠讹細涓婁紶 POST /api/groups/:id/files (application/octet-stream) ----------
+  // ---------- 群文件：上传 POST /api/groups/:id/files (application/octet-stream) ----------
   app.post('/api/groups/:id/files', express.raw({ type: 'application/octet-stream', limit: '100mb' }), mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
-    if (!Buffer.isBuffer(req.body) || !req.body.length) return fail(res, 400, '鏂囦欢涓虹┖');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return fail(res, 400, '文件为空');
     const name = String(req.query.name || 'file').trim().slice(0, 240) || 'file';
     const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
     const id = crypto.randomUUID();
@@ -448,57 +459,58 @@ module.exports = function registerGroups(app, db, auth) {
         id, groupId, req.user.id, name, mime, req.body.length, filePath, Date.now());
       res.json({ ok: true, id, name, mime, size: req.body.length });
     } catch (e) {
-      try { fs.unlinkSync(filePath); } catch (e2) { /* 蹇界暐 */ }
-      fail(res, 500, '鏂囦欢淇濆瓨澶辫触');
+      try { fs.unlinkSync(filePath); } catch (e2) { /* 忽略 */ }
+      fail(res, 500, '文件保存失败');
     }
   });
 
-  // ---------- 缇ゆ枃浠跺垪琛細GET /api/groups/:id/files ----------
+  // ---------- 群文件列表：GET /api/groups/:id/files ----------
   app.get('/api/groups/:id/files', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
-    if (!groupExists(groupId)) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const rows = p.all('SELECT id,name,mime,size,uploader_id AS uploaderId,created_at AS createdAt FROM group_files WHERE group_id=? ORDER BY created_at DESC', groupId);
     const list = rows.filter(r => fs.existsSync(path.join(GROUP_FILES_DIR, r.id + '.bin')));
     for (const f of list) {
       const u = p.get('SELECT username,nickname FROM users WHERE id=?', f.uploaderId);
-      f.uploader = u ? (u.nickname || u.username) : ('鐢ㄦ埛' + f.uploaderId);
+      f.uploader = u ? (u.nickname || u.username) : ('用户' + f.uploaderId);
     }
     res.json({ files: list });
   });
 
-  // ---------- 缇ゆ枃浠朵笅杞斤細GET /api/groups/files/:fileId ----------
-  // 娉ㄦ剰锛氬繀椤诲湪 /api/groups/:id 涔嬪墠娉ㄥ唽锛岄伩鍏?:id 璇尮閰?'files'
+  // ---------- 群文件下载：GET /api/groups/files/:fileId ----------
+  // 注意：必须在 /api/groups/:id 之前注册，避免 :id 误匹配 'files'
   app.get('/api/groups/files/:fileId', mw, (req, res) => {
     const file = p.get('SELECT * FROM group_files WHERE id=?', req.params.fileId);
-    if (!file) return fail(res, 404, '鏂囦欢涓嶅瓨鍦?);
-    if (!memberOf(file.group_id, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
-    if (!fs.existsSync(file.path)) return fail(res, 404, '鏂囦欢涓嶅瓨鍦?);
+    if (!file) return fail(res, 404, '文件不存在');
+    if (!memberOf(file.group_id, req.user.id)) return fail(res, 403, '你不在此群');
+    if (!fs.existsSync(file.path)) return fail(res, 404, '文件不存在');
     res.setHeader('Content-Type', file.mime);
     res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
     fs.createReadStream(file.path).pipe(res);
   });
 
-  // ---------- 缇ゆ枃浠跺垹闄わ細DELETE /api/groups/:id/files/:fileId ----------
+  // ---------- 群文件删除：DELETE /api/groups/:id/files/:fileId ----------
   app.delete('/api/groups/:id/files/:fileId', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
-    if (!Number.isInteger(groupId)) return fail(res, 400, '缇D閿欒');
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
-    if (!g) return fail(res, 404, '缇や笉瀛樺湪');
-    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '浣犱笉鍦ㄦ缇?);
+    if (!g) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const file = p.get('SELECT * FROM group_files WHERE id=? AND group_id=?', req.params.fileId, groupId);
-    if (!file) return fail(res, 404, '鏂囦欢涓嶅瓨鍦?);
+    if (!file) return fail(res, 404, '文件不存在');
     const isOwner = g.owner_id === req.user.id;
     const isUploader = file.uploader_id === req.user.id;
-    if (!isOwner && !isUploader) return fail(res, 403, '浠呯兢涓绘垨涓婁紶鑰呭彲鍒犻櫎');
-    try { fs.unlinkSync(file.path); } catch (e) { /* 蹇界暐 */ }
+    if (!isOwner && !isUploader) return fail(res, 403, '仅群主或上传者可删除');
+    try { fs.unlinkSync(file.path); } catch (e) { /* 忽略 */ }
     p.run('DELETE FROM group_files WHERE id=?', req.params.fileId);
     res.json({ ok: true });
   });
 
-  // 鍙€夛細渚涘悎骞舵柟娉ㄥ叆瀹炴椂鍒嗗彂鍣紙鏇存柊缇ゅ垪琛ㄧ粰鍦ㄧ嚎鎴愬憳锛?  module.exports.attachGroupBroadcast = setBroadcastHook;
-  
+  // 可选：供合并方注入实时分发器（更新群列表给在线成员）
+  module.exports.attachGroupBroadcast = setBroadcastHook;
+
   // 群消息置顶/取消置顶：POST /api/groups/:id/messages/:msgId/pin { pinned }
   app.post('/api/groups/:id/messages/:msgId/pin', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
@@ -529,5 +541,6 @@ module.exports = function registerGroups(app, db, auth) {
       p.run('INSERT INTO group_message_meta(message_id,reply_to,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,updated_at=excluded.updated_at', msgId, replyTo, now);
     } catch (e) {}
     res.json({ ok: true, replyTo });
-  });return { ok: true, routes: ['/api/groups/*'] };
+  });
+  return { ok: true, routes: ['/api/groups/*'] };
 };
