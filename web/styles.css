@@ -1654,6 +1654,34 @@ body.dark-mode .feature-item .feature-label{color:#e0e0e0}
 }
 .msg-row.other .time { text-align: left; }
 
+/* 微信式日期分隔条 */
+.day-divider {
+  text-align: center;
+  margin: 6px 0 12px;
+  color: #b0b0b0;
+  font-size: 12px;
+  user-select: none;
+}
+html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
+
+/* 微信式气泡：非对称圆角（尾巴侧小圆角，其余大圆角） */
+.msg-row.other .bubble {
+  border-radius: 3px 10px 10px 10px;
+}
+.msg-row.me .bubble {
+  border-radius: 10px 3px 10px 10px;
+}
+.msg-row.other .rp-bubble, .msg-row.me .rp-bubble { border-radius: 8px 8px 8px 8px; }
+
+/* 已读回执：自己的消息显示时间下方（由 JS 注入 read-status） */
+.read-status {
+  display: inline-block;
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+  text-align: right;
+}
+
 /* 消息行间距 */
 .msg-row { margin-bottom: 12px; }
 
@@ -2182,3 +2210,52 @@ body.dark-mode .product-img { background: #0f172a; }
 body.dark-mode .typing-text { background: #1e293b; }
 body.dark-mode .ttt-cell { background: #1e293b; }
 body.dark-mode .memory-card.flipped { background: #1e293b; }
+
+/* ===== 红包 ===== */
+.rp-tool-btn { color: #e74c3c; }
+.rp-mask { z-index: 1000; }
+.rp-send-box { position: relative; background: var(--bg); border-radius: 12px; width: min(360px, 92vw); padding: 0; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+.rp-send-head { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; padding: 18px 16px; font-size: 18px; font-weight: 600; text-align: center; }
+.rp-send-box .rp-close, .rp-grab-box .rp-close { position: absolute; top: 12px; right: 12px; background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; z-index: 2; }
+.rp-send-greeting { text-align: center; color: var(--text-secondary); font-size: 13px; padding: 10px 16px; }
+.rp-send-mode { display: flex; gap: 8px; padding: 4px 16px; }
+.rp-mode { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); font-size: 13px; cursor: pointer; color: var(--text); }
+.rp-mode.active { border-color: #e74c3c; color: #e74c3c; background: #fff5f5; }
+.rp-send-field { padding: 8px 16px; }
+.rp-send-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.rp-send-field input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: var(--side-bg); color: var(--text); }
+.rp-send-field input:focus { outline: none; border-color: #e74c3c; background: var(--bg); }
+.rp-send-btn { display: block; margin: 14px 16px 18px; width: calc(100% - 32px); padding: 12px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.rp-send-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.rp-grab-box { position: relative; background: var(--bg); border-radius: 12px; width: min(340px, 92vw); overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+.rp-grab-inner { padding: 20px 16px 24px; text-align: center; }
+.rp-grab-loading { color: var(--text-secondary); padding: 30px; }
+.rp-grab-top { background: linear-gradient(135deg, #e74c3c, #c0392b); margin: -20px -16px 12px; padding: 30px 16px; color: #fff; }
+.rp-grab-result { font-size: 16px; }
+.rp-grab-result b { font-size: 24px; color: #ffd700; }
+.rp-grab-msg { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.rp-grab-greeting { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+.rp-grab-progress { font-size: 12px; color: #999; margin-bottom: 12px; }
+.rp-grab-list { max-height: 200px; overflow-y: auto; text-align: left; border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; }
+.rp-grab-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; }
+.rp-grab-avatar { width: 28px; height: 28px; border-radius: 50%; background: #e74c3c; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; overflow: hidden; flex-shrink: 0; }
+.rp-grab-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rp-grab-name { flex: 1; color: var(--text); }
+.rp-grab-amount { color: #e74c3c; font-weight: 600; }
+.rp-grab-close { margin-top: 16px; padding: 8px 32px; background: #e74c3c; color: #fff; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
+
+.rp-bubble { cursor: pointer; user-select: none; min-width: 180px; display: flex; align-items: center; gap: 10px; }
+.rp-bubble-icon { font-size: 28px; }
+.rp-bubble-body { flex: 1; }
+.rp-bubble-title { font-size: 14px; font-weight: 600; }
+.rp-bubble-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.msg-row.me .rp-bubble { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
+.msg-row.me .rp-bubble-sub { color: rgba(255,255,255,.8); }
+.msg-row.other .rp-bubble { background: var(--bg); border: 1px solid #f0c4c4; }
+
+body.dark-mode .rp-send-box, body.dark-mode .rp-grab-box { background: #1e293b; }
+body.dark-mode .rp-send-field input { background: #0f172a; }
+body.dark-mode .rp-mode { background: #1e293b; }
+body.dark-mode .rp-grab-list { border-color: #334155; }
+body.dark-mode .msg-row.other .rp-bubble { background: #1e293b; border-color: #5c3a3a; }

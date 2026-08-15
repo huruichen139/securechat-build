@@ -2697,6 +2697,8 @@ function mountFeatureRoutes(app, db) {
   rx('./routes/payment', [app, db, null]);
   rx('./routes/status-collar', [app, db, apiUser]);
   rx('./routes/lifestyle-msg', [app, db, apiUser]);
+  global.__scSendToUser = sendToUser;
+  rx('./routes/redpacket', [app, db, apiUser]);
 }
 
 // 启动：先初始化数据库

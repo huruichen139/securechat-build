@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.53.0';
+const PACKAGE_VERSION = '1.54.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -2222,10 +2222,28 @@ function appendMessage(m, prepend) {
       }
     } catch {}
   }
+  // 微信式日期分隔条：跨天时插入
+  const mb = $('messages');
+  if (mb && m.createdAt) {
+    const mk = (d) => new Date(d).toDateString();
+    const last = mb.lastElementChild;
+    if (!last || !last.classList.contains('msg-row')) {
+      // 首个消息或上次是分隔条：判断是否需要
+      const prevDivider = mb.querySelector('.day-divider:last-of-type');
+      const prevDay = prevDivider ? prevDivider.getAttribute('data-day') : null;
+      if (!prevDay || prevDay !== mk(m.createdAt)) addDayDivider(m.createdAt);
+    } else {
+      const prevRow = last;
+      const prevTime = prevRow.getAttribute('data-ts');
+      if (prevTime && mk(Number(prevTime)) !== mk(m.createdAt)) addDayDivider(m.createdAt);
+    }
+  }
   const box = $('messages');
   const mine = m.from === state.me.id;
   const row = document.createElement('div');
   row.className = 'msg-row ' + (mine ? 'me' : 'other');
+  if (m.id != null) row.setAttribute('data-id', String(m.id));
+  if (m.createdAt) row.setAttribute('data-ts', String(m.createdAt));
   const fullTime = new Date(m.createdAt).toLocaleString();
   row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span><div class="message-actions"><button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
   row.querySelector('[data-action="copy"]').onclick = async () => {
@@ -2247,6 +2265,30 @@ function fmtTime(t) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return hh + ':' + mm;
+}
+
+// 微信式日期分隔条文案
+function dayLabel(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.floor((today - day) / 86400000);
+  if (diff === 0) return '今天';
+  if (diff === 1) return '昨天';
+  if (diff === 2) return '前天';
+  const w = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  if (diff < 7) return w[d.getDay()];
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+}
+function addDayDivider(ts) {
+  const box = $('messages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'day-divider';
+  div.setAttribute('data-day', new Date(ts).toDateString());
+  div.textContent = dayLabel(ts);
+  box.appendChild(div);
 }
 
 function fmtChatListTime(t) {
