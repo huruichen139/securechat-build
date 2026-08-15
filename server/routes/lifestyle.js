@@ -180,20 +180,7 @@ module.exports = function registerLifestyle(app, db, auth) {
     okay(res, { programs: rows.map(a => mpPublic(a, id.id)) });
   });
 
-  // 小程序详情 + 使用记录（打开即记录）
-  app.get('/api/mini-program/:id', (req, res) => {
-    const id = me(res, req); if (!id) return;
-    const aid = micrId(req.params.id);
-    const a = prepare('SELECT * FROM mini_programs WHERE id=?').get(aid);
-    if (!a) return deny(res, 404, '小程序不存在');
-    prepare('INSERT INTO mini_usage(user_id,app_id,last_at,count) VALUES(?,?,?,1) '
-      + 'ON CONFLICT(user_id,app_id) DO UPDATE SET last_at=excluded.last_at,count=count+1')
-      .run(id.id, aid, Date.now());
-    const owner = prepare('SELECT * FROM users WHERE id=?').get(a.owner_id);
-    okay(res, { program: mpPublic(a, id.id), ownerName: owner ? owner.nickname : '' });
-  });
-
-  // 我的最近使用
+  // 我的最近使用（必须在 :id 之前注册，否则 "me" 被 :id 吞掉）
   app.get('/api/mini-program/me/recent', (req, res) => {
     const id = me(res, req); if (!id) return;
     const rows = prepare(`
@@ -209,6 +196,19 @@ module.exports = function registerLifestyle(app, db, auth) {
       SELECT mp.* FROM mini_programs mp JOIN mini_favorites f ON f.app_id=mp.id
       WHERE f.user_id=? ORDER BY f.created_at DESC LIMIT 100`).all(id.id);
     okay(res, { programs: rows.map(a => mpPublic(a, id.id)) });
+  });
+
+  // 小程序详情 + 使用记录（打开即记录）
+  app.get('/api/mini-program/:id', (req, res) => {
+    const id = me(res, req); if (!id) return;
+    const aid = micrId(req.params.id);
+    const a = prepare('SELECT * FROM mini_programs WHERE id=?').get(aid);
+    if (!a) return deny(res, 404, '小程序不存在');
+    prepare('INSERT INTO mini_usage(user_id,app_id,last_at,count) VALUES(?,?,?,1) '
+      + 'ON CONFLICT(user_id,app_id) DO UPDATE SET last_at=excluded.last_at,count=count+1')
+      .run(id.id, aid, Date.now());
+    const owner = prepare('SELECT * FROM users WHERE id=?').get(a.owner_id);
+    okay(res, { program: mpPublic(a, id.id), ownerName: owner ? owner.nickname : '' });
   });
 
   // 收藏 / 取消收藏

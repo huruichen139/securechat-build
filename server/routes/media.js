@@ -476,6 +476,16 @@ module.exports = function registerMedia(app, db, auth) {
     okay(res, { videos: rows.map(r => videoPublic(r, payload.id)) });
   });
 
+  // 我收藏的视频（必须在 :id 之前注册，否则 "me" 被 :id 吞掉）
+  app.get('/api/videos/me/favorites', (req, res) => {
+    const payload = authed(req);
+    if (!payload) return deny(res, 401, '未授权');
+    const rows = prepare(`
+      SELECT v.* FROM videos v JOIN video_favorites vf ON vf.video_id=v.id
+      WHERE vf.user_id=? ORDER BY vf.created_at DESC LIMIT 200`).all(payload.id);
+    okay(res, { videos: rows.map(r => videoPublic(r, payload.id)) });
+  });
+
   // 视频详情（播放量 +1）
   app.get('/api/videos/:id', (req, res) => {
     const payload = authed(req);
@@ -558,16 +568,6 @@ module.exports = function registerMedia(app, db, auth) {
     prepare('UPDATE videos SET share_count=share_count+1 WHERE id=?').run(vid);
     const v = prepare('SELECT * FROM videos WHERE id=?').get(vid);
     okay(res, { shareCount: v.share_count });
-  });
-
-  // 我收藏的视频
-  app.get('/api/videos/me/favorites', (req, res) => {
-    const payload = authed(req);
-    if (!payload) return deny(res, 401, '未授权');
-    const rows = prepare(`
-      SELECT v.* FROM videos v JOIN video_favorites vf ON vf.video_id=v.id
-      WHERE vf.user_id=? ORDER BY vf.created_at DESC LIMIT 200`).all(payload.id);
-    okay(res, { videos: rows.map(r => videoPublic(r, payload.id)) });
   });
 
   // ============================================================
