@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-
 import 'services/securechat_api.dart';
 import 'settings_page.dart';
+import 'wallet_page.dart';
+import 'favorites_page.dart' as fav;
+import 'notebook_page.dart';
+import 'wallet_extra_page.dart';
+import 'chat_ext_page.dart';
 
 class MePage extends StatefulWidget {
   const MePage({super.key, this.api, this.config});
@@ -23,7 +27,7 @@ class _MePageState extends State<MePage> {
   }
 
   Future<void> _loadCard() async {
-    final api = SecureChatApi();
+    final api = widget.api ?? SecureChatApi();
     try {
       final card = await api.myCard();
       if (!mounted) return;
@@ -36,28 +40,31 @@ class _MePageState extends State<MePage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     return Container(
       color: const Color(0xffededed),
       child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: t.colorScheme.error)))
+              ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xffc0392b))))
               : CustomScrollView(
                   slivers: [
                     _header(),
                     _group('服务', [
-                      _serviceItem(Icons.payments_outlined, '支付'),
-                      _serviceItem(Icons.favorite_border, '收藏'),
-                      _serviceItem(Icons.photo_library_outlined, '相册'),
-                      _serviceItem(Icons.wallet_giftcard_outlined, '卡包'),
-                      _serviceItem(Icons.emoji_emotions_outlined, '表情'),
-                      _serviceItem(Icons.settings_outlined, '设置'),
+                      _serviceItem(Icons.payments_outlined, '支付', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                      _serviceItem(Icons.favorite_border, '收藏', () => Navigator.push(context, MaterialPageRoute(builder: (_) => fav.FavoritesPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                      _serviceItem(Icons.photo_library_outlined, '相册', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AlbumPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                      _serviceItem(Icons.wallet_giftcard_outlined, '卡包', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletExtraPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                      _serviceItem(Icons.emoji_emotions_outlined, '表情', () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatExtPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                      _serviceItem(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api ?? SecureChatApi())))),
                     ]),
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
                   ],
                 ),
     );
+  }
+
+  void _notImplemented(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('功能开发中'), duration: Duration(seconds: 1)));
   }
 
   Widget _header() {
@@ -113,15 +120,11 @@ class _MePageState extends State<MePage> {
     );
   }
 
-  Widget _serviceItem(IconData icon, String label) {
+  Widget _serviceItem(IconData icon, String label, VoidCallback onTap) {
     return Material(
       color: Colors.white,
       child: InkWell(
-        onTap: () {
-          if (label == '设置') {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: SecureChatApi())));
-          }
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(children: [
@@ -132,6 +135,19 @@ class _MePageState extends State<MePage> {
           ]),
         ),
       ),
+    );
+  }
+}
+
+class AlbumPage extends StatelessWidget {
+  const AlbumPage({super.key, this.api, this.config});
+  final SecureChatApi? api;
+  final dynamic config;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('相册'), backgroundColor: const Color(0xfff7f7f7)),
+      body: const Center(child: Text('相册功能开发中', style: TextStyle(color: Color(0xff888888)))),
     );
   }
 }
