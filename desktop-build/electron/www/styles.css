@@ -2391,6 +2391,40 @@ body.dark-mode .feature-item-tools { border-color:rgba(192,132,252,.35); }
 .feature-item-moments { background:linear-gradient(145deg,#fdf4ff,#e9d5ff) !important; color:#86198f; }
 .feature-item-redeem { background:linear-gradient(145deg,#fefce8,#fde68a) !important; color:#a16207; }
 body.dark-mode .feature-item-videos,body.dark-mode .feature-item-oa,body.dark-mode .feature-item-live,body.dark-mode .feature-item-miniapp,body.dark-mode .feature-item-read,body.dark-mode .feature-item-search,body.dark-mode .feature-item-album,body.dark-mode .feature-item-cards,body.dark-mode .feature-item-stickers,body.dark-mode .feature-item-shop,body.dark-mode .feature-item-games,body.dark-mode .feature-item-redpacket,body.dark-mode .feature-item-nearby,body.dark-mode .feature-item-shake,body.dark-mode .feature-item-scan,body.dark-mode .feature-item-pay,body.dark-mode .feature-item-payment,body.dark-mode .feature-item-status,body.dark-mode .feature-item-favorites,body.dark-mode .feature-item-groups,body.dark-mode .feature-item-polls,body.dark-mode .feature-item-todos,body.dark-mode .feature-item-remind,body.dark-mode .feature-item-translate,body.dark-mode .feature-item-moments,body.dark-mode .feature-item-redeem { filter:saturate(.82) brightness(.78); }
+
+/* 更多功能内部操作按钮：每个模块独立主题 */
+.oa-panel button,.oa-view button{border:1px solid #fdba74;border-radius:999px;background:linear-gradient(135deg,#fff7ed,#ffedd5);color:#c2410c;padding:7px 13px;font-weight:700;cursor:pointer;transition:.16s ease}
+.oa-panel button:hover,.oa-view button:hover{transform:translateY(-2px);box-shadow:0 7px 16px #f9731633}
+.video-panel button,.videos-panel button{border:1px solid #93c5fd;border-radius:10px;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1d4ed8;padding:7px 13px;font-weight:700;cursor:pointer}
+.video-panel button:hover,.videos-panel button:hover{background:#2563eb;color:#fff;transform:translateY(-2px)}
+.live-panel button,.live-view button{border:0;border-radius:999px;background:linear-gradient(135deg,#ef4444,#be123c);color:#fff;padding:8px 15px;font-weight:700;cursor:pointer;box-shadow:0 5px 12px #be123c33}
+.miniapp-panel button,.miniapp-view button{border:1px solid #86efac;border-radius:12px;background:#f0fdf4;color:#15803d;padding:7px 13px;font-weight:700;cursor:pointer}
+.album-panel button,.album-view button{border:0;border-radius:8px;background:linear-gradient(135deg,#d946ef,#9333ea);color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
+.cards-panel button,.cards-view button{border:1px solid #94a3b8;border-radius:6px;background:#334155;color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
+.shop-panel button,.shop-view button{border:0;border-radius:6px;background:linear-gradient(135deg,#fb923c,#ea580c);color:#fff;padding:8px 14px;font-weight:700;cursor:pointer}
+.games-panel button,.games-view button{border:0;border-radius:14px;background:linear-gradient(135deg,#6366f1,#4338ca);color:#fff;padding:8px 15px;font-weight:700;cursor:pointer;transform:skew(-3deg)}
+.nearby-panel button,.nearby-view button{border:1px solid #67e8f9;border-radius:999px;background:#ecfeff;color:#0e7490;padding:7px 14px;font-weight:700;cursor:pointer}
+.shake-panel button,.shake-view button{border:0;border-radius:50%;background:linear-gradient(135deg,#facc15,#ca8a04);color:#713f12;width:48px;height:48px;font-weight:800;cursor:pointer}
+.scan-panel button,.scan-view button{border:1px solid #64748b;border-radius:4px;background:#334155;color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
+.pay-panel button,.pay-view button{border:0;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;padding:8px 15px;font-weight:700;cursor:pointer}
+.rp-send-box button,.rp-grab-box button{border-radius:10px;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;border:0;padding:8px 15px;font-weight:700;cursor:pointer}
+.favorites-panel button,.favorites-view button,.status-panel button,.status-view button{border:1px solid #f9a8d4;border-radius:999px;background:#fdf2f8;color:#be185d;padding:7px 13px;font-weight:700;cursor:pointer}
+.polls-panel button,.todos-panel button,.remind-panel button{border-radius:8px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;padding:7px 13px;font-weight:700;cursor:pointer}
+.read-panel button,.search-panel button{border:0;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
+.oa-panel button:active,.video-panel button:active,.live-panel button:active,.miniapp-panel button:active,.album-panel button:active,.cards-panel button:active,.shop-panel button:active,.games-panel button:active,.nearby-panel button:active,.scan-panel button:active,.pay-panel button:active{transform:scale(.96)}
+/* 模块实际挂载 class 的覆盖：视频号使用 vid-panel，详情页使用 vid-container */
+.vid-panel button,.vid-container button{border:1px solid #93c5fd;border-radius:10px;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1d4ed8;padding:7px 13px;font-weight:700;cursor:pointer;transition:.16s ease}
+.vid-panel button:hover,.vid-container button:hover{background:#2563eb;color:#fff;transform:translateY(-2px);box-shadow:0 7px 16px #2563eb33}
+.live-container button{border:0;border-radius:999px;background:linear-gradient(135deg,#ef4444,#be123c);color:#fff;padding:8px 15px;font-weight:700;cursor:pointer;box-shadow:0 5px 12px #be123c33}
+.filehelper-panel button{border:1px solid #c4b5fd;border-radius:8px;background:#f5f3ff;color:#6d28d9;padding:6px 11px;font-weight:700;cursor:pointer}
+.sticker-panel button{border:1px solid #f9a8d4;border-radius:14px;background:#fdf2f8;color:#be185d;padding:7px 12px;font-weight:700;cursor:pointer}
+.album-panel button,.album-viewer button{border:1px solid #d8b4fe;border-radius:9px;background:#faf5ff;color:#9333ea;padding:7px 12px;font-weight:700;cursor:pointer}
+.cards-panel button{border:1px solid #94a3b8;border-radius:6px;background:#334155;color:#fff;padding:7px 12px;font-weight:700;cursor:pointer}
+.miniapp-panel button{border:1px solid #86efac;border-radius:12px;background:#f0fdf4;color:#15803d;padding:7px 12px;font-weight:700;cursor:pointer}
+.nearby-panel button{border:1px solid #67e8f9;border-radius:999px;background:#ecfeff;color:#0e7490;padding:7px 13px;font-weight:700;cursor:pointer}
+.shake-panel button{border:0;border-radius:50%;background:linear-gradient(135deg,#facc15,#ca8a04);color:#713f12;padding:10px 16px;font-weight:800;cursor:pointer}
+.search-panel button{border:0;border-radius:8px;background:linear-gradient(135deg,#14b8a6,#0f766e);color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
+.read-panel button{border:0;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
 .msg-row.me .rp-bubble-sub { color: rgba(255,255,255,.8); }
 .msg-row.other .rp-bubble { background: var(--bg); border: 1px solid #f0c4c4; }
 
