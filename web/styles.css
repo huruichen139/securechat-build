@@ -123,6 +123,8 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 .contact { padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-left: 3px solid transparent; }
 .contact:hover { background: #efefef; }
 .contact.active { background: #e6e8e7; border-left-color: var(--primary); }
+.conversation-group .group-avatar { background: linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; font-weight:700; }
+.conversation-group.active .group-avatar { box-shadow: 0 0 0 3px rgba(124,58,237,.18); }
 .contact .name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contact .last { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-time { flex: 0 0 auto; align-self: flex-start; margin: 3px 5px 0 4px; color: #a0a0a0; font-size: 10px; white-space: nowrap; }

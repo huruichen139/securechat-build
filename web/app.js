@@ -1573,7 +1573,7 @@ function handleServer(data) {
       break;
     case P.S_GROUP_LIST:
       state.groups = payload.groups || [];
-      if (state.tabContact === 'groups') renderContacts();
+      renderContacts();
       // 若当前选中的群还在列表里，刷新一下顶部 header 与在线状态
       if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {
         renderChatHeader();
@@ -1661,11 +1661,6 @@ function renderContacts() {
   const kw = $('search').value.trim().toLowerCase();
   const list = $('contactList');
   list.innerHTML = '';
-  if (state.tabContact === 'groups') {
-    renderGroupList();
-    return;
-  }
-  // 默认：好友
   const friends = state.friends.filter(u => !kw
     || (u.nickname || '').toLowerCase().includes(kw)
     || (u.username || '').toLowerCase().includes(kw)
@@ -1673,15 +1668,37 @@ function renderContacts() {
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
   const count = $('listCount');
-  if (count) count.textContent = friends.length + ' 位好友';
-  if (!friends.length) {
+  const groups = state.groups.filter(g => !kw
+    || (g.name || '').toLowerCase().includes(kw)
+    || String(g.id).includes(kw));
+  const conversations = [];
+  friends.forEach(u => conversations.push({ kind: 'user', item: u, key: 'u:' + u.id, time: state.lastMsgTime[u.id] || 0 }));
+  groups.forEach(g => conversations.push({ kind: 'group', item: g, key: 'g:' + g.id, time: state.groupLastMsgTime[g.id] || 0 }));
+  conversations.sort((a, b) => Number(!!chatPrefs().pinned[b.key]) - Number(!!chatPrefs().pinned[a.key]) || b.time - a.time);
+  if (count) count.textContent = conversations.length + ' 个会话';
+  if (!conversations.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? '没有匹配的好友' : '还没有好友，输入对方ID加好友开始聊天';
+    tip.textContent = kw ? '没有匹配的好友或群聊' : '还没有会话，添加好友或创建群聊开始聊天';
     list.appendChild(tip);
     return;
   }
-  friends.forEach(u => {
+  conversations.forEach(c => {
+    if (c.kind === 'group') {
+      const g = c.item;
+      const div = document.createElement('div');
+      div.className = 'contact conversation-group' + (state.activeGroup === g.id ? ' active' : '');
+      const unread = state.groupUnread[g.id] || 0;
+      const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || '群聊';
+      const lastTime = state.groupLastMsgTime[g.id] || 0;
+      const isPinned = !!chatPrefs().pinned[c.key];
+      const isMuted = !!chatPrefs().muted[c.key];
+      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}`;
+      div.onclick = () => selectGroup(g.id);
+      list.appendChild(div);
+      return;
+    }
+    const u = c.item;
     const div = document.createElement('div');
     div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
     const unread = state.unread[u.id] || 0;
@@ -1838,8 +1855,8 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
 
     const showFriends = state.tabContact === 'friends';
-    const fs = $('friendsSide'); if (fs) fs.style.display = showFriends ? '' : 'none';
-    const gs = $('groupsSide'); if (gs) gs.style.display = showFriends ? 'none' : '';
+    const fs = $('friendsSide'); if (fs) fs.style.display = '';
+    const gs = $('groupsSide'); if (gs) gs.style.display = '';
     renderContacts();
   };
 });
@@ -1889,6 +1906,11 @@ $('createGroupBtn').onclick = () => {
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '创建失败', 'error'); return; }
+      if (data.group) {
+        const g = data.group;
+        if (!state.groups.some(x => Number(x.id) === Number(g.id))) state.groups.push(g);
+      }
+      renderContacts();
       toast('群「' + (data.group && data.group.name) + '」已创建（ID: ' + (data.group && data.group.id) + '）', 'success');
       // 强制切到群组 tab
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
@@ -1908,6 +1930,7 @@ $('joinGroupBtn').onclick = () => {
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '加群失败', 'error'); return; }
+      loadFriends();
       toast('已加入群', 'success');
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
@@ -2069,20 +2092,11 @@ function sendCurrentGroup() {
   const text = input.value.trim();
   if (!text) return true;
   const gid = state.activeGroup;
-  const enc = window.SCE2EE ? window.SCE2EE.encryptFor(gid, text) : text;
-  if (enc && typeof enc.then === 'function') {
-    enc.then((ct) => {
-      const content = ct || text;
-      send(P.C_GROUP_MSG, { groupId: gid, content });
-      $('input').value = ''; saveCurrentDraft();
-    }).catch(() => {
-      send(P.C_GROUP_MSG, { groupId: gid, content: text });
-      $('input').value = ''; saveCurrentDraft();
-    });
-    return true;
-  }
-  send(P.C_GROUP_MSG, { groupId: gid, content: enc || text });
-  $('input').value = ''; saveCurrentDraft();
+  // 群聊不能复用单聊的 peer E2EE 会话：groupId 不是用户公钥 ID。
+  // 先使用群消息协议发送明文，避免把群 ID 当成用户 ID 导致发送失败。
+  send(P.C_GROUP_MSG, { groupId: gid, content: text });
+  input.value = '';
+  saveCurrentDraft();
   return true;
 }
 
