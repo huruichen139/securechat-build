@@ -961,6 +961,15 @@ function featureGrad(i) {
   const list = FEATURE_GRADS;
   return list[i % list.length];
 }
+function featureKey(label) {
+  const keys = {
+    '群聊管理':'groups','投票接龙':'polls','群待办':'todos','定时提醒':'remind','翻译':'translate','朋友圈增强':'moments',
+    '看一看':'read','搜一搜':'search','视频号':'videos','公众号':'oa','直播':'live','小程序':'miniapp',
+    '相册':'album','卡包':'cards','表情':'stickers','购物':'shop','游戏':'games','红包':'redpacket','附近的人':'nearby','摇一摇':'shake','扫一扫':'scan','支付生活':'pay',
+    '我的状态':'status','我的收藏':'favorites','收付款码':'payment','兑换码充值':'redeem'
+  };
+  return keys[label] || 'feature';
+}
 
 // 「选择群」对话框：列出当前用户群列表，选定后回调 group。无群则提示先进入目标群聊。
 function pickGroupDialog(title, onPick) {
@@ -1157,7 +1166,7 @@ function openFeatureCenter() {
     cat.items.forEach(it => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'feature-item feature-item-' + cat.id;
+      b.className = 'feature-item feature-item-' + cat.id + ' feature-item-' + featureKey(it.label);
       b.innerHTML =
         '<span class="feature-icon feature-icon-tone-' + (it.grad % 6) + '" style="background:' + featureGrad(it.grad) + '">' + escapeHtml(it.short || it.label || '+') + '</span>' +
         '<span class="feature-label">' + escapeHtml(it.label) + '</span>';
@@ -1937,24 +1946,46 @@ $('joinGroupBtn').onclick = () => {
   });
 };
 
-// 邀请进群
-$('inviteGroupBtn').onclick = () => {
+// 微信式邀请进群：好友搜索、多选、直接入群、附带邀请说明。
+function openGroupInvitePicker() {
   if (!state.activeGroup) { toast('请先选择一个群', 'warn', 1000); return; }
-  openModal('邀请成员进群', [{ key: 'uid', label: '对方 UID（4-16 位字母或数字）', placeholder: '示例：xY7mK3n4' }], async (out, close) => {
-    if (!out.uid) { toast('UID 不能为空', 'warn', 1000); return; }
-    close();
+  const mask = document.createElement('div'); mask.className = 'modal-mask';
+  const box = document.createElement('div'); box.className = 'modal group-invite-modal';
+  box.innerHTML = '<div class="modal-head"><h3>邀请好友进群</h3><button class="modal-x" type="button">&times;</button></div>' +
+    '<div class="group-invite-tip">选择好友后直接加入群聊，不需要对方申请。</div>' +
+    '<input class="search group-invite-search" placeholder="搜索好友昵称、用户名或 ID" />' +
+    '<div class="group-invite-list"></div>' +
+    '<label class="group-intro-label">邀请说明（可选）</label>' +
+    '<textarea class="group-intro" maxlength="200" placeholder="介绍一下这个群，或告诉朋友为什么邀请他…"></textarea>' +
+    '<div class="modal-actions"><button type="button" class="cancel">取消</button><button type="button" class="ok group-invite-submit">直接邀请</button></div>';
+  mask.appendChild(box); document.body.appendChild(mask);
+  const close = () => mask.remove();
+  box.querySelector('.modal-x').onclick = close;
+  box.querySelector('.cancel').onclick = close;
+  mask.addEventListener('click', e => { if (e.target === mask) close(); });
+  const list = box.querySelector('.group-invite-list');
+  const search = box.querySelector('.group-invite-search');
+  const selected = new Set();
+  const render = () => {
+    const kw = search.value.trim().toLowerCase();
+    const rows = state.friends.filter(u => !kw || [u.nickname, u.username, u.uid, u.id].some(v => String(v || '').toLowerCase().includes(kw)));
+    list.innerHTML = rows.length ? rows.map(u => '<label class="group-invite-user"><input type="checkbox" data-id="' + u.id + '"' + (selected.has(u.id) ? ' checked' : '') + '><span class="avatar">' + (u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(avatarChar(u.nickname))) + '</span><span class="group-invite-user-info"><b>' + escapeHtml(u.nickname || u.username) + '</b><small>ID: ' + escapeHtml(u.uid || u.id) + '</small></span></label>').join('') : '<div class="group-invite-empty">没有匹配的好友</div>';
+    list.querySelectorAll('input').forEach(input => { input.onchange = () => input.checked ? selected.add(Number(input.dataset.id)) : selected.delete(Number(input.dataset.id)); });
+  };
+  search.oninput = render;
+  render();
+  box.querySelector('.group-invite-submit').onclick = async () => {
+    if (!selected.size) { toast('至少选择一位好友', 'warn'); return; }
+    const btn = box.querySelector('.group-invite-submit'); btn.disabled = true;
     try {
-      const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-        body: JSON.stringify({ uid: out.uid })
-      });
+      const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token }, body: JSON.stringify({ userIds: Array.from(selected), intro: box.querySelector('.group-intro').value.trim() }) });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || '邀请失败', 'error'); return; }
-      toast('邀请成功', 'success');
-    } catch (e) { toast('请求失败：' + e.message, 'error'); }
-  });
-};
+      if (!res.ok) throw new Error(data.error || '邀请失败');
+      close(); await loadGroups(); toast('已直接邀请 ' + (data.count || 0) + ' 位好友进群', 'success');
+    } catch (e) { btn.disabled = false; toast(e.message || '邀请失败', 'error'); }
+  };
+}
+$('inviteGroupBtn').onclick = openGroupInvitePicker;
 
 // 统一渲染顶部 header（根据联系人/群而异）
 function renderChatHeader() {

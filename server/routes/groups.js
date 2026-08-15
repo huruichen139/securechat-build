@@ -258,7 +258,7 @@ module.exports = function registerGroups(app, db, auth) {
     });
   });
 
-  // ---------- 邀请入群：POST /api/groups/:id/invite { uids:[] , uid } ----------
+  // ---------- 邀请入群：POST /api/groups/:id/invite { userIds:[] | uids:[] , intro } ----------
   app.post('/api/groups/:id/invite', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
@@ -266,9 +266,16 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const body = req.body || {};
     let uids = [];
+    const userIds = Array.isArray(body.userIds) ? body.userIds.map(v => parseInt(v, 10)).filter(Number.isInteger) : [];
     if (Array.isArray(body.uids)) uids = body.uids;
     if (body.uid && typeof body.uid === 'string') uids.push(body.uid);
     const added = [];
+    for (const userId of userIds) {
+      const target = p.get('SELECT id FROM users WHERE id=?', userId);
+      if (!target || target.id === req.user.id || memberOf(groupId, target.id)) continue;
+      p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, Date.now());
+      added.push(target.id);
+    }
     for (const uid of uids) {
       if (!uid || typeof uid !== 'string') continue;
       const target = p.get('SELECT id FROM users WHERE uid=?', uid);
@@ -277,6 +284,12 @@ module.exports = function registerGroups(app, db, auth) {
       if (memberOf(groupId, target.id)) continue;
       p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, Date.now());
       added.push(target.id);
+    }
+    const intro = String(body.intro || '').trim().slice(0, 200);
+    if (added.length && intro) {
+      const g = p.get('SELECT name FROM groups WHERE id=?', groupId);
+      const text = '邀请说明：' + intro;
+      p.run('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)', groupId, req.user.id, text, Date.now());
     }
     res.json({ ok: true, added, count: added.length });
   });

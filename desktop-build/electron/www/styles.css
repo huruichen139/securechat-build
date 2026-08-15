@@ -2425,6 +2425,24 @@ body.dark-mode .feature-item-videos,body.dark-mode .feature-item-oa,body.dark-mo
 .shake-panel button{border:0;border-radius:50%;background:linear-gradient(135deg,#facc15,#ca8a04);color:#713f12;padding:10px 16px;font-weight:800;cursor:pointer}
 .search-panel button{border:0;border-radius:8px;background:linear-gradient(135deg,#14b8a6,#0f766e);color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
 .read-panel button{border:0;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:7px 13px;font-weight:700;cursor:pointer}
+.group-invite-modal{width:min(480px,92vw);max-height:86vh;overflow:auto}
+.group-invite-tip{font-size:12px;color:#64748b;background:#f0fdf4;border:1px solid #bbf7d0;padding:9px 11px;border-radius:10px;margin-bottom:10px}
+.group-invite-search{width:100%;box-sizing:border-box;margin:0 0 8px}
+.group-invite-list{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:5px;padding:3px 0}
+.group-invite-user{display:flex;align-items:center;gap:9px;padding:8px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.group-invite-user:hover{background:#f8fafc;border-color:#bfdbfe}
+.group-invite-user input{accent-color:#2563eb}
+.group-invite-user .avatar{width:34px;height:34px;font-size:13px}
+.group-invite-user-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.group-invite-user-info b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-invite-user-info small{font-size:11px;color:#94a3b8}
+.group-invite-empty{text-align:center;color:#94a3b8;padding:25px 8px;font-size:13px}
+.group-intro-label{display:block;margin:12px 0 5px;font-size:12px;color:#64748b;font-weight:700}
+.group-intro{width:100%;box-sizing:border-box;min-height:68px;resize:vertical;border:1px solid #dbe3ea;border-radius:10px;padding:9px;font:inherit;font-size:13px}
+.group-intro:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
+body.dark-mode .group-invite-tip{background:#10251b;border-color:#245c3b;color:#bbf7d0}
+body.dark-mode .group-invite-user:hover{background:#172033;border-color:#334155}
+body.dark-mode .group-intro{background:#0f172a;color:#e2e8f0;border-color:#334155}
 .msg-row.me .rp-bubble-sub { color: rgba(255,255,255,.8); }
 .msg-row.other .rp-bubble { background: var(--bg); border: 1px solid #f0c4c4; }
 
