@@ -555,6 +555,10 @@ function enterChat() {
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
   renderMyInfo();
+  // 登录成功后立即上传身份公钥，避免对方只能复用旧会话导致无法解密。
+  if (window.SCE2EE && typeof window.SCE2EE.ensureKeyPair === 'function') {
+    window.SCE2EE.ensureKeyPair().catch(() => {});
+  }
   // 恢复该用户自定义聊天背景图（每个用户独立存储）
   applyChatBg(getChatBg());
   connectWS();
@@ -2134,6 +2138,8 @@ async function selectPeer(peerId) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const msgs = data.messages || [];
+    // 历史消息逐条尝试 E2EE 解密（若为 0x02 密文且会话可建立）
+    for (const m of msgs) { try { await maybeDecryptLive(m); } catch (e) {} }
     renderMessages(msgs);
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';

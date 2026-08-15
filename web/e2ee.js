@@ -300,13 +300,17 @@
     // 保证当前账号有身份密钥对，并上传到服务器（幂等）。
     ensureKeyPair: async function () {
       const id = await getOrCreateIdentity();
-      try {
-        await fetch(state.serverHost + '/api/keys', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-          body: JSON.stringify({ pubkey: id.pubB64 })
-        });
-      } catch {}
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch(state.serverHost + '/api/keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+            body: JSON.stringify({ pubkey: id.pubB64 })
+          });
+          if (res.ok) return id;
+        } catch {}
+        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+      }
       return id;
     },
     getPub: function () { return localStorage.getItem(STORE_PUB) || ''; },
@@ -328,10 +332,22 @@
     async decryptFrom(peerId, b64) {
       if (!isRatchetCipher(b64)) return b64;
       const k = String(peerId);
+      // 优先复用已有会话
       let s = loadSession(k);
-      if (!s) {
+      if (s) {
+        try {
+          const plain = await decryptMessage(s, b64ToArr(b64));
+          saveSession(k, s);
+          return plain;
+        } catch (e) {
+          // 已有会话解密失败：很可能是旧/坏会话或密钥被更换，丢弃后重建一次
+        }
+      }
+      try {
         s = await x3dhInitReceiver(k);
         if (!s) return b64;
+      } catch (e) {
+        return b64;
       }
       try {
         const plain = await decryptMessage(s, b64ToArr(b64));
