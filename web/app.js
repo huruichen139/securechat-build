@@ -563,6 +563,7 @@ function enterChat() {
   applyChatBg(getChatBg());
   connectWS();
   loadFriends();
+  loadGroups();
   // E2EE 已停用：消息以明文发送，不再生成/上传密钥。
   // 移动端：登录后默认显示联系人列表（不自动进入聊天态）
   if (window.IS_MOBILE) {
@@ -1854,9 +1855,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     // 移动端：切回好友/群组 tab，回到列表态
     if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
 
-    const showFriends = state.tabContact === 'friends';
     const fs = $('friendsSide'); if (fs) fs.style.display = '';
-    const gs = $('groupsSide'); if (gs) gs.style.display = '';
     renderContacts();
   };
 });
@@ -1866,7 +1865,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
   // 微信式底部导航：仅保留 4 个核心 Tab（微信 / 通讯录 / 发现 / 我）
-  const CORE_TABS = ['friends', 'groups', 'ai', 'downloads'];
+  const CORE_TABS = ['friends', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
     if (!CORE_TABS.includes(src.dataset.side)) return;
     const b = document.createElement('button');
@@ -2100,6 +2099,19 @@ function sendCurrentGroup() {
   return true;
 }
 
+async function loadGroups() {
+  try {
+    const res = await fetch(state.serverHost + '/api/groups/enhanced', {
+      headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    // 以成员关系为准，空群没有消息也必须保留在会话列表。
+    state.groups = Array.isArray(data.groups) ? data.groups : [];
+    renderContacts();
+  } catch (e) {}
+}
+
 
 $('search').oninput = renderContacts;
 
@@ -2276,7 +2288,7 @@ const welcomeAddBtn = $('welcomeAddBtn');
 const welcomeGroupBtn = $('welcomeGroupBtn');
 const welcomeAiBtn = $('welcomeAiBtn');
 if (welcomeAddBtn) welcomeAddBtn.onclick = () => { const input = $('addFriendInput'); if (input) input.focus(); };
-if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const tab = document.querySelector('.side-tab[data-side="groups"]'); if (tab) tab.click(); const btn = $('createGroupBtn'); if (btn) setTimeout(() => btn.click(), 80); };
+if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const btn = $('createGroupBtn'); if (btn) btn.click(); };
 if (welcomeAiBtn) welcomeAiBtn.onclick = () => { const tab = document.querySelector('.side-tab[data-side="ai"]'); if (tab) tab.click(); };
 
 function appendMessage(m, prepend) {

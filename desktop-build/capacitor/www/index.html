@@ -173,7 +173,6 @@
         <div class="sidebar-rail-brand">S</div>
         <div class="sidebar-rail-group">
           <button class="side-tab on" data-side="friends" title="微信"><span class="rail-icon">聊</span><span data-i18n="friends">微信</span></button>
-           <button class="side-tab" data-side="groups" title="通讯录"><span class="rail-icon">录</span><span data-i18n="groups">通讯录</span></button>
            <button class="side-tab" data-side="pay" title="转账"><span class="rail-icon">转</span>转账</button>
            <button class="side-tab" data-side="ai" title="发现"><span class="rail-icon">发</span><span data-i18n="ai">发现</span></button>
           <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="我"><span class="rail-icon">我</span><span data-i18n="download">我</span></button>
@@ -194,13 +193,10 @@
         </div>
         <div id="friendsSide" class="sidebar-tools">
           <div class="section-label" data-i18n="contacts">联系人</div>
-          <div class="add-friend"><input id="addFriendInput" class="search" placeholder="输入对方 ID 加好友" /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">加好友</button></div>
+           <div class="add-friend"><input id="addFriendInput" class="search" placeholder="输入对方 ID 加好友" /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">加好友</button></div>
+           <div class="group-actions unified-group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">创建群</button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">加入群</button></div>
           <div id="friendReqBar" class="friend-req-bar" style="display:none"><span id="friendReqText"></span><button id="acceptFriendBtn" class="btn-cn" data-i18n="add">接受</button><button id="rejectFriendBtn" class="btn-cn gray" data-i18n="close">拒绝</button></div>
           <input id="search" class="search" placeholder="搜索联系人" data-i18n-placeholder="searchContacts" />
-        </div>
-         <div id="groupsSide" class="sidebar-tools">
-          <div class="section-label" data-i18n="groupManagement">群组管理</div>
-          <div class="group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">创建群</button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">加入群</button></div>
         </div>
         <div class="sidebar-mini-stats"><span><b id="friendCount">0</b> <span data-i18n="friends">好友</span></span><span><b id="groupCount">0</b> <span data-i18n="groups">群组</span></span><span class="online-label"><i></i><span data-i18n="online">在线</span></span></div>
         <div class="list-heading"><span data-i18n="conversations">会话列表</span><span id="listCount"></span></div>
@@ -399,7 +395,7 @@
 <script src="download.js"></script>
 <script src="e2ee.js?v=e2ee-20260815-2"></script>
 <script src="jsqr.js?v=1-54-0-0"></script>
-  <script src="app.js?v=1-54-0-10"></script>
+  <script src="app.js?v=1-54-0-11"></script>
 <script src="modules/registry.js?v=1-54-0-2"></script>
 <script src="modules/groups.js?v=1-54-0-3"></script>
 <script src="modules/chat-ext.js?v=1-54-0-3"></script>
