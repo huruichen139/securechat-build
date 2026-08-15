@@ -3389,9 +3389,8 @@ function renderContactsPage() {
   }
 }
 
-// 侧边栏 Tab → 微信式移动端页面路由
+// 侧边栏 Tab → 微信式页面路由（全端通用）
 (function initWechatMobileNav() {
-  if (!window.IS_MOBILE) return;
   // 发现 tab → 发现页
   const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
   if (discoverTab) {
@@ -3410,20 +3409,26 @@ function renderContactsPage() {
       showMobilePage('mePage');
     };
   }
-  // 通讯录 tab（原 groups）→ 通讯录页
-  const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="groups"]');
+  // 通讯录 tab → 通讯录页（通过侧栏更多入口或直接访问）
+  const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
   if (contactsTab) {
     contactsTab.onclick = (e) => {
       e.stopPropagation();
-      renderContactsPage();
-      showMobilePage('contactsPage');
+      const main = document.querySelector('.main');
+      if (main) main.style.display = 'flex';
+      const aiView = $('aiView'); if (aiView) aiView.style.display = 'none';
+      const downloadView = $('downloadView'); if (downloadView) downloadView.style.display = 'none';
+      ['discoverPage','mePage','contactsPage'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
+      const fs = $('friendsSide'); if (fs) fs.style.display = '';
+      renderContacts();
+      if (window.IS_MOBILE) { showMobilePage('contactsPage'); renderContactsPage(); }
     };
   }
   // 返回按钮（发现页 / 我的页 / 通讯录页）
   const pages = [
     { id: 'discoverPage', tab: 'ai' },
     { id: 'mePage', tab: 'downloads' },
-    { id: 'contactsPage', tab: 'groups' },
+    { id: 'contactsPage', tab: 'friends' },
   ];
   pages.forEach(p => {
     const backBtn = document.getElementById(p.id.replace('Page', '') + 'BackBtn');
@@ -3445,7 +3450,7 @@ function renderContactsPage() {
   const contactsBackBtn = document.getElementById('contactsBackBtn');
   if (contactsBackBtn) {
     contactsBackBtn.onclick = () => {
-      const tab = document.querySelector('.sidebar-rail .side-tab[data-side="groups"]');
+      const tab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
       if (tab) tab.click();
       hideMobilePages();
       const chatView = document.getElementById('chatView');

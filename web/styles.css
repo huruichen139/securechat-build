@@ -1387,11 +1387,13 @@ html.is-mobile #chatView.mobile-chat-active > #downloadView {
    绝对定位覆盖整个 #chatView，z-index 高于 main/aiView/downloadView
    ========================================================= */
 .wechat-page {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
+  display: none;
+  flex-direction: column;
+  height: 100%;
   background: #ededed;
 }
+.wechat-page.active { display: flex; }
+html:not(.is-mobile) .wechat-page { position: absolute; inset: 0; z-index: 20; }
 html.is-mobile .wechat-page { display: none; }
 html.is-mobile .wechat-page.active { display: flex; }
 
@@ -1699,13 +1701,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
 /* =========================================================
    发现页 / 我页 / 通讯录页（移动端全屏视图）
    ========================================================= */
-.wechat-page {
-  display: none;
-  flex-direction: column;
-  height: 100%;
-  background: #ededed;
-}
-.wechat-page.active { display: flex; }
+/* 已在 .wechat-page 基础样式定义（见上方） */
 .page-header {
   height: 48px;
   padding: 0 14px;
@@ -1721,7 +1717,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
   color: var(--primary); font-size: 16px; font-weight: 500;
   cursor: pointer; padding: 4px 6px; -webkit-tap-highlight-color: transparent;
 }
-.page-header .back-btn::before { content: '? '; font-size: 24px; line-height: 1; }
+.page-header .back-btn::before { content: '\2190 '; font-size: 24px; line-height: 1; }
 .page-header h2 { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; text-align: center; margin-right: 36px; }
 .page-body { flex: 1; overflow-y: auto; }
 
