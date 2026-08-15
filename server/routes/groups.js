@@ -479,9 +479,9 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ files: list });
   });
 
-  // ---------- 群文件下载：GET /api/groups/files/:fileId ----------
-  // 注意：必须在 /api/groups/:id 之前注册，避免 :id 误匹配 'files'
-  app.get('/api/groups/files/:fileId', mw, (req, res) => {
+  // ---------- 群文件下载：GET /api/group-files/:fileId ----------
+  // 独立路径避免与 /api/groups/:id 冲突（Express 按注册顺序匹配，:id 会先吞掉 'files'）
+  app.get('/api/group-files/:fileId', mw, (req, res) => {
     const file = p.get('SELECT * FROM group_files WHERE id=?', req.params.fileId);
     if (!file) return fail(res, 404, '文件不存在');
     if (!memberOf(file.group_id, req.user.id)) return fail(res, 403, '你不在此群');

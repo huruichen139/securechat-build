@@ -60,7 +60,7 @@
     setNickname: (id, nickname) => _req('POST', '/api/groups/' + id + '/nickname', { nickname }),
     members: (id) => _req('GET', '/api/groups/' + id + '/members'),
     fileList: (id) => _req('GET', '/api/groups/' + id + '/files'),
-    fileUrl: (fileId) => HOST + '/api/groups/files/' + fileId,
+    fileUrl: (fileId) => HOST + '/api/group-files/' + fileId,
     async uploadFile(id, file) {
       const headers = {};
       const t = token();
