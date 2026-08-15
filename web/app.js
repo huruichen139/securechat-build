@@ -1515,8 +1515,10 @@ function handleServer(data) {
       renderContacts();
       break;
     case P.S_MSG:
-      maybeDecryptLive(payload);
-      onIncomingMsg(payload);
+      // 解密完成后再渲染，否则实时消息会先显示密文且不会自动刷新。
+      maybeDecryptLive(payload)
+        .catch(() => {})
+        .then(() => onIncomingMsg(payload));
       break;
     case P.S_TYPING:
       if (state.activePeer === payload.from) {
