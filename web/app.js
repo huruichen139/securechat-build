@@ -1068,7 +1068,7 @@ function openFeatureCenter() {
   // 每个条目：{label, short, grad, open}，short 为图标方块内显示的完整短名（2-4 字），grad 为渐变配色索引。
   // 分类：社区 / 内容 / 生活 / 工具
   const groups = [
-    { label: '社区', items: [
+    { id: 'community', label: '社区', items: [
       { label: '群聊管理', short: '群聊', grad: 0, open: () => openFeatureModalFrom(get('groups'), 'openManager') },
       { label: '投票接龙', short: '投票', grad: 1, open: () => openGroupTool('polls', 'openCreate') },
       { label: '群待办', short: '待办', grad: 2, open: () => openGroupTool('todos', 'openCreate') },
@@ -1080,7 +1080,7 @@ function openFeatureCenter() {
       { label: '翻译', short: '翻译', grad: 4, open: () => toast('请在聊天消息上右键（或长按）使用翻译', 'info') },
       { label: '朋友圈增强', short: '朋友圈', grad: 5, open: () => openContainerFeature(get('moment-ext'), '朋友圈管理') },
     ]},
-    { label: '内容', items: [
+    { id: 'content', label: '内容', items: [
       { label: '看一看', short: '看一看', grad: 6, open: () => window.SecureChatRead && window.SecureChatRead.open() },
       { label: '搜一搜', short: '搜一搜', grad: 7, open: () => window.SecureChatSearch && window.SecureChatSearch.open() },
       { label: '视频号', short: '视频号', grad: 8, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
@@ -1088,7 +1088,7 @@ function openFeatureCenter() {
       { label: '直播', short: '直播', grad: 10, open: () => window.SecureChatLive && window.SecureChatLive.open() },
       { label: '小程序', short: '小程序', grad: 11, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
     ]},
-    { label: '生活', items: [
+    { id: 'life', label: '生活', items: [
       { label: '相册', short: '相册', grad: 0, open: () => window.SecureChatAlbum && window.SecureChatAlbum.open() },
       { label: '卡包', short: '卡包', grad: 1, open: () => window.SecureChatCards && window.SecureChatCards.open() },
       { label: '表情', short: '表情', grad: 2, open: () => window.SecureChatStickers && window.SecureChatStickers.open() },
@@ -1100,7 +1100,7 @@ function openFeatureCenter() {
       { label: '扫一扫', short: '扫一扫', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
       { label: '支付生活', short: '支付', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
-    { label: '工具', items: [
+    { id: 'tools', label: '工具', items: [
       { label: '我的状态', short: '状态', grad: 2, open: () => openContainerFeature(get('status'), '我的状态') },
       { label: '我的收藏', short: '收藏', grad: 3, open: () => openContainerFeature(get('favorites'), '我的收藏') },
       { label: '收付款码', short: '收付款', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
@@ -1125,9 +1125,28 @@ function openFeatureCenter() {
   box.appendChild(head);
 
   const body = document.createElement('div');
+  const tabs = document.createElement('div');
+  tabs.className = 'feature-tabs';
+  const allTab = document.createElement('button');
+  allTab.type = 'button';
+  allTab.className = 'feature-tab active';
+  allTab.textContent = '全部';
+  tabs.appendChild(allTab);
   groups.forEach(cat => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'feature-tab';
+    tab.dataset.featureCategory = cat.id;
+    tab.textContent = cat.label;
+    tabs.appendChild(tab);
+  });
+  box.appendChild(tabs);
+
+  const renderCategories = (selected) => {
+    body.innerHTML = '';
+    groups.filter(cat => !selected || cat.id === selected).forEach(cat => {
     const sec = document.createElement('div');
-    sec.className = 'feature-cat';
+    sec.className = 'feature-cat feature-cat-' + cat.id;
     const t = document.createElement('div');
     t.className = 'feature-cat-title';
     t.textContent = cat.label;
@@ -1137,9 +1156,9 @@ function openFeatureCenter() {
     cat.items.forEach(it => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'feature-item';
+      b.className = 'feature-item feature-item-' + cat.id;
       b.innerHTML =
-        '<span class="feature-icon" style="background:' + featureGrad(it.grad) + '">' + escapeHtml(it.short || it.label || '+') + '</span>' +
+        '<span class="feature-icon feature-icon-tone-' + (it.grad % 6) + '" style="background:' + featureGrad(it.grad) + '">' + escapeHtml(it.short || it.label || '+') + '</span>' +
         '<span class="feature-label">' + escapeHtml(it.label) + '</span>';
       b.onclick = () => {
         mask.remove();
@@ -1150,6 +1169,20 @@ function openFeatureCenter() {
     sec.appendChild(grid);
     body.appendChild(sec);
   });
+  };
+  allTab.onclick = () => {
+    tabs.querySelectorAll('.feature-tab').forEach(t => t.classList.remove('active'));
+    allTab.classList.add('active');
+    renderCategories('');
+  };
+  tabs.querySelectorAll('[data-feature-category]').forEach(tab => {
+    tab.onclick = () => {
+      tabs.querySelectorAll('.feature-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderCategories(tab.dataset.featureCategory);
+    };
+  });
+  renderCategories('');
   box.appendChild(body);
 
   mask.appendChild(box);
