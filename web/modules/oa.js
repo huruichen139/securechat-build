@@ -7,12 +7,12 @@
 
   function _baseUrl() {
     if (window.SecureChatExt && window.SecureChatExt._util) return window.SecureChatExt._util.serverHost();
-    if (window.state && state.serverHost) return state.serverHost;
+    if (window.state && window.state.serverHost) return window.state.serverHost;
     return window.SERVER_HOST || location.origin;
   }
   function _bearer() {
     if (window.SecureChatExt && window.SecureChatExt._util) { const t = window.SecureChatExt._util.getToken(); return t ? 'Bearer ' + t : ''; }
-    if (window.state && state.token) return 'Bearer ' + state.token;
+    if (window.state && window.state.token) return 'Bearer ' + window.state.token;
     try { const t = localStorage.getItem('sc_token'); return t ? 'Bearer ' + t : ''; } catch (e) { return ''; }
   }
 
@@ -38,7 +38,7 @@
   function toastMsg(msg, kind) { if (window.toast) window.toast(msg, kind || 'info'); }
 
   function _me() {
-    if (window.state && state.me) return state.me;
+    if (window.state && window.state.me) return window.state.me;
     let v = null;
     try { const raw = localStorage.getItem('sc_me'); if (raw) { const parsed = JSON.parse(raw); if (parsed && parsed.id != null) v = parsed; } } catch (e) {}
     if (!v && window.SecureChatExt && window.SecureChatExt._util) { const id = window.SecureChatExt._util.getMyId(); if (id) v = { id: id, extra: {} }; }

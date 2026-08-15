@@ -48,6 +48,18 @@
     if (window.state && window.state.activeGroup) return Number(window.state.activeGroup);
     return 0;
   }
+  function peerName() {
+    try {
+      var st = window.state || {};
+      if (st.activePeerName) return st.activePeerName;
+      if (st.activePeer && Array.isArray(st.friends)) {
+        for (var i = 0; i < st.friends.length; i++) {
+          if (Number(st.friends[i].id) === Number(st.activePeer)) return st.friends[i].nickname || st.friends[i].username || '好友';
+        }
+      }
+    } catch (e) {}
+    return '好友';
+  }
 
   var RED_RE = /^\[红包:([0-9a-f]+)\]$/;
 
@@ -64,7 +76,7 @@
     box.innerHTML =
       '<div class="rp-send-head">发红包</div>' +
       '<button class="modal-x rp-close" type="button">&times;</button>' +
-      '<div class="rp-send-greeting">' + (group ? '发到当前群聊' : '发给' + esc((window.state && window.state.activePeerName) || '好友')) + '</div>' +
+      '<div class="rp-send-greeting">' + (group ? '发到当前群聊' : '发给' + esc(peerName())) + '</div>' +
       '<div class="rp-send-mode">' +
         (group
           ? '<button class="rp-mode active" data-mode="random">拼手气红包</button><button class="rp-mode" data-mode="average">普通红包</button>'

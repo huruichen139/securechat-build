@@ -7,12 +7,12 @@
 
   function _baseUrl() {
     if (window.SecureChatExt && window.SecureChatExt._util) return window.SecureChatExt._util.serverHost();
-    if (window.state && state.serverHost) return state.serverHost;
+    if (window.state && window.state.serverHost) return window.state.serverHost;
     return window.SERVER_HOST || location.origin;
   }
   function _bearer() {
     if (window.SecureChatExt && window.SecureChatExt._util) { const tt = window.SecureChatExt._util.getToken(); return tt ? 'Bearer ' + tt : ''; }
-    if (window.state && state.token) return 'Bearer ' + state.token;
+    if (window.state && window.state.token) return 'Bearer ' + window.state.token;
     try { const tt = localStorage.getItem('sc_token'); return tt ? 'Bearer ' + tt : ''; } catch (e) { return ''; }
   }
 
@@ -32,7 +32,7 @@
   function fmt(ts) { if (!ts) return ''; const d = new Date(Number(ts)); const p = n => (n < 10 ? '0' + n : '' + n); return d.getMonth() + 1 + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 
   function _me() {
-    if (window.state && state.me) return state.me;
+    if (window.state && window.state.me) return window.state.me;
     let v = null;
     try { const raw = localStorage.getItem('sc_me'); if (raw) { const parsed = JSON.parse(raw); if (parsed && parsed.id != null) v = parsed; } } catch (e) {}
     if (!v && window.SecureChatExt && window.SecureChatExt._util) { const idz = window.SecureChatExt._util.getMyId(); if (idz) v = { id: idz }; }

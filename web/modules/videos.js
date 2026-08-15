@@ -7,13 +7,13 @@
 
   function base() {
     if (window.SecureChatExt && window.SecureChatExt._util) return window.SecureChatExt._util.serverHost();
-    if (window.state && state.serverHost) return state.serverHost;
+    if (window.state && window.state.serverHost) return window.state.serverHost;
     return window.SERVER_HOST || location.origin;
   }
   function authHeaders() {
     let t = '';
     if (window.SecureChatExt && window.SecureChatExt._util) t = window.SecureChatExt._util.getToken();
-    else if (window.state && state.token) t = state.token;
+    else if (window.state && window.state.token) t = window.state.token;
     else { try { t = localStorage.getItem('sc_token'); } catch (e) {} }
     return { 'Authorization': t ? 'Bearer ' + t : '' };
   }

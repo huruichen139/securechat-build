@@ -12,7 +12,7 @@
   }
   function _bearer() {
     if (window.SecureChatExt && window.SecureChatExt._util) { var t = window.SecureChatExt._util.getToken(); return t ? 'Bearer ' + t : ''; }
-    if (window.state && state.token) return 'Bearer ' + state.token;
+    if (window.state && window.state.token) return 'Bearer ' + window.state.token;
     try { var t = localStorage.getItem('sc_token'); return t ? 'Bearer ' + t : ''; } catch (e) { return ''; }
   }
 

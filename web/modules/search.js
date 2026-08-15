@@ -12,7 +12,7 @@
   }
   function _bearer() {
     if (window.SecureChatExt && window.SecureChatExt._util) { var t = window.SecureChatExt._util.getToken(); return t ? 'Bearer ' + t : ''; }
-    if (window.state && state.token) return 'Bearer ' + state.token;
+    if (window.state && window.state.token) return 'Bearer ' + window.state.token;
     try { var t = localStorage.getItem('sc_token'); return t ? 'Bearer ' + t : ''; } catch (e) { return ''; }
   }
 
@@ -20,15 +20,15 @@
     var results = { friends: [], groups: [], messages: [], files: [] };
     var promises = [];
 
-    if (window.state && state.friends) {
-      results.friends = state.friends.filter(function (f) {
+    if (window.state && window.state.friends) {
+      results.friends = window.state.friends.filter(function (f) {
         var n = (f.nickname || f.username || '').toLowerCase();
         return n.indexOf(kw.toLowerCase()) >= 0;
       }).slice(0, 10);
     }
 
-    if (window.state && state.groups) {
-      results.groups = state.groups.filter(function (g) {
+    if (window.state && window.state.groups) {
+      results.groups = window.state.groups.filter(function (g) {
         var n = (g.name || '').toLowerCase();
         return n.indexOf(kw.toLowerCase()) >= 0;
       }).slice(0, 10);

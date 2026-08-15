@@ -45,6 +45,10 @@ let state = {
   groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当前/历史）
 };
 
+// 挂载到 window，供各独立模块（modules/*.js）读取全局登录态/当前会话。
+// 这些模块此前依赖 window.state 但从未被赋值，导致 token/activePeer/activeGroup 全为空 → 功能失效。
+window.state = state;
+
 const $ = (id) => document.getElementById(id);
 
 // i18n 短名：拿不到字典或字典里尚未收录该 key 时，回退到原中文，避免硬编码外文。
@@ -1086,6 +1090,7 @@ function openFeatureCenter() {
       { label: '表情', short: '表情', grad: 2, open: () => window.SecureChatStickers && window.SecureChatStickers.open() },
       { label: '购物', short: '购物', grad: 3, open: () => window.SecureChatShop && window.SecureChatShop.open() },
       { label: '游戏', short: '游戏', grad: 4, open: () => window.SecureChatGames && window.SecureChatGames.open() },
+      { label: '红包', short: '红包', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
       { label: '附近的人', short: '附近', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
       { label: '摇一摇', short: '摇一摇', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
       { label: '扫一扫', short: '扫一扫', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
