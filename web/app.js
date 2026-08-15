@@ -3072,12 +3072,12 @@ function renderDiscoverPage() {
   const items = [
     { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
     { name: '视频号', icon: '视频', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
-    { name: '看一看', icon: '看', action: () => toast('看一看功能开发中', 'info') },
-    { name: '搜一搜', icon: '搜', action: () => toast('搜一搜功能开发中', 'info') },
+    { name: '看一看', icon: '看', action: () => { if (window.SecureChatRead) window.SecureChatRead.open(); else toast('看一看功能开发中', 'info'); } },
+    { name: '搜一搜', icon: '搜', action: () => { if (window.SecureChatSearch) window.SecureChatSearch.open(); else toast('搜一搜功能开发中', 'info'); } },
     { name: '直播', icon: '直播', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('直播功能开发中', 'info'); } },
     { name: '附近', icon: '附', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
-    { name: '购物', icon: '购', action: () => toast('购物功能开发中', 'info') },
-    { name: '游戏', icon: '游', action: () => toast('游戏功能开发中', 'info') },
+    { name: '购物', icon: '购', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('购物功能开发中', 'info'); } },
+    { name: '游戏', icon: '游', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('游戏功能开发中', 'info'); } },
   ];
   // 分组：顶部常用，中间小程序区
   const group1 = items.slice(0, 3);
@@ -3122,9 +3122,9 @@ function renderMePage() {
       else toast('支付功能开发中', 'info');
     } },
     { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
-    { name: '相册', icon: '相', action: () => toast('相册功能开发中', 'info') },
-    { name: '卡包', icon: '卡', action: () => toast('卡包功能开发中', 'info') },
-    { name: '表情', icon: '☺', action: () => toast('表情功能开发中', 'info') },
+    { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
+    { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
+    { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
     { name: '设置', icon: '设', action: () => { if (window.switchToAi) window.switchToAi(); else toast('设置功能开发中', 'info'); } },
   ];
   // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 设置

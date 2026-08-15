@@ -787,6 +787,23 @@ app.get('/api/history/:peerId', (req, res) => {
   res.json({ messages: msgs });
 });
 
+app.get('/api/search/messages', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.json({ messages: [] });
+  const rows = prepare(`SELECT m.id,m.from_id,m.to_id,m.content,m.created_at FROM messages m
+    WHERE (m.from_id=? OR m.to_id=?) AND m.content LIKE ? ORDER BY m.created_at DESC LIMIT 50`)
+    .all(payload.id, payload.id, '%' + q + '%');
+  const messages = rows.map(r => {
+    const peerId = r.from_id === payload.id ? r.to_id : r.from_id;
+    const peer = prepare('SELECT username,nickname FROM users WHERE id=?').get(peerId);
+    return { id: r.id, content: r.content, createdAt: r.created_at, peerId, peerName: peer ? (peer.nickname || peer.username) : '' };
+  });
+  res.json({ messages });
+});
+
 app.delete('/api/history/:peerId', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);

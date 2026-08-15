@@ -1,0 +1,45 @@
+{
+  "total_count": 2,
+  "artifacts": [
+    {
+      "id": 9170481461,
+      "node_id": "MDg6QXJ0aWZhY3Q5MTcwNDgxNDYx",
+      "name": "SecureChat-Android",
+      "size_in_bytes": 4186770,
+      "url": "https://api.github.com/repos/huruichen139/securechat-build/actions/artifacts/9170481461",
+      "archive_download_url": "https://api.github.com/repos/huruichen139/securechat-build/actions/artifacts/9170481461/zip",
+      "expired": false,
+      "digest": "sha256:74639c350588215fe1b350b2fe35b829cca755c86d9c6359f4ca38e7781cd9ca",
+      "created_at": "2026-08-13T06:16:11Z",
+      "updated_at": "2026-08-13T06:16:11Z",
+      "expires_at": "2026-11-11T06:14:29Z",
+      "workflow_run": {
+        "id": 31673113883,
+        "repository_id": 1321235658,
+        "head_repository_id": 1321235658,
+        "head_branch": "v1.52.0",
+        "head_sha": "f03b02547271a9c7a677d1202d0dbb73224345c3"
+      }
+    },
+    {
+      "id": 9170474331,
+      "node_id": "MDg6QXJ0aWZhY3Q5MTcwNDc0MzMx",
+      "name": "SecureChat-Windows",
+      "size_in_bytes": 163239084,
+      "url": "https://api.github.com/repos/huruichen139/securechat-build/actions/artifacts/9170474331",
+      "archive_download_url": "https://api.github.com/repos/huruichen139/securechat-build/actions/artifacts/9170474331/zip",
+      "expired": false,
+      "digest": "sha256:c8c3e021e1cb6510240d51eb0e0ba61639e3ad74839d3ba0eb698e4e6b629687",
+      "created_at": "2026-08-13T06:15:52Z",
+      "updated_at": "2026-08-13T06:15:52Z",
+      "expires_at": "2026-11-11T06:14:29Z",
+      "workflow_run": {
+        "id": 31673113883,
+        "repository_id": 1321235658,
+        "head_repository_id": 1321235658,
+        "head_branch": "v1.52.0",
+        "head_sha": "f03b02547271a9c7a677d1202d0dbb73224345c3"
+      }
+    }
+  ]
+}
