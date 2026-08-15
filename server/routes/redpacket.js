@@ -4,7 +4,6 @@
 // 复用巨石钱包（wallets/wallet_txn 已在 db.js 建表；发红包从钱包扣款，抢红包入账）。
 // 消息以 [红包:<id>] 文本写入 messages / group_messages 表，前端渲染为红包气泡。
 // 导出：module.exports = function registerRedpacket(app, db, auth)
-const crypto = require('crypto');
 
 module.exports = function registerRedpacket(app, db, auth) {
   if (!db || typeof db.prepare !== 'function') {
@@ -102,13 +101,18 @@ module.exports = function registerRedpacket(app, db, auth) {
     const my = walletOf(me.id);
     if (my.balance < value) return res.status(400).json({ error: '余额不足' });
 
-    const msgContent = '[红包:' + crypto.randomBytes(8).toString('hex') + ']';
-    let msgId = null;
-
     // 扣款
     prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), me.id);
 
-    // 写消息（单聊进 messages，群聊进 group_messages）
+    // 先创建红包记录（msg_id 暂置 0），拿到自增 id 作为消息里的红包标识
+    const rp = prepare('INSERT INTO red_packets(sender_id,target_type,target_id,total_amount,count,remaining_amount,remaining_count,mode,greeting,status,msg_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,0,?)')
+      .run(me.id, targetType, targetId, value, c, value, c, m, (greeting || '恭喜发财，大吉大利！').slice(0, 60), 'active', Date.now());
+    const packetId = rp.lastInsertRowid;
+    // 消息内容用数字 id（[红包:<id>]），保证前端点击后能命中 red_packets.id 查询
+    const msgContent = '[红包:' + packetId + ']';
+
+    // 写消息（单聊进 messages，群聊进 group_messages），再把 msg_id 回写红包记录
+    let msgId = null;
     if (targetType === 'dm') {
       const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)').run(me.id, targetId, msgContent, Date.now());
       msgId = info.lastInsertRowid;
@@ -116,11 +120,7 @@ module.exports = function registerRedpacket(app, db, auth) {
       const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)').run(targetId, me.id, msgContent, Date.now());
       msgId = info.lastInsertRowid;
     }
-
-    // 创建红包记录
-    const info = prepare('INSERT INTO red_packets(sender_id,target_type,target_id,total_amount,count,remaining_amount,remaining_count,mode,greeting,status,msg_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(me.id, targetType, targetId, value, c, value, c, m, (greeting || '恭喜发财，大吉大利！').slice(0, 60), 'active', msgId, Date.now());
-    const packetId = info.lastInsertRowid;
+    prepare('UPDATE red_packets SET msg_id=? WHERE id=?').run(msgId, packetId);
 
     prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
       .run(me.id, 'out', value, targetType === 'dm' ? targetId : null, '发红包 ' + (greeting || ''), Date.now());

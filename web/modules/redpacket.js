@@ -121,9 +121,9 @@
       api('POST', '/api/redpacket', body).then(function (d) {
         toast('红包已发出', 'success', 1500);
         mask.remove();
-        if (d && d.msgId) {
-          // 本地追加一条红包消息
-          var content = '[红包:' + 'local' + ']';
+        if (d && d.packetId) {
+          // 本地追加一条红包消息（用服务器返回的真实红包 id，保证气泡可点开）
+          var content = '[红包:' + String(d.packetId) + ']';
           // 通过包装后的 appendMessage 渲染（若已包装会识别，否则回退）
           try {
             if (window.appendMessage) {
