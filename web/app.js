@@ -961,6 +961,15 @@ function featureGrad(i) {
   const list = FEATURE_GRADS;
   return list[i % list.length];
 }
+function featureKey(label) {
+  const keys = {
+    '群聊管理':'groups','投票接龙':'polls','群待办':'todos','定时提醒':'remind','翻译':'translate','朋友圈增强':'moments',
+    '看一看':'read','搜一搜':'search','视频号':'videos','公众号':'oa','直播':'live','小程序':'miniapp',
+    '相册':'album','卡包':'cards','表情':'stickers','购物':'shop','游戏':'games','红包':'redpacket','附近的人':'nearby','摇一摇':'shake','扫一扫':'scan','支付生活':'pay',
+    '我的状态':'status','我的收藏':'favorites','收付款码':'payment','兑换码充值':'redeem'
+  };
+  return keys[label] || 'feature';
+}
 
 // 「选择群」对话框：列出当前用户群列表，选定后回调 group。无群则提示先进入目标群聊。
 function pickGroupDialog(title, onPick) {
@@ -1157,7 +1166,7 @@ function openFeatureCenter() {
     cat.items.forEach(it => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'feature-item feature-item-' + cat.id;
+      b.className = 'feature-item feature-item-' + cat.id + ' feature-item-' + featureKey(it.label);
       b.innerHTML =
         '<span class="feature-icon feature-icon-tone-' + (it.grad % 6) + '" style="background:' + featureGrad(it.grad) + '">' + escapeHtml(it.short || it.label || '+') + '</span>' +
         '<span class="feature-label">' + escapeHtml(it.label) + '</span>';
