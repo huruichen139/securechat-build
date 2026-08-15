@@ -297,6 +297,17 @@ module.exports = function registerGroups(app, db, auth) {
     res.json({ ok: true });
   });
 
+  // ---------- 加入群（按群ID直接加入）：POST /api/groups/:id/join ----------
+  app.post('/api/groups/:id/join', mw, (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
+    const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
+    if (!g) return fail(res, 404, '群不存在');
+    if (memberOf(groupId, req.user.id)) return fail(res, 400, '你已在此群');
+    p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, req.user.id, Date.now());
+    res.json({ ok: true, groupId });
+  });
+
   // ---------- 退出群：POST /api/groups/:id/leave ----------
   app.post('/api/groups/:id/leave', mw, (req, res) => {
     const groupId = parseInt(req.params.id, 10);

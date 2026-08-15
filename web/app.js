@@ -1847,10 +1847,10 @@ $('createGroupBtn').onclick = () => {
     if (!out.name) { toast('群名不能为空', 'warn', 1000); return; }
     close();
     try {
-      const res = await fetch(state.serverHost + '/api/group/create', {
+      const res = await fetch(state.serverHost + '/api/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-        body: JSON.stringify({ name: out.name })
+        body: JSON.stringify({ name: out.name, uids: [] })
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '创建失败', 'error'); return; }
@@ -1866,7 +1866,7 @@ $('joinGroupBtn').onclick = () => {
     if (!out.groupId) { toast('群ID不能为空', 'warn', 1000); return; }
     close();
     try {
-      const res = await fetch(state.serverHost + '/api/group/join', {
+      const res = await fetch(state.serverHost + '/api/groups/' + parseInt(out.groupId, 10) + '/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
         body: JSON.stringify({ groupId: parseInt(out.groupId, 10) })
@@ -1887,10 +1887,10 @@ $('inviteGroupBtn').onclick = () => {
     if (!out.uid) { toast('UID 不能为空', 'warn', 1000); return; }
     close();
     try {
-      const res = await fetch(state.serverHost + '/api/group/invite', {
+      const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-        body: JSON.stringify({ groupId: state.activeGroup, uid: out.uid })
+        body: JSON.stringify({ uid: out.uid })
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '邀请失败', 'error'); return; }
@@ -1929,7 +1929,7 @@ async function selectGroup(groupId) {
   refreshConversationButtons();
   restoreCurrentDraft();
   try {
-    const res = await fetch(state.serverHost + '/api/group/' + groupId + '/messages', {
+    const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/messages', {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
