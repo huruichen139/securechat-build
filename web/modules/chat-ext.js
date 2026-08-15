@@ -125,7 +125,7 @@
             return Promise.resolve({ ok: true });
           } catch (e) {}
         }
-        return post('/api/group', {})
+        return post('/api/groups/' + gid + '/messages', { content: finalContent, replyTo: opts && opts.replyTo })
           .catch(function () { return { ok: false }; })
           .then(function () {
             if (window.send) window.send(window.P && window.P.C_GROUP_MSG, { groupId: gid, content: finalContent, clientMsgId: (opts && opts.clientMsgId) || ('g' + Date.now()) });

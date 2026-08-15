@@ -171,5 +171,6 @@
   if (window.SecureChatExt && typeof window.SecureChatExt.registerFeature === 'function') {
     window.SecureChatExt.registerFeature('moment-ext', feature);
   }
+  window.SecureChatMomentExt = feature;
   window.__scFindFeatureMomentExt = feature;
 })();

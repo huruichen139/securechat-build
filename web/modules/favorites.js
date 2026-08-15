@@ -260,5 +260,6 @@
   if (window.SecureChatExt && typeof window.SecureChatExt.registerFeature === 'function') {
     window.SecureChatExt.registerFeature('favorites', feature);
   }
+  window.SecureChatFavorites = feature;
   window.__scFindFeatureFavorites = feature;
 })();

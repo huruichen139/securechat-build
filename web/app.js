@@ -47,7 +47,7 @@ let state = {
 
 // 挂载到 window，供各独立模块（modules/*.js）读取全局登录态/当前会话。
 // 这些模块此前依赖 window.state 但从未被赋值，导致 token/activePeer/activeGroup 全为空 → 功能失效。
-window.state = state;
+window.P = P; window.state = state;
 
 const $ = (id) => document.getElementById(id);
 
