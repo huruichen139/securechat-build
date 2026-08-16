@@ -5,7 +5,7 @@
 # 鑷甫瀹屾暣 VS C++ 宸ュ叿閾撅紝鍙湪姝ゆ寜姝ｅ父閫熷害鏋勫缓锛岃閬挎湰鍦扮綉缁滅摱棰堛€?
 # 瑙﹀彂锛氭墜鍔紙workflow_dispatch锛夋垨鎺?tag銆?
 # 浜х墿鍛藉悕鍖归厤鏈嶅姟鍣?PLATFORM_FILES锛歋ecureChat-<latest>-windows.exe / .zip銆?
-# <latest> 浠?server 绔?version.json 鐨?latest 鍙栵紙姝ゅ鍥哄畾 1.59.0锛屾敼鐗堟湰鏃跺悓姝ワ級銆?
+# <latest> 浠?server 绔?version.json 鐨?latest 鍙栵紙姝ゅ鍥哄畾 1.60.0锛屾敼鐗堟湰鏃跺悓姝ワ級銆?
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
       version:
         description: '浜х墿鐗堟湰鍙凤紙椤讳笌鏈嶅姟鍣?version.json 鐨?latest 涓€鑷达級'
         required: true
-        default: '1.59.0'
+        default: '1.60.0'
   push:
     tags: [ 'flutter-win-*' ]
 
@@ -28,8 +28,8 @@ jobs:
         id: v
         shell: pwsh
         run: |
-          $ver = "${{ github.event.inputs.version || '1.59.0' }}".Trim()
-          if ($ver -eq '') { $ver = '1.59.0' }
+          $ver = "${{ github.event.inputs.version || '1.60.0' }}".Trim()
+          if ($ver -eq '') { $ver = '1.60.0' }
           echo "ver=$ver" >> $env:GITHUB_OUTPUT
 
       - name: Setup Flutter

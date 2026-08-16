@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.59.0';
+const PACKAGE_VERSION = '1.60.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -3394,11 +3394,12 @@ const services = [
     { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
     { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
     { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
+    { name: '更多功能', icon: '更', action: () => openFeatureCenter() },
     { name: '下载', icon: '下', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
     { name: '意见反馈', icon: '反', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
     { name: '设置', icon: '设', action: () => { if (window.openAiSettings) { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; window.openAiSettings(); } else toast('设置功能开发中', 'info'); } },
   ];
-  // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 下载/意见反馈/设置
+  // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
   svc.innerHTML = `
     <div class="wx-me-group">${services.slice(0, 2).map((s, i) => meItemHtml(s, i)).join('')}</div>
     <div class="wx-me-group">${services.slice(2, 5).map((s, i) => meItemHtml(s, i + 2)).join('')}</div>

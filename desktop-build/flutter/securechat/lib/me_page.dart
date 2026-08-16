@@ -13,6 +13,7 @@ import 'favorites_page.dart' as fav;
 import 'wallet_extra_page.dart';
 import 'chat_ext_page.dart';
 import 'feedback_page.dart';
+import 'feature_center_page.dart';
 
 class MePage extends StatefulWidget {
   const MePage({super.key, this.api, required this.config});
@@ -97,12 +98,14 @@ class _MePageState extends State<MePage> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    // 卡片 C：侧边栏裁到 4 个按钮后，名片/反馈迁移到这里
+                    // 卡片 C：侧边栏裁到 4 个按钮后，名片/更多功能/反馈迁移到这里
                     SectionCard(
                       config: widget.config,
                       margin: const EdgeInsets.symmetric(horizontal: 12),
                       children: [
                         ListCell(config: widget.config, icon: Icons.qr_code_2_outlined, title: '我的名片', onTap: _showMyCard),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.apps_rounded, title: '更多功能', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FeatureCenterPage(api: _api, config: widget.config)))),
                         CellDivider(config: widget.config),
                         ListCell(config: widget.config, icon: Icons.feedback_outlined, title: '意见反馈', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FeedbackPage(config: widget.config, api: _api)))),
                       ],
