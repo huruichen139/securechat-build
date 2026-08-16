@@ -1,3 +1,7 @@
+// 功能中心：安全便签 / 待办清单 / 快捷回复 / 我的文件 / 我的收藏 / 定时提醒 / 在线状态 / 表情面板。
+// 2026 真实产品风格：扁平克制、主题感知，去掉渐变与悬浮阴影。
+// 构造函数签名保持兼容：main.dart 以 const 方式实例化（无 config），故颜色统一走
+// Theme.of(context).colorScheme（其即 AppConfig 主题派生），暗色模式正常。
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -5,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 const _kNotesKey = 'notes_list';
 const _kTodoKey = 'todo_list';
@@ -13,12 +18,26 @@ const _kRemindersKey = 'reminders_list';
 const _kMoodStatusKey = 'mood_status';
 const _kMoodTextKey = 'mood_text';
 
-class NotesPage extends StatelessWidget {
-  const NotesPage({super.key});
+/// 扁平列表项容器（主题感知，无阴影）。
+Widget _itemCard(BuildContext context, {required Widget child}) {
+  final cs = Theme.of(context).colorScheme;
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(Ux.cardRadius),
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+    ),
+    child: child,
+  );
+}
 
+class NotesPage extends StatelessWidget {
+  const NotesPage({super.key, this.config});
+  final dynamic config;
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('安全便签', const _NotesBody());
+    return _scaffold(context, '安全便签', _NotesBody());
   }
 }
 
@@ -114,22 +133,18 @@ class _NotesBodyState extends State<_NotesBody> {
                       separatorBuilder: (_, i) => const SizedBox(height: 8),
                       itemBuilder: (_, i) {
                         final (text, ts) = notes[i];
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
-                          child: Row(children: [
-                            Icon(Icons.sticky_note_2_outlined, color: cs.primary),
-                            const SizedBox(width: 10),
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(text, style: TextStyle(color: cs.onSurface)),
-                              if (ts > 0) ...[
-                                const SizedBox(height: 3),
-                                Text(_fmtTime(ts), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                              ],
-                            ])),
-                            IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(i)),
-                          ]),
-                        );
+                        return _itemCard(context, child: Row(children: [
+                          Icon(Icons.sticky_note_2_outlined, color: cs.primary),
+                          const SizedBox(width: 10),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(text, style: TextStyle(color: cs.onSurface)),
+                            if (ts > 0) ...[
+                              const SizedBox(height: 3),
+                              Text(_fmtTime(ts), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+                            ],
+                          ])),
+                          IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(i)),
+                        ]));
                       },
                     ),
         ),
@@ -139,11 +154,11 @@ class _NotesBodyState extends State<_NotesBody> {
 }
 
 class TodoPage extends StatelessWidget {
-  const TodoPage({super.key});
-
+  const TodoPage({super.key, this.config});
+  final dynamic config;
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('待办清单', const _TodoBody());
+    return _scaffold(context, '待办清单', const _TodoBody());
   }
 }
 
@@ -241,18 +256,14 @@ class _TodoBodyState extends State<_TodoBody> {
                   ? Center(child: Text('还没有待办', style: TextStyle(color: cs.onSurfaceVariant)))
                   : ListView.separated(
                       itemCount: items.length,
-                      separatorBuilder: (_, i) => const SizedBox(height: 4),
+                      separatorBuilder: (_, i) => const SizedBox(height: 8),
                       itemBuilder: (_, i) {
                         final item = items[i];
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12)),
-                          child: Row(children: [
-                            Checkbox(value: item.done, activeColor: cs.primary, onChanged: (v) => _toggle(i, v ?? false)),
-                            Expanded(child: Text(item.text, style: TextStyle(color: cs.onSurface, decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: cs.onSurfaceVariant))),
-                            IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(i)),
-                          ]),
-                        );
+                        return _itemCard(context, child: Row(children: [
+                          Checkbox(value: item.done, activeColor: cs.primary, onChanged: (v) => _toggle(i, v ?? false)),
+                          Expanded(child: Text(item.text, style: TextStyle(color: cs.onSurface, decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: cs.onSurfaceVariant))),
+                          IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(i)),
+                        ]));
                       },
                     ),
         ),
@@ -262,11 +273,11 @@ class _TodoBodyState extends State<_TodoBody> {
 }
 
 class QuickRepliesPage extends StatelessWidget {
-  const QuickRepliesPage({super.key});
-
+  const QuickRepliesPage({super.key, this.config});
+  final dynamic config;
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('快捷回复', const _QuickRepliesBody());
+    return _scaffold(context, '快捷回复', const _QuickRepliesBody());
   }
 }
 
@@ -365,13 +376,14 @@ class _QuickRepliesBodyState extends State<_QuickRepliesBody> {
 }
 
 class FileCenterPage extends StatelessWidget {
-  const FileCenterPage({super.key, this.api});
+  const FileCenterPage({super.key, this.api, this.config});
 
   final SecureChatApi? api;
+  final dynamic config;
 
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('我的文件', _FileCenterBody(api: api));
+    return _scaffold(context, '我的文件', _FileCenterBody(api: api));
   }
 }
 
@@ -487,21 +499,17 @@ class _FileCenterBodyState extends State<_FileCenterBody> {
                           separatorBuilder: (_, i) => const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final f = _filtered[i];
-                            return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
-                              child: Row(children: [
-                                Icon(Icons.insert_drive_file_outlined, color: cs.primary),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(f.name, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 3),
-                                    Text('${_fmtSize(f.size)} · ${_fmtTime(f.time)}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                                  ]),
-                                ),
-                              ]),
-                            );
+                            return _itemCard(context, child: Row(children: [
+                              Icon(Icons.insert_drive_file_outlined, color: cs.primary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(f.name, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 3),
+                                  Text('${_fmtSize(f.size)} · ${_fmtTime(f.time)}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                ]),
+                              ),
+                            ]));
                           },
                         ),
         ),
@@ -511,13 +519,14 @@ class _FileCenterBodyState extends State<_FileCenterBody> {
 }
 
 class FavoritesPage extends StatelessWidget {
-  const FavoritesPage({super.key, this.api});
+  const FavoritesPage({super.key, this.api, this.config});
 
   final SecureChatApi? api;
+  final dynamic config;
 
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('我的收藏', _FavoritesBody(api: api));
+    return _scaffold(context, '我的收藏', _FavoritesBody(api: api));
   }
 }
 
@@ -608,27 +617,23 @@ class _FavoritesBodyState extends State<_FavoritesBody> {
                         final content = (m['content'] ?? '').toString();
                         final from = _toInt(m['from']);
                         final favAt = _fmtTime(m['favoritedAt']);
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
-                          child: Row(children: [
-                            Icon(Icons.favorite, color: cs.error),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(content, style: TextStyle(color: cs.onSurface)),
-                                const SizedBox(height: 4),
-                                Text('来自 $from${favAt.isEmpty ? '' : ' · 收藏于 $favAt'}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                              ],
-                            )),
-                            IconButton(
-                              icon: Icon(Icons.favorite, color: cs.error),
-                              tooltip: '取消收藏',
-                              onPressed: () => _unfavorite(_toInt(m['id'])),
-                            ),
-                          ]),
-                        );
+                        return _itemCard(context, child: Row(children: [
+                          Icon(Icons.favorite, color: cs.error),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(content, style: TextStyle(color: cs.onSurface)),
+                              const SizedBox(height: 4),
+                              Text('来自 $from${favAt.isEmpty ? '' : ' · 收藏于 $favAt'}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+                            ],
+                          )),
+                          IconButton(
+                            icon: Icon(Icons.favorite, color: cs.error),
+                            tooltip: '取消收藏',
+                            onPressed: () => _unfavorite(_toInt(m['id'])),
+                          ),
+                        ]));
                       },
                     ),
     );
@@ -636,11 +641,11 @@ class _FavoritesBodyState extends State<_FavoritesBody> {
 }
 
 class ReminderPage extends StatelessWidget {
-  const ReminderPage({super.key});
-
+  const ReminderPage({super.key, this.config});
+  final dynamic config;
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('定时提醒', const _ReminderBody());
+    return _scaffold(context, '定时提醒', const _ReminderBody());
   }
 }
 
@@ -750,18 +755,14 @@ class _ReminderBodyState extends State<_ReminderBody> {
                       separatorBuilder: (_, i) => const SizedBox(height: 8),
                       itemBuilder: (_, i) {
                         final (text, t) = reminders[i];
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]),
-                          child: Row(children: [
-                            Icon(Icons.alarm, color: cs.primary),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text(text, style: TextStyle(color: cs.onSurface))),
-                            const SizedBox(width: 8),
-                            Text(_format(t), style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600)),
-                            IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(i)),
-                          ]),
-                        );
+                        return _itemCard(context, child: Row(children: [
+                          Icon(Icons.alarm, color: cs.primary),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(text, style: TextStyle(color: cs.onSurface))),
+                          const SizedBox(width: 8),
+                          Text(_format(t), style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600)),
+                          IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(i)),
+                        ]));
                       },
                     ),
         ),
@@ -823,11 +824,11 @@ class _EmojiBoardState extends State<EmojiBoard> {
 }
 
 class MoodStatusPage extends StatelessWidget {
-  const MoodStatusPage({super.key});
-
+  const MoodStatusPage({super.key, this.config});
+  final dynamic config;
   @override
   Widget build(BuildContext context) {
-    return _Scaffold('心情 / 在线状态', const _MoodStatusBody());
+    return _scaffold(context, '心情 / 在线状态', const _MoodStatusBody());
   }
 }
 
@@ -896,7 +897,11 @@ class _MoodStatusBodyState extends State<_MoodStatusBody> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: status == i ? cs.primary.withValues(alpha: 0.15) : cs.surface, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: status == i ? cs.primary.withValues(alpha: 0.15) : cs.surface,
+                  borderRadius: BorderRadius.circular(Ux.cardRadius),
+                  border: Border.all(color: status == i ? cs.primary.withValues(alpha: 0.4) : cs.outlineVariant.withValues(alpha: 0.5)),
+                ),
                 child: Row(children: [
                   Icon(icons[i], color: colors[i]),
                   const SizedBox(width: 12),
@@ -923,23 +928,17 @@ class _MoodStatusBodyState extends State<_MoodStatusBody> {
   }
 }
 
-class _Scaffold extends StatelessWidget {
-  const _Scaffold(this.title, this.body);
-  final String title;
-  final Widget body;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
+/// 通用 Scaffold：原生顶栏（标题 + 返回），主题感知背景。
+Widget _scaffold(BuildContext context, String title, Widget body) {
+  final cs = Theme.of(context).colorScheme;
+  return Scaffold(
+    backgroundColor: cs.surface,
+    appBar: AppBar(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text(title, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
-      body: body,
-    );
-  }
+      elevation: 0,
+      title: Text(title, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
+      leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
+    ),
+    body: body,
+  );
 }

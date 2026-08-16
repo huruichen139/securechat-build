@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'widgets/app_scaffold.dart';
+import 'widgets/ux.dart';
 
 class AiPage extends StatefulWidget {
   const AiPage({super.key, required this.api, required this.config});
@@ -140,85 +141,78 @@ class _AiPageState extends State<AiPage> {
       animation: config,
       builder: (context, _) => AppScaffold(
         config: config,
-        body: Column(children: [
-          _topBar(config),
-          if (_showConfig)
-            _configCard(config)
-          else if (!_ready)
-            _setupPrompt(config)
-          else
-            Expanded(
-              child: _messages.isEmpty
-                  ? Center(child: Text('开始和 AI 对话吧', style: TextStyle(color: t.subText)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length,
-                      itemBuilder: (_, i) => _bubble(config, _messages[i]),
-                    ),
+        body: SafeArea(
+          child: Column(children: [
+            PageHeader(
+              title: 'AI 助手',
+              config: config,
+              trailing: IconButton(
+                tooltip: _ready ? 'AI 配置' : '未配置 AI，请点击设置',
+                onPressed: () => setState(() {
+                  _showConfig = !_showConfig;
+                  _syncReady();
+                }),
+                icon: Icon(_ready ? Icons.settings_outlined : Icons.error_outline, color: t.text),
+              ),
             ),
-          _composer(config),
-        ]),
-      ),
-    );
-  }
-
-  Widget _topBar(AppConfig config) {
-    final t = config.theme;
-    return Material(
-      color: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-        child: Row(children: [
-          IconButton(
-            tooltip: _ready ? 'AI 配置' : '未配置 AI，请点击设置',
-            onPressed: () => setState(() {
-              _showConfig = !_showConfig;
-              _syncReady();
-            }),
-            icon: Icon(_ready ? Icons.settings_outlined : Icons.error_outline, color: t.text),
-          ),
-          Text('AI 助手', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: t.text)),
-          const Spacer(),
-          IconButton(
-            tooltip: '关闭',
-            onPressed: () => Navigator.maybePop(context),
-            icon: Icon(Icons.close, color: t.subText),
-          ),
-        ]),
+            if (_showConfig)
+              _configCard(config)
+            else if (!_ready)
+              _setupPrompt(config)
+            else
+              Expanded(
+                child: _messages.isEmpty
+                    ? Center(child: Text('开始和 AI 对话吧', style: TextStyle(color: t.subText)))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _messages.length,
+                        itemBuilder: (_, i) => _bubble(config, _messages[i]),
+                      ),
+              ),
+            _composer(config),
+          ]),
+        ),
       ),
     );
   }
 
   Widget _configCard(AppConfig config) {
     final t = config.theme;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: t.card.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(16), border: Border.all(color: t.div.withValues(alpha: 0.5)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.25 : 0.06), blurRadius: 16, offset: const Offset(0, 6))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('AI 服务配置', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
-        const SizedBox(height: 12),
-        TextField(controller: _baseUrlCtrl, onChanged: (_) => setState(_syncReady), style: TextStyle(color: t.text), decoration: InputDecoration(labelText: 'Base URL', hintText: 'https://api.example.com/v1', labelStyle: TextStyle(color: t.subText), hintStyle: TextStyle(color: t.subText))),
-        const SizedBox(height: 10),
-        TextField(controller: _apiKeyCtrl, onChanged: (_) => setState(_syncReady), obscureText: true, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: 'API Key', labelStyle: TextStyle(color: t.subText))),
-        const SizedBox(height: 10),
-        TextField(controller: _modelCtrl, onChanged: (_) => setState(_syncReady), style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '模型', hintText: '例如 gpt-4o-mini', labelStyle: TextStyle(color: t.subText), hintStyle: TextStyle(color: t.subText))),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: FilledButton(onPressed: _saveConfig, child: const Text('保存'))),
-          const SizedBox(width: 10),
-          OutlinedButton(onPressed: () => setState(() => _showConfig = false), child: const Text('取消')),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: SectionCard(
+        config: config,
+        padding: const EdgeInsets.all(14),
+        children: [Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('AI 服务配置', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
+          const SizedBox(height: 12),
+          TextField(controller: _baseUrlCtrl, onChanged: (_) => setState(_syncReady), style: TextStyle(color: t.text), decoration: InputDecoration(labelText: 'Base URL', hintText: 'https://api.example.com/v1', labelStyle: TextStyle(color: t.subText), hintStyle: TextStyle(color: t.subText))),
+          const SizedBox(height: 10),
+          TextField(controller: _apiKeyCtrl, onChanged: (_) => setState(_syncReady), obscureText: true, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: 'API Key', labelStyle: TextStyle(color: t.subText))),
+          const SizedBox(height: 10),
+          TextField(controller: _modelCtrl, onChanged: (_) => setState(_syncReady), style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '模型', hintText: '例如 gpt-4o-mini', labelStyle: TextStyle(color: t.subText), hintStyle: TextStyle(color: t.subText))),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: FilledButton(onPressed: _saveConfig, child: const Text('保存'))),
+            const SizedBox(width: 10),
+            OutlinedButton(onPressed: () => setState(() => _showConfig = false), child: const Text('取消')),
+          ]),
         ]),
-      ]),
+        ],
+      ),
     );
   }
 
   Widget _setupPrompt(AppConfig config) {
     final t = config.theme;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: t.card.withValues(alpha: 0.82), borderRadius: BorderRadius.circular(16), border: Border.all(color: t.div.withValues(alpha: 0.5))),
+      decoration: BoxDecoration(
+        color: t.card.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(Ux.cardRadius),
+        border: Border.all(color: t.div.withValues(alpha: 0.6)),
+      ),
       child: Row(children: [
         Icon(Icons.info_outline, color: config.primary),
         const SizedBox(width: 10),
@@ -245,7 +239,6 @@ class _AiPageState extends State<AiPage> {
             bottomLeft: Radius.circular(mine ? 16 : 4),
             bottomRight: Radius.circular(mine ? 4 : 16),
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Text(m.text.isEmpty ? '…' : m.text, style: TextStyle(color: t.text, fontSize: 14, height: 1.4)),
       ),

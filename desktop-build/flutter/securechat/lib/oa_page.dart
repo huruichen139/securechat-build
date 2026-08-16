@@ -1,8 +1,10 @@
 // module: oa_page (worker batch4) —— Flutter 公众号页：关注/文章/留言/在看
 import 'package:flutter/material.dart';
 
+import 'services/app_config.dart';
 import 'services/media_api.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class OaPage extends StatefulWidget {
   const OaPage({super.key, required this.api, required this.config});
@@ -21,6 +23,9 @@ class _OaPageState extends State<OaPage> {
   bool _loading = true;
   String? _error;
 
+  AppConfig get _cfg => widget.config as AppConfig;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
@@ -36,7 +41,10 @@ class _OaPageState extends State<OaPage> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       if (_tab.value == 0) {
         _accounts = await _svc.accounts();
@@ -91,89 +99,107 @@ class _OaPageState extends State<OaPage> {
   }
 
   void _openAccount(Map<String, dynamic> a) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => _AccountDetail(svc: _svc, account: a)));
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => _AccountDetail(svc: _svc, account: a, config: _cfg)));
   }
 
   void _openArticle(Map<String, dynamic> a) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ArticleDetail(svc: _svc, article: a)));
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ArticleDetail(svc: _svc, article: a, config: _cfg)));
+  }
+
+  Widget _tabItem(int index, String label) {
+    return Expanded(
+      child: ValueListenableBuilder<int>(
+        valueListenable: _tab,
+        builder: (_, v, __) => InkWell(
+          onTap: () => _tab.value = index,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: v == index ? Ux.green : Colors.transparent, width: 2))),
+            child: Text(label, style: TextStyle(color: v == index ? Ux.green : _t.subText, fontWeight: v == index ? FontWeight.w700 : FontWeight.w500)),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = _t;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('公众号', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [IconButton(icon: Icon(Icons.refresh, color: color), onPressed: _load)],
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
+        PageHeader(
+          title: '公众号',
+          config: _cfg,
+          trailing: IconButton(
+            onPressed: _registerOa,
+            icon: Icon(Icons.add_circle_outline, color: t.text, size: 20),
+          ),
+        ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(color: t.bg, border: Border(bottom: BorderSide(color: t.div.withValues(alpha: 0.6)))),
           child: Row(children: [
-            for (final (i, label) in const [(0, '公众号'), (1, '订阅'), (2, '在看')])
-              Expanded(child: ValueListenableBuilder<int>(
-                valueListenable: _tab,
-                builder: (_, v, __) => InkWell(
-                  onTap: () => _tab.value = i,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: v == i ? color : Colors.transparent, width: 2))),
-                    child: Text(label, style: TextStyle(color: v == i ? color : cs.onSurfaceVariant, fontWeight: v == i ? FontWeight.w700 : FontWeight.w500)),
-                  ),
-                ),
-              )),
-            IconButton(icon: Icon(Icons.add_circle_outline, color: color), onPressed: _registerOa),
+            _tabItem(0, '公众号'),
+            _tabItem(1, '订阅'),
+            _tabItem(2, '在看'),
           ]),
         ),
-        Divider(height: 1, color: cs.outlineVariant),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: CircularProgressIndicator(color: t.subText))
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _cur.isEmpty
-                      ? Center(child: Text(_tab.value == 0 ? '还没有公众号' : (_tab.value == 1 ? '还没有订阅' : '还没有在看'), style: TextStyle(color: cs.onSurfaceVariant)))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                      ? Center(child: Text(_tab.value == 0 ? '还没有公众号' : (_tab.value == 1 ? '还没有订阅' : '还没有在看'), style: TextStyle(color: t.subText)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           itemCount: _cur.length,
-                          separatorBuilder: (_, i) => const SizedBox(height: 10),
                           itemBuilder: (_, i) {
                             final m = _cur[i];
                             final isArticle = _tab.value != 0;
                             return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                               padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5))),
+                              decoration: BoxDecoration(
+                                color: t.card.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                                border: Border.all(color: t.div.withValues(alpha: 0.6)),
+                              ),
                               child: isArticle
-                                  ? InkWell(onTap: () => _openArticle(m), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Text((m['title'] ?? '').toString(), style: TextStyle(color: cs.onSurface, fontSize: 15, fontWeight: FontWeight.w600)),
-                                      const SizedBox(height: 4),
-                                      Text('${_svc.str(m['accountName'])} · ${_fmt(m['createdAt'])} · 阅读 ${_svc.toInt(m['readCount'])} · 在看 ${_svc.toInt(m['presentCount'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                                    ]))
-                                  : InkWell(onTap: () => _openAccount(m), child: Row(children: [
-                                      CircleAvatar(radius: 18, backgroundColor: color.withValues(alpha: 0.15), child: Text(_svc.str(m['name']).isNotEmpty ? _svc.str(m['name'])[0] : '?', style: TextStyle(color: color))),
-                                      const SizedBox(width: 10),
-                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        Text(_svc.str(m['name']), style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
-                                        Text(_svc.str(m['intro']) + (m['following'] == true ? ' · 已关注' : ''), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                                      ])),
-                                      TextButton(
-                                        onPressed: () async {
-                                          try {
-                                            await _svc.followOa(_svc.toInt(m['id']), on: m['following'] != true);
-                                            _load();
-                                          } catch (e) {
-                                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-                                          }
-                                        },
-                                        child: Text(m['following'] == true ? '已关注' : '＋关注', style: TextStyle(color: color)),
-                                      ),
-                                    ])),
+                                  ? InkWell(
+                                      onTap: () => _openArticle(m),
+                                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text((m['title'] ?? '').toString(), style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w600)),
+                                        const SizedBox(height: 4),
+                                        Text('${_svc.str(m['accountName'])} · ${_fmt(m['createdAt'])} · 阅读 ${_svc.toInt(m['readCount'])} · 在看 ${_svc.toInt(m['presentCount'])}', style: TextStyle(color: t.subText, fontSize: 12)),
+                                      ]),
+                                    )
+                                  : InkWell(
+                                      onTap: () => _openAccount(m),
+                                      child: Row(children: [
+                                        CircleAvatar(radius: 18, backgroundColor: Ux.cellIconBg(t), child: Text(_svc.str(m['name']).isNotEmpty ? _svc.str(m['name'])[0] : '?', style: TextStyle(color: t.text))),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                            Text(_svc.str(m['name']), style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
+                                            Text(_svc.str(m['intro']) + (m['following'] == true ? ' · 已关注' : ''), style: TextStyle(color: t.subText, fontSize: 12)),
+                                          ]),
+                                        ),
+                                        TextButton(
+                                          onPressed: () async {
+                                            try {
+                                              await _svc.followOa(_svc.toInt(m['id']), on: m['following'] != true);
+                                              _load();
+                                            } catch (e) {
+                                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                                            }
+                                          },
+                                          child: Text(m['following'] == true ? '已关注' : '＋关注', style: TextStyle(color: Ux.green)),
+                                        ),
+                                      ]),
+                                    ),
                             );
                           },
                         ),
@@ -184,9 +210,10 @@ class _OaPageState extends State<OaPage> {
 }
 
 class _AccountDetail extends StatefulWidget {
-  const _AccountDetail({required this.svc, required this.account});
+  const _AccountDetail({required this.svc, required this.account, required this.config});
   final MediaService svc;
   final Map<String, dynamic> account;
+  final AppConfig config;
   @override
   State<_AccountDetail> createState() => _AccountDetailState();
 }
@@ -198,6 +225,8 @@ class _AccountDetailState extends State<_AccountDetail> {
   String? _error;
   Map<String, dynamic> _account = {};
 
+  AppTheme get _t => widget.config.theme;
+
   @override
   void initState() {
     super.initState();
@@ -205,7 +234,10 @@ class _AccountDetailState extends State<_AccountDetail> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final acc = await svc.account(widget.account['id'] as int);
       _account = acc;
@@ -247,44 +279,52 @@ class _AccountDetailState extends State<_AccountDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = Theme.of(context).colorScheme.primary;
+    final t = _t;
     final owned = _account['ownedByMe'] == true;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text(svc.str(_account['name'] ?? svc.str(widget.account['name'])), style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          if (owned) IconButton(icon: Icon(Icons.edit_note, color: color), onPressed: _publish),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _articles.length,
-                  separatorBuilder: (_, i) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final a = _articles[i];
-                    return InkWell(
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ArticleDetail(svc: svc, article: a))),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5))),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(svc.str(a['title']), style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 15)),
-                          const SizedBox(height: 4),
-                          Text('阅读 ${svc.toInt(a['readCount'])} · 在看 ${svc.toInt(a['presentCount'])} · ${_fmt(a['createdAt'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                        ]),
-                      ),
-                    );
-                  },
-                ),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(
+          title: svc.str(_account['name'] ?? svc.str(widget.account['name'])),
+          config: widget.config,
+          trailing: owned
+              ? IconButton(
+                  onPressed: _publish,
+                  icon: Icon(Icons.edit_note, color: t.text, size: 20),
+                )
+              : null,
+        ),
+        Expanded(
+          child: _loading
+              ? Center(child: CircularProgressIndicator(color: t.subText))
+              : _error != null
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      itemCount: _articles.length,
+                      itemBuilder: (_, i) {
+                        final a = _articles[i];
+                        return InkWell(
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ArticleDetail(svc: svc, article: a, config: widget.config))),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: t.card.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(Ux.cardRadius),
+                              border: Border.all(color: t.div.withValues(alpha: 0.6)),
+                            ),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(svc.str(a['title']), style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 15)),
+                              const SizedBox(height: 4),
+                              Text('阅读 ${svc.toInt(a['readCount'])} · 在看 ${svc.toInt(a['presentCount'])} · ${_fmt(a['createdAt'])}', style: TextStyle(color: t.subText, fontSize: 12)),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ]),
     );
   }
 
@@ -298,9 +338,10 @@ class _AccountDetailState extends State<_AccountDetail> {
 }
 
 class _ArticleDetail extends StatefulWidget {
-  const _ArticleDetail({required this.svc, required this.article});
+  const _ArticleDetail({required this.svc, required this.article, required this.config});
   final MediaService svc;
   final Map<String, dynamic> article;
+  final AppConfig config;
   @override
   State<_ArticleDetail> createState() => _ArticleDetailState();
 }
@@ -313,6 +354,8 @@ class _ArticleDetailState extends State<_ArticleDetail> {
   bool _loading = true;
   String? _error;
 
+  AppTheme get _t => widget.config.theme;
+
   @override
   void initState() {
     super.initState();
@@ -320,7 +363,10 @@ class _ArticleDetailState extends State<_ArticleDetail> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final a = await svc.article(widget.article['id'] as int);
       _a = a;
@@ -352,76 +398,83 @@ class _ArticleDetailState extends State<_ArticleDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = cs.primary;
+    final t = _t;
     final onAir = _a['presented'] == true;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('文章', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
-              : Column(children: [
-                  Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(svc.str(_a['title']), style: TextStyle(color: cs.onSurface, fontSize: 22, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text('来自 ${svc.str(_a['accountName'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                    const SizedBox(height: 14),
-                    const Divider(height: 1),
-                    const SizedBox(height: 14),
-                    Text(svc.str(_a['content']), style: TextStyle(color: cs.onSurface, fontSize: 15, height: 1.6)),
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      InkWell(onTap: () async {
-                        try {
-                          await svc.wow(svc.toInt(_a['id']), on: _a['presented'] != true);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_a['presented'] == true ? '已取消在看' : '在看 +1')));
-                          _load();
-                        } catch (e) {
-                          // 在看失败静默
-                        }
-                      }, child: Row(children: [
-                        Icon(Icons.filter_vintage, size: 18, color: onAir ? color : cs.onSurfaceVariant),
-                        const SizedBox(width: 4),
-                        Text('在看 ${svc.toInt(_a['presentCount'])}', style: TextStyle(color: onAir ? color : cs.onSurfaceVariant, fontSize: 12)),
-                      ])),
-                      const SizedBox(width: 20),
-                      Text('阅读 ${svc.toInt(_a['readCount'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                    ]),
-                    const SizedBox(height: 16),
-                    Text('留言', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 8),
-                    // 评论区：可精选/回复
-                    ..._comments.map((c) => Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: cs.outlineVariant.withValues(alpha: c['featured'] == true ? 1 : 0.4))),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(title: '文章', config: widget.config),
+        Expanded(
+          child: _loading
+              ? Center(child: CircularProgressIndicator(color: t.subText))
+              : _error != null
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
+                  : Column(children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(svc.str(_a['title']), style: TextStyle(color: t.text, fontSize: 22, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 6),
+                            Text('来自 ${svc.str(_a['accountName'])}', style: TextStyle(color: t.subText, fontSize: 12)),
+                            const SizedBox(height: 14),
+                            Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
+                            const SizedBox(height: 14),
+                            Text(svc.str(_a['content']), style: TextStyle(color: t.text, fontSize: 15, height: 1.6)),
+                            const SizedBox(height: 16),
                             Row(children: [
-                              Expanded(child: Text(svc.str(c['nickname'] ?? ('用户${c['userId']}')), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: c['featured'] == true ? color : cs.onSurface))),
-                              if (c['featured'] == true) Text(' 精选', style: TextStyle(color: color, fontSize: 11)),
+                              InkWell(onTap: () async {
+                                try {
+                                  await svc.wow(svc.toInt(_a['id']), on: _a['presented'] != true);
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_a['presented'] == true ? '已取消在看' : '在看 +1')));
+                                  _load();
+                                } catch (e) {
+                                  // 在看失败静默
+                                }
+                              }, child: Row(children: [
+                                Icon(Icons.filter_vintage, size: 18, color: onAir ? Ux.green : t.subText),
+                                const SizedBox(width: 4),
+                                Text('在看 ${svc.toInt(_a['presentCount'])}', style: TextStyle(color: onAir ? Ux.green : t.subText, fontSize: 12)),
+                              ])),
+                              const SizedBox(width: 20),
+                              Text('阅读 ${svc.toInt(_a['readCount'])}', style: TextStyle(color: t.subText, fontSize: 12)),
                             ]),
-                            Text(svc.str(c['content']), style: TextStyle(color: cs.onSurface, fontSize: 13)),
+                            const SizedBox(height: 16),
+                            Text('留言', style: TextStyle(color: t.text, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 8),
+                            // 评论区：可精选/回复
+                            ..._comments.map((c) => Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: t.card.withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(Ux.radius),
+                                    border: Border.all(color: c['featured'] == true ? Ux.green.withValues(alpha: 0.5) : t.div.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Row(children: [
+                                      Expanded(child: Text(svc.str(c['nickname'] ?? ('用户${c['userId']}')), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: c['featured'] == true ? Ux.green : t.text))),
+                                      if (c['featured'] == true) Text(' 精选', style: TextStyle(color: Ux.green, fontSize: 11)),
+                                    ]),
+                                    Text(svc.str(c['content']), style: TextStyle(color: t.text, fontSize: 13)),
+                                  ]),
+                                )),
+                            if (_comments.isEmpty) Text('还没有留言', style: TextStyle(color: t.subText)),
                           ]),
-                        )),
-                    if (_comments.isEmpty) Text('还没有留言', style: TextStyle(color: cs.onSurfaceVariant)),
-                  ]))),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    decoration: BoxDecoration(color: cs.surface, border: Border(top: BorderSide(color: cs.outlineVariant))),
-                    child: Row(children: [
-                      Expanded(child: TextField(controller: _commentCtl, decoration: const InputDecoration(hintText: '写下你的留言…', isDense: true))),
-                      const SizedBox(width: 8),
-                      FilledButton(onPressed: _comment, child: const Text('发送')),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                        decoration: BoxDecoration(color: t.bg, border: Border(top: BorderSide(color: t.div.withValues(alpha: 0.6)))),
+                        child: Row(children: [
+                          Expanded(child: TextField(controller: _commentCtl, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '写下你的留言…', hintStyle: TextStyle(color: t.subText), isDense: true))),
+                          const SizedBox(width: 8),
+                          FilledButton(onPressed: _comment, style: FilledButton.styleFrom(backgroundColor: Ux.green, foregroundColor: Colors.white), child: const Text('发送')),
+                        ]),
+                      ),
                     ]),
-                  ),
-                ]),
+        ),
+      ]),
     );
   }
 }

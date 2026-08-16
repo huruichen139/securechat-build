@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'services/securechat_api.dart';
+import 'services/app_config.dart';
+import 'widgets/ux.dart';
 
 class WalletPage extends StatefulWidget {
   const WalletPage({super.key, required this.api, required this.config});
@@ -127,81 +129,122 @@ class _WalletPageState extends State<WalletPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final cfg = widget.config as AppConfig;
+    final t = cfg.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('钱包', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
-              : ListView(padding: const EdgeInsets.all(16), children: [
-                  // 余额卡
-                  Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.7)]),
-                      borderRadius: BorderRadius.circular(18),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(title: '钱包', config: cfg),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
+                  : RefreshIndicator(
+                      onRefresh: _reload,
+                      child: ListView(
+                        padding: const EdgeInsets.all(12),
+                        children: [
+                          _balanceCard(cfg),
+                          const SizedBox(height: 16),
+                          Row(children: [
+                            Expanded(child: SectionTitle(config: cfg, title: '交易记录')),
+                            IconButton(
+                              onPressed: _reload,
+                              icon: Icon(Icons.refresh, color: t.subText, size: 20),
+                              tooltip: '刷新',
+                            ),
+                          ]),
+                          SectionCard(
+                            config: cfg,
+                            children: _txn.isEmpty
+                                ? [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 32),
+                                      child: Center(child: Text('暂无交易记录', style: TextStyle(color: t.subText))),
+                                    ),
+                                  ]
+                                : [
+                                    for (var i = 0; i < _txn.length; i++) ...[
+                                      if (i > 0) CellDivider(config: cfg, indent: 60),
+                                      _txnRow(cfg, _txn[i]),
+                                    ],
+                                  ],
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('我的余额（元）', style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.85), fontSize: 13)),
-                      const SizedBox(height: 8),
-                      Text(_balance.toStringAsFixed(2), style: TextStyle(color: cs.onPrimary, fontSize: 36, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 18),
-                      Row(children: [
-                        Expanded(child: _cardBtn(Icons.redeem, '充值', color, cs, _redeem)),
-                        Expanded(child: _cardBtn(Icons.currency_exchange, '转账', color, cs, _transfer)),
-                      ]),
-                    ]),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(children: [
-                    Text('交易记录', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    IconButton(icon: Icon(Icons.refresh, color: color), tooltip: '刷新', onPressed: _reload),
-                  ]),
-                  const SizedBox(height: 4),
-                  if (_txn.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 30),
-                      child: Center(child: Text('暂无交易记录', style: TextStyle(color: cs.onSurfaceVariant))),
-                    )
-                  else
-                    ..._txn.map((t) {
-                      final kind = _kindLabel((t['kind'] ?? '').toString());
-                      final amount = (t['amount'] as num?)?.toDouble() ?? 0;
-                      final inKind = (t['kind'] ?? '').toString();
-                      final incoming = inKind == 'in' || inKind == 'recharge';
-                      final peer = (t['peerName'] ?? '').toString();
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.12), child: Icon(incoming ? Icons.south_west : Icons.north_east, color: color, size: 18)),
-                        title: Text(peer.isEmpty ? kind : '$kind · $peer', style: TextStyle(color: cs.onSurface)),
-                        subtitle: Text(_fmtTxn(t), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                        trailing: Text('${incoming ? '+' : '-'}$amount', style: TextStyle(color: incoming ? color : cs.onSurface, fontWeight: FontWeight.w700)),
-                      );
-                    }),
-                ]),
+        ),
+      ]),
     );
   }
 
-  Widget _cardBtn(IconData icon, String label, Color color, ColorScheme cs, VoidCallback onTap) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: cs.onPrimary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, color: cs.onPrimary, size: 18),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w600)),
+  Widget _balanceCard(AppConfig cfg) {
+    final t = cfg.theme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: t.card.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(Ux.cardRadius),
+        border: Border.all(color: t.div.withValues(alpha: 0.6)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('我的余额（元）', style: TextStyle(fontSize: 13, color: t.subText)),
+        const SizedBox(height: 6),
+        Text(_balance.toStringAsFixed(2), style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: t.text)),
+        const SizedBox(height: 18),
+        Row(children: [
+          Expanded(child: _actionBtn(cfg, Icons.redeem, '充值', _redeem)),
+          const SizedBox(width: 12),
+          Expanded(child: _actionBtn(cfg, Icons.currency_exchange, '转账', _transfer)),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _actionBtn(AppConfig cfg, IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Ux.radius),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(color: Ux.green, borderRadius: BorderRadius.circular(Ux.radius)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _txnRow(AppConfig cfg, Map<String, dynamic> t) {
+    final t2 = cfg.theme;
+    final kind = _kindLabel((t['kind'] ?? '').toString());
+    final amount = (t['amount'] as num?)?.toDouble() ?? 0;
+    final inKind = (t['kind'] ?? '').toString();
+    final incoming = inKind == 'in' || inKind == 'recharge';
+    final peer = (t['peerName'] ?? '').toString();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(color: Ux.cellIconBg(t2), borderRadius: BorderRadius.circular(8)),
+          child: Icon(incoming ? Icons.south_west : Icons.north_east, color: incoming ? Ux.green : t2.text, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(peer.isEmpty ? kind : '$kind · $peer', style: TextStyle(fontSize: 15, color: t2.text, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 2),
+            Text(_fmtTxn(t), style: TextStyle(fontSize: 12, color: t2.subText)),
           ]),
         ),
-      );
+        Text('${incoming ? '+' : '-'}$amount', style: TextStyle(color: incoming ? Ux.green : t2.text, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
 }

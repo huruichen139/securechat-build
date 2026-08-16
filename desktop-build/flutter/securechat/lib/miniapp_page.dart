@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class MiniAppStorePage extends StatefulWidget {
   const MiniAppStorePage({super.key, required this.api, required this.config});
@@ -38,7 +39,10 @@ class _MiniAppStorePageState extends State<MiniAppStorePage> {
   }
 
   Future<void> _reload() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final List<Map<String, dynamic>> data = switch (_mode) {
         'recent' => await _svc.recentMiniPrograms(),
@@ -138,25 +142,18 @@ class _MiniAppStorePageState extends State<MiniAppStorePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = widget.config.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('小程序', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
+        PageHeader(title: '小程序', config: widget.config, trailing: IconButton(tooltip: '发布小程序', onPressed: _publish, icon: Icon(Icons.add_circle_outline, color: Ux.green))),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Row(children: [
-            Expanded(child: TextField(controller: _search, decoration: InputDecoration(hintText: '搜索小程序', prefixIcon: Icon(Icons.search, color: cs.onSurfaceVariant)), onSubmitted: (_) { _setMode('search'); })),
-            const SizedBox(width: 8),
-            IconButton(tooltip: '搜索', onPressed: () => _setMode('search'), icon: Icon(Icons.search, color: color)),
-            IconButton(tooltip: '发布小程序', onPressed: _publish, icon: Icon(Icons.add_circle_outline, color: color)),
-          ]),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: TextField(
+            controller: _search,
+            onSubmitted: (_) => _setMode('search'),
+            decoration: InputDecoration(hintText: '搜索小程序', prefixIcon: Icon(Icons.search, color: t.subText), suffixIcon: IconButton(onPressed: () => _setMode('search'), icon: Icon(Icons.arrow_forward, color: t.subText))),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -171,9 +168,9 @@ class _MiniAppStorePageState extends State<MiniAppStorePage> {
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _apps.isEmpty
-                      ? Center(child: Text('暂无小程序', style: TextStyle(color: cs.onSurfaceVariant)))
+                      ? Center(child: Text('暂无小程序', style: TextStyle(color: t.subText)))
                       : GridView.builder(
                           padding: const EdgeInsets.all(16),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.85, mainAxisSpacing: 18, crossAxisSpacing: 14),
@@ -183,19 +180,23 @@ class _MiniAppStorePageState extends State<MiniAppStorePage> {
                             final fav = a['favoritedByMe'] == true;
                             return InkWell(
                               onTap: () => _open(a),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                               child: Column(mainAxisSize: MainAxisSize.min, children: [
                                 Stack(children: [
-                                  Container(width: 60, height: 60, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)), child: Icon(Icons.apps_rounded, color: color, size: 32)),
-                                  Positioned(right: 0, bottom: 0, child: InkWell(
-                                    onTap: () => _toggleFav(a, !fav),
-                                    child: Icon(fav ? Icons.star : Icons.star_border, color: fav ? Colors.amber : cs.onSurfaceVariant, size: 18),
-                                  )),
+                                  Container(width: 60, height: 60, decoration: BoxDecoration(color: Ux.cellIconBg(t), borderRadius: BorderRadius.circular(16)), child: Icon(Icons.apps_rounded, color: t.text, size: 30)),
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: InkWell(
+                                      onTap: () => _toggleFav(a, !fav),
+                                      child: Icon(fav ? Icons.star : Icons.star_border, color: fav ? Ux.green : t.subText, size: 18),
+                                    ),
+                                  ),
                                 ]),
                                 const SizedBox(height: 8),
-                                Text((a['name'] ?? '').toString(), style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text((a['name'] ?? '').toString(), style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 if ((a['description'] ?? '').toString().isNotEmpty)
-                                  Text((a['description'] ?? '').toString(), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  Text((a['description'] ?? '').toString(), style: TextStyle(color: t.subText, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ]),
                             );
                           },

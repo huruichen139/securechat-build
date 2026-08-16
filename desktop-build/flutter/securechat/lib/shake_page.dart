@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class ShakePage extends StatefulWidget {
   const ShakePage({super.key, required this.api, required this.config});
@@ -88,27 +89,22 @@ class _ShakePageState extends State<ShakePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = widget.config.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('摇一摇', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.all(24),
+        PageHeader(title: '摇一摇', config: widget.config),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          decoration: BoxDecoration(
+            color: t.card.withValues(alpha: 0.85),
+            border: Border(bottom: BorderSide(color: t.div.withValues(alpha: 0.6))),
+          ),
           child: Column(children: [
-            AnimatedScale(
-              scale: _shaking ? 1.25 : 1.0,
-              duration: const Duration(milliseconds: 300),
-              child: Icon(Icons.phone_iphone, size: 72, color: color),
-            ),
+            Icon(Icons.phone_iphone, size: 72, color: widget.config.primary),
             const SizedBox(height: 12),
-            Text(_shaking ? '正在寻找同时摇一摇的人…' : '点击下方按钮开始摇一摇', style: TextStyle(color: cs.onSurfaceVariant)),
+            Text(_shaking ? '正在寻找同时摇一摇的人…' : '点击下方按钮开始摇一摇', style: TextStyle(color: t.subText)),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _toggle,
@@ -118,12 +114,11 @@ class _ShakePageState extends State<ShakePage> {
             ),
           ]),
         ),
-        const Divider(height: 1),
         Expanded(
           child: _shaking && _loading
               ? const Center(child: CircularProgressIndicator())
               : _matches.isEmpty
-                  ? Center(child: Text(_shaking ? '还没有人同时摇，再等等…' : '点击「现在摇」开始', style: TextStyle(color: cs.onSurfaceVariant)))
+                  ? Center(child: Text(_shaking ? '还没有人同时摇，再等等…' : '点击「现在摇」开始', style: TextStyle(color: t.subText)))
                   : ListView.separated(
                       itemCount: _matches.length,
                       separatorBuilder: (_, i) => const SizedBox(height: 8),
@@ -134,20 +129,24 @@ class _ShakePageState extends State<ShakePage> {
                         final done = p['done'] == true;
                         return Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14)),
+                          decoration: BoxDecoration(
+                            color: t.card.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(Ux.cardRadius),
+                            border: Border.all(color: t.div.withValues(alpha: 0.6)),
+                          ),
                           child: Row(children: [
-                            CircleAvatar(backgroundColor: color.withValues(alpha: 0.15), child: Text(name.characters.first, style: TextStyle(color: color, fontWeight: FontWeight.w600))),
+                            CircleAvatar(backgroundColor: widget.config.primary.withValues(alpha: 0.15), child: Text(name.characters.first, style: TextStyle(color: widget.config.primary, fontWeight: FontWeight.w600))),
                             const SizedBox(width: 12),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(name, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                              Text(name, style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
                               if ((p['city'] ?? '').toString().isNotEmpty) ...[
                                 const SizedBox(height: 3),
-                                Text(p['city'].toString(), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                Text(p['city'].toString(), style: TextStyle(color: t.subText, fontSize: 12)),
                               ],
                             ])),
                             const SizedBox(width: 8),
                             if (done)
-                              const Chip(label: Text('已是好友'), visualDensity: VisualDensity.compact)
+                              Chip(label: Text('已是好友', style: TextStyle(color: t.subText, fontSize: 12)), visualDensity: VisualDensity.compact)
                             else
                               FilledButton(onPressed: () => _hello(p), child: const Text('打招呼')),
                           ]),

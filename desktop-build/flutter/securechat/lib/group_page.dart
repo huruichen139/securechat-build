@@ -1,6 +1,7 @@
 // module: groups (worker batch1)
 // 群聊体系 Flutter 页面：群列表 → 群房间（发消息、@提及、公告、成员、文件、设置）。
 // 独立文件，仅依赖 services/group_service.dart + services/securechat_api.dart。
+// 2026 真实产品风格：扁平克制，主题感知，复用 ux.dart 组件。
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import 'services/group_service.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class GroupPage extends StatefulWidget {
   const GroupPage({super.key, required this.api, required this.config});
@@ -51,7 +53,6 @@ class _GroupPageState extends State<GroupPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('好友加载失败：${e.toString().replaceFirst('Bad state: ', '')}')));
       return;
     }
-    // 收集选中的好友 UID
     final selected = <String>{};
     final nameCtrl = TextEditingController();
     await showDialog(context: context, builder: (ctx) => StatefulBuilder(
@@ -100,51 +101,62 @@ class _GroupPageState extends State<GroupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final t = widget.config.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: const Text('群聊', style: TextStyle(fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          IconButton(icon: Icon(Icons.group_add, color: cs.primary), tooltip: '创建群聊', onPressed: _createGroup),
-          IconButton(icon: Icon(Icons.refresh, color: cs.primary), tooltip: '刷新', onPressed: _reload),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
-              : _groups.isEmpty
-                  ? Center(child: Text('还没有群聊，点右上角创建', style: TextStyle(color: cs.onSurfaceVariant)))
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _groups.length,
-                      separatorBuilder: (_, i) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) {
-                        final g = _groups[i];
-                        final color = widget.config.theme.primary;
-                        final name = (g['displayName'] ?? g['name'] ?? '群聊').toString();
-                        final isOwner = g['ownerId'] != null && widget.api.myId != null && g['ownerId'] == widget.api.myId;
-                        return Card(
-                          elevation: 0,
-                          color: cs.surface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5))),
-                          child: ListTile(
-                            onTap: () => _openRoom(g['id'] as int),
-                            leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.15), child: Text(name.isNotEmpty ? name[0] : '群', style: TextStyle(color: color))),
-                            title: Text(name + (isOwner ? '（群主）' : ''), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(
-                              '${(g['memberCount'] ?? 0)} 成员' + ((g['announcement'] != null && (g['announcement']['pinned'] == true)) ? ' · 置顶公告' : '') + (g['muted'] == true ? ' · 免打扰' : ''),
-                              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-                            ),
-                            trailing: g['announcement'] != null ? const Icon(Icons.push_pin, size: 16, color: Color(0xffe67e22)) : null,
-                          ),
-                        );
-                      },
-                    ),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(
+          title: '群聊',
+          config: widget.config,
+          onBack: () => Navigator.of(context).maybePop(),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: Icon(Icons.group_add, color: t.primary), tooltip: '创建群聊', onPressed: _createGroup),
+            IconButton(icon: Icon(Icons.refresh, color: t.primary), tooltip: '刷新', onPressed: _reload),
+          ]),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
+                  : _groups.isEmpty
+                      ? Center(child: Text('还没有群聊，点右上角创建', style: TextStyle(color: t.subText)))
+                      : ListView.separated(
+                          padding: const EdgeInsets.only(top: 12, bottom: 20),
+                          itemCount: _groups.length,
+                          separatorBuilder: (_, i) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final g = _groups[i];
+                            final name = (g['displayName'] ?? g['name'] ?? '群聊').toString();
+                            final isOwner = g['ownerId'] != null && widget.api.myId != null && g['ownerId'] == widget.api.myId;
+                            final ann = g['announcement'];
+                            final pinnedAnn = ann is Map && ann['pinned'] == true;
+                            return SectionCard(
+                              config: widget.config,
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              children: [
+                                ListCell(
+                                  config: widget.config,
+                                  icon: Icons.group_outlined,
+                                  iconColor: t.primary,
+                                  title: name + (isOwner ? '（群主）' : ''),
+                                  subtitle: '${(g['memberCount'] ?? 0)} 成员' +
+                                      (pinnedAnn ? ' · 置顶公告' : '') +
+                                      (g['muted'] == true ? ' · 免打扰' : ''),
+                                  onTap: () => _openRoom(g['id'] as int),
+                                  trailing: pinnedAnn
+                                      ? Padding(
+                                          padding: const EdgeInsets.only(left: 8),
+                                          child: Icon(Icons.push_pin, size: 16, color: const Color(0xffe67e22)),
+                                        )
+                                      : null,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+        ),
+      ]),
     );
   }
 }
@@ -293,7 +305,7 @@ class _GroupRoomState extends State<_GroupRoom> {
           const SizedBox(height: 8),
           TextField(controller: nickCtrl, decoration: const InputDecoration(labelText: '我在本群昵称')),
           const SizedBox(height: 12),
-          const Text('群成员与文件', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('群成员与文件', style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(ctx).colorScheme.onSurface)),
           const SizedBox(height: 4),
           for (final m in _members)
             Row(children: [
@@ -320,7 +332,6 @@ class _GroupRoomState extends State<_GroupRoom> {
         ],
       ),
     ));
-    // 设置弹窗关闭后，若调用了 _load 已刷新
   }
 
   Future<void> _danger(BuildContext dialogCtx, {required bool dissolve}) async {
@@ -339,9 +350,8 @@ class _GroupRoomState extends State<_GroupRoom> {
     if (mounted) Navigator.of(context).pop(true);
   }
 
-  Future<void> _showMsgMenu(int msgId, bool mine) async {
-    final replyTo = (_msgs.firstWhere((m) => m['id'] == msgId, orElse: () => <String, dynamic>{})['replyTo'] as int?) ?? null;
-    final pinned = ((_msgs.firstWhere((m) => m['id'] == msgId, orElse: () => <String, dynamic>{})['pinned'] as bool?) ?? false);
+  Future<void> _showMsgMenu(int msgId) async {
+    final pinned = (_msgs.firstWhere((m) => m['id'] == msgId, orElse: () => <String, dynamic>{})['pinned'] as bool?) ?? false;
     await showModalBottomSheet(
       context: context,
       builder: (sheetCtx) => SafeArea(
@@ -355,15 +365,16 @@ class _GroupRoomState extends State<_GroupRoom> {
 
   Future<void> _doReply(int msgId) async {
     final refMsg = _msgs.firstWhere((m) => m['id'] == msgId, orElse: () => <String, dynamic>{}) as Map<String, dynamic>?;
-    final refContent = (refMsg?['content'] ?? '[消息]').toString().substring(0, 40);
+    final refContent = (refMsg?['content'] ?? '[消息]').toString();
+    final shown = refContent.length > 40 ? '${refContent.substring(0, 40)}…' : refContent;
     final ctrl = TextEditingController();
     await showDialog(context: context, builder: (ctx) => AlertDialog(
       title: const Text('引用回复'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(8)),
-          child: Text('「$refContent」', style: const TextStyle(fontSize: 12, color: Color(0xFF2E7D32))),
+          decoration: BoxDecoration(color: Theme.of(ctx).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+          child: Text('「$shown」', style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.primary)),
         ),
         const SizedBox(height: 8),
         TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(hintText: '输入回复内容')),
@@ -407,111 +418,127 @@ class _GroupRoomState extends State<_GroupRoom> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = widget.config.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        titleSpacing: 0,
-        title: Text(_groupName.isEmpty ? '群房间' : _groupName, maxLines: 1, overflow: TextOverflow.ellipsis),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          IconButton(icon: Icon(Icons.group_add, color: cs.primary), tooltip: '邀请', onPressed: _invite),
-          IconButton(icon: Icon(Icons.folder_open_outlined, color: cs.primary), tooltip: '上传文件', onPressed: _uploadFile),
-          IconButton(icon: Icon(Icons.settings_outlined, color: cs.primary), tooltip: '群设置', onPressed: _showSettings),
-        ],
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
-        // 置顶公告
-        if (_announcement != null && _announcement!.isNotEmpty)
-          InkWell(
-            onTap: _isOwner ? _editAnnouncement : null,
-            child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), margin: const EdgeInsets.fromLTRB(12, 8, 12, 0), decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(10)),
-              child: Row(children: [
-                Icon(Icons.campaign, size: 16, color: _pinned ? const Color(0xffe67e22) : cs.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(child: Text('公告${_pinned ? '(置顶)' : ''}：$_announcement', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.onSurface, fontSize: 13))),
-                if (_isOwner)
-                  IconButton(tooltip: _pinned ? '取消置顶' : '置顶公告', onPressed: _togglePin, icon: Icon(Icons.push_pin, color: _pinned ? const Color(0xffe67e22) : cs.onSurfaceVariant, size: 18)),
-                if (_isOwner)
-                  IconButton(tooltip: '编辑公告', onPressed: _editAnnouncement, icon: const Icon(Icons.edit, size: 18)),
+        PageHeader(
+          title: _groupName.isEmpty ? '群房间' : _groupName,
+          config: widget.config,
+          onBack: () => Navigator.of(context).maybePop(),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: Icon(Icons.group_add, color: t.primary), tooltip: '邀请', onPressed: _invite),
+            IconButton(icon: Icon(Icons.folder_open_outlined, color: t.primary), tooltip: '上传文件', onPressed: _uploadFile),
+            IconButton(icon: Icon(Icons.settings_outlined, color: t.primary), tooltip: '群设置', onPressed: _showSettings),
+          ]),
+        ),
+        Expanded(
+          child: Column(children: [
+            // 置顶公告
+            if (_announcement != null && _announcement!.isNotEmpty)
+              InkWell(
+                onTap: _isOwner ? _editAnnouncement : null,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  decoration: BoxDecoration(color: t.card.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(10), border: Border.all(color: t.div.withValues(alpha: 0.6))),
+                  child: Row(children: [
+                    Icon(Icons.campaign, size: 16, color: _pinned ? const Color(0xffe67e22) : t.subText),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('公告${_pinned ? '(置顶)' : ''}：$_announcement', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.text, fontSize: 13))),
+                    if (_isOwner)
+                      IconButton(tooltip: _pinned ? '取消置顶' : '置顶公告', onPressed: _togglePin, icon: Icon(Icons.push_pin, color: _pinned ? const Color(0xffe67e22) : t.subText, size: 18)),
+                    if (_isOwner)
+                      IconButton(tooltip: '编辑公告', onPressed: _editAnnouncement, icon: Icon(Icons.edit, size: 18, color: t.subText)),
+                  ]),
+                ),
+              ),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _msgs.isEmpty
+                      ? Center(child: Text('还没有群消息', style: TextStyle(color: t.subText)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(14),
+                          itemCount: _msgs.length,
+                          itemBuilder: (_, i) {
+                            final m = _msgs[i];
+                            final mine = m['from'] == widget.api.myId;
+                            final fu = (m['fromUser'] is Map) ? ((m['fromUser']) as Map) : const {};
+                            final sender = (fu['nickname'] ?? fu['username'] ?? '用户').toString();
+                            final content = (m['content'] ?? '').toString();
+                            final pinned = (m['pinned'] as bool?) ?? false;
+                            final replyTo = m['replyTo'] as int?;
+                            final replyObj = replyTo != null ? _msgs.firstWhere((x) => x['id'] == replyTo, orElse: () => <String, dynamic>{}) : null;
+                            return GestureDetector(
+                              onLongPress: () => _showMsgMenu(m['id'] as int),
+                              child: Align(
+                                alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                                child: Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                  if (!mine) CircleAvatar(radius: 15, backgroundColor: t.primary.withValues(alpha: 0.15), child: Text(sender.isNotEmpty ? sender[0] : '?', style: TextStyle(color: t.primary, fontSize: 12))),
+                                  if (!mine) const SizedBox(width: 8),
+                                  Flexible(child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                                    constraints: const BoxConstraints(maxWidth: 520),
+                                    decoration: BoxDecoration(
+                                      color: mine ? t.bubbleMine : t.bubbleOther,
+                                      borderRadius: BorderRadius.only(topLeft: const Radius.circular(14), topRight: const Radius.circular(14), bottomLeft: Radius.circular(mine ? 14 : 4), bottomRight: Radius.circular(mine ? 4 : 14)),
+                                    ),
+                                    child: Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                      Row(mainAxisSize: MainAxisSize.min, children: [
+                                        if (!mine) Padding(padding: const EdgeInsets.only(right: 4, bottom: 3), child: Text(sender, style: TextStyle(color: t.primary, fontSize: 11, fontWeight: FontWeight.w600))),
+                                        const Spacer(),
+                                        if (pinned) Icon(Icons.push_pin, size: 12, color: const Color(0xffe67e22)),
+                                        if (replyTo != null) ...[
+                                          const SizedBox(width: 4),
+                                          Icon(Icons.reply, size: 12, color: t.subText),
+                                        ],
+                                      ]),
+                                      if (replyTo != null)
+                                        Padding(padding: const EdgeInsets.only(bottom: 4), child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                          decoration: BoxDecoration(color: t.div.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(6)),
+                                          child: Text(_replyPreview(replyObj, replyTo), style: TextStyle(color: t.subText, fontSize: 11)),
+                                        )),
+                                      SelectableText(content, style: TextStyle(color: t.text, fontSize: 14, height: 1.4)),
+                                    ]),
+                                  )),
+                                ])),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+            // 输入区 + @ 提及
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(height: 32, child: ListView(scrollDirection: Axis.horizontal, children: [
+                  ActionChip(label: const Text('@全部'), avatar: const Icon(Icons.group, size: 16), onPressed: () => _insertAt('全部')),
+                  for (final mm in _members)
+                    Padding(padding: const EdgeInsets.only(left: 6), child: ActionChip(label: Text(((mm['myNickname'] ?? mm['nickname'] ?? mm['username']) ?? '?').toString()), avatar: const Icon(Icons.person, size: 14), onPressed: () => _insertAt(((mm['myNickname'] ?? mm['nickname'] ?? mm['username']) ?? '?').toString()))),
+                ])),
+                const SizedBox(height: 6),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Expanded(child: TextField(controller: _input, minLines: 1, maxLines: 4, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入消息，@ 提及成员', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
+                  const SizedBox(width: 10),
+                  SizedBox(height: 44, child: FilledButton.icon(onPressed: _busy ? null : (() => _send()), icon: const Icon(Icons.send, size: 16), label: const Text('发送'))),
+                ]),
               ]),
             ),
-          ),
-        Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _msgs.isEmpty
-                  ? Center(child: Text('还没有群消息', style: TextStyle(color: cs.onSurfaceVariant)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(14),
-                      itemCount: _msgs.length,
-                      itemBuilder: (_, i) {
-                        final m = _msgs[i];
-                        final mine = m['from'] == widget.api.myId;
-                        final fu = (m['fromUser'] is Map) ? ((m['fromUser']) as Map) : const {};
-                        final sender = (fu['nickname'] ?? fu['username'] ?? '用户').toString();
-                        final content = (m['content'] ?? '').toString();
-                        final pinned = (m['pinned'] as bool?) ?? false;
-                        final replyTo = (m['replyTo'] as int?) ?? null;
-                        return GestureDetector(
-                          onLongPress: () => _showMsgMenu(m['id'] as int, mine),
-                          child: Align(
-                            alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                              if (!mine) CircleAvatar(radius: 15, backgroundColor: color.withValues(alpha: 0.15), child: Text(sender.isNotEmpty ? sender[0] : '?', style: TextStyle(color: color, fontSize: 12))),
-                              if (!mine) const SizedBox(width: 8),
-                              Flexible(child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-                                constraints: const BoxConstraints(maxWidth: 520),
-                                decoration: BoxDecoration(
-                                  color: mine ? cs.primaryContainer : cs.surfaceContainerHighest.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.only(topLeft: const Radius.circular(14), topRight: const Radius.circular(14), bottomLeft: Radius.circular(mine ? 14 : 4), bottomRight: Radius.circular(mine ? 4 : 14)),
-                                ),
-                                child: Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                                  Row(mainAxisSize: MainAxisSize.min, children: [
-                                    if (!mine) Padding(padding: const EdgeInsets.only(right: 4, bottom: 3), child: Text(sender, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))),
-                                    const Spacer(),
-                                    if (pinned) Icon(Icons.push_pin, size: 12, color: const Color(0xffe67e22)),
-                                    if (replyTo != null) const SizedBox(width: 4),
-                                    if (replyTo != null) Icon(Icons.reply, size: 12, color: cs.onSurfaceVariant),
-                                  ]),
-                                  if (replyTo != null)
-                                    Padding(padding: const EdgeInsets.only(bottom: 4), child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                      decoration: BoxDecoration(color: cs.outlineVariant.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(6)),
-                                      child: Text('回复 ${_msgs.firstWhere((x) => x['id'] == replyTo, orElse: () => {'fromUser': {'nickname': '?'}})['fromUser']['nickname'] ?? '?'}：${(_msgs.firstWhere((x) => x['id'] == replyTo, orElse: () => {'content': '[已撤回]'})['content'] ?? '[已撤回]').toString().substring(0, 30)}${((m['content'] ?? '').toString().length > 30) ? '…' : ''}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                                    )),
-                                  SelectableText(content, style: TextStyle(color: cs.onSurface, fontSize: 14, height: 1.4)),
-                                ]),
-                              )),
-                            ])),
-                          ),
-                        );
-                      },
-                    ),
-        ),
-        // 输入区 + @ 提及
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // @ 成员快捷选择
-            SizedBox(height: 32, child: ListView(scrollDirection: Axis.horizontal, children: [
-              ActionChip(label: const Text('@全部'), avatar: const Icon(Icons.group, size: 16), onPressed: () => _insertAt('全部')),
-              for (final mm in _members)
-                Padding(padding: const EdgeInsets.only(left: 6), child: ActionChip(label: Text(((mm['myNickname'] ?? mm['nickname'] ?? mm['username']) ?? '?').toString()), avatar: const Icon(Icons.person, size: 14), onPressed: () => _insertAt(((mm['myNickname'] ?? mm['nickname'] ?? mm['username']) ?? '?').toString()))),
-            ])),
-            const SizedBox(height: 6),
-            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Expanded(child: TextField(controller: _input, minLines: 1, maxLines: 4, style: TextStyle(color: cs.onSurface), decoration: InputDecoration(hintText: '输入消息，@ 提及成员', hintStyle: TextStyle(color: cs.onSurfaceVariant), filled: true, fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)))),
-              const SizedBox(width: 10),
-              SizedBox(height: 44, child: FilledButton.icon(onPressed: _busy ? null : (() => _send()), icon: const Icon(Icons.send, size: 16), label: const Text('发送'))),
-            ]),
           ]),
         ),
       ]),
     );
+  }
+
+  String _replyPreview(Map<String, dynamic>? ref, int replyTo) {
+    if (ref == null) return '回复 已撤回消息';
+    final fu = (ref['fromUser'] is Map) ? (ref['fromUser'] as Map) : const {};
+    final nick = (fu['nickname'] ?? fu['username'] ?? '用户').toString();
+    final c = (ref['content'] ?? '').toString();
+    final shown = c.length > 30 ? '${c.substring(0, 30)}…' : c;
+    return '回复 $nick：$shown';
   }
 }

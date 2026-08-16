@@ -10,6 +10,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key, required this.api, required this.config});
@@ -144,25 +145,25 @@ class _ScanPageState extends State<ScanPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = widget.config.theme;
     final hasCam = _scannerCtrl != null;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('扫一扫', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          TextButton(onPressed: () => setState(() { _manual = !_manual; _status = null; }), child: Text(_manual ? '摄像头' : '手动输入', style: TextStyle(color: color))),
-        ],
-      ),
-      body: _manual ? _manualView(cs, color) : _cameraView(cs, color, hasCam),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(
+          title: '扫一扫',
+          config: widget.config,
+          trailing: TextButton(
+            onPressed: () => setState(() { _manual = !_manual; _status = null; }),
+            child: Text(_manual ? '摄像头' : '手动输入', style: TextStyle(color: widget.config.primary)),
+          ),
+        ),
+        Expanded(child: _manual ? _manualView(t) : _cameraView(t, hasCam)),
+      ]),
     );
   }
 
-  Widget _manualView(ColorScheme cs, Color color) {
+  Widget _manualView(AppTheme t) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
@@ -170,7 +171,7 @@ class _ScanPageState extends State<ScanPage> {
         TextField(controller: _manualCtrl, maxLines: 3, decoration: const InputDecoration(hintText: '粘贴二维码内容（如 securechat://friend?uid=xxx 或网页链接）')),
         if (_status != null) ...[
           const SizedBox(height: 12),
-          Text(_status!, style: TextStyle(color: cs.onSurfaceVariant)),
+          Text(_status!, style: TextStyle(color: t.subText)),
         ],
         const SizedBox(height: 16),
         FilledButton.icon(onPressed: _manualSubmit, icon: const Icon(Icons.arrow_forward), label: const Text('识别')),
@@ -178,17 +179,17 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  Widget _cameraView(ColorScheme cs, Color color, bool hasCam) {
+  Widget _cameraView(AppTheme t, bool hasCam) {
     if (!hasCam) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.no_photography_outlined, size: 56, color: cs.onSurfaceVariant),
+            Icon(Icons.no_photography_outlined, size: 56, color: t.subText),
             const SizedBox(height: 12),
-            Text('当前设备没有摄像头或不受支持', style: TextStyle(color: cs.onSurface)),
+            Text('当前设备没有摄像头或不受支持', style: TextStyle(color: t.text)),
             const SizedBox(height: 8),
-            Text('请切换到「手动输入」粘贴二维码内容', style: TextStyle(color: cs.onSurfaceVariant)),
+            Text('请切换到「手动输入」粘贴二维码内容', style: TextStyle(color: t.subText)),
           ]),
         ),
       );

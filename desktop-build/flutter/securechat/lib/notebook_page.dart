@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'services/app_config.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class NotebookPage extends StatefulWidget {
   const NotebookPage({super.key, required this.api, required this.config});
@@ -23,7 +25,10 @@ class _NotebookPageState extends State<NotebookPage> {
   }
 
   Future<void> _reload() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       _notes
         ..clear()
@@ -72,51 +77,55 @@ class _NotebookPageState extends State<NotebookPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final cfg = widget.config as AppConfig;
+    final t = cfg.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('我的笔记', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        PageHeader(title: '我的笔记', config: cfg),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
           child: Row(children: [
-            Expanded(child: TextField(controller: _input, maxLines: null, decoration: const InputDecoration(hintText: '写下一条笔记...'))),
+            Expanded(
+              child: TextField(
+                controller: _input,
+                maxLines: null,
+                style: TextStyle(color: t.text),
+                decoration: const InputDecoration(hintText: '写下一条笔记...'),
+              ),
+            ),
             const SizedBox(width: 10),
             FilledButton(onPressed: _add, child: const Text('保存')),
           ]),
         ),
-        Divider(height: 1, color: cs.outlineVariant),
+        Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _notes.isEmpty
-                      ? Center(child: Text('还没有笔记', style: TextStyle(color: cs.onSurfaceVariant)))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                      ? Center(child: Text('还没有笔记', style: TextStyle(color: t.subText)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(12),
                           itemCount: _notes.length,
-                          separatorBuilder: (_, i) => const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final n = _notes[i];
                             return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4))),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(color: t.card.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(Ux.cardRadius), border: Border.all(color: t.div.withValues(alpha: 0.6))),
                               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Icon(Icons.sticky_note_2_outlined, color: color, size: 20),
+                                Icon(Icons.sticky_note_2_outlined, color: t.subText, size: 20),
                                 const SizedBox(width: 10),
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(n['content'] ?? '', style: TextStyle(color: cs.onSurface, fontSize: 14)),
-                                  const SizedBox(height: 4),
-                                  Text(_fmt(n['createdAt']), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                                ])),
-                                IconButton(icon: Icon(Icons.delete_outline, color: cs.error, size: 20), onPressed: () => _delete(n['id'] as int)),
+                                Expanded(
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text((n['content'] ?? '').toString(), style: TextStyle(color: t.text, fontSize: 14)),
+                                    const SizedBox(height: 4),
+                                    Text(_fmt(n['createdAt']), style: TextStyle(color: t.subText, fontSize: 11)),
+                                  ]),
+                                ),
+                                IconButton(icon: Icon(Icons.delete_outline, color: t.subText, size: 20), onPressed: () => _delete(n['id'] as int)),
                               ]),
                             );
                           },

@@ -1,10 +1,11 @@
 // module: nearby (worker batch5) —— 附近的人：列出附近活跃用户，设置位置，打招呼/加好友
-// 依赖：services/securechat_api.dart、services/lifestyle_api.dart、widgets/app_scaffold.dart
+// 依赖：services/securechat_api.dart、services/lifestyle_api.dart
 import 'package:flutter/material.dart';
 
 import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class NearbyPage extends StatefulWidget {
   const NearbyPage({super.key, required this.api, required this.config});
@@ -102,37 +103,38 @@ class _NearbyPageState extends State<NearbyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = widget.config.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('附近的人', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          IconButton(tooltip: '我的位置', onPressed: _setCity, icon: Icon(Icons.location_on_outlined, color: color)),
-          IconButton(tooltip: '刷新', onPressed: _reload, icon: Icon(Icons.refresh, color: color)),
-        ],
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(children: [
-            Icon(Icons.place, color: color, size: 18),
-            const SizedBox(width: 6),
-            Text('附近 · ${_city.isEmpty ? '…' : _city}', style: TextStyle(color: cs.onSurfaceVariant)),
+        PageHeader(
+          title: '附近的人',
+          config: widget.config,
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(tooltip: '我的位置', onPressed: _setCity, icon: Icon(Icons.location_on_outlined, color: t.subText)),
+            IconButton(tooltip: '刷新', onPressed: _reload, icon: Icon(Icons.refresh, color: t.subText)),
           ]),
         ),
-        const Divider(height: 1),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: t.card.withValues(alpha: 0.85),
+            border: Border(bottom: BorderSide(color: t.div.withValues(alpha: 0.6))),
+          ),
+          child: Row(children: [
+            Icon(Icons.place, color: widget.config.primary, size: 18),
+            const SizedBox(width: 6),
+            Text('附近 · ${_city.isEmpty ? '…' : _city}', style: TextStyle(color: t.subText)),
+          ]),
+        ),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _people.isEmpty
-                      ? Center(child: Text('附近还没有活跃的人', style: TextStyle(color: cs.onSurfaceVariant)))
+                      ? Center(child: Text('附近还没有活跃的人', style: TextStyle(color: t.subText)))
                       : ListView.separated(
                           itemCount: _people.length,
                           separatorBuilder: (_, i) => const SizedBox(height: 8),
@@ -145,29 +147,33 @@ class _NearbyPageState extends State<NearbyPage> {
                             final requested = p['friendRequested'] == true;
                             return Container(
                               padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14)),
+                              decoration: BoxDecoration(
+                                color: t.card.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                                border: Border.all(color: t.div.withValues(alpha: 0.6)),
+                              ),
                               child: Row(children: [
                                 CircleAvatar(
-                                  backgroundColor: color.withValues(alpha: 0.15),
-                                  child: Text(name.characters.first, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+                                  backgroundColor: widget.config.primary.withValues(alpha: 0.15),
+                                  child: Text(name.characters.first, style: TextStyle(color: widget.config.primary, fontWeight: FontWeight.w600)),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Row(children: [
-                                    Text(name, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                                    Text(name, style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
                                     if (online) ...[
                                       const SizedBox(width: 6),
-                                      Container(width: 8, height: 8, decoration: BoxDecoration(color: const Color(0xff18a66a), shape: BoxShape.circle)),
+                                      Container(width: 8, height: 8, decoration: BoxDecoration(color: Ux.green, shape: BoxShape.circle)),
                                     ],
                                   ]),
                                   const SizedBox(height: 3),
-                                  Text('${p['city'] ?? ''}${((p['region'] ?? '').toString().isNotEmpty ? ' · ${p['region']}' : '')} · ${_rel(_svc.toInt(p['lastSeen']))}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                  Text('${p['city'] ?? ''}${((p['region'] ?? '').toString().isNotEmpty ? ' · ${p['region']}' : '')} · ${_rel(_svc.toInt(p['lastSeen']))}', style: TextStyle(color: t.subText, fontSize: 12)),
                                 ])),
                                 const SizedBox(width: 8),
                                 if (isFriend)
-                                  const Chip(label: Text('已是好友'), visualDensity: VisualDensity.compact)
+                                  Chip(label: Text('已是好友', style: TextStyle(color: t.subText, fontSize: 12)), visualDensity: VisualDensity.compact)
                                 else if (requested)
-                                  Chip(label: Text('已打招呼'), visualDensity: VisualDensity.compact)
+                                  Chip(label: Text('已打招呼', style: TextStyle(color: t.subText, fontSize: 12)), visualDensity: VisualDensity.compact)
                                 else
                                   FilledButton(onPressed: () => _hello(p), child: const Text('打招呼')),
                               ]),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'services/securechat_api.dart';
+import 'services/app_config.dart';
+import 'widgets/ux.dart';
 import 'settings_page.dart';
 import 'wallet_page.dart';
 import 'favorites_page.dart' as fav;
@@ -8,9 +11,9 @@ import 'wallet_extra_page.dart';
 import 'chat_ext_page.dart';
 
 class MePage extends StatefulWidget {
-  const MePage({super.key, this.api, this.config});
+  const MePage({super.key, this.api, required this.config});
   final SecureChatApi? api;
-  final dynamic config;
+  final AppConfig config;
   @override
   State<MePage> createState() => _MePageState();
 }
@@ -40,100 +43,72 @@ class _MePageState extends State<MePage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = widget.config.theme;
     return Container(
-      color: const Color(0xffededed),
+      color: t.bg,
       child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xffc0392b))))
-              : CustomScrollView(
-                  slivers: [
+              ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
+              : ListView(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  children: [
                     _header(),
-                    _group('服务', [
-                      _serviceItem(Icons.payments_outlined, '支付', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
-                      _serviceItem(Icons.favorite_border, '收藏', () => Navigator.push(context, MaterialPageRoute(builder: (_) => fav.FavoritesPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
-                      _serviceItem(Icons.photo_library_outlined, '相册', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AlbumPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
-                      _serviceItem(Icons.wallet_giftcard_outlined, '卡包', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletExtraPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
-                      _serviceItem(Icons.emoji_emotions_outlined, '表情', () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatExtPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
-                      _serviceItem(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api ?? SecureChatApi())))),
-                    ]),
-                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    const SizedBox(height: 10),
+                    SectionCard(
+                      config: widget.config,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        ListCell(config: widget.config, icon: Icons.payments_outlined, title: '支付', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.favorite_border_rounded, title: '收藏', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => fav.FavoritesPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.photo_library_outlined, title: '相册', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AlbumPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.wallet_giftcard_outlined, title: '卡包', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletExtraPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.emoji_emotions_outlined, title: '表情', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatExtPage(api: widget.api ?? SecureChatApi(), config: widget.config)))),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.settings_outlined, title: '设置', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api ?? SecureChatApi())))),
+                      ],
+                    ),
                   ],
                 ),
     );
   }
 
-  void _notImplemented(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('功能开发中'), duration: Duration(seconds: 1)));
-  }
-
   Widget _header() {
+    final t = widget.config.theme;
     final card = _card ?? {};
     final name = (card['name'] ?? card['nickname'] ?? card['username'] ?? '用户').toString();
     final uid = (card['uid'] ?? '').toString();
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.only(top: 24),
-        decoration: const BoxDecoration(color: Colors.white),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 34,
-              backgroundColor: const Color(0xff07c160),
-              child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'S',
-                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(name.isNotEmpty ? name : 'SecureChat 用户',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xff1a1a1a))),
-                const SizedBox(height: 4),
-                Text('微信号：${uid.isNotEmpty ? uid : '暂未设置'}',
-                    style: const TextStyle(fontSize: 13, color: Color(0xff888888))),
-              ]),
-            ),
-            const Icon(Icons.chevron_right, color: Color(0xffc8c8c8), size: 20),
-          ]),
-        ),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      decoration: BoxDecoration(
+        color: t.card.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(Ux.cardRadius),
+        border: Border.all(color: t.div.withValues(alpha: 0.6)),
       ),
-    );
-  }
-
-  Widget _group(String title, List<Widget> items) {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        decoration: const BoxDecoration(color: Colors.white),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 16, top: 10, bottom: 2),
-              child: Text(title, style: const TextStyle(color: Color(0xff999999), fontSize: 13, fontWeight: FontWeight.w500)),
-            ),
-            ...items,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _serviceItem(IconData icon, String label, VoidCallback onTap) {
-    return Material(
-      color: Colors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            Icon(icon, color: const Color(0xff333333), size: 22),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 15, color: Color(0xff1a1a1a)))),
-            const Icon(Icons.chevron_right, color: Color(0xffc8c8c8), size: 18),
-          ]),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+        child: Row(children: [
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: Ux.green,
+            child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name.isNotEmpty ? name : 'SecureChat 用户',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: t.text)),
+              const SizedBox(height: 4),
+              Text('微信号：${uid.isNotEmpty ? uid : '暂未设置'}', style: TextStyle(fontSize: 13, color: t.subText)),
+            ]),
+          ),
+          Icon(Icons.chevron_right_rounded, color: t.subText.withValues(alpha: 0.7), size: 20),
+        ]),
       ),
     );
   }

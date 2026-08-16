@@ -2,12 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'update_service.dart';
 import 'widgets/app_scaffold.dart';
+import 'widgets/ux.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.config, required this.api});
@@ -144,53 +144,22 @@ class _SettingsPageState extends State<SettingsPage> {
           body: SafeArea(
             child: DefaultTabController(
               length: 5,
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: Platform.isWindows
-                    ? AppBar(
-                        backgroundColor: Colors.transparent,
-                        flexibleSpace: DragToMoveArea(child: SizedBox.expand()),
-                        title: const Align(alignment: Alignment.centerLeft, child: Text('设置')),
-                        leading: const CloseButton(),
-                        bottom: TabBar(
-                          isScrollable: true,
-                          labelColor: config.primary,
-                          indicatorColor: config.primary,
-                          tabs: const [
-                            Tab(text: '外观'),
-                            Tab(text: '聊天'),
-                            Tab(text: '通用'),
-                            Tab(text: '隐私'),
-                            Tab(text: '存储'),
-                          ],
-                        ),
-                      )
-                    : AppBar(
-                        backgroundColor: Colors.transparent,
-                        title: const Text('设置'),
-                        leading: const CloseButton(),
-                        bottom: TabBar(
-                          isScrollable: true,
-                          labelColor: config.primary,
-                          indicatorColor: config.primary,
-                          tabs: const [
-                            Tab(text: '外观'),
-                            Tab(text: '聊天'),
-                            Tab(text: '通用'),
-                            Tab(text: '隐私'),
-                            Tab(text: '存储'),
-                          ],
-                        ),
-                      ),
-                body: TabBarView(
-                  children: [
-                    _appearance(config, t),
-                    _chat(config, t),
-                    _general(config, t),
-                    _privacy(t),
-                    _storage(t),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  PageHeader(title: '设置', config: config),
+                  _tabBar(config, t),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _appearance(config, t),
+                        _chat(config, t),
+                        _general(config, t),
+                        _privacy(config, t),
+                        _storage(config, t),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -199,161 +168,234 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _appearance(AppConfig config, AppTheme t) {
-    return _list(t, [
-      _sectionTitle(t, '主题风格'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _label(t, '界面模式'),
-          const SizedBox(height: 10),
-          SegmentedButton<ThemeModeEx>(
-            segments: const [
-              ButtonSegment(value: ThemeModeEx.light, label: Text('亮色'), icon: Icon(Icons.light_mode_outlined)),
-              ButtonSegment(value: ThemeModeEx.dark, label: Text('暗色'), icon: Icon(Icons.dark_mode_outlined)),
-              ButtonSegment(value: ThemeModeEx.glass, label: Text('玻璃'), icon: Icon(Icons.blur_on_outlined)),
-            ],
-            selected: {config.mode},
-            onSelectionChanged: (s) => config.setMode(s.first),
-          ),
+  Widget _tabBar(AppConfig config, AppTheme t) {
+    return Container(
+      color: t.card.withValues(alpha: 0.85),
+      child: TabBar(
+        isScrollable: true,
+        labelColor: config.primary,
+        indicatorColor: config.primary,
+        unselectedLabelColor: t.subText,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        tabs: const [
+          Tab(text: '外观'),
+          Tab(text: '聊天'),
+          Tab(text: '通用'),
+          Tab(text: '隐私'),
+          Tab(text: '存储'),
         ],
-      )),
-      _sectionTitle(t, '材质效果'),
-      _card(t, child: Column(
-        children: [for (final kind in WindowEffectKind.values) _effectRadio(config, kind, t)],
-      )),
-      _sectionTitle(t, '主题色'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _label(t, '选择主题色'),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final color in AppConfig.presetColors)
-                GestureDetector(
-                  onTap: () => config.setPrimary(color),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: config.primary.toARGB32() == color.toARGB32() ? t.text : Colors.transparent,
-                        width: 2.5,
-                      ),
-                    ),
-                    child: config.primary.toARGB32() == color.toARGB32()
-                        ? Icon(Icons.check, color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white, size: 18)
-                        : null,
-                  ),
-                ),
-            ],
-          ),
-        ],
-      )),
-      _sectionTitle(t, '字号'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            _label(t, '界面字号'),
-            Text('${(config.fontScale * 100).round()}%', style: TextStyle(color: config.primary, fontWeight: FontWeight.w700)),
-          ]),
-          Slider(
-            value: config.fontScale,
-            min: 0.3,
-            max: 1.5,
-            divisions: 24,
-            label: '${(config.fontScale * 100).round()}%',
-            onChanged: (v) => config.setFontScale((v * 10).round() / 10),
-          ),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('30%', style: TextStyle(fontSize: 11, color: config.theme.subText)),
-            Text('100%', style: TextStyle(fontSize: 11, color: config.theme.subText)),
-            Text('150%', style: TextStyle(fontSize: 11, color: config.theme.subText)),
-          ]),
-        ],
-      )),
-      _sectionTitle(t, '背景'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _label(t, '背景类型'),
-          const SizedBox(height: 10),
-          SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, label: Text('纯色'), icon: Icon(Icons.format_color_fill_outlined)),
-              ButtonSegment(value: 1, label: Text('渐变'), icon: Icon(Icons.gradient_outlined)),
-            ],
-            selected: {config.bgKind},
-            onSelectionChanged: (s) => config.setBgKind(s.first),
-          ),
-          const SizedBox(height: 20),
-          _label(t, '背景颜色'),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (var i = 0; i < _bgColors.length; i++)
-                GestureDetector(
-                  onTap: () {
-                    setState(() => _bgColorIndex = i);
-                    config.setBgColor(_bgColors[i]);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: _bgColors[i],
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _bgColorIndex == i ? t.text : Colors.transparent, width: 2.5),
-                    ),
-                    child: _bgColorIndex == i ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('面板模糊'),
-            subtitle: const Text('为面板叠加柔和模糊质感'),
-            secondary: const Icon(Icons.tonality),
-            value: config.blurPanel,
-            onChanged: (v) => config.setBlurPanel(v),
-          ),
-        ],
-      )),
-    ]);
-  }
-
-  Widget _effectRadio(AppConfig config, WindowEffectKind kind, AppTheme t) {
-    final selected = config.effect == kind;
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        selected ? Icons.check_circle : Icons.radio_button_unchecked,
-        color: selected ? config.primary : t.subText,
       ),
-      title: Text(kind.label),
-      onTap: () => config.setEffect(kind),
     );
   }
 
+  Widget _appearance(AppConfig config, AppTheme t) {
+    return _list([
+      SectionTitle(config: config, title: '主题风格'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('界面模式', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.subText)),
+              const SizedBox(height: 10),
+              SegmentedButton<ThemeModeEx>(
+                segments: const [
+                  ButtonSegment(value: ThemeModeEx.light, label: Text('亮色'), icon: Icon(Icons.light_mode_outlined)),
+                  ButtonSegment(value: ThemeModeEx.dark, label: Text('暗色'), icon: Icon(Icons.dark_mode_outlined)),
+                  ButtonSegment(value: ThemeModeEx.glass, label: Text('玻璃'), icon: Icon(Icons.blur_on_outlined)),
+                ],
+                selected: {config.mode},
+                onSelectionChanged: (s) => config.setMode(s.first),
+              ),
+            ],
+          ),
+        ],
+      ),
+      SectionTitle(config: config, title: '材质效果'),
+      SectionCard(
+        config: config,
+        children: [
+          for (final kind in WindowEffectKind.values)
+            ListCell(
+              config: config,
+              icon: _effectIcon(kind),
+              title: kind.label,
+              showArrow: false,
+              trailing: Icon(
+                config.effect == kind ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: config.effect == kind ? config.primary : t.subText,
+                size: 20,
+              ),
+              onTap: () => config.setEffect(kind),
+            ),
+        ],
+      ),
+      SectionTitle(config: config, title: '主题色'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.all(14),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('选择主题色', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.subText)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final color in AppConfig.presetColors)
+                    GestureDetector(
+                      onTap: () => config.setPrimary(color),
+                      child: AnimatedContainer(
+                        duration: Ux.fast,
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: config.primary.toARGB32() == color.toARGB32() ? t.text : Colors.transparent,
+                            width: 2.5,
+                          ),
+                        ),
+                        child: config.primary.toARGB32() == color.toARGB32()
+                            ? Icon(Icons.check, color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white, size: 18)
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      SectionTitle(config: config, title: '字号'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('界面字号', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.subText)),
+                Text('${(config.fontScale * 100).round()}%', style: TextStyle(color: config.primary, fontWeight: FontWeight.w700)),
+              ]),
+              Slider(
+                value: config.fontScale,
+                min: 0.3,
+                max: 1.5,
+                divisions: 24,
+                label: '${(config.fontScale * 100).round()}%',
+                onChanged: (v) => config.setFontScale((v * 10).round() / 10),
+              ),
+              const SizedBox(height: 4),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('30%', style: TextStyle(fontSize: 11, color: t.subText)),
+                Text('100%', style: TextStyle(fontSize: 11, color: t.subText)),
+                Text('150%', style: TextStyle(fontSize: 11, color: t.subText)),
+              ]),
+            ],
+          ),
+        ],
+      ),
+      SectionTitle(config: config, title: '背景'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('背景类型', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.subText)),
+              const SizedBox(height: 10),
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 0, label: Text('纯色'), icon: Icon(Icons.format_color_fill_outlined)),
+                  ButtonSegment(value: 1, label: Text('渐变'), icon: Icon(Icons.gradient_outlined)),
+                ],
+                selected: {config.bgKind},
+                onSelectionChanged: (s) => config.setBgKind(s.first),
+              ),
+              const SizedBox(height: 20),
+              Text('背景颜色', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.subText)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (var i = 0; i < _bgColors.length; i++)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _bgColorIndex = i);
+                        config.setBgColor(_bgColors[i]);
+                      },
+                      child: AnimatedContainer(
+                        duration: Ux.fast,
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: _bgColors[i],
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _bgColorIndex == i ? t.text : Colors.transparent, width: 2.5),
+                        ),
+                        child: _bgColorIndex == i ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ListCell(
+                config: config,
+                icon: Icons.tonality,
+                title: '面板模糊',
+                subtitle: '为面板叠加柔和模糊质感',
+                showArrow: false,
+                trailing: Switch(
+                  value: config.blurPanel,
+                  onChanged: (v) => config.setBlurPanel(v),
+                  activeThumbColor: config.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ]);
+  }
+
+  IconData _effectIcon(WindowEffectKind kind) {
+    switch (kind) {
+      case WindowEffectKind.none:
+        return Icons.block_outlined;
+      case WindowEffectKind.mica:
+        return Icons.grid_view_outlined;
+      case WindowEffectKind.acrylic:
+        return Icons.blur_on_outlined;
+      case WindowEffectKind.blur:
+        return Icons.blur_linear_outlined;
+      case WindowEffectKind.smoke:
+        return Icons.air_outlined;
+      case WindowEffectKind.metallic:
+        return Icons.view_week_outlined;
+      case WindowEffectKind.frosted:
+        return Icons.ac_unit_outlined;
+      case WindowEffectKind.etched:
+        return Icons.grain_outlined;
+      case WindowEffectKind.shadow:
+        return Icons.layers_outlined;
+    }
+  }
+
   Widget _chat(AppConfig config, AppTheme t) {
-    return _list(t, [
-      _sectionTitle(t, '气泡样式'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _list([
+      SectionTitle(config: config, title: '气泡样式'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         children: [
           SegmentedButton<BubbleStyle>(
             segments: const [
@@ -366,253 +408,274 @@ class _SettingsPageState extends State<SettingsPage> {
             showSelectedIcon: false,
           ),
         ],
-      )),
-      _sectionTitle(t, '消息行为'),
-      _card(t, child: Column(
+      ),
+      SectionTitle(config: config, title: '消息行为'),
+      SectionCard(
+        config: config,
         children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Enter 发送'),
-            subtitle: const Text('开启后回车直接发送消息'),
-            secondary: const Icon(Icons.keyboard_return_outlined),
-            value: config.enterSend,
-            onChanged: (v) => config.setEnterSend(v),
+          ListCell(
+            config: config,
+            icon: Icons.keyboard_return_outlined,
+            title: 'Enter 发送',
+            subtitle: '开启后回车直接发送消息',
+            showArrow: false,
+            trailing: Switch(value: config.enterSend, onChanged: (v) => config.setEnterSend(v), activeThumbColor: config.primary),
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('紧凑模式'),
-            subtitle: const Text('减少气泡与间距，显示更多内容'),
-            secondary: const Icon(Icons.view_compact_outlined),
-            value: config.dense,
-            onChanged: (v) => config.setDense(v),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.view_compact_outlined,
+            title: '紧凑模式',
+            subtitle: '减少气泡与间距，显示更多内容',
+            showArrow: false,
+            trailing: Switch(value: config.dense, onChanged: (v) => config.setDense(v), activeThumbColor: config.primary),
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('显示时间'),
-            secondary: const Icon(Icons.schedule_outlined),
-            value: config.showTimestamp,
-            onChanged: (v) => config.setShowTimestamp(v),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.schedule_outlined,
+            title: '显示时间',
+            showArrow: false,
+            trailing: Switch(value: config.showTimestamp, onChanged: (v) => config.setShowTimestamp(v), activeThumbColor: config.primary),
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('显示昵称与在线状态'),
-            secondary: const Icon(Icons.badge_outlined),
-            value: config.showStatusbar,
-            onChanged: (v) => config.setShowStatusbar(v),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.badge_outlined,
+            title: '显示昵称与在线状态',
+            showArrow: false,
+            trailing: Switch(value: config.showStatusbar, onChanged: (v) => config.setShowStatusbar(v), activeThumbColor: config.primary),
           ),
         ],
-      )),
+      ),
     ]);
   }
 
   Widget _general(AppConfig config, AppTheme t) {
-    return _list(t, [
-      _sectionTitle(t, '体验'),
-      _card(t, child: Column(
+    return _list([
+      SectionTitle(config: config, title: '体验'),
+      SectionCard(
+        config: config,
         children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('回声反馈'),
-            subtitle: const Text('按键时提供触觉反馈'),
-            secondary: const Icon(Icons.vibration_outlined),
-            value: config.haptic,
-            onChanged: (v) => config.setHaptic(v),
+          ListCell(
+            config: config,
+            icon: Icons.vibration_outlined,
+            title: '回声反馈',
+            subtitle: '按键时提供触觉反馈',
+            showArrow: false,
+            trailing: Switch(value: config.haptic, onChanged: (v) => config.setHaptic(v), activeThumbColor: config.primary),
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('彩色文字'),
-            subtitle: const Text('在界面中强调展示彩虹配色'),
-            secondary: const Icon(Icons.palette_outlined),
-            value: config.accentText,
-            onChanged: (v) => config.setAccentText(v),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.palette_outlined,
+            title: '彩色文字',
+            subtitle: '在界面中强调展示彩虹配色',
+            showArrow: false,
+            trailing: Switch(value: config.accentText, onChanged: (v) => config.setAccentText(v), activeThumbColor: config.primary),
           ),
         ],
-      )),
-      _sectionTitle(t, '帮助'),
-      _card(t, child: Column(
+      ),
+      SectionTitle(config: config, title: '帮助'),
+      SectionCard(
+        config: config,
         children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.help_outline),
-            title: const Text('帮助中心'),
-            trailing: const Icon(Icons.chevron_right),
+          ListCell(
+            config: config,
+            icon: Icons.help_outline,
+            title: '帮助中心',
             onTap: () => _toast(context, '帮助中心即将上线，可反馈至 admin 邮箱'),
           ),
-          const Divider(height: 1),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.rate_review_outlined),
-            title: const Text('给 SecureChat 评分'),
-            trailing: const Icon(Icons.chevron_right),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.rate_review_outlined,
+            title: '给 SecureChat 评分',
             onTap: () => _toast(context, '感谢支持'),
           ),
         ],
-      )),
-      _sectionTitle(t, '关于'),
-      _card(t, child: Column(
+      ),
+      SectionTitle(config: config, title: '关于'),
+      SectionCard(
+        config: config,
         children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.system_update_alt_outlined),
-            title: const Text('检查更新'),
+          ListCell(
+            config: config,
+            icon: Icons.system_update_alt_outlined,
+            title: '检查更新',
             onTap: () => _checkUpdate(context),
           ),
-          const Divider(height: 1),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.info_outline),
-            title: const Text('版本'),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.info_outline,
+            title: '版本',
+            showArrow: false,
             trailing: Text(kAppVersion, style: TextStyle(color: t.subText)),
           ),
         ],
-      )),
-      _sectionTitle(t, '账户'),
-      _card(t, child: Column(
+      ),
+      SectionTitle(config: config, title: '账户'),
+      SectionCard(
+        config: config,
         children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.logout),
-            title: const Text('退出登录'),
+          ListCell(
+            config: config,
+            icon: Icons.logout,
+            iconColor: const Color(0xffe0533d),
+            title: '退出登录',
             onTap: () async {
               await widget.api.clearSession();
               Navigator.of(context).popUntil((r) => r.isFirst);
             },
           ),
         ],
-      )),
+      ),
     ]);
   }
 
-  Widget _privacy(AppTheme t) {
-    return _list(t, [
-      _sectionTitle(t, '隐私保护'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _privacy(AppConfig config, AppTheme t) {
+    return _list([
+      SectionTitle(config: config, title: '隐私保护'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         children: [
-          Row(children: [Icon(Icons.lock_outline, color: widget.config.primary), const SizedBox(width: 10), Expanded(child: Text('端到端加密', style: TextStyle(color: t.text, fontWeight: FontWeight.w700)))]),
-          const SizedBox(height: 8),
-          Text('你的聊天内容仅由你和对方持有密钥，服务端无法读取。', style: TextStyle(color: t.subText)),
-          const SizedBox(height: 8),
-          Divider(height: 1, color: t.div),
-          const SizedBox(height: 8),
-          Text('· 每条消息独立会话密钥\n· 不使用端到端加密即拒绝发送\n· 加密状态可在会话中随时查看', style: TextStyle(color: t.subText)),
-          const SizedBox(height: 16),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('隐身模式'),
-            subtitle: const Text('隐藏在线状态与已读回执'),
-            secondary: const Icon(Icons.visibility_off_outlined),
-            value: _demoStealth,
-            onChanged: (v) {
-              setState(() => _demoStealth = v);
-              _savePrivacy(_kPrivacyStealth, v);
-            },
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('自动清除消息'),
-            subtitle: const Text('离开会话后自动删除本地副本'),
-            secondary: const Icon(Icons.delete_sweep_outlined),
-            value: _demoAutoClear,
-            onChanged: (v) {
-              setState(() => _demoAutoClear = v);
-              _savePrivacy(_kPrivacyAutoClear, v);
-            },
-          ),
-        ],
-      )),
-      _sectionTitle(t, '设备与回执'),
-      _card(t, child: Column(
-        children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('已读回执'),
-            subtitle: const Text('展示消息已被对方读取'),
-            secondary: const Icon(Icons.done_all_outlined),
-            value: _demoReadReceipt,
-            onChanged: (v) {
-              setState(() => _demoReadReceipt = v);
-              _savePrivacy(_kPrivacyReadReceipt, v);
-            },
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('登录设备锁定'),
-            subtitle: const Text('新设备登录需再次验证'),
-            secondary: const Icon(Icons.phonelink_lock_outlined),
-            value: _demoDeviceLock,
-            onChanged: (v) {
-              setState(() => _demoDeviceLock = v);
-              _savePrivacy(_kPrivacyDeviceLock, v);
-            },
-          ),
-        ],
-      )),
-    ]);
-  }
-
-  Widget _storage(AppTheme t) {
-    return _list(t, [
-      _sectionTitle(t, '存储占用'),
-      _card(t, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [Icon(Icons.folder_open_outlined, color: t.text), const SizedBox(width: 10), Text('当前缓存大小', style: TextStyle(color: t.text, fontWeight: FontWeight.w700))]),
-          const SizedBox(height: 8),
-          Text('约 $_cacheSizeText（$_cacheFileCount 个文件）', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: t.text)),
-          const SizedBox(height: 8),
-          Text('包含语音缓存等临时文件（位于系统临时目录 securechat-voice-*）。', style: TextStyle(color: t.subText)),
-          const Divider(height: 28),
-          Row(children: [
-            Expanded(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.cleaning_services_outlined),
-                title: const Text('清除缓存'),
-                onTap: _clearCache,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.lock_outline, color: config.primary),
+                const SizedBox(width: 10),
+                Expanded(child: Text('端到端加密', style: TextStyle(color: t.text, fontWeight: FontWeight.w700))),
+              ]),
+              const SizedBox(height: 8),
+              Text('你的聊天内容仅由你和对方持有密钥，服务端无法读取。', style: TextStyle(color: t.subText, fontSize: 13)),
+              const SizedBox(height: 8),
+              Divider(height: 1, color: t.div),
+              const SizedBox(height: 8),
+              Text('· 每条消息独立会话密钥\n· 不使用端到端加密即拒绝发送\n· 加密状态可在会话中随时查看', style: TextStyle(color: t.subText, fontSize: 13)),
+              const SizedBox(height: 12),
+              ListCell(
+                config: config,
+                icon: Icons.visibility_off_outlined,
+                title: '隐身模式',
+                subtitle: '隐藏在线状态与已读回执',
+                showArrow: false,
+                trailing: Switch(
+                  value: _demoStealth,
+                  onChanged: (v) {
+                    setState(() => _demoStealth = v);
+                    _savePrivacy(_kPrivacyStealth, v);
+                  },
+                  activeThumbColor: config.primary,
+                ),
               ),
-            ),
-            if (_clearInfo != null)
-              Padding(padding: const EdgeInsets.only(right: 8), child: Icon(Icons.check_circle, color: widget.config.primary)),
-          ]),
+              ListCell(
+                config: config,
+                icon: Icons.delete_sweep_outlined,
+                title: '自动清除消息',
+                subtitle: '离开会话后自动删除本地副本',
+                showArrow: false,
+                trailing: Switch(
+                  value: _demoAutoClear,
+                  onChanged: (v) {
+                    setState(() => _demoAutoClear = v);
+                    _savePrivacy(_kPrivacyAutoClear, v);
+                  },
+                  activeThumbColor: config.primary,
+                ),
+              ),
+            ],
+          ),
         ],
-      )),
+      ),
+      SectionTitle(config: config, title: '设备与回执'),
+      SectionCard(
+        config: config,
+        children: [
+          ListCell(
+            config: config,
+            icon: Icons.done_all_outlined,
+            title: '已读回执',
+            subtitle: '展示消息已被对方读取',
+            showArrow: false,
+            trailing: Switch(
+              value: _demoReadReceipt,
+              onChanged: (v) {
+                setState(() => _demoReadReceipt = v);
+                _savePrivacy(_kPrivacyReadReceipt, v);
+              },
+              activeThumbColor: config.primary,
+            ),
+          ),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.phonelink_lock_outlined,
+            title: '登录设备锁定',
+            subtitle: '新设备登录需再次验证',
+            showArrow: false,
+            trailing: Switch(
+              value: _demoDeviceLock,
+              onChanged: (v) {
+                setState(() => _demoDeviceLock = v);
+                _savePrivacy(_kPrivacyDeviceLock, v);
+              },
+              activeThumbColor: config.primary,
+            ),
+          ),
+        ],
+      ),
     ]);
   }
 
-  Widget _list(AppTheme t, List<Widget> children) {
+  Widget _storage(AppConfig config, AppTheme t) {
+    return _list([
+      SectionTitle(config: config, title: '存储占用'),
+      SectionCard(
+        config: config,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.folder_open_outlined, color: t.text),
+                const SizedBox(width: 10),
+                Text('当前缓存大小', style: TextStyle(color: t.text, fontWeight: FontWeight.w700)),
+              ]),
+              const SizedBox(height: 8),
+              Text('约 $_cacheSizeText（$_cacheFileCount 个文件）', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: t.text)),
+              const SizedBox(height: 8),
+              Text('包含语音缓存等临时文件（位于系统临时目录 securechat-voice-*）。', style: TextStyle(color: t.subText, fontSize: 13)),
+              const SizedBox(height: 16),
+              ListCell(
+                config: config,
+                icon: Icons.cleaning_services_outlined,
+                title: '清除缓存',
+                onTap: _clearCache,
+                trailing: _clearInfo != null
+                    ? Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(_clearInfo!, style: TextStyle(fontSize: 11, color: t.subText)),
+                        const SizedBox(width: 6),
+                        Icon(Icons.check_circle, color: config.primary, size: 18),
+                      ])
+                    : null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ]);
+  }
+
+  Widget _list(List<Widget> children) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+      padding: const EdgeInsets.only(top: 4, bottom: 40),
       children: children,
     );
   }
-
-  Widget _sectionTitle(AppTheme t, String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 0, 10),
-        child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: widget.config.primary, letterSpacing: 0.5)),
-      );
-
-  Widget _card(AppTheme t, {required Widget child}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: t.card.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: t.div.withValues(alpha: 0.5)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.2 : 0.05), blurRadius: 12, offset: const Offset(0, 4))],
-      ),
-      child: child,
-    );
-  }
-
-
-  Widget _label(AppTheme t, String text) => Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.subText));
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));

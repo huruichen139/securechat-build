@@ -1,8 +1,10 @@
 // module: status_page (worker batch7) —— Flutter 状态页：设文字+图标状态、查看好友状态、留言互动
 import 'package:flutter/material.dart';
 
+import 'services/app_config.dart';
 import 'services/moment_collar_service.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key, required this.api, required this.config});
@@ -21,6 +23,9 @@ class _StatusPageState extends State<StatusPage> {
   final _text = TextEditingController();
   String _icon = '😄';
   String _bgUrl = '';
+
+  AppConfig get _cfg => widget.config as AppConfig;
+  AppTheme get _t => _cfg.theme;
 
   static const icons = ['😄', '😴', '🌙', '💼', '🏃', '📚', '🎵', '🍜', '✈️', '❤️', '💪', '🎮', '🧘', '☕', '📱', '🚴'];
 
@@ -83,7 +88,8 @@ class _StatusPageState extends State<StatusPage> {
       if (!mounted) return;
       await showModalBottomSheet<void>(
         context: context,
-        builder: (ctx) => _StatusDetailSheet(svc: _svc, userId: userId, status: s, msgs: msgs),
+        backgroundColor: _t.panel,
+        builder: (ctx) => _StatusDetailSheet(svc: _svc, userId: userId, status: s, msgs: msgs, config: _cfg),
       );
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('加载失败：$e')));
@@ -95,12 +101,13 @@ class _StatusPageState extends State<StatusPage> {
     final text = (s['text'] ?? '').toString();
     final icon = (s['icon'] ?? '😄').toString();
     final msgs = (s['messageCount'] as num?)?.toInt() ?? 0;
-    final color = widget.config.theme.primary;
+    final color = _cfg.primary;
     return Container(
       margin: EdgeInsets.only(right: self ? 0 : 10),
       width: 120,
       height: 160,
       padding: const EdgeInsets.all(10),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: bg.isEmpty ? const Color(0xFF2A9D8F) : null,
@@ -129,77 +136,87 @@ class _StatusPageState extends State<StatusPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('状态', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('我的一天', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                    if (_my == null) ...[
-                      Row(children: [
-                        for (final i in icons)
-                          InkWell(
-                            onTap: () => setState(() => _icon = i),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _icon == i ? cs.primaryContainer : Colors.transparent,
-                              ),
-                              child: Text(i, style: const TextStyle(fontSize: 20)),
+      backgroundColor: _t.bg,
+      body: Column(children: [
+        PageHeader(title: '状态', config: _cfg, trailing: IconButton(onPressed: _reload, icon: Icon(Icons.refresh, color: _t.subText, size: 20), tooltip: '刷新')),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text(_error!, style: TextStyle(color: _t.subText)))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        SectionTitle(config: _cfg, title: '我的一天'),
+                        if (_my == null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _t.card.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(Ux.cardRadius),
+                              border: Border.all(color: _t.div.withValues(alpha: 0.6)),
                             ),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Wrap(
+                                spacing: 2,
+                                runSpacing: 2,
+                                children: [
+                                  for (final i in icons)
+                                    InkWell(
+                                      onTap: () => setState(() => _icon = i),
+                                      child: Container(
+                                        margin: const EdgeInsets.all(2),
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: _icon == i ? _cfg.primary.withValues(alpha: 0.18) : Colors.transparent,
+                                        ),
+                                        child: Text(i, style: const TextStyle(fontSize: 20)),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _text,
+                                maxLength: 40,
+                                decoration: const InputDecoration(hintText: '此刻的想法...', counterText: ''),
+                              ),
+                              Row(children: [
+                                Text('背景图(选填)', style: TextStyle(color: _t.subText)),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: Icon(Icons.wallpaper, color: _t.subText),
+                                  onPressed: () => _pickBg(),
+                                  tooltip: '选择背景图',
+                                ),
+                              ]),
+                              const SizedBox(height: 8),
+                              FilledButton.icon(onPressed: _set, icon: const Icon(Icons.check, size: 16), label: const Text('设为状态')),
+                            ]),
+                          ),
+                        ] else ...[
+                          InkWell(onTap: () => _openDetail(_my!), child: _card(_my!, true)),
+                          const SizedBox(height: 8),
+                          TextButton(onPressed: _clear, child: Text('清除状态', style: TextStyle(color: _t.subText))),
+                        ],
+                        const SizedBox(height: 8),
+                        SectionTitle(config: _cfg, title: '好友状态'),
+                        if (_feed.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 30),
+                            child: Center(child: Text('还没有好友设置状态', style: TextStyle(color: _t.subText))),
+                          )
+                        else
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(children: [for (final s in _feed) _clickable(s)]),
                           ),
                       ]),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _text,
-                        maxLength: 40,
-                        decoration: const InputDecoration(hintText: '此刻的想法...', counterText: ''),
-                      ),
-                      Row(children: [
-                        Text('背景图(选填)', style: TextStyle(color: cs.onSurfaceVariant)),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.wallpaper),
-                          onPressed: () => _pickBg(),
-                          tooltip: '选择背景图',
-                        ),
-                      ]),
-                      const SizedBox(height: 8),
-                      FilledButton.icon(onPressed: _set, icon: const Icon(Icons.check, size: 16), label: const Text('设为状态')),
-                    ] else ...[
-                      InkWell(onTap: () => _openDetail(_my!), child: _card(_my!, true)),
-                      const SizedBox(height: 8),
-                      TextButton(onPressed: _clear, child: const Text('清除状态')),
-                    ],
-                    const SizedBox(height: 16),
-                    Text('好友状态', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                    if (_feed.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 30),
-                        child: Center(child: Text('还没有好友设置状态', style: TextStyle(color: cs.onSurfaceVariant))),
-                      )
-                    else
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(children: [for (final s in _feed) _clickable(s)]),
-                      ),
-                  ]),
-                ),
+                    ),
+        ),
+      ]),
     );
   }
 
@@ -214,11 +231,12 @@ class _StatusPageState extends State<StatusPage> {
 }
 
 class _StatusDetailSheet extends StatefulWidget {
-  const _StatusDetailSheet({required this.svc, required this.userId, required this.status, required this.msgs});
+  const _StatusDetailSheet({required this.svc, required this.userId, required this.status, required this.msgs, required this.config});
   final MomentCollarService svc;
   final int userId;
   final Map<String, dynamic> status;
   final List<Map<String, dynamic>> msgs;
+  final AppConfig config;
   @override
   State<_StatusDetailSheet> createState() => _StatusDetailSheetState();
 }
@@ -248,16 +266,15 @@ class _StatusDetailSheetState extends State<_StatusDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = Theme.of(context).colorScheme.primary;
+    final t = widget.config.theme;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Row(children: [
-            Text((widget.status['text'] ?? '').toString(), style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
+            Text((widget.status['text'] ?? '').toString(), style: TextStyle(color: t.text, fontWeight: FontWeight.w700)),
             const Spacer(),
-            IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
+            IconButton(icon: Icon(Icons.close, color: t.subText), onPressed: () => Navigator.of(context).pop()),
           ]),
           const SizedBox(height: 8),
           Flexible(
@@ -268,13 +285,13 @@ class _StatusDetailSheetState extends State<_StatusDetailSheet> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: RichText(
-                      text: TextSpan(style: TextStyle(color: cs.onSurface, fontSize: 13), children: [
-                        TextSpan(text: (m['nickname'] ?? '?').toString(), style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+                      text: TextSpan(style: TextStyle(color: t.text, fontSize: 13), children: [
+                        TextSpan(text: (m['nickname'] ?? '?').toString(), style: TextStyle(color: widget.config.primary, fontWeight: FontWeight.w600)),
                         TextSpan(text: '：${m['content'] ?? ''}'),
                       ]),
                     ),
                   ),
-                if (_msgs.isEmpty) Center(child: Text('暂无留言', style: TextStyle(color: cs.onSurfaceVariant))),
+                if (_msgs.isEmpty) Center(child: Text('暂无留言', style: TextStyle(color: t.subText))),
               ],
             ),
           ),

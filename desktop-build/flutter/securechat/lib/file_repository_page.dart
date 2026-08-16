@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class FileRepositoryPage extends StatefulWidget {
   const FileRepositoryPage({super.key, required this.api, required this.config});
@@ -106,76 +107,72 @@ class _FileRepositoryPageState extends State<FileRepositoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = widget.config.theme;
-    final primary = widget.config.primary;
     return AnimatedBuilder(
       animation: widget.config,
-      builder: (context, _) => Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          title: const Text('文件仓库'),
-          leading: const CloseButton(),
-          actions: [IconButton(tooltip: '刷新', onPressed: loading ? null : _load, icon: const Icon(Icons.refresh))],
-        ),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : error != null
-                ? Center(child: Text(error!, style: const TextStyle(color: Color(0xffc0392b))))
-                : Column(children: [
-                    Container(
-                      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(color: primary.withValues(alpha: t.isDark ? 0.16 : 0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: primary.withValues(alpha: 0.25))),
-                      child: Row(children: [
-                        Icon(Icons.cloud_done_outlined, color: primary, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('云端存储：收到的文件在线保存，压缩包直接下载保存、无需解压。', style: TextStyle(color: t.text, fontSize: 12))),
-                        Text('${files.length} 个文件', style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
-                      ]),
-                    ),
-                    Expanded(
-                      child: files.isEmpty
-                          ? Center(child: Text('还没有云端文件', style: TextStyle(color: t.subText)))
-                          : ListView.separated(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: files.length,
-                              separatorBuilder: (_, i) => const SizedBox(height: 8),
-                              itemBuilder: (_, i) {
-                                final f = files[i];
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(color: t.card.withValues(alpha: 0.82), borderRadius: BorderRadius.circular(14), border: Border.all(color: t.div.withValues(alpha: 0.5)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.18 : 0.05), blurRadius: 10, offset: const Offset(0, 3))]),
-                                  child: Row(children: [
-                                    Icon(_iconFor((f['name'] ?? '').toString()), color: primary, size: 34),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        Text((f['name'] ?? '').toString(), style: TextStyle(color: t.text, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                        const SizedBox(height: 4),
-                                        Text('${f['kind'] == 'sent' ? '我发送' : '发给 ${f['peer']}'} · ${_fmtSize(f['size'])} · ${_fmtTime(f['time'])}', style: TextStyle(color: t.subText, fontSize: 12)),
-                                      ]),
-                                    ),
-                                    IconButton(
-                                      tooltip: '下载',
-                                      onPressed: () => _downloadPick(f),
-                                      icon: Icon(Icons.download_outlined, color: primary),
-                                    ),
-                                  ]),
-                                );
-                              },
+      builder: (context, _) {
+        final t = widget.config.theme;
+        return Scaffold(
+          backgroundColor: t.bg,
+          body: Column(children: [
+            PageHeader(title: '文件仓库', config: widget.config, trailing: IconButton(tooltip: '刷新', onPressed: loading ? null : _load, icon: Icon(Icons.refresh, color: t.subText))),
+            Expanded(
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : error != null
+                      ? Center(child: Text(error!, style: TextStyle(color: t.subText)))
+                      : Column(children: [
+                          Container(
+                            margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(color: t.card.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(Ux.cardRadius), border: Border.all(color: t.div.withValues(alpha: 0.6))),
+                            child: Row(children: [
+                              Icon(Icons.cloud_done_outlined, color: Ux.green, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text('云端存储：收到的文件在线保存，压缩包直接下载保存、无需解压。', style: TextStyle(color: t.text, fontSize: 12))),
+                              Text('${files.length} 个文件', style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
+                          Expanded(
+                            child: files.isEmpty
+                                ? Center(child: Text('还没有云端文件', style: TextStyle(color: t.subText)))
+                                : ListView.separated(
+                                    padding: const EdgeInsets.all(12),
+                                    itemCount: files.length,
+                                    separatorBuilder: (_, i) => const SizedBox(height: 8),
+                                    itemBuilder: (_, i) {
+                                      final f = files[i];
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                        decoration: BoxDecoration(color: t.card.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(Ux.cardRadius), border: Border.all(color: t.div.withValues(alpha: 0.6))),
+                                        child: Row(children: [
+                                          Icon(_iconFor((f['name'] ?? '').toString()), color: t.text, size: 34),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                              Text((f['name'] ?? '').toString(), style: TextStyle(color: t.text, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                              const SizedBox(height: 4),
+                                              Text('${f['kind'] == 'sent' ? '我发送' : '发给 ${f['peer']}'} · ${_fmtSize(f['size'])} · ${_fmtTime(f['time'])}', style: TextStyle(color: t.subText, fontSize: 12)),
+                                            ]),
+                                          ),
+                                          IconButton(tooltip: '下载', onPressed: () => _downloadPick(f), icon: Icon(Icons.download_outlined, color: Ux.green)),
+                                        ]),
+                                      );
+                                    },
+                                  ),
+                          ),
+                          if (downloadMsg != null)
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(color: t.card, borderRadius: BorderRadius.circular(Ux.radius), border: Border.all(color: t.div.withValues(alpha: 0.5))),
+                              child: Text(downloadMsg!, style: TextStyle(color: t.text, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                             ),
-                    ),
-                    if (downloadMsg != null)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(color: t.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: t.div.withValues(alpha: 0.5))),
-                        child: Text(downloadMsg!, style: TextStyle(color: t.text, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ),
-                  ]),
-      ),
+                        ]),
+            ),
+          ]),
+        );
+      },
     );
   }
 }

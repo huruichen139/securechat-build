@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'services/securechat_api.dart';
+import 'services/app_config.dart';
+import 'widgets/ux.dart';
 
 class WalletExtraPage extends StatefulWidget {
   const WalletExtraPage({super.key, required this.api, required this.config});
@@ -149,16 +151,17 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
   }
 
   Future<void> _showCodeView(String type, String token, String qrText) async {
+    final t = widget.config.theme;
     final imgUrl = Uri.encodeFull('$_base/api/qrcode/render?text=${Uri.encodeComponent(qrText)}&w=360');
     await _dialog(Container(
       width: 320,
       padding: const EdgeInsets.all(16),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(type == 'pay' ? '我的付款码（10 分钟内有效）' : '收款码', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Text(type == 'pay' ? '我的付款码（10 分钟内有效）' : '收款码', style: TextStyle(fontWeight: FontWeight.w700, color: t.text)),
         const SizedBox(height: 12),
         Image.network(imgUrl, width: 260, height: 260, errorBuilder: (_, _, _) => const Icon(Icons.qr_code, size: 200)),
         const SizedBox(height: 8),
-        Text('token: $token', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        Text('token: $token', style: TextStyle(fontSize: 11, color: t.subText)),
       ]),
     ));
   }
@@ -335,6 +338,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
   }
 
   Future<void> _showCollectDetail(int id) async {
+    final t = widget.config.theme;
     try {
       final c = (await _req('GET', '/api/pay/group/collect/$id'))['collect'] as Map<String, dynamic>?;
       if (c == null) return;
@@ -345,7 +349,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
         padding: const EdgeInsets.all(16),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text('¥${c['amount']}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF07C160))),
-          Text('${c['title']} · ${c['paidCount']}/${c['memberCount']} 已缴', style: const TextStyle(color: Colors.black54)),
+          Text('${c['title']} · ${c['paidCount']}/${c['memberCount']} 已缴', style: TextStyle(color: t.subText)),
           if (c['status'] == 'open' && !paid) ...[
             const SizedBox(height: 12),
             FilledButton(
@@ -370,10 +374,10 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
             return ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(radius: 14, child: Text(mName.isNotEmpty ? mName.characters.first : '?')),
-              title: Text(mName, style: const TextStyle(fontSize: 13)),
+              leading: CircleAvatar(radius: 14, backgroundColor: Ux.cellIconBg(t), child: Text(mName.isNotEmpty ? mName.characters.first : '?', style: TextStyle(color: t.text))),
+              title: Text(mName, style: TextStyle(fontSize: 13, color: t.text)),
               trailing: Text(m['paid'] == true ? '已缴' : '未缴',
-                  style: TextStyle(color: m['paid'] == true ? const Color(0xFF07C160) : Colors.grey, fontSize: 12)),
+                  style: TextStyle(color: m['paid'] == true ? Ux.green : t.subText, fontSize: 12)),
             );
           }),
         ]),
@@ -430,6 +434,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
   }
 
   Future<void> _showSolectionDetail(int id) async {
+    final t = widget.config.theme;
     try {
       final s = (await _req('GET', '/api/pay/group/solection/$id'))['solection'] as Map<String, dynamic>?;
       if (s == null) return;
@@ -439,8 +444,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
         width: 360,
         padding: const EdgeInsets.all(16),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('${s['subject']}', style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text('${entries.length} 人已报名', style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          Text('${s['subject']}', style: TextStyle(fontWeight: FontWeight.w700, color: t.text)),
+          Text('${entries.length} 人已报名', style: TextStyle(color: t.subText, fontSize: 12)),
           if (s['status'] == 'open') ...[
             const SizedBox(height: 10),
             if (joined)
@@ -483,7 +488,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
               yield Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Text('${++i}. ${e['name']}${(e['remark'] ?? '').toString().isNotEmpty ? '（${e['remark']}）' : ''}',
-                    style: const TextStyle(fontSize: 13)),
+                    style: TextStyle(fontSize: 13, color: t.text)),
               );
             }
           }(),
@@ -561,8 +566,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary ?? const Color(0xFF07C160);
+    final cfg = widget.config as AppConfig;
+    final t = cfg.theme;
     final entries = <(IconData, String, VoidCallback)>[
       (Icons.swap_horiz, '转账', _transfer),
       (Icons.qr_code_2, '收款码', _makeReceiveCode),
@@ -574,88 +579,119 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       (Icons.home_work, '缴费充值', _lifePay),
     ];
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('支付与生活', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _reload,
-              child: ListView(padding: const EdgeInsets.all(16), children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.7)]),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('我的余额（元）', style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.85), fontSize: 13)),
-                    const SizedBox(height: 6),
-                    Text(_balance.toStringAsFixed(2), style: TextStyle(color: cs.onPrimary, fontSize: 34, fontWeight: FontWeight.w800)),
-                  ]),
-                ),
-                const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: 4,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.9,
-                  children: entries.map((e) => _tile(cs, e.$1, e.$2, e.$3)).toList(),
-                ),
-                const SizedBox(height: 16),
-                Row(children: [
-                  Text('钱包账单', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
-                  const Spacer(),
-                  IconButton(icon: Icon(Icons.refresh, color: color), onPressed: _reload),
-                ]),
-                const SizedBox(height: 4),
-                if (_bills.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 30),
-                    child: Center(child: Text('暂无账单记录', style: TextStyle(color: cs.onSurfaceVariant))),
-                  )
-                else
-                  ..._bills.map((b) {
-                    final ined = (b['kind'] ?? '').toString() == 'in';
-                    final amount = (b['amount'] as num?)?.toDouble() ?? 0;
-                    final title = '${b['title'] ?? _catLabel('${b['category']}')}';
-                    final peer = '${b['peerName'] ?? ''}';
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: ined ? const Color(0xFFE6F7EE) : const Color(0xFFFDE9EB),
-                        child: Icon(ined ? Icons.south_west : Icons.north_east, color: ined ? const Color(0xFF07C160) : const Color(0xFFE74C3C), size: 16),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(title: '支付与生活', config: cfg),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _reload,
+                  child: ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
+                      _balanceCard(cfg),
+                      const SizedBox(height: 16),
+                      SectionCard(
+                        config: cfg,
+                        padding: const EdgeInsets.all(12),
+                        children: [
+                          GridView.count(
+                            crossAxisCount: 4,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 0.9,
+                            children: entries.map((e) => _tile(cfg, e.$1, e.$2, e.$3)).toList(),
+                          ),
+                        ],
                       ),
-                      title: Text(title, style: TextStyle(color: cs.onSurface)),
-                      subtitle: Text('${_fmtTime(b['createdAt'])}${peer.isNotEmpty ? ' · $peer' : ''}',
-                          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                      trailing: Text('${ined ? '+' : '-'}$amount',
-                          style: TextStyle(color: ined ? const Color(0xFF07C160) : cs.onSurface, fontWeight: FontWeight.w700)),
-                    );
-                  }),
-              ]),
-            ),
+                      SectionTitle(config: cfg, title: '钱包账单'),
+                      SectionCard(
+                        config: cfg,
+                        children: _bills.isEmpty
+                            ? [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 32),
+                                  child: Center(child: Text('暂无账单记录', style: TextStyle(color: t.subText))),
+                                ),
+                              ]
+                            : [
+                                for (var i = 0; i < _bills.length; i++) ...[
+                                  if (i > 0) CellDivider(config: cfg, indent: 60),
+                                  _billRow(cfg, _bills[i]),
+                                ],
+                              ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+        ),
+      ]),
     );
   }
 
-  Widget _tile(ColorScheme cs, IconData icon, String label, VoidCallback onTap) {
-    final color = widget.config.theme.primary ?? const Color(0xFF07C160);
+  Widget _balanceCard(AppConfig cfg) {
+    final t = cfg.theme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: t.card.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(Ux.cardRadius),
+        border: Border.all(color: t.div.withValues(alpha: 0.6)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('我的余额（元）', style: TextStyle(fontSize: 13, color: t.subText)),
+        const SizedBox(height: 6),
+        Text(_balance.toStringAsFixed(2), style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: t.text)),
+      ]),
+    );
+  }
+
+  Widget _billRow(AppConfig cfg, Map<String, dynamic> b) {
+    final t = cfg.theme;
+    final ined = (b['kind'] ?? '').toString() == 'in';
+    final amount = (b['amount'] as num?)?.toDouble() ?? 0;
+    final title = '${b['title'] ?? _catLabel('${b['category']}')}';
+    final peer = '${b['peerName'] ?? ''}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(color: Ux.cellIconBg(t), borderRadius: BorderRadius.circular(8)),
+          child: Icon(ined ? Icons.south_west : Icons.north_east, color: ined ? Ux.green : t.text, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(fontSize: 15, color: t.text, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 2),
+            Text('${_fmtTime(b['createdAt'])}${peer.isNotEmpty ? ' · $peer' : ''}',
+                style: TextStyle(color: t.subText, fontSize: 12)),
+          ]),
+        ),
+        Text('${ined ? '+' : '-'}$amount',
+            style: TextStyle(color: ined ? Ux.green : t.text, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
+
+  Widget _tile(AppConfig cfg, IconData icon, String label, VoidCallback onTap) {
+    final t = cfg.theme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Ux.radius),
       child: Container(
-        decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: Ux.cellIconBg(t), borderRadius: BorderRadius.circular(Ux.radius)),
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          CircleAvatar(radius: 18, backgroundColor: color.withValues(alpha: 0.12), child: Icon(icon, color: color, size: 20)),
+          Icon(icon, color: Ux.green, size: 20),
           const SizedBox(height: 6),
-          Text(label, style: TextStyle(color: cs.onSurface, fontSize: 11)),
+          Text(label, style: TextStyle(color: t.text, fontSize: 11)),
         ]),
       ),
     );

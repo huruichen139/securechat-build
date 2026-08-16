@@ -1,8 +1,10 @@
 // module: favorites_page (worker batch7) —— Flutter 收藏页：收藏夹管理、标签、批量整理、搜索、转发入聊
 import 'package:flutter/material.dart';
 
+import 'services/app_config.dart';
 import 'services/moment_collar_service.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key, required this.api, required this.config, this.config2});
@@ -23,6 +25,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
   bool _loading = true;
   String? _error;
   final _search = TextEditingController();
+
+  AppConfig get _cfg => widget.config as AppConfig;
+  AppTheme get _t => _cfg.theme;
 
   static const kindLabel = {'text': '文字', 'image': '图片', 'file': '文件', 'message': '聊天记录', 'link': '链接', 'moment': '朋友圈'};
 
@@ -234,23 +239,25 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('我的收藏', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          IconButton(icon: Icon(Icons.add, color: cs.primary), tooltip: '新增收藏', onPressed: _addItem),
-          IconButton(icon: Icon(Icons.create_new_folder, color: cs.primary), tooltip: '新建收藏夹', onPressed: _createClassifier),
-        ],
-      ),
+      backgroundColor: _t.bg,
       body: Column(children: [
+        PageHeader(
+          title: '我的收藏',
+          config: _cfg,
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: Icon(Icons.add, color: _t.subText), tooltip: '新增收藏', onPressed: _addItem),
+            IconButton(icon: Icon(Icons.create_new_folder, color: _t.subText), tooltip: '新建收藏夹', onPressed: _createClassifier),
+          ]),
+        ),
         // 收藏夹横向切换 + 标签 + 搜索
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+          decoration: BoxDecoration(
+            color: _t.card.withValues(alpha: 0.85),
+            border: Border(bottom: BorderSide(color: _t.div.withValues(alpha: 0.6))),
+          ),
           child: Column(children: [
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -258,6 +265,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ChoiceChip(
                   label: const Text('全部'),
                   selected: _curClassifier == null,
+                  selectedColor: _cfg.primary.withValues(alpha: 0.18),
                   onSelected: (_) { setState(() => _curClassifier = null); _reload(); },
                 ),
                 const SizedBox(width: 6),
@@ -267,6 +275,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     child: ChoiceChip(
                       label: Text('${c['icon']} ${c['name']}'),
                       selected: _curClassifier == (c['id'] as num).toInt(),
+                      selectedColor: _cfg.primary.withValues(alpha: 0.18),
                       onSelected: (_) { setState(() => _curClassifier = (c['id'] as num).toInt()); _reload(); },
                     ),
                   ),
@@ -282,6 +291,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     child: ChoiceChip(
                       label: Text('#$t'),
                       selected: _curTag == t,
+                      selectedColor: _cfg.primary.withValues(alpha: 0.18),
                       onSelected: (sel) { setState(() => _curTag = sel ? t : ''); _reload(); },
                     ),
                   ),
@@ -295,14 +305,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
             ),
           ]),
         ),
-        const Divider(height: 1),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: _t.subText)))
                   : _items.isEmpty
-                      ? Center(child: Text('暂无收藏，点右上角 + 添加', style: TextStyle(color: cs.onSurfaceVariant)))
+                      ? Center(child: Text('暂无收藏，点右上角 + 添加', style: TextStyle(color: _t.subText)))
                       : ListView.builder(
                           padding: const EdgeInsets.all(12),
                           itemCount: _items.length,
@@ -311,35 +320,36 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             final id = (item['id'] as num).toInt();
                             final tags = ((item['tags'] as List?) ?? const []).map((t) => t.toString()).toList();
                             final kind = item['kind'].toString();
-                            return Card(
-                              elevation: 0,
-                              color: cs.surfaceContainerLow,
+                            return Container(
                               margin: const EdgeInsets.only(bottom: 10),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(_contentOf(item), style: TextStyle(color: cs.onSurface, fontSize: 14)),
-                                  const SizedBox(height: 6),
-                                  Row(children: [
-                                    Text(kindLabel[kind] ?? kind, style: TextStyle(color: cs.primary, fontSize: 11)),
-                                    if (item['classifierName'] != null) ...[
-                                      const SizedBox(width: 8),
-                                      Text('${item['classifierIcon']} ${item['classifierName']}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                                    ],
-                                  ]),
-                                  if (tags.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Wrap(spacing: 4, children: [for (final t in tags) Chip(label: Text('#$t'), labelStyle: const TextStyle(fontSize: 10), visualDensity: VisualDensity.compact, padding: EdgeInsets.zero)]),
-                                  ],
-                                  const SizedBox(height: 6),
-                                  Row(children: [
-                                    TextButton.icon(onPressed: () => _forward(id), icon: const Icon(Icons.send, size: 15), label: const Text('转发')),
-                                    TextButton.icon(onPressed: () => _organize(item), icon: const Icon(Icons.manage_search, size: 15), label: const Text('整理')),
-                                    const Spacer(),
-                                    IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(id), tooltip: '删除'),
-                                  ]),
-                                ]),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _t.card.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                                border: Border.all(color: _t.div.withValues(alpha: 0.6)),
                               ),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(_contentOf(item), style: TextStyle(color: _t.text, fontSize: 14)),
+                                const SizedBox(height: 6),
+                                Row(children: [
+                                  Text(kindLabel[kind] ?? kind, style: TextStyle(color: _cfg.primary, fontSize: 11)),
+                                  if (item['classifierName'] != null) ...[
+                                    const SizedBox(width: 8),
+                                    Text('${item['classifierIcon']} ${item['classifierName']}', style: TextStyle(color: _t.subText, fontSize: 11)),
+                                  ],
+                                ]),
+                                if (tags.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Wrap(spacing: 4, children: [for (final t in tags) Chip(label: Text('#$t'), labelStyle: TextStyle(fontSize: 10, color: _t.text), visualDensity: VisualDensity.compact, padding: EdgeInsets.zero)]),
+                                ],
+                                const SizedBox(height: 6),
+                                Row(children: [
+                                  TextButton.icon(onPressed: () => _forward(id), icon: const Icon(Icons.send, size: 15), label: const Text('转发')),
+                                  TextButton.icon(onPressed: () => _organize(item), icon: const Icon(Icons.manage_search, size: 15), label: const Text('整理')),
+                                  const Spacer(),
+                                  IconButton(icon: Icon(Icons.delete_outline, color: const Color(0xffe0533d)), onPressed: () => _delete(id), tooltip: '删除'),
+                                ]),
+                              ]),
                             );
                           },
                         ),

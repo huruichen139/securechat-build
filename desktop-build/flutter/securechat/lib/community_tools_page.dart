@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'services/app_config.dart';
 import 'services/community_tools_service.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class CommunityToolsPage extends StatefulWidget {
   const CommunityToolsPage({super.key, required this.api, required this.config});
@@ -51,46 +52,47 @@ class _CommunityToolsPageState extends State<CommunityToolsPage> with SingleTick
   }
 
   @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final t = widget.config.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: const Text('社区民生工具', style: TextStyle(fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
-        bottom: TabBar(
-          controller: _tab,
-          isScrollable: true,
-          labelColor: cs.primary,
-          unselectedLabelColor: cs.onSurfaceVariant,
-          tabs: const [
-            Tab(text: '群投票'),
-            Tab(text: '群接龙'),
-            Tab(text: '群待办'),
-            Tab(text: '提醒/翻译'),
-          ],
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(title: '社区民生工具', config: widget.config),
+        Container(
+          color: t.card.withValues(alpha: 0.85),
+          child: TabBar(
+            controller: _tab,
+            isScrollable: true,
+            labelColor: widget.config.primary,
+            indicatorColor: widget.config.primary,
+            unselectedLabelColor: t.subText,
+            labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            tabs: const [
+              Tab(text: '群投票'),
+              Tab(text: '群接龙'),
+              Tab(text: '群待办'),
+              Tab(text: '提醒/翻译'),
+            ],
+          ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tab,
-        children: [
-          _PollsView(
-            svc: _svc, state: this, items: _polls, groupId: _groupId,
-            onChanged: _refreshAll,
+        Expanded(
+          child: TabBarView(
+            controller: _tab,
+            children: [
+              _PollsView(svc: _svc, state: this, items: _polls, groupId: _groupId, onChanged: _refreshAll),
+              _SolangView(svc: _svc, state: this, items: _solangs, groupId: _groupId, onChanged: _refreshAll),
+              _TodosView(svc: _svc, state: this, items: _todos, groupId: _groupId, onChanged: _refreshAll),
+              _RemindTranslateView(svc: _svc, state: this, reminders: _reminders, onChanged: _refreshAll),
+            ],
           ),
-          _SolangView(
-            svc: _svc, state: this, items: _solangs, groupId: _groupId,
-            onChanged: _refreshAll,
-          ),
-          _TodosView(
-            svc: _svc, state: this, items: _todos, groupId: _groupId,
-            onChanged: _refreshAll,
-          ),
-          _RemindTranslateView(svc: _svc, state: this, reminders: _reminders, onChanged: _refreshAll),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
@@ -108,6 +110,9 @@ class _PollsView extends StatefulWidget {
 }
 
 class _PollsViewState extends State<_PollsView> {
+  AppConfig get _cfg => widget.state.widget.config;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
@@ -189,25 +194,25 @@ class _PollsViewState extends State<_PollsView> {
       padding: const EdgeInsets.all(12),
       children: [
         Row(children: [
-          const Text('请先在聊天页进入某群，再回到本页填入群号开关：', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const Spacer(),
+          Expanded(child: Text('请先在聊天页进入某群，再回到本页填入群号开关：', style: TextStyle(fontSize: 12, color: _t.subText))),
           FilledButton.icon(onPressed: _create, icon: const Icon(Icons.add), label: const Text('发起投票')),
         ]),
-        const Divider(height: 20),
+        const SizedBox(height: 12),
         if (widget.items.isEmpty)
-          const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('暂无投票', style: TextStyle(color: Colors.grey)))),
-        ...widget.items.map((p) => _PollCard(poll: p, onVote: (oid) => _vote(p, oid), onChanged: widget.onChanged, svc: widget.svc)),
+          Padding(padding: const EdgeInsets.all(32), child: Center(child: Text('暂无投票', style: TextStyle(color: _t.subText)))),
+        ...widget.items.map((p) => _PollCard(poll: p, onVote: (oid) => _vote(p, oid), onChanged: widget.onChanged, svc: widget.svc, config: _cfg)),
       ],
     );
   }
 }
 
 class _PollCard extends StatelessWidget {
-  const _PollCard({required this.poll, required this.onVote, required this.onChanged, required this.svc});
+  const _PollCard({required this.poll, required this.onVote, required this.onChanged, required this.svc, required this.config});
   final Map<String, dynamic> poll;
   final void Function(int) onVote;
   final VoidCallback onChanged;
   final CommunityToolsService svc;
+  final AppConfig config;
 
   String _time(Object? ms) {
     final t = int.tryParse('$ms') ?? 0;
@@ -219,62 +224,65 @@ class _PollCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final t = config.theme;
     final options = ((poll['options'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final total = (poll['totalVotes'] as num?)?.toInt() ?? 0;
     final myVotes = ((poll['myVotes'] as List?) ?? const []).cast<num>().map((e) => e.toInt()).toList();
     final closed = poll['status'] == 'closed' || (poll['deadline'] != null && int.tryParse('${poll['deadline']}') != null && DateTime
         .fromMillisecondsSinceEpoch(int.tryParse('${poll['deadline']}')!).isBefore(DateTime.now()));
     final showDetail = (poll['voted'] as bool? ?? false) || closed || (poll['anonymous'] as bool? ?? false);
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${poll['title']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text('多人 · ${poll['multi'] == true ? '多选' : '单选'} · 截止 ${_time(poll['deadline'])}', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-            const SizedBox(height: 8),
-            ...options.map((o) {
-              final oid = (o['id'] as num).toInt();
-              final votes = (o['votes'] as num?)?.toInt() ?? 0;
-              final pct = total > 0 ? (votes / total * 100).round() : 0;
-              final on = myVotes.contains(oid);
-              return InkWell(
-                onTap: poll['voted'] == true || closed ? null : () => onVote(oid),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: on ? cs.primary : cs.outlineVariant),
-                    borderRadius: BorderRadius.circular(8),
-                    color: on ? cs.primary.withValues(alpha: .1) : null,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(o['content'].toString(), style: TextStyle(color: on ? cs.primary : cs.onSurface)),
-                      if (showDetail) ...[
-                        const SizedBox(height: 4),
-                        LinearProgressIndicator(value: total > 0 ? votes / total : 0, minHeight: 5),
-                        const SizedBox(height: 2),
-                        Text('$votes 票 · $pct%', style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-                      ],
-                    ],
-                  ),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: t.card.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(Ux.cardRadius),
+        border: Border.all(color: t.div.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${poll['title']}', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: t.text)),
+          const SizedBox(height: 4),
+          Text('多人 · ${poll['multi'] == true ? '多选' : '单选'} · 截止 ${_time(poll['deadline'])}', style: TextStyle(fontSize: 12, color: t.subText)),
+          const SizedBox(height: 8),
+          ...options.map((o) {
+            final oid = (o['id'] as num).toInt();
+            final votes = (o['votes'] as num?)?.toInt() ?? 0;
+            final pct = total > 0 ? (votes / total * 100).round() : 0;
+            final on = myVotes.contains(oid);
+            return InkWell(
+              onTap: poll['voted'] == true || closed ? null : () => onVote(oid),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: on ? config.primary : t.div.withValues(alpha: 0.7)),
+                  borderRadius: BorderRadius.circular(8),
+                  color: on ? config.primary.withValues(alpha: .1) : null,
                 ),
-              );
-            }),
-            Row(children: [
-              Text('共 $total 人参与', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-              const Spacer(),
-              if (poll['createdByMe'] == true && poll['status'] == 'open')
-                TextButton(onPressed: () async { try { await svc.closePoll(poll['id'] as int); onChanged(); } catch (_) {} }, child: const Text('结束投票')),
-            ]),
-          ],
-        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(o['content'].toString(), style: TextStyle(color: on ? config.primary : t.text)),
+                    if (showDetail) ...[
+                      const SizedBox(height: 4),
+                      LinearProgressIndicator(value: total > 0 ? votes / total : 0, minHeight: 5, color: config.primary, backgroundColor: Ux.cellIconBg(t)),
+                      const SizedBox(height: 2),
+                      Text('$votes 票 · $pct%', style: TextStyle(fontSize: 11, color: t.subText)),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+          Row(children: [
+            Text('共 $total 人参与', style: TextStyle(fontSize: 12, color: t.subText)),
+            const Spacer(),
+            if (poll['createdByMe'] == true && poll['status'] == 'open')
+              TextButton(onPressed: () async { try { await svc.closePoll(poll['id'] as int); onChanged(); } catch (_) {} }, child: const Text('结束投票')),
+          ]),
+        ],
       ),
     );
   }
@@ -293,6 +301,9 @@ class _SolangView extends StatefulWidget {
 }
 
 class _SolangViewState extends State<_SolangView> {
+  AppConfig get _cfg => widget.state.widget.config;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
@@ -349,50 +360,51 @@ class _SolangViewState extends State<_SolangView> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
         Row(children: [
-          const Text('序号自动递增，报名接龙', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const Spacer(),
+          Expanded(child: Text('序号自动递增，报名接龙', style: TextStyle(fontSize: 12, color: _t.subText))),
           FilledButton.icon(onPressed: _create, icon: const Icon(Icons.add), label: const Text('发起接龙')),
         ]),
-        const Divider(height: 20),
+        const SizedBox(height: 12),
         if (widget.items.isEmpty)
-          const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('暂无接龙', style: TextStyle(color: Colors.grey)))),
+          Padding(padding: const EdgeInsets.all(32), child: Center(child: Text('暂无接龙', style: TextStyle(color: _t.subText)))),
         ...widget.items.map((s) {
           final entries = ((s['entries'] as List?) ?? const []).cast<Map<String, dynamic>>();
           final closed = s['status'] == 'closed';
-          return Card(
+          return Container(
             margin: const EdgeInsets.only(bottom: 10),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(s['title'].toString(), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                  const SizedBox(height: 4),
-                  Text('${s['count']} 人报名 · ${closed ? '已结束' : '进行中'}', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                  const SizedBox(height: 8),
-                  ...entries.map((e) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(children: [
-                          CircleAvatar(radius: 11, backgroundColor: cs.primary, child: Text('${e['seq']}', style: const TextStyle(color: Colors.white, fontSize: 11))),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text((e['nickname'] ?? '用户${e['userId']}').toString())),
-                          if (e['note'] != null && '${e['note']}'.isNotEmpty)
-                            Text('${e['note']}', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                        ]),
-                      )),
-                  const SizedBox(height: 8),
-                  if (!closed)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton(onPressed: () => _join(s), child: Text('我接 ${(s['count'] as num? ?? 0).toInt() + 1} 号')),
-                    ),
-                ],
-              ),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _t.card.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(Ux.cardRadius),
+              border: Border.all(color: _t.div.withValues(alpha: 0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s['title'].toString(), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: _t.text)),
+                const SizedBox(height: 4),
+                Text('${s['count']} 人报名 · ${closed ? '已结束' : '进行中'}', style: TextStyle(fontSize: 12, color: _t.subText)),
+                const SizedBox(height: 8),
+                ...entries.map((e) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(children: [
+                        CircleAvatar(radius: 11, backgroundColor: _cfg.primary, child: Text('${e['seq']}', style: const TextStyle(color: Colors.white, fontSize: 11))),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text((e['nickname'] ?? '用户${e['userId']}').toString(), style: TextStyle(color: _t.text))),
+                        if (e['note'] != null && '${e['note']}'.isNotEmpty)
+                          Text('${e['note']}', style: TextStyle(fontSize: 12, color: _t.subText)),
+                      ]),
+                    )),
+                const SizedBox(height: 8),
+                if (!closed)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(onPressed: () => _join(s), child: Text('我接 ${(s['count'] as num? ?? 0).toInt() + 1} 号')),
+                  ),
+              ],
             ),
           );
         }),
@@ -414,6 +426,9 @@ class _TodosView extends StatefulWidget {
 }
 
 class _TodosViewState extends State<_TodosView> {
+  AppConfig get _cfg => widget.state.widget.config;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
@@ -466,53 +481,55 @@ class _TodosViewState extends State<_TodosView> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
         Row(children: [
-          const Text('成员勾选完成，实时进度条', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const Spacer(),
+          Expanded(child: Text('成员勾选完成，实时进度条', style: TextStyle(fontSize: 12, color: _t.subText))),
           FilledButton.icon(onPressed: _create, icon: const Icon(Icons.add), label: const Text('发布待办')),
         ]),
-        const Divider(height: 20),
+        const SizedBox(height: 12),
         if (widget.items.isEmpty)
-          const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('暂无待办', style: TextStyle(color: Colors.grey)))),
+          Padding(padding: const EdgeInsets.all(32), child: Center(child: Text('暂无待办', style: TextStyle(color: _t.subText)))),
         ...widget.items.map((t) {
           final items = ((t['items'] as List?) ?? const []).cast<Map<String, dynamic>>();
           final progress = (t['progress'] as num?)?.toInt() ?? 0;
-          return Card(
+          return Container(
             margin: const EdgeInsets.only(bottom: 10),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(t['title'].toString(), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: progress / 100.0,
-                        minHeight: 8,
-                        borderRadius: BorderRadius.circular(4),
-                        color: cs.primary,
-                        backgroundColor: cs.surfaceContainerHighest,
-                      ),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _t.card.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(Ux.cardRadius),
+              border: Border.all(color: _t.div.withValues(alpha: 0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t['title'].toString(), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: _t.text)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: progress / 100.0,
+                      minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
+                      color: _cfg.primary,
+                      backgroundColor: Ux.cellIconBg(_t),
                     ),
-                    const SizedBox(width: 10),
-                    Text('$progress%', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                  ]),
-                  const SizedBox(height: 8),
-                  ...items.map((it) => CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        value: it['myDone'] == true,
-                        title: Text(it['content'].toString(), style: const TextStyle(fontSize: 14)),
-                        onChanged: (_) => _toggle(t, it),
-                      )),
-                ],
-              ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('$progress%', style: TextStyle(fontSize: 12, color: _t.subText)),
+                ]),
+                const SizedBox(height: 8),
+                ...items.map((it) => CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: it['myDone'] == true,
+                      activeColor: _cfg.primary,
+                      title: Text(it['content'].toString(), style: TextStyle(fontSize: 14, color: _t.text)),
+                      onChanged: (_) => _toggle(t, it),
+                    )),
+              ],
             ),
           );
         }),
@@ -538,10 +555,20 @@ class _RemindTranslateViewState extends State<_RemindTranslateView> {
   String _translated = '';
   String _transResult = '';
 
+  AppConfig get _cfg => widget.state.widget.config;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
     widget.onChanged();
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    _contentCtrl.dispose();
+    super.dispose();
   }
 
   String _fmt(Object? ms) {
@@ -594,11 +621,10 @@ class _RemindTranslateViewState extends State<_RemindTranslateView> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        const Text('定时提醒（到点 server 推送一条消息）', style: TextStyle(fontWeight: FontWeight.w600)),
+        Text('定时提醒（到点 server 推送一条消息）', style: TextStyle(fontWeight: FontWeight.w600, color: _t.text)),
         const SizedBox(height: 8),
         Row(children: [
           Expanded(
@@ -607,22 +633,33 @@ class _RemindTranslateViewState extends State<_RemindTranslateView> {
           const SizedBox(width: 8),
           FilledButton(onPressed: _addReminder, child: const Text('设置提醒')),
         ]),
-        const Divider(height: 20),
-        ...widget.reminders.map((r) => ListTile(
-              dense: true,
-              leading: const Icon(Icons.alarm),
-              title: Text(r['content'].toString()),
-              subtitle: Text('${r['targetType'] == 'group' ? '群' : '单聊'} · ${_fmt(r['at'])}${r['fired'] == true ? ' · 已触发' : ''}'),
-              trailing: r['fired'] == true ? null : IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _deleteReminder(r['id'] as int)),
+        const SizedBox(height: 12),
+        ...widget.reminders.map((r) => Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _t.card.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(Ux.radius),
+                border: Border.all(color: _t.div.withValues(alpha: 0.6)),
+              ),
+              child: Row(children: [
+                Icon(Icons.alarm, color: _cfg.primary, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(r['content'].toString(), style: TextStyle(color: _t.text)),
+                  Text('${r['targetType'] == 'group' ? '群' : '单聊'} · ${_fmt(r['at'])}${r['fired'] == true ? ' · 已触发' : ''}', style: TextStyle(color: _t.subText, fontSize: 11)),
+                ])),
+                if (r['fired'] != true)
+                  IconButton(icon: Icon(Icons.delete_outline, color: _t.subText), onPressed: () => _deleteReminder(r['id'] as int)),
+              ]),
             )),
-        const Divider(height: 24),
-        const Text('消息翻译（长按消息 → 翻译成中文/英文）', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        Text('消息翻译（长按消息 → 翻译成中文/英文）', style: TextStyle(fontWeight: FontWeight.w600, color: _t.text)),
         const SizedBox(height: 8),
         TextField(
           controller: _textCtrl,
           maxLines: 3,
           decoration: const InputDecoration(labelText: '输入要翻译的文本'),
-          onChanged: (_) {},
         ),
         const SizedBox(height: 8),
         Row(children: [
@@ -647,13 +684,13 @@ class _RemindTranslateViewState extends State<_RemindTranslateView> {
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: Ux.cellIconBg(_t), borderRadius: BorderRadius.circular(Ux.radius)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('翻译结果（$_transResult）', style: TextStyle(fontSize: 12, color: cs.primary)),
+                Text('翻译结果（$_transResult）', style: TextStyle(fontSize: 12, color: _cfg.primary)),
                 const SizedBox(height: 4),
-                Text(_translated),
+                Text(_translated, style: TextStyle(color: _t.text)),
               ],
             ),
           ),

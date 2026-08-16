@@ -234,9 +234,9 @@ class _LoginPageState extends State<LoginPage> {
                   return Container(
                     decoration: BoxDecoration(
                       color: config.theme.card,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: config.theme.div.withValues(alpha: 0.35)),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: config.theme.isDark ? 0.4 : 0.14), blurRadius: 42, offset: const Offset(0, 20))],
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: config.theme.div.withValues(alpha: 0.4)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: config.theme.isDark ? 0.35 : 0.08), blurRadius: 28, offset: const Offset(0, 12))],
                     ),
                     child: Row(children: [
                       if (!compact) const Expanded(child: WelcomePanel()),
@@ -324,10 +324,10 @@ class WelcomePanel extends StatelessWidget {
   const WelcomePanel({super.key});
   @override
   Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(color: Color(0xff163d32), borderRadius: BorderRadius.horizontal(left: Radius.circular(24))),
+    decoration: const BoxDecoration(color: Color(0xff163d32), borderRadius: BorderRadius.horizontal(left: Radius.circular(18))),
     padding: const EdgeInsets.all(52),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(width: 54, height: 54, decoration: BoxDecoration(color: _wechatGreen, borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.lock_rounded, color: Colors.white, size: 28)),
+      Container(width: 54, height: 54, decoration: BoxDecoration(color: _wechatGreen, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.lock_rounded, color: Colors.white, size: 28)),
       const SizedBox(height: 30),
       const Text('私密地聊天，\n自然地沟通。', style: TextStyle(color: Colors.white, fontSize: 34, height: 1.08, fontWeight: FontWeight.w800)),
       const SizedBox(height: 20),
@@ -387,14 +387,21 @@ class _ChatShellState extends State<ChatShell> {
               children: [
                 if (Platform.isWindows) const _WindowDragBar(),
                 Expanded(
-                  child: <Widget>[
-                    _ChatView(key: _chatViewState, api: widget.api, config: config),
-                    ContactsView(key: _contactsViewState, api: widget.api, config: config),
-                    const DiscoverPage(),
-                    const MePage(),
-                  ][_tab],
+                  child: Row(
+                    children: [
+                      _rail(config),
+                      VerticalDivider(width: 1, thickness: 1, color: config.theme.div),
+                      Expanded(
+                        child: <Widget>[
+                          _ChatView(key: _chatViewState, api: widget.api, config: config),
+                          ContactsView(key: _contactsViewState, api: widget.api, config: config),
+                          DiscoverPage(config: config),
+                          MePage(config: config),
+                        ][_tab],
+                      ),
+                    ],
+                  ),
                 ),
-                _bottomNav(context),
               ],
             ),
           ),
@@ -403,28 +410,56 @@ class _ChatShellState extends State<ChatShell> {
     );
   }
 
-  Widget _bottomNav(BuildContext context) {
-    final t = widget.config.theme;
-    return Container(
-      color: t.panel,
-      child: SafeArea(
-        top: false,
-        child: BottomNavigationBar(
-          currentIndex: _tab,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: _wechatGreen,
-          unselectedItemColor: t.subText,
-          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat), label: '微信'),
-            BottomNavigationBarItem(icon: Icon(Icons.contacts_outlined), activeIcon: Icon(Icons.contacts), label: '通讯录'),
-            BottomNavigationBarItem(icon: Icon(Icons.explore_outlined), activeIcon: Icon(Icons.explore), label: '发现'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: '我'),
-          ],
-          onTap: (i) => setState(() => _tab = i),
+  Widget _rail(AppConfig config) {
+    final t = config.theme;
+    final railBg = t.isDark ? const Color(0xff17181a) : const Color(0xfff2f3f5);
+    final items = <(int, IconData, String)>[
+      (0, Icons.chat_bubble_outline_rounded, '微信'),
+      (1, Icons.contacts_outlined, '通讯录'),
+      (2, Icons.explore_outlined, '发现'),
+      (3, Icons.person_outline_rounded, '我'),
+    ];
+    Widget navBtn(int idx, IconData icon, String label) {
+      final on = _tab == idx;
+      return Tooltip(
+        message: label,
+        child: InkWell(
+          onTap: () => setState(() => _tab = idx),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 54,
+            height: 48,
+            decoration: BoxDecoration(
+              color: on ? (t.isDark ? const Color(0x1f07c160) : const Color(0x2407c160)) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 22, color: on ? _wechatGreen : t.subText),
+          ),
         ),
-      ),
+      );
+    }
+    return Container(
+      width: 54,
+      color: railBg,
+      child: Column(children: [
+        const SizedBox(height: 12),
+        CircleAvatar(radius: 18, backgroundColor: _wechatGreen, child: const Text('S', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
+        const SizedBox(height: 20),
+        for (final (i, ic, lb) in items) ...[
+          navBtn(i, ic, lb),
+          const SizedBox(height: 4),
+        ],
+        const Spacer(),
+        Tooltip(
+          message: '设置',
+          child: InkWell(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: config, api: widget.api))),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(width: 54, height: 48, alignment: Alignment.center, child: Icon(Icons.settings_outlined, size: 20, color: t.subText)),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ]),
     );
   }
 }

@@ -1,12 +1,12 @@
 // module: chat-ext (worker batch2)
 // 聊天增强 Flutter 页：表情发送 / 合并转发查看 / 聊天背景设置 的入口与管理页。
 // 供 features_center / main.dart 挂载：Navigator.push(ChatExtPage(api, config, [convId], [isGroup]))
+// 2026 真实产品风格：扁平克制，主题感知，复用 ux.dart 组件。
 import 'package:flutter/material.dart';
 
 import 'services/chat_ext_service.dart';
 import 'services/securechat_api.dart';
-
-const _kTint = Color(0xff07c160);
+import 'widgets/ux.dart';
 
 class ChatExtPage extends StatefulWidget {
   const ChatExtPage({
@@ -133,7 +133,6 @@ class _ChatExtPageState extends State<ChatExtPage> {
       return;
     }
     final id = widget.convId!;
-    // 收集当前会话附近可转发消息（取最近若干条）
     List<Map<String, dynamic>> pool;
     try {
       pool = await widget.api.history(id);
@@ -150,6 +149,7 @@ class _ChatExtPageState extends State<ChatExtPage> {
       context: context,
       builder: (ctx) {
         final chosen = <int>{};
+        final green = widget.config.theme.primary;
         return StatefulBuilder(
           builder: (ctx2, setLocal) => SimpleDialog(
             title: Text('选择要转发的消息（可多选）'),
@@ -164,7 +164,7 @@ class _ChatExtPageState extends State<ChatExtPage> {
                       CheckboxListTile(
                         dense: true,
                         controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: _kTint,
+                        activeColor: green,
                         value: chosen.contains(m['id']),
                         title: Text(_preview(m['content']), maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(m['from'] == widget.api.myId ? '我·${_time(m['createdAt'])}' : '对方·${_time(m['createdAt'])}'),
@@ -226,6 +226,7 @@ class _ChatExtPageState extends State<ChatExtPage> {
       return null;
     }
     if (!mounted) return null;
+    final green = widget.config.theme.primary;
     final chosen = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => SimpleDialog(
@@ -237,7 +238,7 @@ class _ChatExtPageState extends State<ChatExtPage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(children: [
-                  Icon(t['kind'] == 'group' ? Icons.groups_rounded : Icons.person, size: 18, color: _kTint),
+                  Icon(t['kind'] == 'group' ? Icons.groups_rounded : Icons.person, size: 18, color: green),
                   const SizedBox(width: 10),
                   Text(t['name'].toString()),
                 ]),
@@ -307,130 +308,114 @@ class _ChatExtPageState extends State<ChatExtPage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = widget.config.theme as dynamic;
-    final textColor = (t.text as Color? ?? Colors.black87);
-    final subColor = (t.subText as Color? ?? Colors.black54);
-    final panel = (t.panel as Color? ?? Colors.white);
-
+    final t = widget.config.theme;
+    final green = t.primary;
+    final empty = _isEmptyConv();
     return Scaffold(
-      backgroundColor: panel,
-      appBar: AppBar(
-        backgroundColor: _kTint,
-        foregroundColor: Colors.white,
-        title: Text('聊天增强${widget.convName != null ? ' · ${widget.convName}' : ''}'),
-        actions: [
-          IconButton(icon: const Icon(Icons.forward), tooltip: '多选/合并转发', onPressed: _openForwardPicker),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (widget.convId != null) ...[
-            _section('当前会话', Icons.chat_bubble_outline),
-            _card(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('目标会话：${widget.convName ?? (widget.isGroup ? '群聊' : '好友')}', style: TextStyle(color: textColor, fontSize: 13)),
-                if (widget.isGroup)
-                  Padding(padding: const EdgeInsets.only(top: 6), child: Text('群聊不支持单向拍一拍/表情发送，可进入好友会话使用。', style: TextStyle(color: _kTint, fontSize: 12))),
-              ]),
-            ),
-          ],
-          _section('聊天背景（本地保存）', Icons.wallpaper),
-          _card(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _bgColor,
-                    style: TextStyle(color: textColor),
-                    enabled: !_isEmptyConv(),
-                    decoration: const InputDecoration(hintText: '十六进制颜色，如 #07c160 或 #1660ff', isDense: true),
-                  ),
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(
+          title: '聊天增强${widget.convName != null ? ' · ${widget.convName}' : ''}',
+          config: widget.config,
+          trailing: IconButton(icon: Icon(Icons.forward, color: green), tooltip: '多选/合并转发', onPressed: _openForwardPicker),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(top: 4, bottom: 24),
+            children: [
+              if (widget.convId != null) ...[
+                SectionTitle(config: widget.config, title: '当前会话'),
+                SectionCard(
+                  config: widget.config,
+                  padding: const EdgeInsets.all(14),
+                  children: [
+                    Text('目标会话：${widget.convName ?? (widget.isGroup ? '群聊' : '好友')}', style: TextStyle(color: t.text, fontSize: 13)),
+                    if (widget.isGroup)
+                      Padding(padding: const EdgeInsets.only(top: 6), child: Text('群聊不支持单向拍一拍/表情发送，可进入好友会话使用。', style: TextStyle(color: green, fontSize: 12))),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                FilledButton(onPressed: _isEmptyConv() ? null : _saveBackground, child: const Text('保存背景')),
-              ]),
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final c in ['#e6f4ea', '#fbf3db', '#fde9e4', '#e7ecf7', '#fff4d6', '#e9f5e5', '#f0f0f5', '#ffffff'])
-                  _swatch(c),
-                ActionChip(avatar: const Icon(Icons.backspace_outlined, size: 16), label: const Text('默认'), onPressed: _isEmptyConv() ? null : () {
-                  setState(() => _bgColor.clear());
-                  _saveBackground();
-                }),
-              ]),
-              if (_bg != null)
-                Padding(padding: const EdgeInsets.only(top: 10), child: Text('当前背景：${_bg!['kind'] == 'image' ? '图片' : '${_bg!['value']}'}', style: TextStyle(color: subColor, fontSize: 12))),
-            ]),
+              ],
+              SectionTitle(config: widget.config, title: '聊天背景（本地保存）'),
+              SectionCard(
+                config: widget.config,
+                padding: const EdgeInsets.all(14),
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _bgColor,
+                        style: TextStyle(color: t.text),
+                        enabled: !empty,
+                        decoration: const InputDecoration(hintText: '十六进制颜色，如 #07c160 或 #1660ff', isDense: true),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton(onPressed: empty ? null : _saveBackground, child: const Text('保存背景')),
+                  ]),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final c in ['#e6f4ea', '#fbf3db', '#fde9e4', '#e7ecf7', '#fff4d6', '#e9f5e5', '#f0f0f5', '#ffffff'])
+                      _swatch(c, empty),
+                    ActionChip(avatar: const Icon(Icons.backspace_outlined, size: 16), label: const Text('默认'), onPressed: empty ? null : () {
+                      setState(() => _bgColor.clear());
+                      _saveBackground();
+                    }),
+                  ]),
+                  if (_bg != null)
+                    Padding(padding: const EdgeInsets.only(top: 10), child: Text('当前背景：${_bg!['kind'] == 'image' ? '图片' : '${_bg!['value']}'}', style: TextStyle(color: t.subText, fontSize: 12))),
+                ],
+              ),
+              if (!widget.isGroup && widget.convId != null) ...[
+                SectionTitle(config: widget.config, title: '发送到当前会话'),
+                SectionCard(
+                  config: widget.config,
+                  padding: const EdgeInsets.all(14),
+                  children: [
+                    Text('点按表情即发送（保存为 [emoji] 特殊消息）', style: TextStyle(color: t.subText, fontSize: 12)),
+                    const SizedBox(height: 10),
+                    TextField(controller: _ta, maxLines: 2, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '输入文本消息', contentPadding: const EdgeInsets.all(10), filled: true, fillColor: t.inputBg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 4, runSpacing: 4, children: [
+                      for (final e in _kEmojis.take(32)) _emojiChip(e, green),
+                    ]),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: _sending ? null : () => _sendText(_ta.text.trim()),
+                        child: Text(_ta.text.trim().isEmpty && !_sending ? '发送文本' : '发送'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (widget.convId != null) ...[
+                SectionTitle(config: widget.config, title: '撤回 & 管理'),
+                SectionCard(
+                  config: widget.config,
+                  children: [
+                    ListCell(config: widget.config, icon: Icons.undo, iconColor: green, title: '撤回最近的自己消息', subtitle: '仅限 2 分钟内发送', onTap: _recallLast),
+                    CellDivider(config: widget.config),
+                    ListCell(config: widget.config, icon: Icons.forward_to_inbox, iconColor: green, title: '转发消息', subtitle: '可单条、逐条或合并转发到好友/群', onTap: _openForwardPicker),
+                  ],
+                ),
+              ],
+            ],
           ),
-          if (!widget.isGroup && widget.convId != null) ...[
-            _section('发送到当前会话', Icons.send),
-            _card(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('点按表情即发送（保存为 [emoji] 特殊消息）', style: TextStyle(color: subColor, fontSize: 12)),
-                const SizedBox(height: 10),
-                TextField(controller: _ta, maxLines: 2, decoration: InputDecoration(hintText: '输入文本消息', contentPadding: const EdgeInsets.all(10), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)))),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: Wrap(spacing: 4, runSpacing: 4, children: [
-                    for (final e in _kEmojis.take(32)) _emojiChip(e),
-                  ])),
-                ]),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    onPressed: _sending ? null : () => _sendText(_ta.text.trim()),
-                    child: Text(_ta.text.trim().isEmpty && !_sending ? '发送文本' : '发送'),
-                  ),
-                ),
-              ]),
-            ),
-          ],
-          if (widget.convId != null) ...[
-            _section('撤回 & 管理', Icons.undo),
-            _card(
-              child: Column(children: [
-                ListTile(leading: Icon(Icons.undo, color: _kTint), title: const Text('撤回最近的自己消息'), subtitle: const Text('仅限 2 分钟内发送'), onTap: _recallLast),
-                ListTile(leading: Icon(Icons.forward_to_inbox, color: _kTint), title: const Text('转发消息'), subtitle: const Text('可单条、逐条或合并转发到好友/群'), onTap: _openForwardPicker),
-                const Divider(height: 1),
-              ]),
-            ),
-          ],
-        ],
-      ),
+        ),
+      ]),
     );
   }
 
   bool _isEmptyConv() => widget.convId == null;
 
-  Widget _section(String title, IconData icon) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 8),
-        child: Row(children: [
-          Icon(icon, size: 17, color: _kTint),
-          const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        ]),
-      );
-
-  Widget _card({required Widget child}) => Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0x14000000)),
-          color: Colors.white.withValues(alpha: 0.6),
-        ),
-        child: child,
-      );
-
-  Widget _swatch(String color) => InkWell(
-        onTap: _isEmptyConv() ? null : () => setState(() => _bgColor.text = color),
+  Widget _swatch(String color, bool empty) => InkWell(
+        onTap: empty ? null : () => setState(() => _bgColor.text = color),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: 32,
           height: 32,
-          decoration: BoxDecoration(color: _parse(color), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0x22000000))),
+          decoration: BoxDecoration(color: _parse(color), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.black12)),
         ),
       );
 
@@ -440,12 +425,12 @@ class _ChatExtPageState extends State<ChatExtPage> {
     return Color(int.tryParse(s, radix: 16) ?? 0xFF07C160);
   }
 
-  Widget _emojiChip(String e) => InkWell(
+  Widget _emojiChip(String e, Color green) => InkWell(
         onTap: () => _sendText('', emoji: e),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: _kTint.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
           child: Text(e, style: const TextStyle(fontSize: 16)),
         ),
       );

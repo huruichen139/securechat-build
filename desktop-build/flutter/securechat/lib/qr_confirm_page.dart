@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class QrConfirmPage extends StatefulWidget {
   const QrConfirmPage({super.key, required this.api, required this.config});
@@ -68,17 +69,25 @@ class _QrConfirmPageState extends State<QrConfirmPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('扫一扫')),
-        body: Stack(children: [
-          MobileScanner(onDetect: (capture) {
-            final value = capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
-            if (value != null) _handle(value);
-          }),
-          Align(alignment: Alignment.bottomCenter, child: Container(width: double.infinity, padding: const EdgeInsets.all(18), color: Colors.black54,
-            child: Text(doneText ?? (error ?? (busy ? '处理中…' : '将二维码放入框内，支持登录码与好友码')), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 14)))),
-          if (doneText != null)
-            Align(alignment: Alignment.topCenter, child: Padding(padding: const EdgeInsets.only(top: 16), child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('完成')))),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final t = widget.config.theme;
+    return Scaffold(
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(title: '扫一扫', config: widget.config),
+        Expanded(
+          child: Stack(children: [
+            MobileScanner(onDetect: (capture) {
+              final value = capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
+              if (value != null) _handle(value);
+            }),
+            Align(alignment: Alignment.bottomCenter, child: Container(width: double.infinity, padding: const EdgeInsets.all(18), color: Colors.black54,
+              child: Text(doneText ?? (error ?? (busy ? '处理中…' : '将二维码放入框内，支持登录码与好友码')), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 14)))),
+            if (doneText != null)
+              Align(alignment: Alignment.topCenter, child: Padding(padding: const EdgeInsets.only(top: 16), child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('完成')))),
+          ]),
+        ),
+      ]),
+    );
+  }
 }

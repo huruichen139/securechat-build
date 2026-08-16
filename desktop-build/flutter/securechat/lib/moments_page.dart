@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'services/securechat_api.dart';
+import 'services/app_config.dart';
+import 'widgets/ux.dart';
 
 class MomentsPage extends StatefulWidget {
   const MomentsPage({super.key, required this.api, required this.config});
@@ -62,7 +64,6 @@ class _MomentsPageState extends State<MomentsPage> {
     try {
       await widget.api.likeMoment(id, on: !liked);
     } catch (e) {
-      // revert
       setState(() {
         m['likedByMe'] = liked;
         m['likeCount'] = (m['likeCount'] as int? ?? 0) + (liked ? 1 : -1);
@@ -108,132 +109,143 @@ class _MomentsPageState extends State<MomentsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cfg = widget.config as AppConfig;
+    final t = cfg.theme;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('朋友圈', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [
-          IconButton(icon: Icon(Icons.refresh, color: cs.primary), tooltip: '刷新', onPressed: _reload),
-        ],
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
-        // 发布框
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          color: cs.surface,
-          child: Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _input,
-                decoration: const InputDecoration(hintText: '分享新鲜事...', alignLabelWithHint: true),
-              ),
-            ),
-            const SizedBox(width: 10),
-            FilledButton.icon(onPressed: _post, icon: const Icon(Icons.send, size: 16), label: const Text('发表')),
-          ]),
+        PageHeader(
+          title: '朋友圈',
+          config: cfg,
+          trailing: IconButton(
+            onPressed: _reload,
+            icon: Icon(Icons.refresh, color: t.subText, size: 20),
+            tooltip: '刷新',
+          ),
         ),
-        Divider(height: 1, color: cs.outlineVariant),
+        _composer(cfg),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _moments.isEmpty
-                      ? Center(child: Text('还没有朋友圈动态', style: TextStyle(color: cs.onSurfaceVariant)))
+                      ? Center(child: Text('还没有朋友圈动态', style: TextStyle(color: t.subText)))
                       : ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(12),
                           itemCount: _moments.length,
                           separatorBuilder: (_, i) => const SizedBox(height: 12),
-                          itemBuilder: (_, i) {
-                            final m = _moments[i];
-                            final nick = (m['nickname'] ?? (m['userId'] ?? '')).toString();
-                            final content = (m['content'] ?? '').toString();
-                            final images = (m['images'] as List?) ?? const [];
-                            final comments = (m['comments'] as List?) ?? const [];
-                            final liked = m['likedByMe'] == true;
-                            final likeCount = m['likeCount'] as int? ?? 0;
-                            final color = widget.config.theme.primary;
-                            return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: cs.surface,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
-                              ),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  CircleAvatar(radius: 18, backgroundColor: color.withValues(alpha: 0.15), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: color))),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(nick, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 2),
-                                    Text(_fmtTime(m['createdAt']), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                                  ])),
-                                ]),
-                                if (content.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Text(content, style: TextStyle(color: cs.onSurface, fontSize: 15)),
-                                ],
-                                if (images.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Wrap(spacing: 8, runSpacing: 8, children: [
-                                    for (final img in images)
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(img, width: 100, height: 100, fit: BoxFit.cover, errorBuilder: (_, e, s) => Container(width: 100, height: 100, color: cs.surfaceContainerHighest, child: Icon(Icons.broken_image, color: cs.onSurfaceVariant))),
-                                      ),
-                                  ]),
-                                ],
-                                const SizedBox(height: 10),
-                                Row(children: [
-                                  InkWell(
-                                    onTap: () => _toggleLike(m),
-                                    child: Row(children: [
-                                      Icon(Icons.thumb_up, size: 16, color: liked ? color : cs.onSurfaceVariant),
-                                      const SizedBox(width: 4),
-                                      Text(likeCount > 0 ? '$likeCount' : '赞', style: TextStyle(color: liked ? color : cs.onSurfaceVariant, fontSize: 12)),
-                                    ]),
-                                  ),
-                                  const SizedBox(width: 18),
-                                  InkWell(
-                                    onTap: () => _comment(m),
-                                    child: Row(children: [
-                                      Icon(Icons.comment, size: 15, color: cs.onSurfaceVariant),
-                                      const SizedBox(width: 4),
-                                      Text(comments.isEmpty ? '评论' : '${comments.length}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                                    ]),
-                                  ),
-                                ]),
-                                if (comments.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
-                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      for (final c in comments)
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 3),
-                                          child: RichText(
-                                            text: TextSpan(style: TextStyle(color: cs.onSurface, fontSize: 13), children: [
-                                              TextSpan(text: (c['nickname'] ?? '?').toString(), style: TextStyle(color: color, fontWeight: FontWeight.w600)),
-                                              TextSpan(text: ': '),
-                                              TextSpan(text: (c['content'] ?? '').toString()),
-                                            ]),
-                                          ),
-                                        ),
-                                    ]),
-                                  ),
-                                ],
-                              ]),
-                            );
-                          },
+                          itemBuilder: (_, i) => _momentCard(cfg, _moments[i]),
                         ),
         ),
+      ]),
+    );
+  }
+
+  Widget _composer(AppConfig cfg) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _input,
+            decoration: const InputDecoration(hintText: '分享新鲜事...', alignLabelWithHint: true),
+          ),
+        ),
+        const SizedBox(width: 10),
+        FilledButton.icon(onPressed: _post, icon: const Icon(Icons.send, size: 16), label: const Text('发表')),
+      ]),
+    );
+  }
+
+  Widget _momentCard(AppConfig cfg, Map<String, dynamic> m) {
+    final t = cfg.theme;
+    final nick = (m['nickname'] ?? (m['userId'] ?? '')).toString();
+    final content = (m['content'] ?? '').toString();
+    final images = (m['images'] as List?) ?? const [];
+    final comments = (m['comments'] as List?) ?? const [];
+    final liked = m['likedByMe'] == true;
+    final likeCount = m['likeCount'] as int? ?? 0;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: t.card.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(Ux.cardRadius),
+        border: Border.all(color: t.div.withValues(alpha: 0.6)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          CircleAvatar(radius: 18, backgroundColor: Ux.cellIconBg(t), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: Ux.green))),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(nick, style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(_fmtTime(m['createdAt']), style: TextStyle(color: t.subText, fontSize: 11)),
+            ]),
+          ),
+        ]),
+        if (content.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(content, style: TextStyle(color: t.text, fontSize: 15)),
+        ],
+        if (images.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final img in images)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  img,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, e, s) => Container(width: 100, height: 100, color: Ux.cellIconBg(t), child: Icon(Icons.broken_image, color: t.subText)),
+                ),
+              ),
+          ]),
+        ],
+        const SizedBox(height: 10),
+        Row(children: [
+          InkWell(
+            onTap: () => _toggleLike(m),
+            child: Row(children: [
+              Icon(Icons.thumb_up, size: 16, color: liked ? Ux.green : t.subText),
+              const SizedBox(width: 4),
+              Text(likeCount > 0 ? '$likeCount' : '赞', style: TextStyle(color: liked ? Ux.green : t.subText, fontSize: 12)),
+            ]),
+          ),
+          const SizedBox(width: 18),
+          InkWell(
+            onTap: () => _comment(m),
+            child: Row(children: [
+              Icon(Icons.comment, size: 15, color: t.subText),
+              const SizedBox(width: 4),
+              Text(comments.isEmpty ? '评论' : '${comments.length}', style: TextStyle(color: t.subText, fontSize: 12)),
+            ]),
+          ),
+        ]),
+        if (comments.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Ux.cellIconBg(t), borderRadius: BorderRadius.circular(8)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final c in comments)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: RichText(
+                    text: TextSpan(style: TextStyle(color: t.text, fontSize: 13), children: [
+                      TextSpan(text: (c['nickname'] ?? '?').toString(), style: TextStyle(color: Ux.green, fontWeight: FontWeight.w600)),
+                      TextSpan(text: ': '),
+                      TextSpan(text: (c['content'] ?? '').toString()),
+                    ]),
+                  ),
+                ),
+            ]),
+          ),
+        ],
       ]),
     );
   }

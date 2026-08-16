@@ -1,12 +1,13 @@
 // module: videos_social_page (worker batch4) —— Flutter 视频号页（增强版）：上传/信息流/点赞/评论/收藏/转发
-// 说明：batch2 已有一份 videos_page.dart；本文件为 batch4 独立交付，文件名不同以免覆盖，由合并 worker 二选一挂载。
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import 'services/app_config.dart';
 import 'services/media_api.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class VideosSocialPage extends StatefulWidget {
   const VideosSocialPage({super.key, required this.api, required this.config});
@@ -23,6 +24,9 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
   bool _loading = true;
   String? _error;
 
+  AppConfig get _cfg => widget.config as AppConfig;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +42,10 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       if (_tab.value == 0) {
         _videos = await _svc.videoFeed();
@@ -84,7 +91,10 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
       );
       if (ok != true || title.text.trim().isEmpty) return;
       await _svc.publishVideo(title.text.trim(), _svc.str(up['url']), content: content.text.trim());
-      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发布成功'))); _load(); }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发布成功')));
+        _load();
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('失败：$e')));
     }
@@ -154,50 +164,56 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
     }
   }
 
+  Widget _tabItem(int index, String label) {
+    return Expanded(
+      child: ValueListenableBuilder<int>(
+        valueListenable: _tab,
+        builder: (_, v, __) => InkWell(
+          onTap: () => _tab.value = index,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: v == index ? Ux.green : Colors.transparent, width: 2))),
+            child: Text(label, style: TextStyle(color: v == index ? Ux.green : _t.subText, fontWeight: v == index ? FontWeight.w700 : FontWeight.w500)),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = _t;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('视频号', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [IconButton(icon: Icon(Icons.refresh, color: color), onPressed: _load), IconButton(icon: Icon(Icons.add, color: color), onPressed: _publish)],
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(children: [
-            for (final (i, label) in const [(0, '推荐'), (1, '关注'), (2, '收藏')])
-              Expanded(child: ValueListenableBuilder<int>(
-                valueListenable: _tab,
-                builder: (_, v, __) => InkWell(
-                  onTap: () => _tab.value = i,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: v == i ? color : Colors.transparent, width: 2))),
-                    child: Text(label, style: TextStyle(color: v == i ? color : cs.onSurfaceVariant, fontWeight: v == i ? FontWeight.w700 : FontWeight.w500)),
-                  ),
-                ),
-              )),
+        PageHeader(
+          title: '视频号',
+          config: _cfg,
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(onPressed: _load, icon: Icon(Icons.refresh, color: t.text, size: 20)),
+            IconButton(onPressed: _publish, icon: Icon(Icons.add, color: t.text, size: 20)),
           ]),
         ),
-        Divider(height: 1, color: cs.outlineVariant),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(color: t.bg, border: Border(bottom: BorderSide(color: t.div.withValues(alpha: 0.6)))),
+          child: Row(children: [
+            _tabItem(0, '推荐'),
+            _tabItem(1, '关注'),
+            _tabItem(2, '收藏'),
+          ]),
+        ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: CircularProgressIndicator(color: t.subText))
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _videos.isEmpty
-                      ? Center(child: Text('还没有视频', style: TextStyle(color: cs.onSurfaceVariant)))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                      ? Center(child: Text('还没有视频', style: TextStyle(color: t.subText)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           itemCount: _videos.length,
-                          separatorBuilder: (_, i) => const SizedBox(height: 12),
                           itemBuilder: (_, i) {
                             final v = _videos[i];
                             final nick = _svc.str(v['nickname']);
@@ -205,13 +221,18 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
                             final fav = v['favoritedByMe'] == true;
                             final src = _svc.absolute(_svc.str(v['url']));
                             return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5))),
+                              decoration: BoxDecoration(
+                                color: t.card.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                                border: Border.all(color: t.div.withValues(alpha: 0.6)),
+                              ),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
-                                  CircleAvatar(radius: 16, backgroundColor: color.withValues(alpha: 0.15), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: color, fontSize: 12))),
+                                  CircleAvatar(radius: 16, backgroundColor: Ux.cellIconBg(t), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: t.text, fontSize: 12))),
                                   const SizedBox(width: 8),
-                                  Expanded(child: Text(nick, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 13))),
+                                  Expanded(child: Text(nick, style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 13))),
                                 ]),
                                 const SizedBox(height: 10),
                                 // 无内置播放器：展示一个“视频卡片”，点按查看地址
@@ -219,44 +240,46 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
                                   onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(src.isEmpty ? '视频地址未配置' : '视频地址：$src'))),
                                   child: Container(
                                     height: 120,
-                                    decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(10)),
-                                    child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                      Icon(Icons.play_circle_outline, size: 34, color: color),
-                                      const SizedBox(height: 4),
-                                      Text('点击查看视频地址', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                                    ])),
+                                    decoration: BoxDecoration(color: Ux.cellIconBg(t), borderRadius: BorderRadius.circular(Ux.radius)),
+                                    child: Center(
+                                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                        Icon(Icons.play_circle_outline, size: 34, color: Ux.green),
+                                        const SizedBox(height: 4),
+                                        Text('点击查看视频地址', style: TextStyle(color: t.subText, fontSize: 11)),
+                                      ]),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(_svc.str(v['title']), style: TextStyle(color: cs.onSurface, fontSize: 15, fontWeight: FontWeight.w600)),
+                                Text(_svc.str(v['title']), style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w600)),
                                 if (_svc.str(v['content']).isNotEmpty) ...[
                                   const SizedBox(height: 4),
-                                  Text(_svc.str(v['content']), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+                                  Text(_svc.str(v['content']), style: TextStyle(color: t.subText, fontSize: 13)),
                                 ],
                                 const SizedBox(height: 10),
                                 Row(children: [
                                   InkWell(onTap: () => _toggleLike(v), child: Row(children: [
-                                    Icon(Icons.favorite, size: 16, color: liked ? Colors.redAccent : cs.onSurfaceVariant),
+                                    Icon(Icons.favorite, size: 16, color: liked ? Ux.green : t.subText),
                                     const SizedBox(width: 4),
-                                    Text('${_svc.toInt(v['likeCount'])}', style: TextStyle(color: liked ? Colors.redAccent : cs.onSurfaceVariant, fontSize: 12)),
+                                    Text('${_svc.toInt(v['likeCount'])}', style: TextStyle(color: liked ? Ux.green : t.subText, fontSize: 12)),
                                   ])),
                                   const SizedBox(width: 18),
                                   InkWell(onTap: () => _comment(v), child: Row(children: [
-                                    Icon(Icons.comment, size: 15, color: cs.onSurfaceVariant),
+                                    Icon(Icons.comment, size: 15, color: t.subText),
                                     const SizedBox(width: 4),
-                                    Text('${_svc.toInt(v['commentCount'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                    Text('${_svc.toInt(v['commentCount'])}', style: TextStyle(color: t.subText, fontSize: 12)),
                                   ])),
                                   const SizedBox(width: 18),
                                   InkWell(onTap: () => _toggleFav(v), child: Row(children: [
-                                    Icon(fav ? Icons.star : Icons.star_border, size: 16, color: fav ? Colors.amber : cs.onSurfaceVariant),
+                                    Icon(fav ? Icons.star : Icons.star_border, size: 16, color: fav ? Ux.green : t.subText),
                                     const SizedBox(width: 4),
-                                    Text('${_svc.toInt(v['favoriteCount'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                    Text('${_svc.toInt(v['favoriteCount'])}', style: TextStyle(color: t.subText, fontSize: 12)),
                                   ])),
                                   const SizedBox(width: 18),
                                   InkWell(onTap: () => _share(v), child: Row(children: [
-                                    Icon(Icons.share, size: 16, color: cs.onSurfaceVariant),
+                                    Icon(Icons.share, size: 16, color: t.subText),
                                     const SizedBox(width: 4),
-                                    Text('${_svc.toInt(v['shareCount'])}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                    Text('${_svc.toInt(v['shareCount'])}', style: TextStyle(color: t.subText, fontSize: 12)),
                                   ])),
                                 ]),
                               ]),

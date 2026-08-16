@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 
 import 'services/app_config.dart';
+import 'widgets/ux.dart';
 
 const int kFilehelperId = -1;
 
@@ -204,11 +205,8 @@ class _FilehelperPageState extends State<FilehelperPage> {
     final theme = widget.config.theme;
     return Scaffold(
       backgroundColor: theme.bg,
-      appBar: AppBar(
-        title: const Text('文件传输助手'),
-        backgroundColor: theme.panel,
-      ),
       body: Column(children: [
+        PageHeader(title: '文件传输助手', config: widget.config),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())

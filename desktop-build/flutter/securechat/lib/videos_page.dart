@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'services/app_config.dart';
 import 'services/securechat_api.dart';
+import 'widgets/ux.dart';
 
 class VideosPage extends StatefulWidget {
   const VideosPage({super.key, required this.api, required this.config});
@@ -17,6 +19,9 @@ class _VideosPageState extends State<VideosPage> {
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
 
+  AppConfig get _cfg => widget.config as AppConfig;
+  AppTheme get _t => _cfg.theme;
+
   @override
   void initState() {
     super.initState();
@@ -24,7 +29,10 @@ class _VideosPageState extends State<VideosPage> {
   }
 
   Future<void> _reload() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       _videos
         ..clear()
@@ -39,7 +47,10 @@ class _VideosPageState extends State<VideosPage> {
   Future<void> _post() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) return;
-    setState(() { _titleCtrl.clear(); _contentCtrl.clear(); });
+    setState(() {
+      _titleCtrl.clear();
+      _contentCtrl.clear();
+    });
     try {
       await widget.api.postVideo(title, content: _contentCtrl.text.trim());
       await _reload();
@@ -105,80 +116,96 @@ class _VideosPageState extends State<VideosPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = widget.config.theme.primary;
+    final t = _t;
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        elevation: 0,
-        title: Text('视频号', style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: cs.onSurface), onPressed: () => Navigator.of(context).maybePop()),
-        actions: [IconButton(icon: Icon(Icons.refresh, color: color), onPressed: _reload)],
-      ),
+      backgroundColor: t.bg,
       body: Column(children: [
+        PageHeader(
+          title: '视频号',
+          config: _cfg,
+          trailing: IconButton(
+            onPressed: _reload,
+            icon: Icon(Icons.refresh, color: t.text, size: 20),
+          ),
+        ),
         Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          decoration: BoxDecoration(color: t.bg, border: Border(bottom: BorderSide(color: t.div.withValues(alpha: 0.6)))),
           child: Column(children: [
             Row(children: [
-              Expanded(child: TextField(controller: _titleCtrl, decoration: const InputDecoration(hintText: '视频标题'))),
+              Expanded(
+                child: TextField(
+                  controller: _titleCtrl,
+                  style: TextStyle(color: t.text),
+                  decoration: InputDecoration(hintText: '视频标题', hintStyle: TextStyle(color: t.subText)),
+                ),
+              ),
               const SizedBox(width: 10),
-              FilledButton(onPressed: _post, child: const Text('发布')),
+              FilledButton(
+                onPressed: _post,
+                style: FilledButton.styleFrom(backgroundColor: Ux.green, foregroundColor: Colors.white),
+                child: const Text('发布'),
+              ),
             ]),
             const SizedBox(height: 8),
-            TextField(controller: _contentCtrl, decoration: const InputDecoration(hintText: '描述（可选）')),
+            TextField(
+              controller: _contentCtrl,
+              style: TextStyle(color: t.text),
+              decoration: InputDecoration(hintText: '描述（可选）', hintStyle: TextStyle(color: t.subText)),
+            ),
           ]),
         ),
-        Divider(height: 1, color: cs.outlineVariant),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: CircularProgressIndicator(color: t.subText))
               : _error != null
-                  ? Center(child: Text(_error!, style: TextStyle(color: cs.error)))
+                  ? Center(child: Text(_error!, style: TextStyle(color: t.subText)))
                   : _videos.isEmpty
-                      ? Center(child: Text('还没有视频', style: TextStyle(color: cs.onSurfaceVariant)))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                      ? Center(child: Text('还没有视频', style: TextStyle(color: t.subText)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           itemCount: _videos.length,
-                          separatorBuilder: (_, i) => const SizedBox(height: 12),
                           itemBuilder: (_, i) {
                             final v = _videos[i];
                             final nick = (v['nickname'] ?? '').toString();
                             final liked = v['likedByMe'] == true;
                             return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: cs.surface,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+                                color: t.card.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                                border: Border.all(color: t.div.withValues(alpha: 0.6)),
                               ),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
-                                  CircleAvatar(radius: 16, backgroundColor: color.withValues(alpha: 0.15), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: color, fontSize: 12))),
+                                  CircleAvatar(radius: 16, backgroundColor: Ux.cellIconBg(t), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: t.text, fontSize: 12))),
                                   const SizedBox(width: 8),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(nick, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 13)),
-                                    Text(_fmt(v['createdAt']), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-                                  ])),
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(nick, style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 13)),
+                                      Text(_fmt(v['createdAt']), style: TextStyle(color: t.subText, fontSize: 11)),
+                                    ]),
+                                  ),
                                 ]),
                                 const SizedBox(height: 10),
-                                Text(v['title'] ?? '', style: TextStyle(color: cs.onSurface, fontSize: 15, fontWeight: FontWeight.w600)),
+                                Text(v['title'] ?? '', style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w600)),
                                 if ((v['content'] ?? '').toString().isNotEmpty) ...[
                                   const SizedBox(height: 4),
-                                  Text(v['content'], style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+                                  Text(v['content'], style: TextStyle(color: t.subText, fontSize: 13)),
                                 ],
                                 const SizedBox(height: 10),
                                 Row(children: [
                                   InkWell(onTap: () => _toggleLike(v), child: Row(children: [
-                                    Icon(Icons.favorite, size: 16, color: liked ? Colors.redAccent : cs.onSurfaceVariant),
+                                    Icon(Icons.favorite, size: 16, color: liked ? Ux.green : t.subText),
                                     const SizedBox(width: 4),
-                                    Text('${v['likeCount'] ?? 0}', style: TextStyle(color: liked ? Colors.redAccent : cs.onSurfaceVariant, fontSize: 12)),
+                                    Text('${v['likeCount'] ?? 0}', style: TextStyle(color: liked ? Ux.green : t.subText, fontSize: 12)),
                                   ])),
                                   const SizedBox(width: 18),
                                   InkWell(onTap: () => _comment(v), child: Row(children: [
-                                    Icon(Icons.comment, size: 15, color: cs.onSurfaceVariant),
+                                    Icon(Icons.comment, size: 15, color: t.subText),
                                     const SizedBox(width: 4),
-                                    Text('评论', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                                    Text('评论', style: TextStyle(color: t.subText, fontSize: 12)),
                                   ])),
                                 ]),
                               ]),
