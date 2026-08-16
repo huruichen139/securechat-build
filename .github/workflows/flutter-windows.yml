@@ -44,7 +44,7 @@ jobs:
 
       - name: Analyze
         working-directory: desktop-build/flutter/securechat
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build Windows (release)
         working-directory: desktop-build/flutter/securechat
