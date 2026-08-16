@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'feedback_page.dart';
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'update_service.dart';
@@ -476,22 +477,24 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-      SectionTitle(config: config, title: '帮助'),
+      SectionTitle(config: config, title: '帮助与反馈'),
       SectionCard(
         config: config,
         children: [
           ListCell(
             config: config,
-            icon: Icons.help_outline,
-            title: '帮助中心',
-            onTap: () => _toast(context, '帮助中心即将上线，可反馈至 admin 邮箱'),
+            icon: Icons.rate_review_outlined,
+            title: '意见反馈',
+            subtitle: '提交问题、建议或投诉，我们会跟进处理',
+            onTap: () => _openFeedback(0),
           ),
           CellDivider(config: config),
           ListCell(
             config: config,
-            icon: Icons.rate_review_outlined,
-            title: '给 SecureChat 评分',
-            onTap: () => _toast(context, '感谢支持'),
+            icon: Icons.inbox_outlined,
+            title: '我的反馈',
+            subtitle: '查看已提交反馈的处理状态',
+            onTap: () => _openFeedback(1),
           ),
         ],
       ),
@@ -499,6 +502,14 @@ class _SettingsPageState extends State<SettingsPage> {
       SectionCard(
         config: config,
         children: [
+          ListCell(
+            config: config,
+            icon: Icons.campaign_outlined,
+            title: '系统公告',
+            subtitle: '查看服务端发布的公告与维护通知',
+            onTap: _openAnnouncements,
+          ),
+          CellDivider(config: config),
           ListCell(
             config: config,
             icon: Icons.system_update_alt_outlined,
@@ -526,6 +537,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: '退出登录',
             onTap: () async {
               await widget.api.clearSession();
+              if (!mounted) return;
               Navigator.of(context).popUntil((r) => r.isFirst);
             },
           ),
@@ -679,6 +691,18 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openFeedback(int tab) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => FeedbackPage(config: widget.config, api: widget.api, initialTab: tab),
+    ));
+  }
+
+  void _openAnnouncements() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AnnouncementsPage(config: widget.config, api: widget.api),
+    ));
   }
 
   Future<void> _checkUpdate(BuildContext context) async {

@@ -330,4 +330,63 @@ class SecureChatApi {
     return ((data['notes'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
   Future<void> deleteNote(int id) => _json('DELETE', '/api/notes/$id');
+
+  // ============ 用户目录 / 好友请求 ============
+  /// 全部可加好友的用户（服务端已排除自己）
+  Future<List<Map<String, dynamic>>> allUsers() async {
+    final data = await _json('GET', '/api/users');
+    return ((data['users'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// 待处理的好友请求（别人加我）
+  Future<List<Map<String, dynamic>>> friendRequests() async {
+    final data = await _json('GET', '/api/friend/requests');
+    return ((data['requests'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> acceptFriend(int friendId) => _json('POST', '/api/friend/accept', body: {'friendId': friendId});
+  Future<void> rejectFriend(int friendId) => _json('POST', '/api/friend/reject', body: {'friendId': friendId});
+
+  // ============ 个人资料 ============
+  /// 更新资料：昵称 / 地区 / 自定义扩展字段（签名、性别等扁平键值）
+  Future<Map<String, dynamic>> updateProfile({
+    String? nickname,
+    String? country,
+    String? province,
+    String? city,
+    Map<String, String>? extra,
+  }) =>
+      _json('POST', '/api/profile', body: {
+        if (nickname != null) 'nickname': nickname,
+        if (country != null) 'country': country,
+        if (province != null) 'province': province,
+        if (city != null) 'city': city,
+        if (extra != null) 'extra': extra,
+      });
+
+  /// 设置头像，需传 data URI（data:image/png;base64,...），服务端限制 256KB
+  Future<Map<String, dynamic>> setAvatar(String dataUri) => _json('POST', '/api/avatar', body: {'avatar': dataUri});
+
+  // ============ 全局消息搜索 ============
+  /// 跨会话搜索我的消息，返回 [{id, content, createdAt, peerId, peerName}]
+  Future<List<Map<String, dynamic>>> searchMessages(String query) async {
+    final data = await _json('GET', '/api/search/messages', query: {'q': query});
+    return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  // ============ 公告 ============
+  Future<List<Map<String, dynamic>>> announcements() async {
+    final data = await _json('GET', '/api/announcements');
+    return ((data['announcements'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  // ============ 意见反馈 ============
+  /// kind 取值：bug / suggestion / complaint / other；content 至少 10 字
+  Future<void> sendFeedback(String kind, String content) =>
+      _json('POST', '/api/feedback', body: {'kind': kind, 'content': content});
+
+  Future<List<Map<String, dynamic>>> myFeedbacks() async {
+    final data = await _json('GET', '/api/feedback');
+    return ((data['feedbacks'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
 }
