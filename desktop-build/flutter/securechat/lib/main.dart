@@ -19,28 +19,7 @@ import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
 import 'call_page.dart';
 import 'qr_confirm_page.dart';
-import 'settings_page.dart';
-import 'features_center.dart';
-import 'ai_page.dart';
-import 'moments_page.dart';
-import 'wallet_page.dart';
-import 'videos_page.dart';
-import 'accounts_page.dart';
-import 'mini_apps_page.dart';
-import 'notebook_page.dart';
-import 'file_repository_page.dart';
 import 'update_service.dart';
-import 'group_page.dart';
-import 'chat_ext_page.dart';
-import 'filehelper_page.dart';
-import 'community_tools_page.dart';
-import 'status_page.dart';
-import 'wallet_extra_page.dart';
-import 'miniapp_page.dart';
-import 'nearby_page.dart';
-import 'shake_page.dart';
-import 'scan_page.dart';
-import 'favorites_page.dart' as fav;
 import 'discover_page.dart';
 import 'me_page.dart';
 
@@ -375,32 +354,6 @@ class _ChatShellState extends State<ChatShell> {
   final _contactsViewState = GlobalKey<_ContactsViewStateState>();
 
   @override
-  void initState() {
-    super.initState();
-    SecureChatApi.onAuthExpired = _onAuthExpired;
-  }
-
-  @override
-  void dispose() {
-    if (SecureChatApi.onAuthExpired == _onAuthExpired) {
-      SecureChatApi.onAuthExpired = null;
-    }
-    super.dispose();
-  }
-
-  void _onAuthExpired() {
-    if (!mounted) return;
-    // 延迟到下一帧，避免在 build/异步 gap 中触发导航
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LoginPage(config: widget.config)),
-        (_) => false,
-      );
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final config = widget.config;
     return AnimatedBuilder(
@@ -452,14 +405,10 @@ class _ChatShellState extends State<ChatShell> {
         child: InkWell(
           onTap: () => setState(() => _tab = idx),
           borderRadius: BorderRadius.circular(8),
-          child: Container(
+          child: SizedBox(
             width: 54,
             height: 48,
-            decoration: BoxDecoration(
-              color: on ? (t.isDark ? const Color(0x1f07c160) : const Color(0x2407c160)) : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 22, color: on ? _wechatGreen : t.subText),
+            child: Center(child: Icon(icon, size: 24, color: on ? _wechatGreen : t.subText)),
           ),
         ),
       );
@@ -476,14 +425,6 @@ class _ChatShellState extends State<ChatShell> {
           const SizedBox(height: 4),
         ],
         const Spacer(),
-        Tooltip(
-          message: '设置',
-          child: InkWell(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: config, api: widget.api))),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(width: 54, height: 48, alignment: Alignment.center, child: Icon(Icons.settings_outlined, size: 20, color: t.subText)),
-          ),
-        ),
         const SizedBox(height: 10),
       ]),
     );
@@ -521,6 +462,28 @@ class _ChatViewStateState extends State<_ChatView> {
   String _search = '';
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
+
+  /// 会话打开序号：快速切换会话时，旧的历史请求返回后不得再写入当前列表
+  /// （否则会把上一个会话的消息追加进来，看起来像"重复/多出消息"）
+  int _openSeq = 0;
+
+  /// 是否已存在同一条消息（按 clientMsgId 或服务端 id 去重）。
+  /// 本地乐观插入 + 服务端回显 + 历史拉取都可能带来同一条，统一在此挡掉。
+  bool _isDuplicateMsg({String? cmid, dynamic id}) {
+    if (cmid != null && cmid.isNotEmpty) {
+      if (messages.any((m) => m['cmid'] == cmid)) return true;
+    }
+    if (id != null) {
+      if (messages.any((m) => m['id'] != null && m['id'] == id)) return true;
+    }
+    return false;
+  }
+
+  /// 统一的追加入口：先去重，再插入。调用方需在 setState 内使用。
+  void _appendMsg(Map<String, dynamic> m) {
+    if (_isDuplicateMsg(cmid: m['cmid'] as String?, id: m['id'])) return;
+    messages.add(m);
+  }
 
   @override
   void initState() {
@@ -577,6 +540,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   Future<void> _openConversation(int index) async {
     final conv = conversations[index];
+    final seq = ++_openSeq;
     setState(() { selected = index; });
     messages.clear();
     if (conv['kind'] == 'group') {
@@ -597,8 +561,8 @@ class _ChatViewStateState extends State<_ChatView> {
               ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender}
               : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender});
         }
-        if (!mounted) return;
-        setState(() => messages.addAll(msgs));
+        if (!mounted || seq != _openSeq) return;
+        setState(() { messages..clear()..addAll(_dedupById(msgs)); });
       } catch (_) {}
       return;
     }
@@ -606,7 +570,7 @@ class _ChatViewStateState extends State<_ChatView> {
     if (mounted) setState(() => selName = conv['name'].toString());
     try {
       final history = await widget.api.history(peerId);
-      if (!mounted) return;
+      if (!mounted || seq != _openSeq) return;
       final msgs = <Map<String, dynamic>>[];
       for (final m in history) {
         final content = (m['content'] ?? '').toString();
@@ -617,9 +581,25 @@ class _ChatViewStateState extends State<_ChatView> {
             ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']}
             : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']});
       }
-      if (!mounted) return;
-      setState(() { messages..clear()..addAll(msgs); });
+      if (!mounted || seq != _openSeq) return;
+      setState(() { messages..clear()..addAll(_dedupById(msgs)); });
     } catch (_) {}
+  }
+
+  /// 历史列表按服务端 id 去重（服务端重复行/多次拉取时兜底）
+  static List<Map<String, dynamic>> _dedupById(List<Map<String, dynamic>> list) {
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final m in list) {
+      final id = m['id'];
+      if (id != null) {
+        final k = '$id';
+        if (seen.contains(k)) continue;
+        seen.add(k);
+      }
+      out.add(m);
+    }
+    return out;
   }
 
   static String _fmtTs(dynamic ts) {
@@ -644,7 +624,17 @@ class _ChatViewStateState extends State<_ChatView> {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
           final cmid = (p['clientMsgId'] ?? '').toString();
-          if (cmid.isNotEmpty && _sentIds.contains(cmid)) { _sentIds.remove(cmid); return; }
+          // 自己发的消息：若本地已乐观插入，只补服务端 id，不再插入第二条；
+          // 若本地没有（如转发到其他会话后又切回来），则继续走下面的正常插入。
+          if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
+            final i = messages.lastIndexWhere((m) => m['cmid'] == cmid);
+            _sentIds.remove(cmid);
+            if (i >= 0) {
+              setState(() => messages[i]['id'] = p['id']);
+              return;
+            }
+          }
+          if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
           final conv = selConv;
           final from = p['from'];
           final to = p['to'];
@@ -654,16 +644,24 @@ class _ChatViewStateState extends State<_ChatView> {
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
           setState(() {
             if (conv == null || talkingToPeer) {
-              messages.add(voice != null
-                  ? {'voiceId': voice[1], 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']}
-                  : {'text': text, 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']});
+              _appendMsg(voice != null
+                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']}
+                  : {'cmid': cmid, 'text': text, 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']});
             }
           });
         } else if (type == 'group_msg') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
           final cmid = (p['clientMsgId'] ?? '').toString();
-          if (cmid.isNotEmpty && _sentIds.contains(cmid)) { _sentIds.remove(cmid); return; }
+          if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
+            final i = messages.lastIndexWhere((m) => m['cmid'] == cmid);
+            _sentIds.remove(cmid);
+            if (i >= 0) {
+              setState(() => messages[i]['id'] = p['id']);
+              return;
+            }
+          }
+          if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
@@ -675,9 +673,9 @@ class _ChatViewStateState extends State<_ChatView> {
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
           setState(() {
             if (conv != null && conv['kind'] == 'group' && conv['id'] == gid) {
-              messages.add(voice != null
-                  ? {'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender}
-                  : {'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender});
+              _appendMsg(voice != null
+                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender}
+                  : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender});
             }
           });
         } else if (type == 'signal') {
@@ -745,14 +743,14 @@ class _ChatViewStateState extends State<_ChatView> {
         final vcmid = 'v${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(vcmid);
         socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id]', 'clientMsgId': vcmid}}));
-        setState(() => messages.add({'voiceId': id, 'mine': true, 'time': '现在'}));
+        setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'mine': true, 'time': '现在'}));
         try {
           final transcript = await widget.api.transcribe(id);
           if (transcript.isNotEmpty) {
             final tcmid = 't${DateTime.now().microsecondsSinceEpoch}';
             _sentIds.add(tcmid);
             socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': transcript, 'clientMsgId': tcmid}}));
-            if (mounted) setState(() => messages.add({'text': transcript, 'mine': true, 'time': '现在'}));
+            if (mounted) setState(() => _appendMsg({'cmid': tcmid, 'text': transcript, 'mine': true, 'time': '现在'}));
           }
         } catch (_) {
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('语音已发送，转写服务暂不可用')));
@@ -857,28 +855,7 @@ class _ChatViewStateState extends State<_ChatView> {
             );
           },
         )),
-        const Divider(height: 1),
-        _sidebarAction(Icons.qr_code_2, '我的名片', () => _showMyCard(context), config),
-        _sidebarAction(Icons.dynamic_feed_outlined, '朋友圈', () => Navigator.push(context, MaterialPageRoute(builder: (_) => MomentsPage(api: widget.api, config: widget.config))), config),
-        _sidebarAction(Icons.account_balance_wallet_outlined, '钱包', () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config))), config),
-        _sidebarAction(Icons.auto_awesome_outlined, 'AI 助手', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiPage(api: widget.api, config: widget.config))), config),
-        _sidebarAction(Icons.settings_outlined, '设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: widget.api))), config),
-        _sidebarAction(Icons.apps_rounded, '功能中心', () => _openFeatures(context), config),
       ]),
-    );
-  }
-
-  Widget _sidebarAction(IconData icon, String label, VoidCallback onTap, AppConfig config) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Icon(icon, color: config.theme.subText, size: 19),
-          const SizedBox(width: 10),
-          Text(label, style: TextStyle(color: config.theme.subText, fontSize: 13)),
-        ]),
-      ),
     );
   }
 
@@ -1111,14 +1088,14 @@ class _ChatViewStateState extends State<_ChatView> {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
       socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', text), 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
-      setState(() => messages.add({'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}));
+      setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}));
       return;
     }
     final to = conv['id'] as int;
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
-    setState(() { messages.add({'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}); });
+    setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}); });
   }
 
   Future<void> _clearConversation() async {
@@ -1300,14 +1277,6 @@ class _ChatViewStateState extends State<_ChatView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
     }
-  }
-
-  void _openFeatures(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _FeaturesSheet(api: widget.api, config: widget.config),
-    );
   }
 
   Future<void> _showChatInfo(BuildContext context) async {
@@ -1545,104 +1514,6 @@ class _WindowDragBar extends StatelessWidget {
         ),
         const Divider(height: 1, thickness: 1),
       ]),
-    );
-  }
-}
-
-// ─── 功能中心 BottomSheet ─────────────────────────────────────────────────────
-
-class _FeaturesSheet extends StatelessWidget {
-  const _FeaturesSheet({this.api, this.config});
-  final SecureChatApi? api;
-  final AppConfig? config;
-
-  Future<void> _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-
-  void _openUrl(String url) {
-    try { Process.start('cmd', ['/c', 'start', '', url]); } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = <(String, IconData, Widget)>[
-      if (api != null && config != null) ('朋友圈', Icons.dynamic_feed_outlined, MomentsPage(api: api!, config: config!)),
-      if (api != null && config != null) ('视频号', Icons.video_library_outlined, VideosPage(api: api!, config: config!)),
-      if (api != null && config != null) ('公众号', Icons.article_outlined, AccountsPage(api: api!, config: config!)),
-      if (api != null && config != null) ('钱包', Icons.account_balance_wallet_outlined, WalletPage(api: api!, config: config!)),
-      if (api != null && config != null) ('小程序', Icons.apps_rounded, MiniAppsPage(api: api!, config: config!)),
-      if (api != null && config != null) ('我的笔记', Icons.sticky_note_2_outlined, NotebookPage(api: api!, config: config!)),
-      ('安全便签', Icons.sticky_note_2_outlined, const NotesPage()),
-      ('待办清单', Icons.checklist_rounded, const TodoPage()),
-      ('快捷回复', Icons.bolt_outlined, const QuickRepliesPage()),
-      if (api != null && config != null) ('文件仓库', Icons.folder_outlined, FileRepositoryPage(api: api!, config: config!)),
-      ('我的收藏', Icons.favorite_outline, FavoritesPage(api: api)),
-      ('定时提醒', Icons.alarm_outlined, const ReminderPage()),
-      ('在线状态', Icons.mood_outlined, const MoodStatusPage()),
-      if (api != null && config != null) ('群聊', Icons.group_outlined, GroupPage(api: api!, config: config!)),
-      if (api != null && config != null) ('聊天增强', Icons.auto_fix_high, ChatExtPage(api: api!, config: config!)),
-      if (api != null && config != null) ('文件助手', Icons.folder_shared_outlined, FilehelperPage(baseUrl: api!.baseUrl, token: api!.token, config: config!)),
-      if (api != null && config != null) ('社区工具', Icons.handyman_outlined, CommunityToolsPage(api: api!, config: config!)),
-      if (api != null && config != null) ('我的状态', Icons.face_outlined, StatusPage(api: api!, config: config!)),
-      if (api != null && config != null) ('收藏中心', Icons.collections_bookmark_outlined, fav.FavoritesPage(api: api!, config: config!)),
-      if (api != null && config != null) ('支付生活', Icons.payments_outlined, WalletExtraPage(api: api!, config: config!)),
-      if (api != null && config != null) ('小程序商店', Icons.storefront_outlined, MiniAppStorePage(api: api!, config: config!)),
-      if (api != null && config != null) ('附近的人', Icons.near_me_outlined, NearbyPage(api: api!, config: config!)),
-      if (api != null && config != null) ('摇一摇', Icons.vibration_outlined, ShakePage(api: api!, config: config!)),
-      if (api != null && config != null) ('扫一扫', Icons.qr_code_scanner_outlined, ScanPage(api: api!, config: config!)),
-    ];
-    final webServices = <(String, IconData, String)>[
-      ('网盘', Icons.cloud_outlined, 'http://mc.32768.top:5213'),
-      ('邮箱', Icons.mail_outline, 'https://mail.32768.top'),
-      ('AI 网页', Icons.smart_toy_outlined, 'https://ai.32768.top'),
-    ];
-    final theme = Theme.of(context);
-    final t = config?.theme;
-    final textColor = t?.text ?? theme.colorScheme.onSurface;
-    return SafeArea(
-      child: Container(
-        decoration: BoxDecoration(color: t?.card ?? theme.colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 30, offset: const Offset(0, -4))]),
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('功能中心', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor)),
-          const SizedBox(height: 14),
-          Wrap(spacing: 14, runSpacing: 14, children: [
-            for (final e in entries) _gridItem(context, e.$1, e.$2, () => _push(context, e.$3)),
-          ]),
-          const SizedBox(height: 18),
-          Text('我的服务', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: textColor)),
-          const SizedBox(height: 14),
-          Wrap(spacing: 14, runSpacing: 14, children: [
-            for (final s in webServices) _gridItem(context, s.$1, s.$2, () => _openUrl(s.$3)),
-          ]),
-          const SizedBox(height: 6),
-        ]),
-      ),
-    );
-  }
-
-  Widget _gridItem(BuildContext context, String label, IconData icon, VoidCallback onTap) {
-    final t = config?.theme;
-    final primary = config?.primary ?? _wechatGreen;
-    final scheme = Theme.of(context).colorScheme;
-    final textColor = t?.text ?? scheme.onSurface;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 84,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: (t?.card ?? scheme.surface),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: (t?.div ?? scheme.outlineVariant).withValues(alpha: 0.5)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t?.isDark == true ? 0.15 : 0.04), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
-        child: Column(children: [
-          Icon(icon, color: primary, size: 26),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 12, color: textColor)),
-        ]),
-      ),
     );
   }
 }

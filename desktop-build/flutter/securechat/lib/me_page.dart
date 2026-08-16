@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'services/securechat_api.dart';
 import 'services/app_config.dart';
@@ -11,6 +12,7 @@ import 'wallet_page.dart';
 import 'favorites_page.dart' as fav;
 import 'wallet_extra_page.dart';
 import 'chat_ext_page.dart';
+import 'feedback_page.dart';
 
 class MePage extends StatefulWidget {
   const MePage({super.key, this.api, required this.config});
@@ -69,26 +71,112 @@ class _MePageState extends State<MePage> {
                   padding: const EdgeInsets.only(bottom: 32),
                   children: [
                     _header(),
+                    // 微信「我」页是若干独立卡片 + 灰色间隙，而不是一条长列表
                     const SizedBox(height: 10),
+                    // 卡片 A：支付
                     SectionCard(
                       config: widget.config,
                       margin: const EdgeInsets.symmetric(horizontal: 12),
                       children: [
                         ListCell(config: widget.config, icon: Icons.payments_outlined, title: '支付', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(api: _api, config: widget.config)))),
-                        CellDivider(config: widget.config),
-                        ListCell(config: widget.config, icon: Icons.favorite_border_rounded, title: '收藏', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => fav.FavoritesPage(api: _api, config: widget.config)))),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // 卡片 B：收藏 / 相册 / 卡包 / 表情
+                    SectionCard(
+                      config: widget.config,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        ListCell(config: widget.config, icon: Icons.star_border_rounded, title: '收藏', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => fav.FavoritesPage(api: _api, config: widget.config)))),
                         CellDivider(config: widget.config),
                         ListCell(config: widget.config, icon: Icons.photo_library_outlined, title: '相册', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AlbumPage(api: _api, config: widget.config)))),
                         CellDivider(config: widget.config),
                         ListCell(config: widget.config, icon: Icons.wallet_giftcard_outlined, title: '卡包', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletExtraPage(api: _api, config: widget.config)))),
                         CellDivider(config: widget.config),
                         ListCell(config: widget.config, icon: Icons.emoji_emotions_outlined, title: '表情', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatExtPage(api: _api, config: widget.config)))),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // 卡片 C：侧边栏裁到 4 个按钮后，名片/反馈迁移到这里
+                    SectionCard(
+                      config: widget.config,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        ListCell(config: widget.config, icon: Icons.qr_code_2_outlined, title: '我的名片', onTap: _showMyCard),
                         CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.feedback_outlined, title: '意见反馈', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FeedbackPage(config: widget.config, api: _api)))),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // 卡片 D：设置
+                    SectionCard(
+                      config: widget.config,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
                         ListCell(config: widget.config, icon: Icons.settings_outlined, title: '设置', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: _api)))),
                       ],
                     ),
                   ],
                 ),
+    );
+  }
+
+  /// 我的名片：与 main.dart 的 `_showMyCard` 等价（二维码文本同为 securechat://friend?uid=…），
+  /// 但只用本页自己的 `_api`，不依赖 main.dart。
+  Future<void> _showMyCard() async {
+    final t = widget.config.theme;
+    Map<String, dynamic> card;
+    try {
+      if (!_api.isLoggedIn) await _api.restoreSession();
+      card = _card ?? await _api.myCard();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('获取名片失败：${e.toString().replaceFirst('Bad state: ', '')}')),
+      );
+      return;
+    }
+    final uid = (card['uid'] ?? '').toString();
+    if (uid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未获取到您的 UID，无法生成名片')));
+      return;
+    }
+    final name = (card['name'] ?? card['nickname'] ?? card['username'] ?? '').toString();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: t.card,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('我的名片', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: t.text)),
+            const SizedBox(height: 14),
+            Text(name.isNotEmpty ? name : uid, style: TextStyle(fontSize: 13, color: t.subText)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: t.div),
+                borderRadius: BorderRadius.circular(Ux.cardRadius),
+              ),
+              child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200),
+            ),
+            const SizedBox(height: 12),
+            Text('让朋友用手机「扫一扫」这个二维码，即可添加我为好友。',
+                textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: t.subText)),
+            const SizedBox(height: 6),
+            Text('UID：$uid', style: TextStyle(fontSize: 12, color: t.subText)),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 

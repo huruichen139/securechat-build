@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.58.0';
+const PACKAGE_VERSION = '1.59.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -529,25 +529,6 @@ function tryRestore() {
     })
     .catch(() => { localStorage.removeItem('sc_token'); localStorage.removeItem('sc_me'); state.token = null; state.me = null; });
 }
-
-// 统一拦截鉴权失败：任何带 token 的 REST 请求返回 401 时自动登出
-// 避免登录失效后各页面反复报"未授权"
-(function () {
-  const origFetch = window.fetch.bind(window);
-  window.fetch = function (input, init) {
-    const opts = init || {};
-    const headers = opts.headers || {};
-    const authHeaders = headers['Authorization'] || headers['authorization'] || '';
-    const isAuthReq = /Bearer .+/.test(String(authHeaders || (opts.body && '') || ''));
-    return origFetch(input, opts).then(function (res) {
-      if (res.status === 401 && isAuthReq) {
-        const lt = localStorage.getItem('sc_token');
-        if (lt) { try { logout(); } catch (e) {} }
-      }
-      return res;
-    });
-  };
-})();
 
 function logout() {
   localStorage.removeItem('sc_token');
@@ -1763,6 +1744,69 @@ function renderContacts() {
   });
 }
 
+// 通讯录目录渲染（微信式：群聊 + A-Z 好友，无时间/未读）
+function renderContactsDirectory() {
+  const kw = ($('search') && $('search').value.trim().toLowerCase()) || '';
+  const list = $('contactList');
+  if (!list) return;
+  list.innerHTML = '';
+  const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
+  const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
+  const count = $('listCount'); if (count) count.textContent = state.friends.length + ' 位好友';
+
+  const sections = [];
+  // 群聊分组
+  const groups = state.groups.filter(g => !kw
+    || (g.name || '').toLowerCase().includes(kw)
+    || String(g.id).includes(kw)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  if (groups.length) sections.push({ title: '群聊', items: groups.map(g => ({ kind: 'group', g })) });
+
+  // 好友：按昵称首字母分组
+  const friends = state.friends.filter(u => !kw
+    || (u.nickname || '').toLowerCase().includes(kw)
+    || (u.username || '').toLowerCase().includes(kw)
+    || String(u.id).includes(kw)).sort((a, b) => (a.nickname || '').localeCompare(b.nickname || '', 'zh'));
+
+  const alphaMap = {};
+  friends.forEach(u => {
+    const ch = (u.nickname || '?').trim().charAt(0).toUpperCase();
+    const key = /[A-Z]/.test(ch) ? ch : '#';
+    (alphaMap[key] = alphaMap[key] || []).push(u);
+  });
+  Object.keys(alphaMap).sort().forEach(k => sections.push({ title: k, items: alphaMap[k].map(u => ({ kind: 'user', u })) }));
+
+  if (!sections.length) {
+    const tip = document.createElement('div');
+    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
+    tip.textContent = kw ? '没有匹配的联系人' : '还没有联系人，添加好友开始聊天';
+    list.appendChild(tip);
+    return;
+  }
+
+  sections.forEach(sec => {
+    const head = document.createElement('div');
+    head.className = 'section-label';
+    head.textContent = sec.title;
+    list.appendChild(head);
+    sec.items.forEach(item => {
+      const div = document.createElement('div');
+      if (item.kind === 'group') {
+        const g = item.g;
+        div.className = 'contact conversation-group';
+        div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${(g.members || []).length} 人</div></div>`;
+        div.onclick = () => selectGroup(g.id);
+      } else {
+        const u = item.u;
+        const avHtml = u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname);
+        div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
+        div.innerHTML = `<div class="avatar">${avHtml}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(u.nickname)}</div><div class="last">${u.online ? '在线' : '离线'}</div></div>`;
+        div.onclick = () => selectPeer(u.id);
+      }
+      list.appendChild(div);
+    });
+  });
+}
+
 // 群组列表渲染
 function renderGroupList() {
   const list = $('contactList');
@@ -1820,23 +1864,12 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === tt));
     syncMobileNav(tt.dataset.side);
 
-    // AI tab：切到 AI 助手视图，隐藏主聊天区
+    // 发现 tab：微信式发现页（朋友圈/视频号/直播/扫一扫/搜一搜/看一看/附近/购物/游戏/小程序/AI）
     if (tt.dataset.side === 'ai') {
-      const main = document.querySelector('.main');
-      if (main) main.style.display = 'none';
-      const downloadView = $('downloadView');
-      if (downloadView) downloadView.style.display = 'none';
-      const aiView = $('aiView');
-      if (aiView) aiView.style.display = 'flex';
-      // 侧边区域隐藏（AI 不需要加好友/群按钮）
-      const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
-      const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
-      // 调用 ai.js 里的 switchToAi：它负责未配置 apiKey 时弹设置、聚焦输入
-      if (window.switchToAi) window.switchToAi();
-      loadMiniPrograms();
-      // 移动端：切到 AI 视图也要进入"聊天态"（AI 视图与 .main 平级，靠 mobile-chat-active 移入屏内）
-       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
-       return;
+      showMobilePage('discoverPage');
+      renderDiscoverPage();
+      if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+      return;
     }
 
     // 更多功能 tab：打开特性发现中心（新增业务模块统一入口）
@@ -1846,17 +1879,10 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // 下载 tab：复用下载页逻辑，但保持在主站右侧视图内
+    // 我 tab：微信式"我"页（资料 + 支付/收藏/相册/设置 + 下载 + 意见反馈）
     if (tt.dataset.side === 'downloads' || tt.dataset.side === 'dl') {
-      const main = document.querySelector('.main');
-      if (main) main.style.display = 'none';
-      const aiView = $('aiView');
-      if (aiView) aiView.style.display = 'none';
-      const downloadView = $('downloadView');
-      if (downloadView) downloadView.style.display = 'flex';
-      const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
-      const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
-      if (window.initDownloadView) window.initDownloadView(downloadView);
+      showMobilePage('mePage');
+      renderMePage();
       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
       return;
     }
@@ -1882,7 +1908,16 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // 切回好友/群组：恢复 .main 显示，隐藏 AI 视图
+    // 通讯录 tab：微信式联系人目录（群聊 + 新好友 + A-Z 好友）
+    if (tt.dataset.side === 'contacts') {
+      showMobilePage('contactsPage');
+      renderContactsPage();
+      if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+      return;
+    }
+
+    // 切回好友/群组：恢复 .main 显示，隐藏 AI/发现/我/通讯录 全屏页
+    hideMobilePages();
     const aiView2 = $('aiView');
     if (aiView2) aiView2.style.display = 'none';
     const downloadView2 = $('downloadView');
@@ -1902,7 +1937,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
   // 微信式底部导航：仅保留 4 个核心 Tab（微信 / 通讯录 / 发现 / 我）
-  const CORE_TABS = ['friends', 'ai', 'downloads'];
+  const CORE_TABS = ['friends', 'contacts', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
     if (!CORE_TABS.includes(src.dataset.side)) return;
     const b = document.createElement('button');
@@ -2068,6 +2103,15 @@ function renderGroupMessages(msgs) {
 
 // 群聊消息气泡（带昵称）
 function appendGroupMessage(m, prepend) {
+  // 统一去重：同一条群消息（服务端 id 或 clientMsgId）只渲染一次
+  const box0 = $('messages');
+  if (box0) {
+    if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
+    if (m.clientMsgId) {
+      const local = box0.querySelector('.msg-row[data-cmid="' + String(m.clientMsgId).replace(/"/g, '\\"') + '"]');
+      if (local) { if (m.id != null) local.setAttribute('data-id', String(m.id)); return; }
+    }
+  }
   // 群聊语音：复用气泡结构，但带上发送人昵称/头像
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
     const rest = m.content.slice(VOICE_PREFIX.length);
@@ -2084,6 +2128,8 @@ function appendGroupMessage(m, prepend) {
       : avatarChar(fromName);
     const nameLine = mine ? '' : '<div class="name">' + escapeHtml(fromName) + '</div>';
     const bars = '<span class="voice-bars">' + Array.from({ length: 5 }, (_, i) => '<span style="height:' + (6 + i * 2) + 'px"></span>').join('') + '</span>';
+    if (m.id != null) row.setAttribute('data-id', String(m.id));
+    if (m.clientMsgId) row.setAttribute('data-cmid', String(m.clientMsgId));
     row.innerHTML = `<div class="avatar">${avHtml}</div>
       <div class="bubble-wrap">
         ${nameLine}
@@ -2115,6 +2161,8 @@ function appendGroupMessage(m, prepend) {
     ? '<img src="' + m.fromUser.avatar + '">'
     : avatarChar(fromName);
   const nameLine = mine ? '' : '<div class="name">' + escapeHtml(fromName) + '</div>';
+  if (m.id != null) row.setAttribute('data-id', String(m.id));
+  if (m.clientMsgId) row.setAttribute('data-cmid', String(m.clientMsgId));
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
@@ -2190,7 +2238,11 @@ async function loadGroups() {
 }
 
 
-$('search').oninput = renderContacts;
+$('search').oninput = () => {
+  const active = document.querySelector('.sidebar-rail .side-tab.on');
+  if (active && active.dataset.side === 'contacts') renderContactsDirectory();
+  else renderContacts();
+};
 
 // ============ 加好友 ============
 $('addFriendBtn').onclick = async () => {
@@ -2369,6 +2421,20 @@ if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const btn = $('createGrou
 if (welcomeAiBtn) welcomeAiBtn.onclick = () => { const tab = document.querySelector('.side-tab[data-side="ai"]'); if (tab) tab.click(); };
 
 function appendMessage(m, prepend) {
+  // 统一去重：同一条消息（服务端 id 或 clientMsgId）只渲染一次。
+  // 乐观渲染的行 id 为 'local-<clientMsgId>'，服务端回显到达时按 clientMsgId 命中同一行。
+  const box0 = $('messages');
+  if (box0) {
+    if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
+    if (m.clientMsgId) {
+      const local = box0.querySelector('.msg-row[data-cmid="' + String(m.clientMsgId).replace(/"/g, '\\"') + '"]');
+      if (local) {
+        // 已有本地乐观行：补上服务端 id，不再新增一行
+        if (m.id != null) local.setAttribute('data-id', String(m.id));
+        return;
+      }
+    }
+  }
   if (typeof m.content === 'string' && m.content.startsWith('__FILE__')) {
     try {
       const file = JSON.parse(m.content.slice(8));
@@ -2399,6 +2465,7 @@ function appendMessage(m, prepend) {
   const row = document.createElement('div');
   row.className = 'msg-row ' + (mine ? 'me' : 'other');
   if (m.id != null) row.setAttribute('data-id', String(m.id));
+  if (m.clientMsgId) row.setAttribute('data-cmid', String(m.clientMsgId));
   if (m.createdAt) row.setAttribute('data-ts', String(m.createdAt));
   const fullTime = new Date(m.createdAt).toLocaleString();
   row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span><div class="message-actions"><button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
@@ -2553,6 +2620,8 @@ async function onIncomingMsg(m) {
   }
   if (m.from === state.me.id && m.clientMsgId && state.pendingLocal[m.clientMsgId]) {
     delete state.pendingLocal[m.clientMsgId];
+    // 已乐观渲染过：仅补服务端 id（appendMessage 内部按 data-cmid 命中并回填），不新增行
+    appendMessage(m);
     state.lastFrom[m.from] = m.content;
     state.lastMsgTime[m.from] = m.createdAt || Date.now();
     renderContacts();
@@ -3276,6 +3345,8 @@ function renderDiscoverPage() {
     { name: '附近', icon: '附', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
     { name: '购物', icon: '购', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('购物功能开发中', 'info'); } },
     { name: '游戏', icon: '游', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('游戏功能开发中', 'info'); } },
+    { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
+    { name: 'AI 助手', icon: 'AI', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); } },
   ];
   // 分组：顶部常用，中间小程序区
   const group1 = items.slice(0, 3);
@@ -3313,7 +3384,7 @@ function renderMePage() {
 
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
-  const services = [
+const services = [
     { name: '支付', icon: '支付', action: () => {
       const pay = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
@@ -3323,13 +3394,15 @@ function renderMePage() {
     { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
     { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
     { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
-    { name: '设置', icon: '设', action: () => { if (window.switchToAi) window.switchToAi(); else toast('设置功能开发中', 'info'); } },
+    { name: '下载', icon: '下', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
+    { name: '意见反馈', icon: '反', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
+    { name: '设置', icon: '设', action: () => { if (window.openAiSettings) { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; window.openAiSettings(); } else toast('设置功能开发中', 'info'); } },
   ];
-  // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 设置
+  // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 下载/意见反馈/设置
   svc.innerHTML = `
     <div class="wx-me-group">${services.slice(0, 2).map((s, i) => meItemHtml(s, i)).join('')}</div>
     <div class="wx-me-group">${services.slice(2, 5).map((s, i) => meItemHtml(s, i + 2)).join('')}</div>
-    <div class="wx-me-group">${meItemHtml(services[5], 5)}</div>`;
+    <div class="wx-me-group">${services.slice(5).map((s, i) => meItemHtml(s, i + 5)).join('')}</div>`;
   svc.querySelectorAll('.wx-me-item').forEach((el, i) => { el.onclick = services[Number(el.dataset.si)].action; });
 }
 function meItemHtml(s, i) {

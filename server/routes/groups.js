@@ -119,18 +119,30 @@ function groupMsgDto(r) {
   return {
     id: r.id, groupId: r.group_id, from: r.from_id,
     content: r.content, createdAt: r.created_at,
+    clientMsgId: r.client_msg_id || null,
     fromUser: { id: r.from_id, username: sender && sender.username, nickname: name, avatar: sender && sender.avatar, uid: sender && sender.uid },
   };
 }
 
 // 追加群消息并尝试实时分发（若巨石 worker 通过 require.cache 注入分发器）
 function insertGroupMessage(groupId, fromId, content, clientMsgId) {
+  // 重试复用 clientMsgId 时返回原消息，避免重复插入与重复广播
+  if (clientMsgId) {
+    try {
+      const existing = p.get(
+        'SELECT id, group_id, from_id, content, created_at FROM group_messages WHERE client_msg_id=?',
+        clientMsgId);
+      if (existing) {
+        return { id: existing.id, groupId: existing.group_id, from: existing.from_id, content: existing.content, createdAt: existing.created_at, clientMsgId };
+      }
+    } catch (e) { /* 老库无该列时忽略 */ }
+  }
   const now = Date.now();
   const info = p.run(
-    'INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)',
-    groupId, fromId, content, now);
+    'INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)',
+    groupId, fromId, content, clientMsgId || null, now);
   const id = info.lastInsertRowid;
-  const msg = { id, groupId, from: fromId, content, createdAt: now };
+  const msg = { id, groupId, from: fromId, content, createdAt: now, clientMsgId: clientMsgId || null };
   // 事件分发钩子：registerGroups 会从 app.locals 读取合并方注入的可选广播
   broadcastHook && broadcastHook(groupId, msg);
   return msg;

@@ -108,6 +108,7 @@ function init() {
       group_id INTEGER NOT NULL,
       from_id INTEGER NOT NULL,
       content TEXT NOT NULL,
+      client_msg_id TEXT,
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_gm_group ON group_messages(group_id, created_at);
@@ -375,6 +376,10 @@ function init() {
     db.run('ALTER TABLE messages ADD COLUMN client_msg_id TEXT');
   } catch (e) { /* 列已存在 */ }
   try {
+    // 群消息也需要 clientMsgId：重试/多端回显时按此去重，避免"发一条出现两条"
+    db.run('ALTER TABLE group_messages ADD COLUMN client_msg_id TEXT');
+  } catch (e) { /* 列已存在 */ }
+  try {
     db.run('ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0');
   } catch (e) { /* 列已存在 */ }
   try {
@@ -399,6 +404,7 @@ function init() {
     db.run('ALTER TABLE users ADD COLUMN created_ip TEXT');
   } catch (e) { /* 列已存在 */ }
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
   // 给缺 uid 的老数据补一个
   const missing = db.exec('SELECT id FROM users WHERE uid IS NULL');
   if (missing && missing.length) {

@@ -494,6 +494,9 @@ window.hideAiView = function () {
   if (aiView) aiView.style.display = 'none';
 };
 
+// 供"我"页设置入口直接打开 AI 配置
+window.openAiSettings = openAiSettings;
+
 // ============ 监听 side-tab 的"AI"点击（独立监听，与 app.js 联动） ============
 // 注意：app.js 中 side-tab 切换逻辑已直接调用 window.switchToAi()，
 // 这里**只**做 DOMContentLoaded 时的初始化（bindAiEntry）；

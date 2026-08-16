@@ -10,6 +10,7 @@ import 'live_page.dart';
 import 'nearby_page.dart';
 import 'miniapp_page.dart';
 import 'community_tools_page.dart';
+import 'ai_page.dart';
 
 class DiscoverPage extends StatelessWidget {
   const DiscoverPage({super.key, this.api, required this.config});
@@ -24,38 +25,30 @@ class DiscoverPage extends StatelessWidget {
       color: t.bg,
       child: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(
-            child: Container(
-              color: t.card.withValues(alpha: 0.85),
-              margin: const EdgeInsets.only(top: 12),
-              child: Column(children: [
-                ListCell(
-                  config: cfg,
-                  icon: Icons.qr_code_scanner_rounded,
-                  title: '扫一扫',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ScanPage(api: api ?? SecureChatApi(), config: cfg))),
-                ),
-              ]),
-            ),
-          ),
-          _group(cfg, '朋友', [
-            ListCell(config: cfg, icon: Icons.photo_library_outlined, title: '朋友圈', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MomentsPage(api: api ?? SecureChatApi(), config: cfg)))),
-            ListCell(config: cfg, icon: Icons.video_library_outlined, title: '视频号', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VideosPage(api: api ?? SecureChatApi(), config: cfg)))),
-            ListCell(config: cfg, icon: Icons.visibility_outlined, title: '看一看', onTap: () => _notImplemented(context)),
-            ListCell(config: cfg, icon: Icons.search_outlined, title: '搜一搜', onTap: () => _notImplemented(context)),
-            ListCell(config: cfg, icon: Icons.live_tv_outlined, title: '直播', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LivePage(api: api ?? SecureChatApi(), config: cfg)))),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.photo_library_outlined, title: '朋友圈', onTap: () => _open(context, MomentsPage(api: api ?? SecureChatApi(), config: cfg))),
           ]),
-          _group(cfg, '附近', [
-            ListCell(config: cfg, icon: Icons.location_on_outlined, title: '附近的人', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyPage(api: api ?? SecureChatApi(), config: cfg)))),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.video_library_outlined, title: '视频号', onTap: () => _open(context, VideosPage(api: api ?? SecureChatApi(), config: cfg))),
+            ListCell(config: cfg, icon: Icons.live_tv_outlined, title: '直播', onTap: () => _open(context, LivePage(api: api ?? SecureChatApi(), config: cfg))),
+          ]),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.qr_code_scanner_rounded, title: '扫一扫', onTap: () => _open(context, ScanPage(api: api ?? SecureChatApi(), config: cfg))),
+            ListCell(config: cfg, icon: Icons.search_outlined, title: '搜一搜', onTap: () => _notImplemented(context)),
+            ListCell(config: cfg, icon: Icons.visibility_outlined, title: '看一看', onTap: () => _notImplemented(context)),
+          ]),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.location_on_outlined, title: '附近的人', onTap: () => _open(context, NearbyPage(api: api ?? SecureChatApi(), config: cfg))),
             ListCell(config: cfg, icon: Icons.storefront_outlined, title: '附近门店', onTap: () => _notImplemented(context)),
           ]),
-          _group(cfg, '购物', [
-            ListCell(config: cfg, icon: Icons.shopping_bag_outlined, title: '购物', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: api ?? SecureChatApi(), config: cfg)))),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.shopping_bag_outlined, title: '购物', onTap: () => _open(context, CommunityToolsPage(api: api ?? SecureChatApi(), config: cfg))),
             ListCell(config: cfg, icon: Icons.games_outlined, title: '游戏', onTap: () => _notImplemented(context)),
           ]),
-          _group(cfg, '小程序', [
-            ListCell(config: cfg, icon: Icons.apps_outlined, title: '小程序精选', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MiniAppStorePage(api: api ?? SecureChatApi(), config: cfg)))),
-            ListCell(config: cfg, icon: Icons.history_outlined, title: '最近使用', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MiniAppStorePage(api: api ?? SecureChatApi(), config: cfg)))),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.apps_outlined, title: '小程序', onTap: () => _open(context, MiniAppStorePage(api: api ?? SecureChatApi(), config: cfg))),
+            ListCell(config: cfg, icon: Icons.history_outlined, title: '最近使用', onTap: () => _open(context, MiniAppStorePage(api: api ?? SecureChatApi(), config: cfg))),
+            ListCell(config: cfg, icon: Icons.smart_toy_outlined, title: 'AI 助手', onTap: () => _open(context, AiPage(api: api ?? SecureChatApi(), config: cfg))),
           ]),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
@@ -63,27 +56,28 @@ class DiscoverPage extends StatelessWidget {
     );
   }
 
+  void _open(BuildContext context, Widget page) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
   void _notImplemented(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('功能开发中'), duration: Duration(seconds: 1)));
   }
 
-  Widget _group(AppConfig cfg, String title, List<Widget> items) {
+  Widget _group(AppConfig cfg, List<Widget> items) {
     return SliverToBoxAdapter(
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          SectionTitle(config: cfg, title: title),
-          SectionCard(
-            config: cfg,
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) CellDivider(config: cfg),
-                items[i],
-              ],
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: SectionCard(
+          config: cfg,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) CellDivider(config: cfg),
+              items[i],
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

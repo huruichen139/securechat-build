@@ -2591,16 +2591,27 @@ wss.on('connection', (ws) => {
     // 群消息：C_GROUP_MSG { groupId, content }
     if (type === P.C_GROUP_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
-      const { groupId, content } = payload || {};
+      const { groupId, content, clientMsgId } = payload || {};
       const gid = Number(groupId);
       if (!Number.isInteger(gid) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
+      if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
+        return send(ws, P.S_ERROR, { error: '消息标识无效' });
+      }
       const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid);
       if (!isMember) return send(ws, P.S_ERROR, { error: '你不在此群' });
+      // 重试复用 clientMsgId：返回原消息，不再插入/广播第二条
+      if (clientMsgId) {
+        const existing = prepare('SELECT id,group_id AS groupId,from_id AS fromId,content,created_at AS createdAt FROM group_messages WHERE client_msg_id=?').get(clientMsgId);
+        if (existing) {
+          send(ws, P.S_GROUP_MSG, { id: existing.id, groupId: existing.groupId, from: existing.fromId, content: existing.content, createdAt: existing.createdAt, clientMsgId, fromUser: ws.user });
+          return;
+        }
+      }
       const enc = content;
       const now = Date.now();
-      const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
-        .run(gid, ws.uid, enc, now);
-      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now };
+      const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
+        .run(gid, ws.uid, enc, clientMsgId || null, now);
+      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null };
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;

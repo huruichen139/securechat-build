@@ -20,9 +20,6 @@ class SecureChatApi {
   String? token;
   int? myId;
 
-  /// token 失效时回调（由 ChatShell 注册，触发后回到登录页）
-  static void Function()? onAuthExpired;
-
   static const _kToken = 'sc_api_token';
   static const _kMyId = 'sc_api_myid';
 
@@ -83,9 +80,7 @@ class SecureChatApi {
       data = {'error': response.body};
     }
     if (response.statusCode == 401) {
-      // token 失效：清本地会话 + 通知 UI 回登录，避免各页面反复"未授权"
-      await clearSession();
-      SecureChatApi.onAuthExpired?.call();
+      // 温和处理：不清会话、不强制回登录，仅提示，避免用户"点啥都重新登录"
       throw const AuthExpiredException();
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {

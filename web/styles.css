@@ -18,7 +18,7 @@
 }
 html, body { height: 100%; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "Microsoft YaHei", "PingFang SC", -apple-system, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-user-select: none;
@@ -32,7 +32,7 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 /* ---------- 登录注册 ---------- */
 .auth-wrap {
   height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #ffffff, #f0f5f3);
+  background: #f5f5f5;
 }
 .auth-card {
   width: 360px; background: #fff; border: 1px solid var(--border);
@@ -109,7 +109,7 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 .friend-req-bar { margin: 0 12px 8px; padding: 8px 10px; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; font-size: 12px; color: #874d00; display: flex; align-items: center; gap: 8px; }
 .friend-req-bar .btn-cn { padding: 4px 10px; font-size: 12px; }
 .avatar {
-  width: 38px; height: 38px; border-radius: 6px; background: var(--primary);
+  width: 40px; height: 40px; border-radius: 4px; background: var(--primary);
   color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
   overflow: hidden;
 }
@@ -123,8 +123,8 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 .contact { padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-left: 3px solid transparent; }
 .contact:hover { background: #efefef; }
 .contact.active { background: #e6e8e7; border-left-color: var(--primary); }
-.conversation-group .group-avatar { background: linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; font-weight:700; }
-.conversation-group.active .group-avatar { box-shadow: 0 0 0 3px rgba(124,58,237,.18); }
+.conversation-group .group-avatar { background: #07c160; color:#fff; font-weight:600; }
+.conversation-group.active .group-avatar { box-shadow: none; }
 .contact .name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contact .last { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-time { flex: 0 0 auto; align-self: flex-start; margin: 3px 5px 0 4px; color: #a0a0a0; font-size: 10px; white-space: nowrap; }
@@ -504,7 +504,7 @@ html, body { min-height: 100%; }
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+  font-family: "Microsoft YaHei", "PingFang SC", -apple-system, "Segoe UI", sans-serif;
 }
 
 /* The chat view uses nested flex scrolling. min-height:0 is required so
@@ -1395,7 +1395,7 @@ html.is-mobile #chatView.mobile-chat-active > #downloadView {
   background: #ededed;
 }
 .wechat-page.active { display: flex; }
-html:not(.is-mobile) .wechat-page { position: absolute; inset: 0; z-index: 20; }
+html:not(.is-mobile) .wechat-page { position: absolute; inset: 0 0 0 280px; z-index: 20; }
 html.is-mobile .wechat-page { display: none; }
 html.is-mobile .wechat-page.active { display: flex; }
 
