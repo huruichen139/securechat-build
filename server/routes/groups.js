@@ -114,7 +114,7 @@ function groupMsgDto(r) {
   const sender = p.get(
     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname
      FROM users u LEFT JOIN group_member_settings gms ON gms.group_id=? AND gms.user_id=u.id
-     WHERE u.id=?`, r.from_id, r.from_id);
+     WHERE u.id=?`, r.group_id, r.from_id);
   const name = (sender && (sender.my_nickname || sender.nickname)) || ('用户' + r.from_id);
   return {
     id: r.id, groupId: r.group_id, from: r.from_id,

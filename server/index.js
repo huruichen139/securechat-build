@@ -2548,7 +2548,7 @@ wss.on('connection', (ws) => {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = payload || {};
       const toId = Number(to);
-      if (toId === undefined || !Number.isInteger(toId) || !content) return;
+      if (toId === undefined || !Number.isInteger(toId) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
         return send(ws, P.S_ERROR, { error: '消息标识无效' });
       }
@@ -2593,7 +2593,7 @@ wss.on('connection', (ws) => {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { groupId, content } = payload || {};
       const gid = Number(groupId);
-      if (!Number.isInteger(gid) || !content) return;
+      if (!Number.isInteger(gid) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
       const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid);
       if (!isMember) return send(ws, P.S_ERROR, { error: '你不在此群' });
       const enc = content;
@@ -2690,6 +2690,17 @@ function mountFeatureRoutes(app, db) {
   }
 
   rx('./routes/groups', [app, db, null]);
+  try {
+    require('./routes/groups').attachGroupBroadcast((groupId, msg) => {
+      try {
+        const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
+        const fromUser = prepare('SELECT id,username,nickname,avatar,uid FROM users WHERE id=?').get(msg.from) || { nickname: '用户' + msg.from };
+        for (const m of members) {
+          if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { ...msg, fromUser });
+        }
+      } catch (e) {}
+    });
+  } catch (e) { console.error('[groups] attach broadcast failed: ' + (e && e.message || e)); }
   rx('./chat-ext', [app, db, { sendToUser, onlineAny: onlineAny, P }]);
   rx('./routes/rtc', [app, db, apiUser]);
   rx('./routes/media', [app, db, apiUser]);

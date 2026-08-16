@@ -1538,6 +1538,11 @@ function send(type, payload) {
     state.ws.send(JSON.stringify({ type, payload }));
     return true;
   }
+  // 已认证但 socket 尚未就绪（重连窗口/正在 CONNECTING）：入队，重连后统一冲刷，避免静默丢弃。
+  if (type !== P.C_AUTH) {
+    state.outboundQueue.push({ type, payload });
+    return true;
+  }
   return false;
 }
 
@@ -1557,11 +1562,15 @@ function handleServer(data) {
       state.users = payload.users || [];
       renderContacts();
       break;
-    case P.S_MSG:
+case P.S_MSG:
       // 解密完成后再渲染，否则实时消息会先显示密文且不会自动刷新。
-      maybeDecryptLive(payload)
-        .catch(() => {})
-        .then(() => onIncomingMsg(payload));
+      // 解密加 3s 超时：网络挂起时不能卡死消息渲染；整条链兜底避免 Unhandled Rejection。
+      Promise.race([
+        maybeDecryptLive(payload),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('decrypt timeout')), 3000))
+      ]).catch(() => {})
+        .then(() => onIncomingMsg(payload))
+        .catch((e) => console.warn('msg render failed', e));
       break;
     case P.S_TYPING:
       if (state.activePeer === payload.from) {
@@ -1571,7 +1580,7 @@ function handleServer(data) {
         typingTimer = setTimeout(() => tip.textContent = '', 2000);
       }
       break;
-    case P.S_ERROR: console.warn('server error', payload); break;
+    case P.S_ERROR: toast((payload && payload.error) || '服务器返回错误', 'error'); console.warn('server error', payload); break;
     case P.S_SIGNAL: if (window.rtc) window.rtc.handleSignal(payload); break;
     case P.S_FRIEND_LIST:
       state.friends = payload.friends || [];
@@ -1819,7 +1828,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     }
 
     // 下载 tab：复用下载页逻辑，但保持在主站右侧视图内
-    if (tt.dataset.side === 'downloads') {
+    if (tt.dataset.side === 'downloads' || tt.dataset.side === 'dl') {
       const main = document.querySelector('.main');
       if (main) main.style.display = 'none';
       const aiView = $('aiView');
@@ -2114,7 +2123,7 @@ function onIncomingGroupMsg(payload) {
 }
 
 // 群发送消息（E2E 加密：若会话已建立则先加密再发，失败自动降级明文）
-function sendCurrentGroup() {
+async function sendCurrentGroup() {
   if (!state.activeGroup) return false;
   const cv = document.getElementById('chatView');
   const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
@@ -2124,10 +2133,28 @@ function sendCurrentGroup() {
   const gid = state.activeGroup;
   // 群聊不能复用单聊的 peer E2EE 会话：groupId 不是用户公钥 ID。
   // 先使用群消息协议发送明文，避免把群 ID 当成用户 ID 导致发送失败。
-  send(P.C_GROUP_MSG, { groupId: gid, content: text });
-  input.value = '';
-  saveCurrentDraft();
-  return true;
+  const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text });
+  if (ok) {
+    input.value = '';
+    saveCurrentDraft();
+    return true;
+  }
+  // WS 不可用：走 REST 兜底（服务端已支持 POST /api/groups/:id/messages）。
+  try {
+    const res = await fetch(state.serverHost + '/api/groups/' + gid + '/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify({ content: text })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '发送失败');
+    input.value = '';
+    saveCurrentDraft();
+    return true;
+  } catch (e) {
+    toast('群消息发送失败：' + ((e && e.message) || e), 'error');
+    return false;
+  }
 }
 
 async function loadGroups() {

@@ -119,11 +119,11 @@
       return encryptIfReady(gid, content).then((ct) => {
         const finalContent = ct || content;
         if (window.send) {
-          try {
-            window.send(window.P.C_GROUP_MSG, { groupId: gid, content: finalContent, clientMsgId: opts && opts.clientMsgId, replyTo: opts && opts.replyTo });
+          const ok = window.send(window.P.C_GROUP_MSG, { groupId: gid, content: finalContent, clientMsgId: opts && opts.clientMsgId, replyTo: opts && opts.replyTo });
+          if (ok) {
             if (opts && opts.optimistic) appendLocal(finalContent, true, opts);
             return Promise.resolve({ ok: true });
-          } catch (e) {}
+          }
         }
         return post('/api/groups/' + gid + '/messages', { content: finalContent, replyTo: opts && opts.replyTo })
           .catch(function () { return { ok: false }; })

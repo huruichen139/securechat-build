@@ -62,6 +62,18 @@ module.exports = function registerChatExt(app, db, auth) {
     return u ? (u.nickname || u.username || '用户') : '用户';
   }
 
+  // 群消息实时分发：发给群内所有在线成员（含发送者）。群 ID 不是用户 ID，
+  // 不能直接传给 sendToUser；必须遍历 group_members。
+  function broadcastGroup(groupId, out) {
+    try {
+      const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
+      const fromUser = prepare('SELECT id,username,nickname,avatar,uid FROM users WHERE id=?').get(out.from) || { nickname: publicName(out.from) };
+      for (const m of members) {
+        if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { ...out, fromUser });
+      }
+    } catch (e) { /* 群不存在或推送失败，落库不受影响 */ }
+  }
+
   // 校验转发目标数组结构：[{ id, kind:'friend'|'group' }]，去重返回有效列表
   function normalizeTargets(list) {
     if (!Array.isArray(list)) return [];
@@ -190,7 +202,7 @@ module.exports = function registerChatExt(app, db, auth) {
             .run(info.lastInsertRowid, 0, 'forward', JSON.stringify({ kind: 'forward', fromName: publicName(payload.id), from: srcMsg.from_id, sourceMessageId: id, content: srcMsg.content }), Date.now());
         } catch (e) {}
         const out = { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'forward', fromUser: { nickname: publicName(payload.id) } };
-        sendToUser(t.id, P.S_GROUP_MSG, out);
+        broadcastGroup(t.id, out);
         results.push(out);
       } else {
         const out = deliverToFriend(payload.id, t.id, content, { kind: 'forward', forwardedFrom: id }, srcMsg);
@@ -257,7 +269,7 @@ module.exports = function registerChatExt(app, db, auth) {
               .run(info.lastInsertRowid, 0, 'merged', JSON.stringify(merged), Date.now());
           } catch (e) {}
           const out = { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'merged', fromUser: { nickname: publicName(payload.id) } };
-          sendToUser(t.id, P.S_GROUP_MSG, out);
+          broadcastGroup(t.id, out);
           results.push(out);
         } else {
           const out = deliverToFriend(payload.id, t.id, content, { kind: 'merged', mergePayload: merged }, null);
@@ -279,6 +291,7 @@ module.exports = function registerChatExt(app, db, auth) {
                 .run(info.lastInsertRowid, 0, 'forward', JSON.stringify({ kind: 'forward', fromName: publicName(payload.id), from: m.from_id, sourceMessageId: m.id }), Date.now());
             } catch (e) {}
             results.push({ id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'forward' });
+            broadcastGroup(t.id, { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content });
           } else {
             const out = deliverToFriend(payload.id, t.id, content, { kind: 'forward', forwardedFrom: m.id }, m);
             results.push(out);
