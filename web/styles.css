@@ -2452,232 +2452,137 @@ body.dark-mode .rp-mode { background: #1e293b; }
 body.dark-mode .rp-grab-list { border-color: #334155; }
 body.dark-mode .msg-row.other .rp-bubble { background: #1e293b; border-color: #5c3a3a; }
 
-/* ============ Modern UI 2026: Glass + Micro-interactions ============ */
+/* ============ WeChat Flat 2026: calm, native, no AI slop ============ */
+/* Kill: purple gradients, glassmorphism, bounce hovers, glowing shadows.
+   Keep: flat surfaces, hairline borders, one accent (WeChat green), quiet motion. */
 :root {
-  --accent-1: #07c160;
-  --accent-2: #10b981;
-  --grad-main: linear-gradient(135deg, #07c160, #10b981);
-  --grad-ai: linear-gradient(135deg, #8b5cf6, #6366f1);
-  --glass-bg: rgba(255,255,255,.72);
-  --glass-border: rgba(255,255,255,.55);
-  --radius-lg: 18px;
-  --shadow-soft: 0 10px 34px rgba(15,23,42,.10), 0 2px 8px rgba(15,23,42,.05);
-  --shadow-pop: 0 18px 50px rgba(15,23,42,.18), 0 4px 14px rgba(15,23,42,.08);
-  --squircle: 22px;
+  --accent: #07c160;
+  --accent-hover: #06ad56;
+  --wx-text: #1f2329;
+  --wx-text-2: #8a9099;
+  --wx-line: rgba(0,0,0,.055);
+  --wx-bg: #f7f8fa;
+  --wx-bubble-me: #95ec69;
+  --wx-bubble-me-dk: #263f23;
+  --wx-bubble-other-dk: #2b2e33;
+  --wx-rail: #f2f3f5;
+  --wx-rail-hover: rgba(0,0,0,.04);
+  --wx-rail-active: rgba(7,193,96,.14);
 }
-body {
-  background: linear-gradient(160deg, #f6faf8 0%, #eef4f1 45%, #e9f0f6 100%);
-}
-/* 桌面主聊区域：细腻渐变 + 柔和光晕 */
-html:not(.is-mobile) .main {
-  background:
-    radial-gradient(1100px 520px at 88% -8%, rgba(139,92,246,.06), transparent 55%),
-    radial-gradient(900px 480px at -6% 110%, rgba(7,193,96,.07), transparent 52%),
-    #fbfcfd;
-}
-/* Sidebar rail: 玻璃质感 + 悬浮图标胶囊 */
+html:not(.is-mobile) body { background: var(--wx-bg); }
+html:not(.is-mobile) .main { background: #fff; }
+/* Sidebar rail: flat, no blur */
 .sidebar-rail {
-  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(248,250,252,.88));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-right: 1px solid rgba(15,23,42,.06);
+  background: var(--wx-rail);
+  border-right: 1px solid var(--wx-line);
+  transition: background .2s ease;
 }
 .sidebar-rail-brand {
-  background: var(--grad-main);
-  border-radius: 14px;
-  box-shadow: 0 8px 18px rgba(7,193,96,.30);
-  transition: transform .2s ease, box-shadow .2s ease;
+  background: var(--accent);
+  border-radius: 8px;
+  transition: background .15s ease;
 }
-.sidebar-rail-brand:hover { transform: scale(1.06); box-shadow: 0 10px 24px rgba(7,193,96,.38); }
+.sidebar-rail-brand:hover { background: var(--accent-hover); }
 .sidebar-rail .side-tab {
-  width: 54px;
-  min-height: 58px;
-  border-radius: 16px;
-  transition: transform .16s ease, background .2s ease, box-shadow .2s ease, color .2s ease;
+  border-radius: 8px;
+  transition: background .15s ease, color .15s ease;
 }
-.sidebar-rail .side-tab .rail-icon {
-  width: 34px;
-  height: 30px;
-  border-radius: 10px;
-  font-size: 15px;
-  transition: background .2s ease, color .2s ease, transform .16s ease;
-}
-.sidebar-rail .side-tab:hover { transform: translateY(-2px); background: rgba(7,193,96,.08); }
-.sidebar-rail .side-tab:hover .rail-icon { transform: scale(1.08); }
-.sidebar-rail .side-tab.on {
-  background: var(--grad-main);
-  color: #fff;
-  box-shadow: 0 8px 20px rgba(7,193,96,.35);
-}
-.sidebar-rail .side-tab.on .rail-icon { color: #fff; }
-.sidebar-rail .side-tab.on:hover { background: var(--grad-main); }
+.sidebar-rail .side-tab .rail-icon { transition: color .15s ease; }
+.sidebar-rail .side-tab:hover { background: var(--wx-rail-hover); }
+.sidebar-rail .side-tab.on { background: var(--wx-rail-active); color: var(--accent); }
+.sidebar-rail .side-tab.on .rail-icon { color: var(--accent); }
 .sidebar-rail .side-tab.on::after { display: none; }
-/* 底部动作按钮玻璃化 */
-.rail-action {
-  width: 38px;
-  height: 34px;
-  border-radius: 11px;
-  transition: transform .16s ease, background .2s ease, color .2s ease;
-}
-.rail-action:hover { transform: translateY(-2px); background: rgba(7,193,96,.10); }
-/* Sidebar content 卡片化 */
-.sidebar-content {
-  background: rgba(248,250,252,.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-.sidebar-brand, .sidebar-tools, .side-tabs {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 16px rgba(15,23,42,.05);
-}
-.side-tabs {
-  border-radius: 14px;
-  border: 1px solid var(--glass-border);
-}
-.side-tabs .side-tab { border-radius: 10px; transition: all .18s ease; }
-.side-tabs .side-tab:hover { background: rgba(7,193,96,.10); }
-.side-tabs .side-tab.on { background: var(--grad-main); color: #fff; }
+.rail-action { border-radius: 8px; transition: background .15s ease; }
+.rail-action:hover { background: var(--wx-rail-hover); }
+/* Sidebar content: flat white */
+.sidebar-content { background: #fff; }
+.side-tabs { border-radius: 10px; }
+.side-tabs .side-tab { border-radius: 8px; transition: background .15s ease; }
+.side-tabs .side-tab:hover { background: var(--wx-rail-hover); }
+.side-tabs .side-tab.on { background: var(--wx-rail-active); color: var(--accent); }
 .side-tabs .side-tab.on::after { display: none; }
-/* 联系人卡片微交互 */
-.contact {
-  border-radius: 14px;
-  transition: transform .16s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+/* 联系人列表：一行 hover，无位移无发光 */
+.contact { transition: background .15s ease; border-radius: 10px; }
+.contact:hover { background: #f5f6f7; }
+.contact.active { background: var(--wx-rail-active); }
+/* Header / composer: 纯白 */
+html:not(.is-mobile) .header { background: #fff; }
+html:not(.is-mobile) .composer { background: #fff; }
+.header { border-bottom: 1px solid var(--wx-line); }
+.composer { border-top: 1px solid var(--wx-line); }
+/* 消除残留毛玻璃（桌面+移动一致：扁平） */
+.sidebar, .header, .ai-view .ai-header, .composer, .ai-view .ai-composer {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
-.contact:hover { transform: translateY(-1px); }
-.contact.active {
-  background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
-  box-shadow: 0 6px 18px rgba(7,193,96,.14);
-}
-/* Header / composer 毛玻璃 */
-html:not(.is-mobile) .header,
-html:not(.is-mobile) .composer {
-  background: rgba(255,255,255,.72);
-  backdrop-filter: blur(18px) saturate(1.35);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
-}
-.header { border-bottom: 1px solid rgba(15,23,42,.05); }
-.composer { border-top: 1px solid rgba(15,23,42,.05); box-shadow: 0 -10px 30px rgba(15,23,42,.05); }
-/* 气泡：squircle 圆角 + 呼吸光晕 */
-.bubble {
-  border-radius: 16px;
-  transition: transform .14s ease;
-}
-.msg-row.me .bubble {
-  background: var(--grad-main);
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(7,193,96,.22);
-}
-.msg-row.other .bubble {
-  background: rgba(255,255,255,.92);
-  box-shadow: 0 4px 14px rgba(15,23,42,.06);
-}
-/* 日期分隔条 */
+.sidebar { background: #fff; }
+html.is-mobile .header { background: #fff; }
+html.is-mobile .composer { background: #fff; }
+html.is-mobile .ai-header { background: #fff !important; }
+html.is-mobile .ai-composer { background: #fff !important; }
+/* 气泡：微信原生配色，回到扁平的 #95ec69 */
+.msg-row.me .bubble { background: var(--wx-bubble-me); color: #000; }
+.msg-row.other .bubble { background: #fff; border: 1px solid #ececec; box-shadow: none; }
+.bubble { border-radius: 8px; }
+/* 日期分隔条：朴素小字 */
 .day-divider {
   align-self: center;
-  margin: 14px auto;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: rgba(15,23,42,.05);
-  color: #94a3b8;
+  margin: 12px auto;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #eceef0;
+  color: #a6adb4;
   font-size: 11px;
 }
-/* 发送按钮渐变 */
-.btn.send, .composer-send-btn {
-  background: var(--grad-main);
-  border-radius: 12px;
-  box-shadow: 0 6px 14px rgba(7,193,96,.25);
-  transition: transform .16s ease, box-shadow .2s ease, filter .2s ease;
-}
-.btn.send:hover, .composer-send-btn:hover { transform: translateY(-2px); box-shadow: 0 9px 22px rgba(7,193,96,.32); filter: brightness(1.03); }
-.btn.send:active, .composer-send-btn:active { transform: translateY(0); }
-/* AI 视图 */
-.ai-view .ai-header { backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); }
-.ai-header { background: rgba(255,255,255,.74) !important; }
-.ai-composer { background: rgba(255,255,255,.74) !important; backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); }
-#aiSendBtn { background: var(--grad-ai); box-shadow: 0 6px 16px rgba(99,102,241,.30); }
-#aiSendBtn:hover { transform: translateY(-2px); box-shadow: 0 9px 22px rgba(99,102,241,.38); }
-/* 欢迎面板：bento 风格 */
-.welcome-panel .welcome-orb {
-  background: var(--grad-main);
-  box-shadow: 0 16px 40px rgba(7,193,96,.32);
-}
-.welcome-action {
-  border-radius: 18px;
-  background: rgba(255,255,255,.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-.welcome-action:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(7,193,96,.16); }
-/* 弹窗玻璃化 */
-.modal-mask { background: rgba(15,23,42,.32); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.modal-box {
-  border-radius: var(--radius-lg);
-  background: rgba(255,255,255,.92);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  box-shadow: var(--shadow-pop);
-}
-/* 登录卡片现代感 */
-.auth-wrap { background: linear-gradient(135deg, #f0fdf4 0%, #eef2ff 50%, #fdf2f8 100%); }
-.auth-card {
-  border-radius: 22px;
-  background: rgba(255,255,255,.86);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 24px 60px rgba(15,23,42,.12);
-  border: 1px solid rgba(255,255,255,.7);
-}
-/* 发现/我 卡片：玻璃分组 */
-.wx-me-group, .wx-group {
-  background: rgba(255,255,255,.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,.6);
-  box-shadow: 0 6px 20px rgba(15,23,42,.06);
-}
-.wx-me-icon, .wx-discover-icon { border-radius: 12px; }
-/* 深色模式适配 */
-body.dark-mode {
-  background: linear-gradient(160deg, #0a1120 0%, #0f172a 45%, #0b1220 100%);
-}
-body.dark-mode .sidebar-rail {
-  background: linear-gradient(180deg, rgba(15,23,42,.92), rgba(11,18,32,.88));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-body.dark-mode .sidebar-content {
-  background: rgba(17,24,39,.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-body.dark-mode .sidebar-brand, body.dark-mode .sidebar-tools, body.dark-mode .side-tabs {
-  background: rgba(30,41,59,.6);
-  box-shadow: 0 4px 18px rgba(0,0,0,.25);
-}
-body.dark-mode .header,
-body.dark-mode .composer {
-  background: rgba(17,24,39,.72);
-  backdrop-filter: blur(18px) saturate(1.25);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
-}
-body.dark-mode .msg-row.other .bubble { background: rgba(30,41,59,.92); box-shadow: 0 4px 14px rgba(0,0,0,.28); }
-body.dark-mode .welcome-action { background: rgba(30,41,59,.7); }
-body.dark-mode .wx-me-group, body.dark-mode .wx-group { background: rgba(30,41,59,.7); }
-body.dark-mode .modal-box { background: rgba(17,24,39,.92); }
-body.dark-mode .auth-card { background: rgba(17,24,39,.88); border-color: rgba(51,65,85,.5); }
-body.dark-mode .day-divider { background: rgba(226,232,240,.08); color: #64748b; }
-body.dark-mode .ai-header, body.dark-mode .ai-composer { background: rgba(17,24,39,.74) !important; }
-body.dark-mode .bubble { border-radius: 16px; }
-/* 滚动条现代风 */
+/* 发送按钮：微信绿实心，悬停只变深浅 */
+.btn.send, .composer-send-btn { background: var(--accent); border-radius: 6px; transition: background .15s ease; }
+.btn.send:hover, .composer-send-btn:hover { background: var(--accent-hover); }
+.btn.send:active, .composer-send-btn:active { background: #059a4d; }
+/* AI 视图：跟随全局纯白，不叠加紫 */
+.ai-header { background: #fff !important; }
+.ai-composer { background: #fff !important; }
+#aiSendBtn { background: var(--accent); transition: background .15s ease; }
+#aiSendBtn:hover { background: var(--accent-hover); }
+/* 欢迎面板：无光晕，绿点到按钮平铺 */
+.welcome-panel .welcome-orb { background: var(--accent); }
+.welcome-action { border-radius: 10px; background: #f7f8fa; border: 1px solid var(--wx-line); transition: background .15s ease; }
+.welcome-action:hover { background: #eef1f3; }
+/* 弹窗：白底细边 */
+.modal-mask { background: rgba(0,0,0,.4); }
+.modal-box { border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgba(0,0,0,.12); border: 1px solid var(--wx-line); }
+/* 登录卡片：白底细边 */
+.auth-wrap { background: var(--wx-bg); }
+.auth-card { border-radius: 12px; background: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.06); border: 1px solid var(--wx-line); }
+/* 发现/我 分组：纯白卡片，无玻璃 */
+.wx-me-group, .wx-group { background: #fff; border: 1px solid var(--wx-line); }
+.wx-me-icon, .wx-discover-icon { border-radius: 8px; }
+/* 深色模式：微信桌面深色，扁平 */
+body.dark-mode { background: #111214; }
+body.dark-mode .main { background: #1a1b1e; }
+body.dark-mode .sidebar-rail { background: #17181a; border-right-color: rgba(255,255,255,.06); }
+body.dark-mode .sidebar-content { background: #1a1b1e; }
+body.dark-mode .sidebar { background: #1a1b1e; }
+body.dark-mode .sidebar-rail .side-tab:hover { background: rgba(255,255,255,.05); }
+body.dark-mode .sidebar-rail .side-tab.on { background: rgba(7,193,96,.18); color: #4cd964; }
+body.dark-mode .side-tabs .side-tab.on { background: rgba(7,193,96,.18); color: #4cd964; }
+body.dark-mode .header { background: #1a1b1e; border-bottom-color: rgba(255,255,255,.06); }
+body.dark-mode .composer { background: #1a1b1e; border-top-color: rgba(255,255,255,.06); }
+body.dark-mode .msg-row.me .bubble { background: var(--wx-bubble-me-dk); color: #b8e6a8; }
+body.dark-mode .msg-row.other .bubble { background: var(--wx-bubble-other-dk); border-color: rgba(255,255,255,.06); color: #e6e6e6; }
+body.dark-mode .contact:hover { background: #232428; }
+body.dark-mode .contact.active { background: rgba(7,193,96,.14); }
+body.dark-mode .welcome-action { background: #232428; border-color: rgba(255,255,255,.06); }
+body.dark-mode .wx-me-group, body.dark-mode .wx-group { background: #1f2023; border-color: rgba(255,255,255,.06); }
+body.dark-mode .modal-box { background: #1f2023; border-color: rgba(255,255,255,.06); }
+body.dark-mode .auth-card { background: #1f2023; border-color: rgba(255,255,255,.06); }
+body.dark-mode .day-divider { background: #232428; color: #6b7076; }
+body.dark-mode .ai-header, body.dark-mode .ai-composer { background: #1a1b1e !important; }
+/* 滚动条：细、低调 */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(100,116,139,.28); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,.45); }
-/* 页面切换微动画 */
-.wechat-page.active, .chat-view-panel { animation: pageIn .2s ease; }
-@keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.sidebar-rail .side-tab.on .rail-icon { animation: tabPop .28s ease; }
-@keyframes tabPop { 0% { transform: scale(.85); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.28); }
+/* 页面切换：轻淡，不弹跳 */
+.wechat-page.active, .chat-view-panel { animation: pageIn .16s ease; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 
