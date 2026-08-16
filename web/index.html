@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=wechat-flat-20260816-3" />
+  <link rel="stylesheet" href="styles.css?v=wechat-flat-20260816-4" />
   <style>
     /* ============ 真·亚克力效果 (内联，UTF-8，优先级高于外部 CSS) ============ */
     /* 1) 给 body / .chat-wrap / .auth-wrap 加彩色渐变流动背景（这样 backdrop-filter 才有东西可模糊） */
@@ -210,7 +210,7 @@
     <!-- 右侧 -->
     <div class="main">
       <!-- 桌面端聊天头部 -->
-      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系人</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话" data-i18n="search">搜索</button><button id="pinChatBtn" class="head-tool" title="置顶当前会话" data-i18n="pin">置顶</button><button id="muteChatBtn" class="head-tool" title="当前会话免打扰" data-i18n="mute">免打扰</button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录" data-i18n="clear">清空</button><button id="notifyBtn" class="head-tool" title="开启浏览器通知" data-i18n="notify">通知</button></div></div>
+      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系人</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话" data-i18n="search">搜索</button><button id="pinChatBtn" class="head-tool" title="置顶当前会话" data-i18n="pin">置顶</button><button id="muteChatBtn" class="head-tool" title="当前会话免打扰" data-i18n="mute">免打扰</button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录" data-i18n="clear">清空</button><button id="notifyBtn" class="head-tool" title="开启浏览器通知" data-i18n="notify">通知</button><button id="chatHeaderMoreBtn" class="head-tool" title="更多">⋯</button></div></div>
       <!-- 微信式移动端聊天头部（默认隐藏） -->
       <div id="chatMobileHeader" class="chat-header" style="display:none">
         <button class="header-back" id="chatMobileBackBtn">返回</button>
@@ -298,6 +298,16 @@
       <div class="page-body">
         <div class="me-header" id="meHeaderContent"></div>
         <div class="me-card" id="meServicesCard"></div>
+      </div>
+    </div>
+    <!-- 黑名单页（全屏） -->
+    <div id="blocklistPage" class="wechat-page">
+      <div class="page-header">
+        <button class="back-btn" id="blocklistBackBtn">返回</button>
+        <h2>黑名单</h2>
+      </div>
+      <div class="page-body">
+        <div id="blocklistList"></div>
       </div>
     </div>
     <!-- 通讯录页（移动端全屏） -->
@@ -406,7 +416,7 @@
 <script src="features-knowledge-poems.js?v=1-61-0-1"></script>
 <script src="features-knowledge-tongue.js?v=1-61-0-1"></script>
 <script src="jsqr.js?v=1-54-0-0"></script>
-  <script src="app.js?v=1-61-0-1"></script>
+  <script src="app.js?v=1-61-0-2"></script>
 <script src="modules/registry.js?v=1-54-0-2"></script>
 <script src="modules/groups.js?v=1-54-0-3"></script>
 <script src="modules/chat-ext.js?v=1-54-0-4"></script>

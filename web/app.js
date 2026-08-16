@@ -2096,8 +2096,8 @@ async function selectGroup(groupId) {
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
-  // 移动端：选中群组后切换到聊天区
-  if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+  // 移动端：选中群组后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
+  if (window.IS_MOBILE) showMobileChatView();
 }
 
 function renderGroupMessages(msgs) {
@@ -2340,8 +2340,8 @@ async function selectPeer(peerId) {
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
-  // 移动端：选中联系人后切换到聊天区
-  if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+  // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
+  if (window.IS_MOBILE) showMobileChatView();
 }
 
 function renderMessages(msgs) {
@@ -3335,7 +3335,7 @@ window.addEventListener('resize', () => {
   if (sb) active.style.left = sb.offsetWidth + 'px';
 });
 function hideMobilePages() {
-  ['discoverPage', 'mePage', 'contactsPage'].forEach(id => {
+  ['discoverPage', 'mePage', 'contactsPage', 'blocklistPage'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
@@ -3418,6 +3418,7 @@ const services = [
     { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
     { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
     { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
+    { name: '黑名单', icon: '黑', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
     { name: '更多功能', icon: '更', action: () => openFeatureCenter() },
     { name: '下载', icon: '下', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
     { name: '意见反馈', icon: '反', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
@@ -3533,6 +3534,15 @@ function renderContactsPage() {
   }
 }
 
+// 侧边栏 Tab 高亮：rail 按钮 + 移动端底部导航同步
+function setRailActive(side) {
+  document.querySelectorAll('.sidebar-rail .side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === side));
+  if (typeof syncMobileNav === 'function') syncMobileNav(side);
+}
+// 桌面端：聊天人列表只在点击"微信"时显示
+function setChatListVisible(show) {
+  document.documentElement.classList.toggle('chat-list-hidden', !show);
+}
 // 侧边栏 Tab → 微信式页面路由（全端通用）
 (function initWechatMobileNav() {
   // 发现 tab → 微信式发现页
@@ -3540,6 +3550,8 @@ function renderContactsPage() {
   if (discoverTab) {
     discoverTab.onclick = (e) => {
       e.stopPropagation();
+      setRailActive('ai');
+      setChatListVisible(false);
       renderDiscoverPage();
       showMobilePage('discoverPage');
     };
@@ -3549,6 +3561,8 @@ function renderContactsPage() {
   if (meTab) {
     meTab.onclick = (e) => {
       e.stopPropagation();
+      setRailActive('downloads');
+      setChatListVisible(false);
       renderMePage();
       showMobilePage('mePage');
     };
@@ -3558,15 +3572,19 @@ function renderContactsPage() {
   if (contactsTab) {
     contactsTab.onclick = (e) => {
       e.stopPropagation();
+      setRailActive('contacts');
+      setChatListVisible(false);
       renderContactsPage();
       showMobilePage('contactsPage');
     };
   }
-  // 微信 tab → 切回聊天主界面
+  // 微信 tab → 切回聊天主界面（桌面端同时显示聊天人列表）
   const friendsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
   if (friendsTab) {
     friendsTab.onclick = (e) => {
       e.stopPropagation();
+      setRailActive('friends');
+      setChatListVisible(true);
       hideMobilePages();
       const main = document.querySelector('.main');
       if (main) main.style.display = 'flex';
@@ -3623,10 +3641,21 @@ function renderContactsPage() {
       renderContacts();
     };
   }
-  // 更多按钮（聊天头部）
+  // 更多按钮（聊天头部）→ 弹出菜单：拉黑 / 黑名单 / 更多功能
   const chatMobileMoreBtn = document.getElementById('chatMobileMoreBtn');
   if (chatMobileMoreBtn) {
-    chatMobileMoreBtn.onclick = () => openFeatureCenter();
+    chatMobileMoreBtn.onclick = (e) => {
+      e.stopPropagation();
+      openChatMoreMenu(chatMobileMoreBtn);
+    };
+  }
+  // 桌面端聊天头部"⋯"按钮
+  const chatHeaderMoreBtn = document.getElementById('chatHeaderMoreBtn');
+  if (chatHeaderMoreBtn) {
+    chatHeaderMoreBtn.onclick = (e) => {
+      e.stopPropagation();
+      openChatMoreMenu(chatHeaderMoreBtn);
+    };
   }
   // 语音图标 → 触发录音
   const voiceIconBtn = document.getElementById('voiceIconBtn');
@@ -3636,11 +3665,95 @@ function renderContactsPage() {
       if (realBtn) realBtn.click();
     };
   }
+  // 黑名单页返回 → 回"我"页
+  const blocklistBackBtn = document.getElementById('blocklistBackBtn');
+  if (blocklistBackBtn) {
+    blocklistBackBtn.onclick = () => {
+      const tab = document.querySelector('.sidebar-rail .side-tab[data-side="downloads"]');
+      if (tab) tab.click();
+    };
+  }
+  // 默认打开聊天界面（聊天列表可见）；切到发现/我/通讯录时隐藏，点"微信"再显示
+  setChatListVisible(true);
 })();
 
 tryRestore();
 checkUpdate();
 wireConversationTools();
+
+// ============ 拉黑（黑名单）============
+let blockedMap = null; // Map: id -> user
+async function loadBlocklist(force) {
+  if (!force && blockedMap !== null) return blockedMap;
+  if (!state || !state.token) return blockedMap || new Map();
+  try {
+    const res = await fetch(state.serverHost + '/api/blocklist', { headers: { 'Authorization': 'Bearer ' + state.token } });
+    if (!res.ok) return blockedMap || new Map();
+    const data = await res.json();
+    blockedMap = new Map((data.blocked || []).map(x => [x.id, x]));
+    return blockedMap;
+  } catch (e) { return blockedMap || new Map(); }
+}
+async function toggleBlock(peerId, onDone) {
+  if (!peerId) return;
+  const bl = await loadBlocklist();
+  const blocked = bl.has(peerId);
+  const action = blocked ? 'unblock' : 'block';
+  try {
+    const res = await fetch(state.serverHost + '/api/' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify({ targetId: peerId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '操作失败');
+    if (action === 'block') bl.set(peerId, { id: peerId }); else bl.delete(peerId);
+    toast(action === 'block' ? '已拉黑该联系人' : '已解除拉黑', 'success');
+    if (typeof onDone === 'function') onDone();
+  } catch (e) {
+    toast(((e && e.message) || '操作失败'), 'error');
+  }
+}
+let chatMoreMenu = null;
+function openChatMoreMenu(anchor) {
+  hideChatMoreMenu();
+  const peer = state.activePeer ? (state.friends.find(u => u.id === state.activePeer) || null) : null;
+  const items = [];
+  if (peer) {
+    const blocked = blockedMap ? blockedMap.has(peer.id) : false;
+    items.push({ label: blocked ? '解除拉黑' : '拉黑该联系人', danger: !blocked, onClick: () => toggleBlock(peer.id) });
+  }
+  items.push({ label: '黑名单管理', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
+  items.push({ label: '更多功能', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });
+  if (!items.length) return;
+  chatMoreMenu = document.createElement('div');
+  chatMoreMenu.className = 'chat-more-menu';
+  chatMoreMenu.innerHTML = items.map(it => '<div class="chat-more-item' + (it.danger ? ' danger' : '') + '">' + it.label + '</div>').join('');
+  document.body.appendChild(chatMoreMenu);
+  const r = anchor.getBoundingClientRect();
+  chatMoreMenu.style.top = Math.max(8, r.bottom + 6) + 'px';
+  chatMoreMenu.style.left = Math.min(Math.max(8, r.left), window.innerWidth - 166) + 'px';
+  chatMoreMenu.querySelectorAll('.chat-more-item').forEach((el, i) => { el.onclick = items[i].onClick; });
+  setTimeout(() => { document.addEventListener('click', hideChatMoreMenu, { once: true }); }, 0);
+}
+function hideChatMoreMenu() {
+  if (chatMoreMenu) { chatMoreMenu.remove(); chatMoreMenu = null; }
+}
+async function renderBlocklistPage() {
+  const list = document.getElementById('blocklistList');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">加载中…</div>';
+  const bl = await loadBlocklist(true);
+  if (!bl.size) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">暂无黑名单</div>'; return; }
+  list.innerHTML = [...bl.values()].map(u => '<div class="contact" style="display:flex;align-items:center;padding:10px 14px;background:#fff">' +
+    '<div class="avatar">' + (u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname || u.username)) + '</div>' +
+    '<div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(u.nickname || u.username) + '</div>' +
+    '<div class="last">ID: ' + escapeHtml(String(u.uid || u.id)) + '</div></div>' +
+    '<button class="btn-cn" style="padding:4px 10px;font-size:12px" data-unblock="' + u.id + '">解除拉黑</button></div>').join('');
+  list.querySelectorAll('[data-unblock]').forEach(btn => {
+    btn.onclick = () => toggleBlock(parseInt(btn.dataset.unblock, 10), () => renderBlocklistPage());
+  });
+}
 
 // i18n 兜底：i18n.js 在 DOMContentLoaded 时已自行 apply() 一次；
 // 这里再补一次，覆盖 app.js 在 DOMContentLoaded 之前或之后执行的场景，确保静态 DOM 译好。

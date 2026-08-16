@@ -816,6 +816,41 @@ app.delete('/api/history/:peerId', (req, res) => {
 });
 
 // 文字消息 REST 发送入口：不依赖发送方浏览器的 WebSocket 状态。
+// ---------- 拉黑（黑名单）----------
+// 拉黑：POST /api/block { targetId }；解除：POST /api/unblock { targetId }；列表：GET /api/blocklist
+app.post('/api/block', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const targetId = parseInt((req.body || {}).targetId, 10);
+  if (!Number.isInteger(targetId) || targetId === payload.id) return res.status(400).json({ error: '目标无效' });
+  if (!prepare('SELECT id FROM users WHERE id=?').get(targetId)) return res.status(404).json({ error: '用户不存在' });
+  prepare('INSERT OR IGNORE INTO blocklist(blocker_id,blocked_id,created_at) VALUES(?,?,?)').run(payload.id, targetId, Date.now());
+  persist();
+  res.json({ ok: true, blocked: targetId });
+});
+
+app.post('/api/unblock', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const targetId = parseInt((req.body || {}).targetId, 10);
+  if (!Number.isInteger(targetId)) return res.status(400).json({ error: '目标无效' });
+  prepare('DELETE FROM blocklist WHERE blocker_id=? AND blocked_id=?').run(payload.id, targetId);
+  persist();
+  res.json({ ok: true, unblocked: targetId });
+});
+
+app.get('/api/blocklist', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare(
+    'SELECT b.blocked_id AS id, u.nickname, u.username, u.avatar, u.uid, b.created_at AS createdAt FROM blocklist b JOIN users u ON u.id = b.blocked_id WHERE b.blocker_id=? ORDER BY b.created_at DESC'
+  ).all(payload.id);
+  res.json({ blocked: rows });
+});
+
 app.post('/api/messages', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
@@ -823,6 +858,8 @@ app.post('/api/messages', (req, res) => {
   const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = req.body || {};
   const toId = parseInt(to, 10);
   if (!Number.isInteger(toId) || !content || typeof content !== 'string') return res.status(400).json({ error: '消息内容无效' });
+  if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, toId)) return res.status(403).json({ error: '你已拉黑对方，无法发送消息' });
+  if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '对方已把你拉黑，无法发送消息' });
   if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) return res.status(400).json({ error: '消息标识无效' });
   if (clientMsgId) {
     const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=?').get(clientMsgId);
@@ -860,6 +897,7 @@ app.post('/api/files', express.raw({ type: 'application/octet-stream', limit: '1
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '文件为空' });
   const toId = parseInt(req.query.to, 10);
   if (!Number.isInteger(toId) || !prepare('SELECT id FROM users WHERE id=?').get(toId)) return res.status(400).json({ error: '接收方无效' });
+  if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, toId) || prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '你与对方处于拉黑状态，无法发送文件' });
   const name = String(req.query.name || 'file').trim().slice(0, 240) || 'file';
   const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
   const id = crypto.randomUUID();
@@ -1396,6 +1434,7 @@ app.post('/api/poke', (req, res) => {
   const to = Number((req.body || {}).to);
   if (!to || !prepare('SELECT id FROM users WHERE id=?').get(to)) return res.status(404).json({ error: '用户不存在' });
   if (to === payload.id) return res.status(400).json({ error: '不能拍自己' });
+  if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, to) || prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(to, payload.id)) return res.status(403).json({ error: '你与对方处于拉黑状态，无法拍一拍' });
   prepare('INSERT INTO pokes(from_id,to_id,created_at) VALUES(?,?,?)').run(payload.id, to, Date.now());
   persist();
   const me = prepare('SELECT nickname FROM users WHERE id=?').get(payload.id);
@@ -2727,6 +2766,7 @@ function mountFeatureRoutes(app, db) {
 (async () => {
   const rawDb = await getDb();
   ready = true;
+  try { rawDb.run('CREATE TABLE IF NOT EXISTS blocklist(blocker_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER DEFAULT 0, PRIMARY KEY(blocker_id, blocked_id))'); } catch (e) { console.error('[db] blocklist 建表失败: ' + (e && e.message || e)); }
   const routeDb = {
     prepare, run: (...a) => rawDb.run(...a), exec: (...a) => rawDb.exec(...a),
     persist, persistNow, getDb, genUid
