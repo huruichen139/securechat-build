@@ -14,7 +14,18 @@ class AuthExpiredException implements Exception {
 }
 
 class SecureChatApi {
-  SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'});
+  SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'}) {
+    // 全局 token 机制：任何新实例自动继承已登录的全局会话，
+    // 不再需要每个页面单独 restoreSession，杜绝"未授权"。
+    if (globalToken != null) {
+      token = globalToken;
+      myId = globalMyId;
+    }
+  }
+
+  /// 全局共享会话（静态），登录/恢复/退出时同步更新。
+  static String? globalToken;
+  static int? globalMyId;
 
   String baseUrl;
   String? token;
@@ -27,6 +38,7 @@ class SecureChatApi {
     final sp = await SharedPreferences.getInstance();
     if (token != null) await sp.setString(_kToken, token!);
     if (myId != null) await sp.setInt(_kMyId, myId!);
+    _syncGlobal();
   }
 
   Future<void> restoreSession() async {
@@ -34,14 +46,24 @@ class SecureChatApi {
     token = sp.getString(_kToken);
     final id = sp.getInt(_kMyId);
     if (id != null) myId = id;
+    _syncGlobal();
   }
 
   Future<void> clearSession() async {
     token = null;
     myId = null;
+    globalToken = null;
+    globalMyId = null;
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_kToken);
     await sp.remove(_kMyId);
+  }
+
+  void _syncGlobal() {
+    if (token != null && token!.isNotEmpty) {
+      globalToken = token;
+      globalMyId = myId;
+    }
   }
 
   void _setSession(Map<String, dynamic> data) {
@@ -50,6 +72,7 @@ class SecureChatApi {
     if (user is Map && user['id'] != null) {
       myId = int.tryParse('${user['id']}');
     }
+    _syncGlobal();
   }
 
   bool get isLoggedIn => token != null && token!.isNotEmpty;

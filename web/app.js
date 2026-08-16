@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.60.0';
+const PACKAGE_VERSION = '1.61.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -1110,11 +1110,17 @@ function openFeatureCenter() {
       { label: '扫一扫', short: '扫一扫', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
       { label: '支付生活', short: '支付', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
-    { id: 'tools', label: '工具', items: [
+{ id: 'tools', label: '工具', items: [
       { label: '我的状态', short: '状态', grad: 2, open: () => openContainerFeature(get('status'), '我的状态') },
       { label: '我的收藏', short: '收藏', grad: 3, open: () => openContainerFeature(get('favorites'), '我的收藏') },
       { label: '收付款码', short: '收付款', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
       { label: '兑换码充值', short: '兑换', grad: 5, open: () => { const p = get('pay'); if (p && typeof p.redeemFlow === 'function') p.redeemFlow(); else toast('兑换功能未加载', 'warn'); } },
+      { label: '知识库中心', short: '知识库', grad: 0, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter(); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '成语词典', short: '成语', grad: 1, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('idioms'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '唐诗三百首', short: '唐诗', grad: 2, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('poems'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '歇后语', short: '歇后语', grad: 3, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('xiehouyu'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '笑话大全', short: '笑话', grad: 4, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('jokes'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '名人名言', short: '名言', grad: 5, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('quotes'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
     ]},
   ];
 
@@ -2418,7 +2424,14 @@ const welcomeGroupBtn = $('welcomeGroupBtn');
 const welcomeAiBtn = $('welcomeAiBtn');
 if (welcomeAddBtn) welcomeAddBtn.onclick = () => { const input = $('addFriendInput'); if (input) input.focus(); };
 if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const btn = $('createGroupBtn'); if (btn) btn.click(); };
-if (welcomeAiBtn) welcomeAiBtn.onclick = () => { const tab = document.querySelector('.side-tab[data-side="ai"]'); if (tab) tab.click(); };
+if (welcomeAiBtn) welcomeAiBtn.onclick = () => {
+  hideMobilePages();
+  const main = document.querySelector('.main'); if (main) main.style.display = 'none';
+  const dv = $('downloadView'); if (dv) dv.style.display = 'none';
+  const av = $('aiView'); if (av) av.style.display = 'flex';
+  const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
+  if (window.switchToAi) window.switchToAi();
+};
 
 function appendMessage(m, prepend) {
   // 统一去重：同一条消息（服务端 id 或 clientMsgId）只渲染一次。
@@ -3314,6 +3327,13 @@ function hideMobileChatView() {
   const desktopComposer = document.getElementById('chatDesktopComposer');
   if (desktopComposer) desktopComposer.style.display = '';
 }
+window.addEventListener('resize', () => {
+  if (window.IS_MOBILE) return;
+  const active = document.querySelector('.wechat-page.active');
+  if (!active) return;
+  const sb = document.querySelector('.sidebar');
+  if (sb) active.style.left = sb.offsetWidth + 'px';
+});
 function hideMobilePages() {
   ['discoverPage', 'mePage', 'contactsPage'].forEach(id => {
     const el = document.getElementById(id);
@@ -3324,6 +3344,10 @@ function showMobilePage(pageId) {
   hideMobilePages();
   const el = document.getElementById(pageId);
   if (el) el.classList.add('active');
+  if (!window.IS_MOBILE) {
+    const sb = document.querySelector('.sidebar');
+    if (sb) el.style.left = sb.offsetWidth + 'px';
+  }
   const chatView = document.getElementById('chatView');
   if (chatView) chatView.classList.remove('mobile-chat-active');
   const chatHeader = document.getElementById('chatMobileHeader');
@@ -3511,23 +3535,13 @@ function renderContactsPage() {
 
 // 侧边栏 Tab → 微信式页面路由（全端通用）
 (function initWechatMobileNav() {
-  // AI tab → AI 助手（副标题仍指向发现页入口，移动端底部导航可直达）
+  // 发现 tab → 微信式发现页
   const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
   if (discoverTab) {
     discoverTab.onclick = (e) => {
       e.stopPropagation();
-      const main = document.querySelector('.main');
-      if (main) main.style.display = 'none';
-      const downloadView = $('downloadView');
-      if (downloadView) downloadView.style.display = 'none';
-      const aiView = $('aiView');
-      if (aiView) aiView.style.display = 'flex';
-      const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
-      const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
-      hideMobilePages();
-      if (window.switchToAi) window.switchToAi();
-      loadMiniPrograms();
-      if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+      renderDiscoverPage();
+      showMobilePage('discoverPage');
     };
   }
   // 我 tab → 我的页
@@ -3539,19 +3553,28 @@ function renderContactsPage() {
       showMobilePage('mePage');
     };
   }
-  // 通讯录 tab → 通讯录页（通过侧栏更多入口或直接访问）
-  const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
+  // 通讯录 tab → 通讯录页
+  const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="contacts"]');
   if (contactsTab) {
     contactsTab.onclick = (e) => {
       e.stopPropagation();
+      renderContactsPage();
+      showMobilePage('contactsPage');
+    };
+  }
+  // 微信 tab → 切回聊天主界面
+  const friendsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
+  if (friendsTab) {
+    friendsTab.onclick = (e) => {
+      e.stopPropagation();
+      hideMobilePages();
       const main = document.querySelector('.main');
       if (main) main.style.display = 'flex';
       const aiView = $('aiView'); if (aiView) aiView.style.display = 'none';
       const downloadView = $('downloadView'); if (downloadView) downloadView.style.display = 'none';
-      ['discoverPage','mePage','contactsPage'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
       const fs = $('friendsSide'); if (fs) fs.style.display = '';
       renderContacts();
-      if (window.IS_MOBILE) { showMobilePage('contactsPage'); renderContactsPage(); }
+      if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
     };
   }
   // 返回按钮（发现页 / 我的页 / 通讯录页）
