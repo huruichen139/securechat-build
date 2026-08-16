@@ -5,12 +5,23 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// token 失效专用异常：_json 遇 401 抛出，ChatShell 捕获后回登录页
+class AuthExpiredException implements Exception {
+  const AuthExpiredException([this.message = '登录已失效，请重新登录']);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 class SecureChatApi {
   SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'});
 
   String baseUrl;
   String? token;
   int? myId;
+
+  /// token 失效时回调（由 ChatShell 注册，触发后回到登录页）
+  static void Function()? onAuthExpired;
 
   static const _kToken = 'sc_api_token';
   static const _kMyId = 'sc_api_myid';
@@ -70,6 +81,12 @@ class SecureChatApi {
       data = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
       data = {'error': response.body};
+    }
+    if (response.statusCode == 401) {
+      // token 失效：清本地会话 + 通知 UI 回登录，避免各页面反复"未授权"
+      await clearSession();
+      SecureChatApi.onAuthExpired?.call();
+      throw const AuthExpiredException();
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(data['error']?.toString() ?? '请求失败 (${response.statusCode})');

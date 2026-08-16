@@ -375,6 +375,32 @@ class _ChatShellState extends State<ChatShell> {
   final _contactsViewState = GlobalKey<_ContactsViewStateState>();
 
   @override
+  void initState() {
+    super.initState();
+    SecureChatApi.onAuthExpired = _onAuthExpired;
+  }
+
+  @override
+  void dispose() {
+    if (SecureChatApi.onAuthExpired == _onAuthExpired) {
+      SecureChatApi.onAuthExpired = null;
+    }
+    super.dispose();
+  }
+
+  void _onAuthExpired() {
+    if (!mounted) return;
+    // 延迟到下一帧，避免在 build/异步 gap 中触发导航
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => LoginPage(config: widget.config)),
+        (_) => false,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final config = widget.config;
     return AnimatedBuilder(

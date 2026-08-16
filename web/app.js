@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.57.0';
+const PACKAGE_VERSION = '1.58.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -529,6 +529,25 @@ function tryRestore() {
     })
     .catch(() => { localStorage.removeItem('sc_token'); localStorage.removeItem('sc_me'); state.token = null; state.me = null; });
 }
+
+// 统一拦截鉴权失败：任何带 token 的 REST 请求返回 401 时自动登出
+// 避免登录失效后各页面反复报"未授权"
+(function () {
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const opts = init || {};
+    const headers = opts.headers || {};
+    const authHeaders = headers['Authorization'] || headers['authorization'] || '';
+    const isAuthReq = /Bearer .+/.test(String(authHeaders || (opts.body && '') || ''));
+    return origFetch(input, opts).then(function (res) {
+      if (res.status === 401 && isAuthReq) {
+        const lt = localStorage.getItem('sc_token');
+        if (lt) { try { logout(); } catch (e) {} }
+      }
+      return res;
+    });
+  };
+})();
 
 function logout() {
   localStorage.removeItem('sc_token');
