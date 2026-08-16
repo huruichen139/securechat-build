@@ -3418,13 +3418,23 @@ function renderContactsPage() {
 
 // 侧边栏 Tab → 微信式页面路由（全端通用）
 (function initWechatMobileNav() {
-  // 发现 tab → 发现页
+  // AI tab → AI 助手（副标题仍指向发现页入口，移动端底部导航可直达）
   const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
   if (discoverTab) {
     discoverTab.onclick = (e) => {
       e.stopPropagation();
-      renderDiscoverPage();
-      showMobilePage('discoverPage');
+      const main = document.querySelector('.main');
+      if (main) main.style.display = 'none';
+      const downloadView = $('downloadView');
+      if (downloadView) downloadView.style.display = 'none';
+      const aiView = $('aiView');
+      if (aiView) aiView.style.display = 'flex';
+      const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
+      const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
+      hideMobilePages();
+      if (window.switchToAi) window.switchToAi();
+      loadMiniPrograms();
+      if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
     };
   }
   // 我 tab → 我的页
