@@ -1708,7 +1708,7 @@ function renderContacts() {
       const lastTime = state.groupLastMsgTime[g.id] || 0;
       const isPinned = !!chatPrefs().pinned[c.key];
       const isMuted = !!chatPrefs().muted[c.key];
-      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}`;
+      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
       list.appendChild(div);
       return;
@@ -1730,7 +1730,7 @@ function renderContacts() {
         <div class="last">${preview}</div>
       </div>
       ${timeStr ? `<span class="chat-time">${timeStr}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}
-      ${unread ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}`;
+      ${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
     div.onclick = () => selectPeer(u.id);
     if (state.activePeer === u.id && unread) {
       state.unread[u.id] = 0;
@@ -1838,7 +1838,7 @@ function renderGroupList() {
         <div class="last">${escapeHtml(String(lastMsg).slice(0, 30))}</div>
        </div>
        ${groupTime ? `<span class="chat-time">${groupTime}</span>` : ''}
-      ${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}`;
+      ${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
     div.onclick = () => selectGroup(g.id);
     if (state.activeGroup === g.id && unread) {
       state.groupUnread[g.id] = 0;
@@ -4029,10 +4029,11 @@ function setRailActive(side) {
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === side));
   if (typeof syncMobileNav === 'function') syncMobileNav(side);
 }
-// 侧边栏"微信"tab 未读总数角标
+// 侧边栏"微信"tab 未读总数角标（免打扰会话不计入）
 function updateUnreadBadge() {
-  const total = Object.values(state.unread || {}).reduce((a, b) => a + (b || 0), 0)
-    + Object.values(state.groupUnread || {}).reduce((a, b) => a + (b || 0), 0);
+  const prefs = chatPrefs();
+  const total = Object.keys(state.unread || {}).reduce((a, k) => a + (prefs.muted['u:' + k] ? 0 : (state.unread[k] || 0)), 0)
+    + Object.keys(state.groupUnread || {}).reduce((a, k) => a + (prefs.muted['g:' + k] ? 0 : (state.groupUnread[k] || 0)), 0);
   const tab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
   if (!tab) return;
   let badge = tab.querySelector('.rail-badge');
