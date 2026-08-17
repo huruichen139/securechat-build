@@ -450,4 +450,52 @@ class SecureChatApi {
     final data = await _json('GET', '/api/feedback');
     return ((data['feedbacks'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
+
+  // ============ 管理员（仅 admin_emails 白名单账号可访问） ============
+  Future<Map<String, dynamic>> adminOverview() => _json('GET', '/api/admin/overview');
+
+  Future<List<Map<String, dynamic>>> adminUsers() async {
+    final data = await _json('GET', '/api/admin/users');
+    return ((data['users'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminBan(int id, {required bool banned, String reason = ''}) =>
+      _json('POST', '/api/admin/ban', body: {'id': id, 'banned': banned, if (reason.isNotEmpty) 'reason': reason});
+
+  Future<void> adminKick(int id, {String reason = ''}) =>
+      _json('POST', '/api/admin/kick', body: {'id': id, if (reason.isNotEmpty) 'reason': reason});
+
+  Future<void> adminUpdateUser(int id, {String? nickname, String? role}) =>
+      _json('POST', '/api/admin/user/update', body: {
+        'id': id,
+        if (nickname != null) 'nickname': nickname,
+        if (role != null) 'role': role,
+      });
+
+  Future<Map<String, dynamic>> adminResetPassword(int id) =>
+      _json('POST', '/api/admin/user/reset-password', body: {'id': id});
+
+  Future<List<Map<String, dynamic>>> adminAnnouncements() async {
+    final data = await _json('GET', '/api/admin/announcements');
+    return ((data['announcements'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> adminCreateAnnouncement(String title, String content, {String level = 'info', bool top = false}) =>
+      _json('POST', '/api/admin/announcements', body: {'title': title, 'content': content, 'level': level, 'top': top});
+
+  Future<void> adminDeleteAnnouncement(int id) =>
+      _json('DELETE', '/api/admin/announcements', query: {'id': '$id'});
+
+  Future<List<Map<String, dynamic>>> adminAudit({int limit = 200}) async {
+    final data = await _json('GET', '/api/admin/audit', query: {'limit': '$limit'});
+    return ((data['logs'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> adminIssueRedeem(double value, int count) =>
+      _json('POST', '/api/admin/redeem/issue', body: {'value': value, 'count': count});
+
+  Future<List<Map<String, dynamic>>> adminRedeem({int? claimed}) async {
+    final data = await _json('GET', '/api/admin/redeem', query: {if (claimed != null) 'claimed': '$claimed'});
+    return ((data['codes'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
 }

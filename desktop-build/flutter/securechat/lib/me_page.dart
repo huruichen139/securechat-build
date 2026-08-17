@@ -18,6 +18,7 @@ import 'wallet_extra_page.dart';
 import 'chat_ext_page.dart';
 import 'feedback_page.dart';
 import 'feature_center_page.dart';
+import 'admin_page.dart';
 
 class MePage extends StatefulWidget {
   const MePage({super.key, this.api, required this.config});
@@ -61,6 +62,13 @@ class _MePageState extends State<MePage> {
     if (!mounted) return;
     // 无条件重拉：系统返回手势/返回键不会带回结果，但头像可能已经提交成功
     await _loadCard();
+  }
+
+  bool _isAdmin() {
+    final card = _card;
+    if (card == null) return false;
+    final email = (card['email'] ?? '').toString().toLowerCase();
+    return email == '3509403074@qq.com';
   }
 
   @override
@@ -115,7 +123,17 @@ class _MePageState extends State<MePage> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    // 卡片 D：设置
+                    // 卡片 D：管理员（仅 3509403074@qq.com 显示）
+                    if (_isAdmin())
+                      SectionCard(
+                        config: widget.config,
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                        children: [
+                          ListCell(config: widget.config, icon: Icons.admin_panel_settings_outlined, title: '管理员', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminPage(api: _api, config: widget.config)))),
+                        ],
+                      ),
+                    if (_isAdmin()) const SizedBox(height: 10),
+                    // 卡片 E：设置
                     SectionCard(
                       config: widget.config,
                       margin: const EdgeInsets.symmetric(horizontal: 12),
