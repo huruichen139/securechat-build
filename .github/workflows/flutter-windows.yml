@@ -1,17 +1,17 @@
-name: Build Flutter Windows
+﻿name: Build Flutter Windows
 
-# �?GitHub Actions 官方 windows-latest runner 构建 Flutter 原生 Windows 客户端�?
-# 本地构建�?Microsoft CDN 下载限速（VCTools ~115KB/s）阻塞，�?GitHub runner
-# 自带完整 VS C++ 工具链，可在此按正常速度构建，规避本地网络瓶颈�?
-# 触发：手动（workflow_dispatch）或�?tag�?
-# 产物命名匹配服务�?PLATFORM_FILES：SecureChat-<latest>-windows.exe / .zip�?
-# <latest> �?server �?version.json �?latest 取（此处固定 1.62.3，改版本时同步）�?
+# 鐢?GitHub Actions 瀹樻柟 windows-latest runner 鏋勫缓 Flutter 鍘熺敓 Windows 瀹㈡埛绔€?
+# 鏈湴鏋勫缓琚?Microsoft CDN 涓嬭浇闄愰€燂紙VCTools ~115KB/s锛夐樆濉烇紝鑰?GitHub runner
+# 鑷甫瀹屾暣 VS C++ 宸ュ叿閾撅紝鍙湪姝ゆ寜姝ｅ父閫熷害鏋勫缓锛岃閬挎湰鍦扮綉缁滅摱棰堛€?
+# 瑙﹀彂锛氭墜鍔紙workflow_dispatch锛夋垨鎺?tag銆?
+# 浜х墿鍛藉悕鍖归厤鏈嶅姟鍣?PLATFORM_FILES锛歋ecureChat-<latest>-windows.exe / .zip銆?
+# <latest> 浠?server 绔?version.json 鐨?latest 鍙栵紙姝ゅ鍥哄畾 1.62.3锛屾敼鐗堟湰鏃跺悓姝ワ級銆?
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: '产物版本号（须与服务�?version.json �?latest 一致）'
+        description: '浜х墿鐗堟湰鍙凤紙椤讳笌鏈嶅姟鍣?version.json 鐨?latest 涓€鑷达級'
         required: true
         default: '1.62.3'
   push:

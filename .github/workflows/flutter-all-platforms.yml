@@ -1,4 +1,4 @@
-name: Build Flutter All Platforms
+﻿name: Build Flutter All Platforms
 
 on:
   workflow_dispatch:
