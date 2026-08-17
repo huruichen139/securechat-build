@@ -384,7 +384,7 @@ class _ChatShellState extends State<ChatShell> {
                         child: <Widget>[
                           _ChatView(key: _chatViewState, api: widget.api, config: config, initialOpen: _pendingOpen, onOpenConsumed: () => _pendingOpen = null),
                           ContactsView(key: _contactsViewState, api: widget.api, config: config, onOpenChat: _openChatFromContacts),
-                          DiscoverPage(api: widget.api, config: config),
+                          DiscoverPage(api: widget.api, config: config, onOpenChat: _openChatFromContacts),
                           MePage(api: widget.api, config: config),
                         ][_tab],
                       ),
