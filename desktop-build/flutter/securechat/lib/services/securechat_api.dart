@@ -472,8 +472,9 @@ class SecureChatApi {
         if (role != null) 'role': role,
       });
 
-  Future<Map<String, dynamic>> adminResetPassword(int id) =>
-      _json('POST', '/api/admin/user/reset-password', body: {'id': id});
+  /// 重置指定用户密码（服务端要求至少 6 位，重置后该用户被强制下线）
+  Future<Map<String, dynamic>> adminResetPassword(int id, String password) =>
+      _json('POST', '/api/admin/user/reset-password', body: {'id': id, 'password': password});
 
   Future<List<Map<String, dynamic>>> adminAnnouncements() async {
     final data = await _json('GET', '/api/admin/announcements');
@@ -498,4 +499,72 @@ class SecureChatApi {
     final data = await _json('GET', '/api/admin/redeem', query: {if (claimed != null) 'claimed': '$claimed'});
     return ((data['codes'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
+
+  Future<List<Map<String, dynamic>>> adminGroups({String q = ''}) async {
+    final data = await _json('GET', '/api/admin/groups', query: {if (q.isNotEmpty) 'q': q});
+    return ((data['groups'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> adminGroupDetail(int id) => _json('GET', '/api/admin/group/$id');
+
+  Future<void> adminDissolveGroup(int id) => _json('POST', '/api/admin/group/dissolve', body: {'id': id});
+
+  Future<void> adminRemoveGroupMember(int groupId, int userId) =>
+      _json('POST', '/api/admin/group/remove-member', body: {'groupId': groupId, 'userId': userId});
+
+  Future<void> adminFeedbackStatus(int id, String status) =>
+      _json('POST', '/api/admin/feedback/status', body: {'id': id, 'status': status});
+
+  Future<List<Map<String, dynamic>>> adminBannedIps() async {
+    final data = await _json('GET', '/api/admin/banned-ips');
+    return ((data['ips'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminBanIp(String ip, {String reason = ''}) =>
+      _json('POST', '/api/admin/ban-ip', body: {'ip': ip, if (reason.isNotEmpty) 'reason': reason});
+
+  Future<void> adminUnbanIp(String ip) => _json('DELETE', '/api/admin/banned-ips', query: {'ip': ip});
+
+  Future<List<Map<String, dynamic>>> adminSensitiveWords() async {
+    final data = await _json('GET', '/api/admin/sensitive-words');
+    return ((data['words'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminAddSensitiveWord(String word) =>
+      _json('POST', '/api/admin/sensitive-words', body: {'word': word});
+
+  Future<void> adminDeleteSensitiveWord(String word) =>
+      _json('DELETE', '/api/admin/sensitive-words', query: {'word': word});
+
+  Future<Map<String, dynamic>> adminUpdateStatus() => _json('GET', '/api/admin/update-status');
+
+  Future<Map<String, dynamic>> adminSetVersion(String latest, {String releaseNotes = ''}) =>
+      _json('POST', '/api/admin/version', body: {'latest': latest, if (releaseNotes.isNotEmpty) 'releaseNotes': releaseNotes});
+
+  /// 上传安装包到 server/downloads（按当前 latest 版本命名）。
+  /// platform: windows / windowsPortable / macos / android / harmony / ios
+  Future<Map<String, dynamic>> adminUploadPackage(String platform, Uint8List bytes) async {
+    final uri = _uri('/api/admin/upload/$platform');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: bytes,
+    );
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      data = {'error': response.body};
+    }
+    if (response.statusCode == 401) throw const AuthExpiredException();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(data['error']?.toString() ?? '上传失败 (${response.statusCode})');
+    }
+    return data;
+  }
+
+  Future<void> adminDeletePackage(String platform) => _json('DELETE', '/api/admin/upload/$platform');
 }

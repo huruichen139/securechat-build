@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'services/securechat_api.dart';
@@ -31,7 +32,7 @@ class _AdminPageState extends State<AdminPage> {
         title: Text('管理员', style: TextStyle(color: _t.text, fontWeight: FontWeight.w700)),
       ),
       body: DefaultTabController(
-        length: 5,
+        length: 10,
         child: Column(children: [
           TabBar(
             isScrollable: true,
@@ -43,18 +44,28 @@ class _AdminPageState extends State<AdminPage> {
             tabs: const [
               Tab(text: '概览'),
               Tab(text: '用户'),
+              Tab(text: '群组'),
+              Tab(text: '反馈'),
               Tab(text: '公告'),
+              Tab(text: '封禁IP'),
+              Tab(text: '敏感词'),
               Tab(text: '审计'),
               Tab(text: '兑换码'),
+              Tab(text: '发版'),
             ],
           ),
           Expanded(
             child: TabBarView(children: [
               _OverviewTab(api: _api, config: _cfg),
               _UsersTab(api: _api, config: _cfg),
+              _GroupsTab(api: _api, config: _cfg),
+              _FeedbacksTab(api: _api, config: _cfg),
               _AnnouncementsTab(api: _api, config: _cfg),
+              _BannedIpsTab(api: _api, config: _cfg),
+              _SensitiveWordsTab(api: _api, config: _cfg),
               _AuditTab(api: _api, config: _cfg),
               _RedeemTab(api: _api, config: _cfg),
+              _DeployTab(api: _api, config: _cfg),
             ]),
           ),
         ]),
@@ -341,16 +352,18 @@ class _UsersTabState extends State<_UsersTab> {
                 Navigator.pop(ctx);
                 final confirm = await _prompt('重置该用户密码为随机值？输入「重置」确认', '');
                 if (confirm != '重置') return;
+                // 生成 8 位随机密码
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                final rnd = List.generate(8, (i) => chars[(DateTime.now().microsecondsSinceEpoch * 31 + i * 13) % chars.length]).join();
                 await _act(() async {
-                  final r = await widget.api.adminResetPassword(u['id'] as int);
+                  await widget.api.adminResetPassword(u['id'] as int, rnd);
                   if (!mounted) return;
-                  final pwd = r['password'] ?? r['newPassword'] ?? '';
                   await showDialog<void>(
                     context: context,
                     builder: (c) => AlertDialog(
                       backgroundColor: _t.card,
                       title: Text('新密码', style: TextStyle(color: _t.text)),
-                      content: SelectableText('$pwd', style: TextStyle(color: _t.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                      content: SelectableText(rnd, style: TextStyle(color: _t.text, fontSize: 16, fontWeight: FontWeight.w700)),
                       actions: [
                         FilledButton(onPressed: () => Navigator.pop(c), child: const Text('已复制')),
                       ],
@@ -904,5 +917,809 @@ class _RedeemTabState extends State<_RedeemTab> {
         ),
       ),
     ]);
+  }
+}
+
+// ---------------- 群组 ----------------
+class _GroupsTab extends StatefulWidget {
+  const _GroupsTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_GroupsTab> createState() => _GroupsTabState();
+}
+
+class _GroupsTabState extends State<_GroupsTab> {
+  List<Map<String, dynamic>> _groups = [];
+  bool _loading = true;
+  String? _error;
+  String _q = '';
+
+  AppConfig get _cfg => widget.config;
+  AppTheme get _t => _cfg.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final groups = await widget.api.adminGroups(q: _q.trim());
+      if (!mounted) return;
+      setState(() { _groups = groups; _loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _showDetail(Map<String, dynamic> g) async {
+    try {
+      final d = await widget.api.adminGroupDetail(g['id'] as int);
+      final members = ((d['members'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: _t.card,
+        isScrollControlled: true,
+        builder: (ctx) => SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          child: Column(children: [
+            ListTile(
+              title: Text('${g['name'] ?? ''}（${members.length} 人）', style: TextStyle(color: _t.text, fontWeight: FontWeight.w700)),
+              subtitle: Text('群ID #${g['id']} · 群主 #${g['ownerId'] ?? '-'} · 消息 ${g['msgCount'] ?? 0} 条', style: TextStyle(color: _t.subText, fontSize: 12)),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  final confirm = await _prompt('解散该群？输入群名确认', '${g['name'] ?? ''}');
+                  if (confirm != g['name']) return;
+                  try {
+                    await widget.api.adminDissolveGroup(g['id'] as int);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('群已解散')));
+                    await _load();
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+                  }
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                itemCount: members.length,
+                itemBuilder: (c, i) {
+                  final m = members[i];
+                  return ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Ux.cellIconBg(_t),
+                      child: Text('${m['nickname'] ?? m['username'] ?? '?'}'.characters.first.toUpperCase(),
+                          style: TextStyle(color: _t.text, fontSize: 13, fontWeight: FontWeight.w700)),
+                    ),
+                    title: Text('${m['nickname'] ?? m['username'] ?? ''}', style: TextStyle(color: _t.text, fontSize: 14)),
+                    subtitle: Text('@${m['uid'] ?? ''}', style: TextStyle(color: _t.subText, fontSize: 11)),
+                    trailing: (m['id'] == g['ownerId'])
+                        ? Text('群主', style: TextStyle(fontSize: 11, color: Ux.green))
+                        : IconButton(
+                            icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.redAccent),
+                            onPressed: () async {
+                              try {
+                                await widget.api.adminRemoveGroupMember(g['id'] as int, m['id'] as int);
+                                if (!c.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已移除成员')));
+                                Navigator.pop(ctx);
+                                await _showDetail(g);
+                              } catch (e) {
+                                if (!c.mounted) return;
+                                ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+                              }
+                            },
+                          ),
+                  );
+                },
+              ),
+            ),
+          ]),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('加载失败：$e')));
+    }
+  }
+
+  Future<String?> _prompt(String title, String initial) async {
+    final ctrl = TextEditingController(text: initial);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _t.card,
+        title: Text(title, style: TextStyle(color: _t.text, fontSize: 16)),
+        content: TextField(controller: ctrl, autofocus: true, style: TextStyle(color: _t.text)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('确定')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text(_error!, style: TextStyle(color: _t.subText)));
+    }
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        child: Row(children: [
+          Expanded(
+            child: TextField(
+              onChanged: (v) => setState(() => _q = v),
+              onSubmitted: (_) => _load(),
+              style: TextStyle(color: _t.text),
+              decoration: InputDecoration(
+                hintText: '搜索群名',
+                hintStyle: TextStyle(color: _t.subText, fontSize: 13),
+                prefixIcon: Icon(Icons.search, color: _t.subText, size: 20),
+                isDense: true,
+                filled: true,
+                fillColor: _t.card,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(Ux.cardRadius), borderSide: BorderSide.none),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _load,
+            icon: Icon(Icons.refresh, color: _t.text, size: 20),
+          ),
+        ]),
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: _groups.length,
+            itemBuilder: (ctx, i) {
+              final g = _groups[i];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                child: Material(
+                  color: _t.card,
+                  borderRadius: BorderRadius.circular(Ux.cardRadius),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(Ux.cardRadius),
+                    onTap: () => _showDetail(g),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: Row(children: [
+                        Container(
+                          width: 38, height: 38,
+                          decoration: BoxDecoration(color: Ux.cellIconBg(_t), borderRadius: BorderRadius.circular(8)),
+                          child: Icon(Icons.groups_rounded, color: Ux.green, size: 22),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('${g['name'] ?? ''}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _t.text)),
+                            Text('群主 #${g['ownerId'] ?? '-'} · ${g['memberCount'] ?? 0} 人 · ${g['msgCount'] ?? 0} 条消息', style: TextStyle(fontSize: 11, color: _t.subText)),
+                          ]),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: _t.subText, size: 20),
+                      ]),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    ]);
+  }
+}
+
+// ---------------- 反馈 ----------------
+class _FeedbacksTab extends StatefulWidget {
+  const _FeedbacksTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_FeedbacksTab> createState() => _FeedbacksTabState();
+}
+
+class _FeedbacksTabState extends State<_FeedbacksTab> {
+  List<Map<String, dynamic>> _list = [];
+  bool _loading = true;
+  String? _error;
+
+  AppConfig get _cfg => widget.config;
+  AppTheme get _t => _cfg.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final d = await widget.api.adminOverview();
+      final fbs = ((d['feedbacks'] as Map?) ?? const {});
+      final all = ((fbs['all'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      if (!mounted) return;
+      setState(() { _list = all; _loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  static const _kindName = {'bug': 'Bug', 'suggestion': '建议', 'complaint': '投诉', 'other': '其他'};
+  static const _statusName = {'open': '待处理', 'processing': '处理中', 'closed': '已关闭'};
+
+  Future<void> _changeStatus(Map<String, dynamic> f) async {
+    final cur = '${f['status'] ?? 'open'}';
+    final sel = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: _t.card,
+        title: Text('反馈 #${f['id']} 状态', style: TextStyle(color: _t.text, fontSize: 16)),
+        children: ['open', 'processing', 'closed'].map((s) => SimpleDialogOption(
+          onPressed: () => Navigator.pop(ctx, s),
+          child: Text('${_statusName[s]}${s == cur ? '（当前）' : ''}',
+              style: TextStyle(color: s == cur ? Ux.green : _t.text)),
+        )).toList(),
+      ),
+    );
+    if (sel == null || sel == cur) return;
+    try {
+      await widget.api.adminFeedbackStatus(f['id'] as int, sel);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('状态已更新')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text(_error!, style: TextStyle(color: _t.subText)));
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: _list.length,
+        itemBuilder: (ctx, i) {
+          final f = _list[i];
+          final status = '${f['status'] ?? 'open'}';
+          final statusColor = switch (status) {
+            'closed' => _t.subText,
+            'processing' => Colors.orange,
+            _ => Colors.redAccent,
+          };
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            child: Material(
+              color: _t.card,
+              borderRadius: BorderRadius.circular(Ux.cardRadius),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                onTap: () => _changeStatus(f),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Text('${_kindName['${f['kind'] ?? 'other'}'] ?? '其他'} · 用户 #${f['userId'] ?? '-'}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _t.subText)),
+                      const Spacer(),
+                      Text('${_statusName[status] ?? status}', style: TextStyle(fontSize: 11, color: statusColor)),
+                    ]),
+                    const SizedBox(height: 6),
+                    Text('${f['content'] ?? ''}', maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: _t.text)),
+                    const SizedBox(height: 6),
+                    Text(_fmtTime(f['created_at']), style: TextStyle(fontSize: 11, color: _t.subText)),
+                  ]),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------- 封禁 IP ----------------
+class _BannedIpsTab extends StatefulWidget {
+  const _BannedIpsTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_BannedIpsTab> createState() => _BannedIpsTabState();
+}
+
+class _BannedIpsTabState extends State<_BannedIpsTab> {
+  List<Map<String, dynamic>> _list = [];
+  bool _loading = true;
+  String? _error;
+
+  AppConfig get _cfg => widget.config;
+  AppTheme get _t => _cfg.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final list = await widget.api.adminBannedIps();
+      if (!mounted) return;
+      setState(() { _list = list; _loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _add() async {
+    final ipC = TextEditingController();
+    final reasonC = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _t.card,
+        title: Text('封禁 IP', style: TextStyle(color: _t.text, fontSize: 16)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: ipC, style: TextStyle(color: _t.text),
+              decoration: InputDecoration(labelText: 'IP 地址', labelStyle: TextStyle(color: _t.subText))),
+          const SizedBox(height: 10),
+          TextField(controller: reasonC, style: TextStyle(color: _t.text),
+              decoration: InputDecoration(labelText: '原因（可选）', labelStyle: TextStyle(color: _t.subText))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('封禁')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.api.adminBanIp(ipC.text.trim(), reason: reasonC.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已封禁（该 IP 在线用户已被踢下线）')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text(_error!, style: TextStyle(color: _t.subText)));
+    }
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _add,
+            icon: const Icon(Icons.block, size: 18),
+            label: const Text('封禁 IP'),
+          ),
+        ),
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: _list.length,
+            itemBuilder: (ctx, i) {
+              final b = _list[i];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: _t.card, borderRadius: BorderRadius.circular(Ux.cardRadius)),
+                  child: Row(children: [
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${b['ip'] ?? ''}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _t.text)),
+                        Text('${b['reason'] ?? ''}'.isEmpty ? '封禁于 ${_fmtTime(b['created_at'])}' : '${b['reason']} · ${_fmtTime(b['created_at'])}',
+                            style: TextStyle(fontSize: 11, color: _t.subText)),
+                      ]),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.undo_rounded, size: 20, color: Ux.green),
+                      onPressed: () async {
+                        try {
+                          await widget.api.adminUnbanIp('${b['ip']}');
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已解封')));
+                          await _load();
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+                        }
+                      },
+                    ),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    ]);
+  }
+}
+
+// ---------------- 敏感词 ----------------
+class _SensitiveWordsTab extends StatefulWidget {
+  const _SensitiveWordsTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_SensitiveWordsTab> createState() => _SensitiveWordsTabState();
+}
+
+class _SensitiveWordsTabState extends State<_SensitiveWordsTab> {
+  List<Map<String, dynamic>> _list = [];
+  bool _loading = true;
+  String? _error;
+
+  AppConfig get _cfg => widget.config;
+  AppTheme get _t => _cfg.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final list = await widget.api.adminSensitiveWords();
+      if (!mounted) return;
+      setState(() { _list = list; _loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _add() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _t.card,
+        title: Text('添加敏感词', style: TextStyle(color: _t.text, fontSize: 16)),
+        content: TextField(controller: ctrl, autofocus: true, style: TextStyle(color: _t.text)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('添加')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.api.adminAddSensitiveWord(ctrl.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已添加')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text(_error!, style: TextStyle(color: _t.subText)));
+    }
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _add,
+            icon: const Icon(Icons.gpp_bad_outlined, size: 18),
+            label: const Text('添加敏感词'),
+          ),
+        ),
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: _list.length,
+            itemBuilder: (ctx, i) {
+              final w = _list[i];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: _t.card, borderRadius: BorderRadius.circular(Ux.cardRadius)),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: Ux.cellIconBg(_t), borderRadius: BorderRadius.circular(6)),
+                      child: Text('${w['word'] ?? ''}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _t.text)),
+                    ),
+                    const Spacer(),
+                    Text('命中即拦截', style: TextStyle(fontSize: 10, color: _t.subText)),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                      onPressed: () async {
+                        try {
+                          await widget.api.adminDeleteSensitiveWord('${w['word']}');
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除')));
+                          await _load();
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+                        }
+                      },
+                    ),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    ]);
+  }
+}
+
+// ---------------- 发版 / 安装包 ----------------
+class _DeployTab extends StatefulWidget {
+  const _DeployTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_DeployTab> createState() => _DeployTabState();
+}
+
+class _DeployTabState extends State<_DeployTab> {
+  Map<String, dynamic>? _version;
+  String? _upState;
+  bool _loading = true;
+  String? _error;
+  bool _busy = false;
+
+  AppConfig get _cfg => widget.config;
+  AppTheme get _t => _cfg.theme;
+
+  static const _platforms = <(String, String, String)>[
+    ('windows', 'Windows 安装包', 'exe'),
+    ('windowsPortable', 'Windows 便携版', 'zip'),
+    ('macos', 'macOS', 'dmg'),
+    ('android', 'Android', 'apk'),
+    ('harmony', '鸿蒙', 'hap'),
+    ('ios', 'iOS', 'ipa'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final up = await widget.api.adminUpdateStatus();
+      final u = (up['update'] as Map?) ?? const {};
+      final vresp = await widget.api.checkVersion();
+      if (!mounted) return;
+      setState(() {
+        _upState = '${u['state'] ?? 'idle'}';
+        _version = vresp;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _setVersion() async {
+    final latestC = TextEditingController(text: '${_version?['latest'] ?? ''}');
+    final notesC = TextEditingController(text: '${_version?['releaseNotes'] ?? ''}');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _t.card,
+        title: Text('更新版本配置', style: TextStyle(color: _t.text, fontSize: 16)),
+        content: SizedBox(
+          width: 380,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: latestC, style: TextStyle(color: _t.text),
+                decoration: InputDecoration(labelText: '最新版本（x.y.z）', labelStyle: TextStyle(color: _t.subText))),
+            const SizedBox(height: 10),
+            TextField(controller: notesC, maxLines: 4, style: TextStyle(color: _t.text),
+                decoration: InputDecoration(labelText: '更新说明', labelStyle: TextStyle(color: _t.subText))),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('保存')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.api.adminSetVersion(latestC.text.trim(), releaseNotes: notesC.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('版本配置已保存（上传安装包需按此版本命名）')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败：$e')));
+    }
+  }
+
+  Future<void> _upload(String platform, String label) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(withData: true);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.bytes == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('读取文件失败（请选择本地文件）')));
+        return;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('正在上传 $label（${(file.bytes!.length / 1024 / 1024).toStringAsFixed(1)} MB）...')));
+      final r = await widget.api.adminUploadPackage(platform, file.bytes!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传成功：${r['file'] ?? ''}')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('上传失败：$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete(String platform, String label) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _t.card,
+        title: Text('删除 $label 安装包？', style: TextStyle(color: _t.text, fontSize: 16)),
+        content: Text('将从服务器 downloads 目录移除当前版本的文件，客户端将无法再下载该平台的此版本。', style: TextStyle(color: _t.subText, fontSize: 12)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await widget.api.adminDeletePackage(platform);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text(_error!, style: TextStyle(color: _t.subText)));
+    }
+    final dl = (_version?['downloads'] as Map?) ?? const {};
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          SectionCard(
+            config: _cfg,
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+                title: Text('当前版本：${_version?['current'] ?? '-'}', style: TextStyle(color: _t.text, fontSize: 14)),
+                subtitle: Text('最新版本：${_version?['latest'] ?? '-'} · 更新时间 ${_fmtTime(_version?['updatedAt'])}', style: TextStyle(color: _t.subText, fontSize: 12)),
+                trailing: FilledButton(onPressed: _setVersion, child: const Text('修改版本/说明')),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SectionCard(
+            config: _cfg,
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+                leading: Icon(Icons.update, color: _upState == 'pending' ? Colors.orange : (['applied', 'idle'].contains(_upState) ? Ux.green : _t.subText)),
+                title: Text('整包更新状态：${_upState ?? 'idle'}', style: TextStyle(color: _t.text, fontSize: 14)),
+                subtitle: Text('上传 ZIP 后需在服务端执行替换并重启（建议直接上传各平台安装包）', style: TextStyle(color: _t.subText, fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('安装包管理（上传的文件按「最新版本」命名，供客户端自动更新下载）', style: TextStyle(fontSize: 12, color: _t.subText)),
+          const SizedBox(height: 8),
+          ..._platforms.map((p) {
+            final (key, label, _) = p;
+            final path = dl[key];
+            final exists = path != null && '$path'.isNotEmpty;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: _t.card,
+                borderRadius: BorderRadius.circular(Ux.cardRadius),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(children: [
+                    Icon(Icons.archive_outlined, color: Ux.green, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _t.text)),
+                        Text(exists ? '$path' : '未上传', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: exists ? Ux.green : _t.subText)),
+                      ]),
+                    ),
+                    IconButton(
+                      tooltip: '上传',
+                      icon: Icon(Icons.upload_file_rounded, color: _t.text),
+                      onPressed: () => _upload(key, label),
+                    ),
+                    if (exists)
+                      IconButton(
+                        tooltip: '删除',
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        onPressed: () => _delete(key, label),
+                      ),
+                  ]),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }
