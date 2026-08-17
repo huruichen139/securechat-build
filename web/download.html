@@ -36,6 +36,9 @@
     .platform .download { align-self: flex-start; padding: 7px 14px; font-size: 13px; }
     .back { display: block; margin-top: 28px; color: var(--muted); text-align: center; text-decoration: none; }
     .back:hover { color: var(--green); }
+    .changelog { margin: 18px 0; padding: 16px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .changelog h3 { margin: 0 0 8px; font-size: 15px; color: var(--green); }
+    .changelog .log-item { color: var(--ink); font-size: 14px; line-height: 1.9; }
     @media (max-width: 560px) {
       .page { width: min(100% - 20px, 480px); padding-top: 30px; }
       .recommend { grid-template-columns: 1fr; padding: 22px; }
@@ -48,6 +51,7 @@
   <main class="page">
     <header><div class="brand">SecureChat</div><p>端到端加密聊天 · 多平台客户端下载</p></header>
     <div id="status" class="status" role="status" aria-live="polite">正在获取最新版本…</div>
+    <section id="changelog" class="changelog" aria-label="更新日志"></section>
     <section id="recommended" class="recommend" aria-labelledby="recommended-title"></section>
     <details class="other" open>
       <summary>其他平台</summary>

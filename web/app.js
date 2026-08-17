@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.61.0';
+const PACKAGE_VERSION = '1.62.0';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -485,28 +485,9 @@ function cmpVersion(a, b) {
   }
   return 0;
 }
-// 每次（登录/进入聊天页）自动拉 /api/version，若 latest > 当前 PACKAGE_VERSION 则弹更新浮层。
+// 更新提示仅展示在下载页（download.html 下方更新日志），web 端不再弹更新浮层。
 async function checkUpdate() {
-  if (/Electron\//i.test(navigator.userAgent || '')) return;
-  try {
-    const res = await fetch(state.serverHost + '/api/version');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (cmpVersion(PACKAGE_VERSION, data.latest) < 0) {
-      $('updateTitle').textContent = '发现新版本 v' + data.latest;
-      let notes = (data.releaseNotes || '').trim();
-      // 把换行或分号切分为列表展示
-      let html = '';
-      String(notes || '').split(/\r?\n|;/).map(s => s.trim()).filter(Boolean)
-        .forEach(line => { html += '<div>• ' + escapeHtml(line) + '</div>'; });
-      if (!html) html = '<div>• ' + escapeHtml(data.latest || '') + '</div>';
-      $('updateNotes').innerHTML = html;
-      $('updateMask').style.display = 'flex';
-      // 绑定按钮（每次都重绑，防止旧闭包）
-      $('updateNowBtn').onclick = function () { window.open('download.html', '_blank'); };
-      $('updateLaterBtn').onclick = function () { $('updateMask').style.display = 'none'; };
-    }
-  } catch (e) { /* 静默：检查更新失败不应打扰用户 */ }
+  return;
 }
 
 // 自动恢复登录（先验证 token 再进聊天）

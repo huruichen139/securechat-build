@@ -102,6 +102,26 @@
     var version = String(data.latest || data.current || '1.0.0');
     var downloads = data.downloads || {};
     var downloadVersions = data.downloadVersions || {};
+    // 更新日志：每次打开都显示
+    var notesEl = root.querySelector('#changelog');
+    if (notesEl) {
+      var notes = String(data.releaseNotes || '').trim();
+      notesEl.innerHTML = '';
+      if (notes) {
+        var head = document.createElement('h3');
+        head.textContent = _t('changelog', '更新日志') + ' · v' + version;
+        notesEl.appendChild(head);
+        String(notes).split(/\r?\n|;/).map(function (s) { return s.trim(); }).filter(Boolean)
+          .forEach(function (line) {
+            var div = document.createElement('div');
+            div.className = 'log-item';
+            div.textContent = '• ' + line;
+            notesEl.appendChild(div);
+          });
+      } else {
+        notesEl.textContent = _t('noChangelog', '暂无更新日志');
+      }
+    }
     var recommendedKey = platformFromUserAgent(navigator.userAgent);
     var recommended = PLATFORMS.filter(function (p) { return p.key === recommendedKey; })[0] || PLATFORMS[0];
     var url = absoluteDownload(downloads[recommended.key], apiUrl);
