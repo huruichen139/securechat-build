@@ -11,12 +11,14 @@
     if (window.state && window.state.serverHost) return window.state.serverHost;
     return window.SERVER_HOST || location.origin;
   }
+  function authToken() {
+    if (window.SecureChatExt && window.SecureChatExt._util) return window.SecureChatExt._util.getToken();
+    if (window.state && window.state.token) return window.state.token;
+    try { return localStorage.getItem('sc_token'); } catch (e) { return ''; }
+  }
   function fetchJson(path, opts) {
     opts = opts || {};
-    let t = '';
-    if (window.SecureChatExt && window.SecureChatExt._util) t = window.SecureChatExt._util.getToken();
-    else if (window.state && window.state.token) t = window.state.token;
-    else { try { t = localStorage.getItem('sc_token'); } catch (e) {} }
+    const t = authToken();
     const h = { 'Authorization': t ? 'Bearer ' + t : '' };
     const cfg = { method: opts.method || 'GET', headers: h };
     let body = null;
@@ -114,12 +116,13 @@
     const closeX = document.createElement('button');
     closeX.className = 'modal-x'; closeX.innerHTML = '&times;';
     box.appendChild(closeX);
-    closeX.onclick = function () { stopPoll(); mask.remove(); };
+    function closeRoom() { stopPoll(); abortLiveRec(); mask.remove(); }
+    closeX.onclick = closeRoom;
     mask.appendChild(box);
-    mask.addEventListener('click', function (e) { if (e.target === mask) { stopPoll(); mask.remove(); } });
+    mask.addEventListener('click', function (e) { if (e.target === mask) closeRoom(); });
     document.body.appendChild(mask);
 
-    const src = mediaUrl(room.streamUrl);
+    const src = mediaUrl(room.status === 'ended' && room.replayUrl ? room.replayUrl : room.streamUrl);
     const onAir = room.status === 'live';
     box.innerHTML =
       '<div class="live-room-head">' + esc(room.title) + ' <span class="live-badge ' + (onAir ? 'live' : 'end') + '">' + (onAir ? '直播中' : '已结束') + '</span></div>' +
@@ -129,7 +132,7 @@
       '<div class="live-ops">' +
         '<button data-like data-on="' + (room.likedByMe ? '1' : '0') + '">' + (room.likedByMe ? '♥' : '♡') + ' ' + (room.likeCount || 0) + '</button>' +
         '<button data-fav data-on="' + (room.favoritedByMe ? '1' : '0') + '">' + (room.favoritedByMe ? '★' : '☆') + ' ' + (room.favoriteCount || 0) + '</button>' +
-        (isHost || (backFn && backFn.dataHost) ? '<button data-end>结束直播</button>' : '') +
+        (isHost || (backFn && backFn.dataHost) ? (onAir ? '<button data-record>录像</button>' : '') + '<button data-end>结束直播</button>' : '') +
         '<span class="live-viewers">观看 ' + (room.viewerCount || 0) + '</span>' +
       '</div>' +
       '<div class="live-chat-box">' +
@@ -168,6 +171,8 @@
     };
     box.querySelector('[data-like]').onclick = function () { toggleLike(box.querySelector('[data-like]'), room.id); };
     box.querySelector('[data-fav]').onclick = function () { toggleFav(box.querySelector('[data-fav]'), room.id); };
+    const recBtn = box.querySelector('[data-record]');
+    if (recBtn) recBtn.onclick = function () { toggleRecord(recBtn, box, room); };
     const endBtn = box.querySelector('[data-end]');
     if (endBtn) endBtn.onclick = function () { endLive(room.id, box); };
 
@@ -187,10 +192,95 @@
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
   function endLive(id, box) {
-    const replay = window.prompt('回放地址（HLS 或 /api/media/...，可留空）：');
-    fetchJson('/api/live/end', { method: 'POST', json: { roomId: id, replayUrl: replay || '' } })
-      .then(function () { toastMsg('已结束直播'); stopPoll(); const head = box.querySelector('.live-room-head'); if (head) head.innerHTML = head.innerHTML.replace('live-badge live', 'live-badge end'); })
-      .catch(function (e) { toastMsg(e.message, 'error'); });
+    const def = liveRecId ? '/api/call-recordings/' + liveRecId : '';
+    const replay = window.prompt('回放地址（HLS 或 /api/call-recordings/...，可留空）', def);
+    if (replay === null) return;
+    const custom = (replay || '').trim();
+    const done = function () {
+      const replayUrl = custom || (liveRecId ? '/api/call-recordings/' + liveRecId : '');
+      fetchJson('/api/live/end', { method: 'POST', json: { roomId: id, replayUrl: replayUrl } })
+        .then(function (d) {
+          toastMsg('已结束直播'); stopPoll(); liveRecId = null;
+          const head = box.querySelector('.live-room-head');
+          if (head) head.innerHTML = head.innerHTML.replace('live-badge live', 'live-badge end');
+          const src = mediaUrl(d.room && d.room.replayUrl);
+          if (src) {
+            const vid = box.querySelector('.live-video video');
+            const novid = box.querySelector('.vid-novideo');
+            if (vid) vid.src = src;
+            else if (novid) novid.innerHTML = '<video controls autoplay muted playsinline src="' + esc(src) + '"></video>';
+          }
+        })
+        .catch(function (e) { toastMsg(e.message, 'error'); });
+    };
+    if (liveRecorder) {
+      liveRecorder.onstop = function () { finishLiveRec().then(done); };
+      liveRecorder.stop();
+    } else { done(); }
+  }
+
+  // ---------- 主播端录像：MediaRecorder → /api/call-recordings → 结束直播时自动挂回放 ----------
+  let liveRecorder = null, liveRecChunks = [], liveRecId = null, liveRecBtn = null, liveRecRoom = null;
+  function toggleRecord(btn, box, room) {
+    if (liveRecorder) { liveRecorder.stop(); return; }
+    let stream = null;
+    const video = box.querySelector('.live-video video');
+    if (video && typeof video.captureStream === 'function') { try { stream = video.captureStream(); } catch (e) {} }
+    if (!stream) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toastMsg('当前环境不支持录像', 'warn'); return; }
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(function (s) { startLiveRec(s, btn, room); })
+        .catch(function () { toastMsg('无法获取摄像头/麦克风，录像已取消', 'warn'); });
+      return;
+    }
+    startLiveRec(stream, btn, room);
+  }
+  function startLiveRec(stream, btn, room) {
+    const make = function () {
+      let mime = 'video/webm';
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) mime = 'video/webm;codecs=vp8,opus';
+      try { liveRecorder = new MediaRecorder(stream, { mimeType: mime }); } catch (e) { liveRecorder = new MediaRecorder(stream); }
+      liveRecChunks = []; liveRecId = null; liveRecBtn = btn; liveRecRoom = room;
+      liveRecorder.ondataavailable = function (e) { if (e.data && e.data.size) liveRecChunks.push(e.data); };
+      liveRecorder.onstop = function () { finishLiveRec(); };
+      liveRecorder.start(1000);
+      btn.textContent = '停止录像';
+      btn.classList.add('recording');
+      toastMsg('开始录像，结束直播时自动上传为回放', 'info');
+    };
+    if (stream.getAudioTracks && !stream.getAudioTracks().length && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (mic) { mic.getAudioTracks().forEach(function (t) { stream.addTrack(t); }); make(); })
+        .catch(function () { make(); });
+    } else { make(); }
+  }
+  function finishLiveRec() {
+    const btn = liveRecBtn; liveRecBtn = null; const room = liveRecRoom; liveRecRoom = null;
+    if (btn) { btn.textContent = '录像'; btn.classList.remove('recording'); }
+    const chunks = liveRecChunks; liveRecChunks = [];
+    if (!chunks.length) return Promise.resolve(null);
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const t = authToken();
+    return fetch(base() + '/api/call-recordings?to=' + encodeURIComponent(room.hostId) + '&kind=video', {
+      method: 'POST', body: blob, headers: { 'Content-Type': 'video/webm', 'Authorization': t ? 'Bearer ' + t : '' }
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        if (d && d.error) throw new Error(d.error);
+        liveRecId = d.id || null;
+        toastMsg(liveRecId ? '录像已上传' : '录像上传失败', liveRecId ? 'success' : 'error');
+        return liveRecId;
+      })
+      .catch(function (e) { toastMsg('录像上传失败：' + e.message, 'error'); return null; });
+  }
+  function abortLiveRec() {
+    const btn = liveRecBtn; liveRecBtn = null; liveRecRoom = null;
+    if (btn) { btn.textContent = '录像'; btn.classList.remove('recording'); }
+    if (liveRecorder) {
+      liveRecorder.onstop = null;
+      try { liveRecorder.stop(); } catch (e) {}
+      liveRecorder = null; liveRecChunks = [];
+    }
   }
 
   function openPanel() {

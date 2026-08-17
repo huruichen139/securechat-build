@@ -605,7 +605,11 @@ function renderMyInfo() {
   $('editProfileBtn').onclick = editProfile;
   $('feedbackBtn').onclick = openFeedback;
   $('myCardBtn').onclick = showMyCard;
-  $('scanQrBtn').onclick = openQrScanner;
+  const scanBtn = $('scanQrBtn');
+  if (scanBtn) {
+    if (window.IS_MOBILE) scanBtn.onclick = openQrScanner;
+    else scanBtn.style.display = 'none';
+  }
   const setLocalTheme = (wantDark) => {
     document.body.classList.toggle('dark-mode', wantDark);
     localStorage.setItem('sc_theme', wantDark ? 'dark' : 'light');
@@ -1090,7 +1094,7 @@ function openFeatureCenter() {
       { label: '红包', short: '红包', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
       { label: '附近的人', short: '附近', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
       { label: '摇一摇', short: '摇一摇', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
-      { label: '扫一扫', short: '扫一扫', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
+      { label: '扫一扫', short: '扫一扫', grad: 5, mobileOnly: true, open: () => window.SecureChatScan && window.SecureChatScan.open() },
       { label: '支付生活', short: '支付', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
 { id: 'tools', label: '工具', items: [
@@ -1153,6 +1157,7 @@ function openFeatureCenter() {
     const grid = document.createElement('div');
     grid.className = 'feature-grid';
     cat.items.forEach(it => {
+      if (it.mobileOnly && !window.IS_MOBILE) return;
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'feature-item feature-item-' + cat.id + ' feature-item-' + featureKey(it.label);
@@ -2571,6 +2576,23 @@ function refreshConversationButtons() {
   if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','已静音') : t('mute','免打扰'); }
 }
 
+// 清空当前单聊聊天记录（桌面端「清空」按钮与移动端聊天更多菜单共用）
+async function clearActiveChatLog(btn) {
+  if (!state.activePeer) return toast('请先选择联系人', 'warn', 1200);
+  if (!confirm('确定清空当前聊天记录吗？此操作不可恢复。')) return;
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '清空失败');
+    $('messages').innerHTML = '';
+    toast('当前聊天记录已清空', 'success', 1500);
+  } catch (e) { toast('清空失败：' + e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
 function wireConversationTools() {
   const pin = $('pinChatBtn'); const mute = $('muteChatBtn'); const notify = $('notifyBtn');
   const clear = $('clearChatBtn');
@@ -2605,21 +2627,7 @@ function wireConversationTools() {
     notify.textContent = permission === 'granted' ? t('notifyOn','通知已开') : t('notify','通知');
     toast(permission === 'granted' ? '浏览器通知已开启' : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
   };
-  if (clear) clear.onclick = async () => {
-    if (!state.activePeer) return toast('请先选择联系人', 'warn', 1200);
-    if (!confirm('确定清空当前聊天记录吗？此操作不可恢复。')) return;
-    clear.disabled = true;
-    try {
-      const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
-        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + state.token }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '清空失败');
-      $('messages').innerHTML = '';
-      toast('当前聊天记录已清空', 'success', 1500);
-    } catch (e) { toast('清空失败：' + e.message, 'error'); }
-    finally { clear.disabled = false; }
-  };
+  if (clear) clear.onclick = () => clearActiveChatLog(clear);
   let searchHits = []; let searchIdx = -1;
   function applySearch() {
     const q = (searchInput && searchInput.value || '').trim().toLowerCase();
@@ -3967,13 +3975,14 @@ function renderMePage() {
   if (!header) return;
   const hasImg = state.me.avatar;
   const avHtml = hasImg ? `<img src="${state.me.avatar}">` : avatarChar(state.me.nickname);
+  const qrHtml = window.IS_MOBILE ? '<span class="me-qr" id="meQrBtn"><span class="wx-ico-sm">扫</span></span>' : '';
   header.innerHTML = `
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
       <div class="me-name">${escapeHtml(state.me.nickname)}</div>
       <div class="me-id">微信号：${escapeHtml(state.me.uid || '')}</div>
     </div>
-    <span class="me-qr" id="meQrBtn"><span class="wx-ico-sm">扫</span></span>`;
+    ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
   if (qrBtn) qrBtn.onclick = () => openQrScanner();
 
@@ -4318,6 +4327,9 @@ function openChatMoreMenu(anchor) {
     items.push({ label: '导出聊天记录', onClick: () => { hideChatMoreMenu(); exportChatLog(); } });
     items.push({ label: pinned ? '取消置顶' : '置顶会话', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.pinned[key] = !p.pinned[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
     items.push({ label: muted ? '恢复提醒' : '免打扰', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.muted[key] = !p.muted[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
+  }
+  if (state.activePeer) {
+    items.push({ label: '清空聊天记录', danger: true, onClick: () => { hideChatMoreMenu(); clearActiveChatLog(); } });
   }
   items.push({ label: '黑名单管理', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
   items.push({ label: '更多功能', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });

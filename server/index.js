@@ -1020,7 +1020,11 @@ app.get('/api/call-recordings', (req, res) => {
   res.json({ recordings: rows });
 });
 
-app.post('/api/call-recordings', express.raw({ type: 'video/webm', limit: '500mb' }), (req, res) => {
+app.post('/api/call-recordings', express.raw({
+    // type-is 对带 codecs 参数（如 video/webm;codecs=vp8,opus）的匹配有 bug，改用自定义类型判定
+    type: (req) => { const ct = String(req.headers['content-type'] || '').split(';')[0].trim(); return ct === 'video/webm' || ct === 'audio/webm'; },
+    limit: '500mb'
+  }), (req, res) => {
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '回放为空' });
@@ -1039,9 +1043,16 @@ app.post('/api/call-recordings', express.raw({ type: 'video/webm', limit: '500mb
 app.get('/api/call-recordings/:id', (req, res) => {
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const row = prepare('SELECT * FROM call_recordings WHERE id=? AND (from_id=? OR to_id=?)').get(req.params.id, payload.id, payload.id);
-  if (!row || !fs.existsSync(row.path)) return res.status(404).json({ error: '回放不存在' });
-  res.setHeader('Content-Type', 'video/webm');
+  const row = prepare('SELECT * FROM call_recordings WHERE id=?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: '回放不存在' });
+  // 通话录像仅通话双方可见；被直播间 replay_url 引用的录像视为直播回放，对登录用户开放
+  let liveRef = null;
+  try {
+    liveRef = prepare('SELECT 1 FROM live_rooms WHERE replay_url=? OR replay_url LIKE ?').get('/api/call-recordings/' + req.params.id, '/api/call-recordings/' + req.params.id + '%');
+  } catch (e) { /* live_rooms 未建表（直播模块未挂载）时视为无引用 */ }
+  if (row.from_id !== payload.id && row.to_id !== payload.id && !liveRef) return res.status(404).json({ error: '回放不存在' });
+  if (!fs.existsSync(row.path)) return res.status(404).json({ error: '回放不存在' });
+  res.setHeader('Content-Type', row.kind === 'audio' ? 'audio/webm' : 'video/webm');
   fs.createReadStream(row.path).pipe(res);
 });
 
