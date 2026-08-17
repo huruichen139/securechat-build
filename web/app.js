@@ -2576,13 +2576,35 @@ function wireConversationTools() {
     } catch (e) { toast('清空失败：' + e.message, 'error'); }
     finally { clear.disabled = false; }
   };
+  let searchHits = []; let searchIdx = -1;
   function applySearch() {
     const q = (searchInput && searchInput.value || '').trim().toLowerCase();
+    searchHits = [];
+    searchIdx = -1;
     document.querySelectorAll('#messages .msg-row').forEach(row => {
       const hit = !!q && row.textContent.toLowerCase().includes(q);
       row.classList.toggle('search-hit', hit);
+      row.classList.remove('search-current');
+      if (hit) searchHits.push(row);
     });
+    const cnt = $('messageSearchCount');
+    if (cnt) cnt.textContent = q ? (searchHits.length ? '1/' + searchHits.length : '0/0') : '';
+    if (searchHits.length) { searchIdx = 0; gotoSearchHit(); }
   }
+  function gotoSearchHit() {
+    if (!searchHits.length) return;
+    if (searchIdx < 0) searchIdx = 0;
+    if (searchIdx >= searchHits.length) searchIdx = searchHits.length - 1;
+    searchHits.forEach(r => r.classList.remove('search-current'));
+    const cur = searchHits[searchIdx];
+    cur.classList.add('search-current');
+    cur.scrollIntoView({ block: 'center' });
+    const cnt = $('messageSearchCount');
+    if (cnt) cnt.textContent = (searchIdx + 1) + '/' + searchHits.length;
+  }
+  const prevBtn = $('messageSearchPrev'); const nextBtn = $('messageSearchNext');
+  if (prevBtn) prevBtn.onclick = () => { if (!searchHits.length) return; searchIdx = (searchIdx - 1 + searchHits.length) % searchHits.length; gotoSearchHit(); };
+  if (nextBtn) nextBtn.onclick = () => { if (!searchHits.length) return; searchIdx = (searchIdx + 1) % searchHits.length; gotoSearchHit(); };
   if (searchBtn && searchBar) searchBtn.onclick = () => { searchBar.style.display = searchBar.style.display === 'none' ? 'flex' : 'none'; if (searchBar.style.display === 'flex') searchInput.focus(); };
   if (searchInput) searchInput.addEventListener('input', applySearch);
   if (searchClose && searchBar) searchClose.onclick = () => { searchBar.style.display = 'none'; if (searchInput) searchInput.value = ''; applySearch(); };
