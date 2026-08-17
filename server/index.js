@@ -2239,6 +2239,273 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
+// ============ GitHub OAuth 登录（无需备案） ============
+// 配置存 settings['github_config']，流程同 QQ 互联但接口是 GitHub。
+// GitHub API: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
+const GITHUB_SESSION_TTL = 3 * 60 * 1000;
+const githubSessions = new Map(); // state -> { status, token?, user?, githubId?, login?, avatar?, createdAt }
+
+function getGithubConfig() {
+  const raw = getSetting('github_config');
+  if (!raw) return null;
+  try {
+    const c = JSON.parse(raw);
+    if (!c || !c.clientId) return null;
+    return {
+      clientId: String(c.clientId || '').trim(),
+      clientSecret: String(c.clientSecret || '').trim(),
+      redirect: String(c.redirect || '').trim(),
+      enabled: !!c.enabled
+    };
+  } catch (e) { return null; }
+}
+function saveGithubConfig(c) {
+  setSetting('github_config', JSON.stringify({
+    clientId: String(c.clientId || '').trim(),
+    clientSecret: String(c.clientSecret || '').trim(),
+    redirect: String(c.redirect || '').trim(),
+    enabled: !!c.enabled
+  }));
+}
+
+async function githubExchangeToken(code) {
+  const cfg = getGithubConfig();
+  if (!cfg) return { error: 'GitHub OAuth 未配置' };
+  const body = JSON.stringify({ client_id: cfg.clientId, client_secret: cfg.clientSecret, code, redirect_uri: cfg.redirect });
+  const url = 'https://github.com/login/oauth/access_token';
+  return new Promise((resolve) => {
+    const u = new URL(url);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'SecureChat/1.0', 'Content-Length': Buffer.byteLength(body) }
+    }, (res) => {
+      let d = '';
+      res.on('data', (c) => { d += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return resolve({ error: 'GitHub 授权失败（' + res.statusCode + '）' });
+        try {
+          const j = JSON.parse(d);
+          if (j.error) return resolve({ error: 'GitHub: ' + (j.error_description || j.error) });
+          if (!j.access_token) return resolve({ error: 'GitHub 未返回 access_token' });
+          resolve({ accessToken: j.access_token });
+        } catch (e) { resolve({ error: 'GitHub 响应解析失败' }); }
+      });
+    });
+    req.on('error', (e) => resolve({ error: e.message }));
+    req.setTimeout(15000, () => { try { req.destroy(); } catch (e) {} resolve({ error: 'timeout' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
+async function githubGetUser(accessToken) {
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.github.com', path: '/user', method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + accessToken, 'User-Agent': 'SecureChat/1.0', 'Accept': 'application/json' }
+    }, (res) => {
+      let d = '';
+      res.on('data', (c) => { d += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return resolve({ error: 'GitHub 用户信息获取失败' });
+        try {
+          const j = JSON.parse(d);
+          if (!j.id) return resolve({ error: 'GitHub 用户 ID 为空' });
+          resolve({ githubId: String(j.id), login: j.login || '', name: j.name || j.login || '', avatar: j.avatar_url || '' });
+        } catch (e) { resolve({ error: 'GitHub 用户信息解析失败' }); }
+      });
+    });
+    req.on('error', (e) => resolve({ error: e.message }));
+    req.setTimeout(15000, () => { try { req.destroy(); } catch (e) {} resolve({ error: 'timeout' }); });
+    req.end();
+  });
+}
+
+// 管理后台：读取 GitHub OAuth 配置
+app.get('/api/admin/github/config', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const cfg = getGithubConfig();
+  res.json({ config: cfg || { clientId: '', clientSecret: '', redirect: '', enabled: false } });
+});
+
+// 管理后台：保存 GitHub OAuth 配置
+app.post('/api/admin/github/config', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const b = req.body || {};
+  if (!String(b.clientId || '').trim() || !String(b.clientSecret || '').trim()) {
+    return res.status(400).json({ error: 'Client ID 和 Client Secret 不能为空' });
+  }
+  if (!String(b.redirect || '').trim().startsWith('https://')) {
+    return res.status(400).json({ error: '回调地址必须以 https:// 开头' });
+  }
+  saveGithubConfig({ clientId: b.clientId, clientSecret: b.clientSecret, redirect: b.redirect, enabled: !!b.enabled });
+  logAudit(guard.u.id, 'github_config', null, 'config', '更新 GitHub OAuth 配置(clientId=' + b.clientId + ', enabled=' + (!!b.enabled) + ')', clientIp(req));
+  res.json({ ok: true, config: getGithubConfig() });
+});
+
+// 公开：查询 GitHub 登录是否可用
+app.get('/api/oauth/github/status', (req, res) => {
+  const cfg = getGithubConfig();
+  res.json({ enabled: !!(cfg && cfg.enabled && cfg.clientId), clientId: cfg ? cfg.clientId : '', redirect: cfg ? cfg.redirect : '' });
+});
+
+// 公开：生成 GitHub 授权链接
+app.get('/api/oauth/github/url', (req, res) => {
+  const cfg = getGithubConfig();
+  if (!cfg || !cfg.enabled || !cfg.clientId || !cfg.redirect) {
+    return res.status(503).json({ error: 'GitHub 登录尚未启用' });
+  }
+  const state = String((req.query || {}).state || '').trim();
+  if (!state) return res.status(400).json({ error: '缺少 state' });
+  const url = 'https://github.com/login/oauth/authorize?client_id=' + encodeURIComponent(cfg.clientId) +
+    '&redirect_uri=' + encodeURIComponent(cfg.redirect) + '&state=' + encodeURIComponent(state) + '&scope=read:user';
+  res.json({ url });
+});
+
+// 轮询：客户端获取登录结果
+app.get('/api/oauth/github/poll', (req, res) => {
+  const state = String((req.query || {}).state || '').trim();
+  const s = githubSessions.get(state);
+  if (!s) return res.status(404).json({ error: '登录会话不存在或已过期' });
+  if (s.status === 'ok') {
+    return res.json({ status: 'ok', token: s.token, user: s.user });
+  }
+  return res.json({ status: s.status || 'waiting' });
+});
+
+// 绑定：已有账号 + 邮箱验证码 → 绑定 GitHub
+app.post('/api/oauth/github/bind', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { state, githubId, email, code } = req.body || {};
+  if (!state || !githubId || !email || !code) return res.status(400).json({ error: '参数不完整' });
+  const s = githubSessions.get(state);
+  if (!s || s.githubId !== githubId) return res.status(400).json({ error: '登录会话无效，请重新发起 GitHub 登录' });
+  const codeErr = checkCode(String(email), String(code), 'login');
+  if (codeErr) return res.status(400).json({ error: codeErr });
+  const user = prepare('SELECT * FROM users WHERE email=?').get(String(email).trim().toLowerCase());
+  if (!user) return res.status(400).json({ error: '该邮箱未注册' });
+  if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
+  const exists = prepare('SELECT id FROM users WHERE github_id=? AND id<>?').get(githubId, user.id);
+  if (exists) return res.status(400).json({ error: '该 GitHub 账号已绑定其他账号' });
+  prepare('UPDATE users SET github_id=? WHERE id=?').run(githubId, user.id);
+  persist();
+  const token = signToken(user);
+  s.status = 'ok'; s.token = token; s.user = publicUser(user);
+  logAudit(user.id, 'github_bind', user.id, 'user', 'GitHub 绑定账号 ' + user.username, clientIp(req));
+  res.json({ ok: true, token, user: s.user });
+});
+
+// 自动注册：用 GitHub 昵称创建新账号
+app.post('/api/oauth/github/register', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { state, githubId, name, avatar } = req.body || {};
+  if (!state || !githubId) return res.status(400).json({ error: '参数不完整' });
+  const s = githubSessions.get(state);
+  if (!s || s.githubId !== githubId) return res.status(400).json({ error: '登录会话无效，请重新发起 GitHub 登录' });
+  if (prepare('SELECT 1 FROM users WHERE github_id=?').get(githubId)) {
+    return res.status(400).json({ error: '该 GitHub 账号已注册过账号，请使用绑定方式登录' });
+  }
+  let username;
+  do { username = 'gh' + String(Math.floor(100000 + Math.random() * 900000)); }
+  while (prepare('SELECT 1 FROM users WHERE username=?').get(username));
+  let uid; do { uid = genUid(); } while (prepare('SELECT 1 FROM users WHERE uid=?').get(uid));
+  const hash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+  const nick = String(name || '').trim().slice(0, 20) || 'GitHub用户';
+  prepare('INSERT INTO users(username,nickname,password,uid,github_id,created_at) VALUES(?,?,?,?,?,?)')
+    .run(username, nick, hash, uid, githubId, Date.now());
+  persist();
+  const user = prepare('SELECT * FROM users WHERE username=?').get(username);
+  const token = signToken(user);
+  s.status = 'ok'; s.token = token; s.user = publicUser(user);
+  res.json({ ok: true, token, user: s.user });
+});
+
+// GitHub 授权回调页（HTML）
+app.get('/oauth/github/callback', async (req, res) => {
+  const code = String((req.query || {}).code || '');
+  const state = String((req.query || {}).state || '');
+  const error = String((req.query || {}).error || '');
+  const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const script = (v) => String(v || '').replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/"/g, '\\u0022');
+
+  if (error || !code || !state) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>GitHub 登录失败</h3><p>' + esc(error || '缺少授权参数') + '</p></body>');
+  }
+  githubSessions.set(state, { status: 'waiting', githubId: '', createdAt: Date.now() });
+  const tok = await githubExchangeToken(code);
+  if (tok.error) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>GitHub 登录失败</h3><p>' + esc(tok.error) + '</p></body>');
+  }
+  const ui = await githubGetUser(tok.accessToken);
+  if (ui.error) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>GitHub 登录失败</h3><p>' + esc(ui.error) + '</p></body>');
+  }
+  const s = githubSessions.get(state);
+  if (s) { s.githubId = ui.githubId; s.login = ui.login; s.name = ui.name; s.avatar = ui.avatar; s.createdAt = Date.now(); }
+
+  const bound = prepare('SELECT * FROM users WHERE github_id=?').get(ui.githubId);
+  if (bound) {
+    if (bound.banned) {
+      return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#c0392b"><h3>该账号已被封禁</h3></body>');
+    }
+    const token = signToken(bound);
+    s.status = 'ok'; s.token = token; s.user = publicUser(bound);
+  }
+
+  const html = '<!doctype html><html><meta charset="utf-8"><title>GitHub 登录</title>' +
+    '<style>body{font-family:-apple-system,"Segoe UI",sans-serif;background:#0d1117;color:#c9d1d9;margin:0;padding:0}' +
+    '.card{max-width:400px;margin:60px auto;background:#161b22;border-radius:14px;border:1px solid #30363d;padding:36px 28px;text-align:center}' +
+    'h2{font-size:18px;margin:0 0 6px}.sub{color:#8b949e;font-size:13px;margin-bottom:22px}' +
+    '.avatar{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;display:block}' +
+    'input{width:100%;box-sizing:border-box;padding:11px 12px;margin:6px 0;border:1px solid #30363d;border-radius:8px;font-size:14px;outline:none;background:#0d1117;color:#c9d1d9}' +
+    'input:focus{border-color:#58a6ff}' +
+    'button{width:100%;padding:12px;margin-top:8px;border:none;border-radius:8px;font-size:15px;cursor:pointer}' +
+    '.btn-blue{background:#238636;color:#fff}.btn-plain{background:#21262d;color:#c9d1d9;border:1px solid #30363d}' +
+    '.err{color:#f85149;font-size:13px;margin:8px 0;min-height:18px}.ok{color:#3fb950;font-size:14px;margin:10px 0}' +
+    '.row{display:flex;gap:8px}.row input{flex:1}.row button{width:auto;padding:11px 14px;margin-top:6px;white-space:nowrap}' +
+    '</style>' +
+    '<div class="card">' +
+    '<img class="avatar" src="' + esc(ui.avatar || '') + '" onerror="this.style.display=\'none\'">' +
+    '<h2>' + esc(ui.name || ui.login || 'GitHub 用户') + '</h2>' +
+    '<div class="sub">使用 GitHub 登录 SecureChat</div>' +
+    '<div class="ok" id="okBox" style="display:none">登录成功，即将返回…</div>' +
+    '<div id="errBox" class="err"></div>' +
+    '<div id="bindBox" style="display:none">' +
+      '<div class="sub" style="text-align:left">该 GitHub 账号尚未绑定：</div>' +
+      '<div class="row"><input id="email" placeholder="输入已注册邮箱" type="email"><button class="btn-plain" onclick="sendCode()">发验证码</button></div>' +
+      '<input id="code" placeholder="邮箱验证码" style="margin-top:4px">' +
+      '<button class="btn-blue" onclick="bind()">绑定已有账号并登录</button>' +
+      '<div class="sub" style="margin:14px 0 0">或</div>' +
+      '<button class="btn-blue" onclick="reg()">用 GitHub 账号直接注册新用户</button>' +
+    '</div>' +
+    '<div id="waitBox"><div class="sub">正在处理…</div></div>' +
+    '</div>' +
+    '<script>' +
+    'var STATE=' + JSON.stringify(script(state)) + ';var GITHUB_ID=' + JSON.stringify(script(ui.githubId)) + ';var BOUND=' + (bound ? 'true' : 'false') + ';' +
+    'function toast(m){document.getElementById("errBox").textContent=m;}' +
+    'function showOk(){document.getElementById("okBox").style.display="block";document.getElementById("bindBox").style.display="none";document.getElementById("waitBox").style.display="none";}' +
+    'function sendCode(){var em=document.getElementById("email").value.trim();if(!/^[^@]+@[^@]+\\.[^@]+$/.test(em)){toast("邮箱格式不正确");return;}toast("验证码已发送，请查收邮箱");fetch("/api/email/code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em,purpose:"login"})}).then(function(r){return r.json()}).then(function(d){if(!d.ok&&d.error)toast(d.error)}).catch(function(e){toast("发送失败")});}' +
+    'function bind(){var em=document.getElementById("email").value.trim();var cd=document.getElementById("code").value.trim();if(!em||!cd){toast("请填写邮箱和验证码");return;}fetch("/api/oauth/github/bind",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,githubId:GITHUB_ID,email:em,code:cd})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
+    'function reg(){fetch("/api/oauth/github/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,githubId:GITHUB_ID})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
+    'function poll(){fetch("/api/oauth/github/poll?state="+encodeURIComponent(STATE)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
+    'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_github_login",state:STATE,ok:true},"*");}setTimeout(function(){location.href="/?github_done=1";},1200);}catch(e){}}' +
+    'if(BOUND){showOk();poll();}else{document.getElementById("bindBox").style.display="block";document.getElementById("waitBox").style.display="none";}' +
+    '</script></body></html>';
+  res.type('html').send(html);
+});
+
+// 清理过期的 GitHub 登录会话
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of githubSessions) {
+    if (now - (v.createdAt || 0) > GITHUB_SESSION_TTL) githubSessions.delete(k);
+  }
+}, 60 * 1000);
+
 // AI 同源代理：避免浏览器直接请求供应商时被 CORS 拦截。
 // API Key 只随本次请求转发，不写入服务器数据库。
 app.post('/api/ai/chat', async (req, res) => {

@@ -94,6 +94,7 @@ class _LoginPageState extends State<LoginPage> {
   final api = SecureChatApi();
   Timer? qrTimer;
   Timer? qqTimer;
+  Timer? githubTimer;
   Timer? codeTimer;
   int countdown = 0;
   String? qrText;
@@ -108,6 +109,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     qrTimer?.cancel();
     qqTimer?.cancel();
+    githubTimer?.cancel();
     codeTimer?.cancel();
     account.dispose();
     password.dispose();
@@ -241,6 +243,51 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> beginGithub() async {
+    if (busy) return;
+    setState(() { busy = true; error = null; });
+    try {
+      final st = await api.githubStatus();
+      if (!mounted) return;
+      if (st['enabled'] != true) {
+        setState(() { busy = false; error = 'GitHub 登录尚未启用，请在管理后台配置'; });
+        return;
+      }
+      final state = '${DateTime.now().millisecondsSinceEpoch}gh${(DateTime.now().microsecondsSinceEpoch % 1000).toString().padLeft(3, '0')}';
+      final url = await api.githubLoginUrl(state);
+      try {
+        await Process.start('cmd.exe', ['/c', 'start', '', url]);
+      } catch (e) {
+        await Process.start('cmd.exe', ['/c', 'start', url]);
+      }
+      setState(() { busy = false; error = '请在浏览器中完成 GitHub 授权…'; });
+      githubTimer?.cancel();
+      githubTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final r = await api.githubPoll(state);
+          if (!mounted) { githubTimer?.cancel(); return; }
+          if (r['status'] == 'ok') {
+            githubTimer?.cancel();
+            setState(() => error = '登录成功，正在进入…');
+            await api.applyLoginData(r);
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
+          } else if (r['status'] == 'waiting') {
+            // 继续等待
+          } else {
+            githubTimer?.cancel();
+            if (mounted) setState(() => error = (r['error'] ?? 'GitHub 登录失败').toString());
+          }
+        } catch (e) {
+          githubTimer?.cancel();
+          if (mounted) setState(() => error = 'GitHub 登录会话已过期，请重试');
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() { busy = false; error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
   void _showForgotPassword(BuildContext context) {
     showDialog(context: context, builder: (_) => _ForgotPasswordDialog(api: api));
   }
@@ -299,6 +346,7 @@ class _LoginPageState extends State<LoginPage> {
           _mode('邮箱验证码', 1, t),
           _mode('扫码登录', 2, t),
           _mode('QQ登录', 3, t),
+          _mode('GitHub', 4, t),
         ]),
       ),
       const SizedBox(height: 22),
@@ -318,13 +366,25 @@ class _LoginPageState extends State<LoginPage> {
           const SizedBox(height: 4),
           Text('手机确认后，电脑端会自动登录', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
-      ] else ...[
+      ] else if (mode == 3) ...[
         Center(child: Column(children: [
           Container(width: 72, height: 72, decoration: const BoxDecoration(color: Color(0xff12b7f5), borderRadius: BorderRadius.all(Radius.circular(20))), child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 40)),
           const SizedBox(height: 14),
           Text('使用 QQ 账号快速登录', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
           const SizedBox(height: 4),
           Text('点击按钮后将在浏览器中完成 QQ 授权', style: TextStyle(color: t.subText, fontSize: 12)),
+        ])),
+      ] else ...[
+        Center(child: Column(children: [
+          Container(
+            width: 72, height: 72,
+            decoration: const BoxDecoration(color: Color(0xff24292f), borderRadius: BorderRadius.all(Radius.circular(20))),
+            child: const Icon(Icons.code_rounded, color: Colors.white, size: 40),
+          ),
+          const SizedBox(height: 14),
+          Text('使用 GitHub 账号快速登录', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
+          const SizedBox(height: 4),
+          Text('无需备案，点击按钮后在浏览器中授权', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
       ],
       if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12))),
@@ -339,10 +399,12 @@ class _LoginPageState extends State<LoginPage> {
       ),
       const SizedBox(height: 6),
       SizedBox(width: double.infinity, height: 48, child: FilledButton(
-        onPressed: busy ? null : (mode == 2 ? beginQr : mode == 3 ? beginQq : login),
+        onPressed: busy ? null : (mode == 2 ? beginQr : mode == 3 ? beginQq : mode == 4 ? beginGithub : login),
         child: Text(mode == 3
             ? (busy ? '处理中…' : 'QQ 登录')
-            : busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'),
+            : mode == 4
+                ? (busy ? '处理中…' : 'GitHub 登录')
+                : busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'),
       )),
       const SizedBox(height: 18),
       Center(child: Text('SecureChat $kAppVersion', style: TextStyle(color: t.subText, fontSize: 12))),

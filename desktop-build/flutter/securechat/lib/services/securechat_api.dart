@@ -607,4 +607,32 @@ class SecureChatApi {
         'redirect': redirect,
         'enabled': enabled,
       });
+
+  // ============ GitHub OAuth ============
+  Future<Map<String, dynamic>> githubStatus() => _json('GET', '/api/oauth/github/status', auth: false);
+
+  Future<String> githubLoginUrl(String state) async {
+    final data = await _json('GET', '/api/oauth/github/url', query: {'state': state}, auth: false);
+    final url = (data['url'] ?? '').toString();
+    if (url.isEmpty) throw StateError(data['error'] ?? 'GitHub 登录未启用');
+    return url;
+  }
+
+  Future<Map<String, dynamic>> githubPoll(String state) =>
+      _json('GET', '/api/oauth/github/poll', query: {'state': state}, auth: false);
+
+  Future<Map<String, dynamic>> adminGithubConfig() => _json('GET', '/api/admin/github/config');
+
+  Future<Map<String, dynamic>> adminSaveGithubConfig({
+    required String clientId,
+    required String clientSecret,
+    required String redirect,
+    required bool enabled,
+  }) =>
+      _json('POST', '/api/admin/github/config', body: {
+        'clientId': clientId,
+        'clientSecret': clientSecret,
+        'redirect': redirect,
+        'enabled': enabled,
+      });
 }

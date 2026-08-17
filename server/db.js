@@ -410,7 +410,11 @@ function init() {
   try {
     db.run('ALTER TABLE users ADD COLUMN qq_openid TEXT');
   } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN github_id TEXT');
+  } catch (e) { /* 列已存在 */ }
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_qq_openid ON users(qq_openid) WHERE qq_openid IS NOT NULL');
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id) WHERE github_id IS NOT NULL');
   // QQ 互联等第三方配置：key 为字符串，value 存 JSON 字符串
   db.run(`CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,

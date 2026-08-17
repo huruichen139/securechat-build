@@ -32,7 +32,7 @@ class _AdminPageState extends State<AdminPage> {
         title: Text('管理员', style: TextStyle(color: _t.text, fontWeight: FontWeight.w700)),
       ),
       body: DefaultTabController(
-        length: 11,
+        length: 12,
         child: Column(children: [
           TabBar(
             isScrollable: true,
@@ -53,6 +53,7 @@ class _AdminPageState extends State<AdminPage> {
               Tab(text: '兑换码'),
               Tab(text: '发版'),
               Tab(text: 'QQ互联'),
+              Tab(text: 'GitHub'),
             ],
           ),
           Expanded(
@@ -68,6 +69,7 @@ class _AdminPageState extends State<AdminPage> {
               _RedeemTab(api: _api, config: _cfg),
               _DeployTab(api: _api, config: _cfg),
               _QqConfigTab(api: _api, config: _cfg),
+              _GithubConfigTab(api: _api, config: _cfg),
             ]),
           ),
         ]),
@@ -1864,6 +1866,164 @@ class _QqConfigTabState extends State<_QqConfigTab> {
                 onChanged: (v) => setState(() => enabled = v),
                 title: Text('启用 QQ 登录', style: TextStyle(color: _t.text, fontSize: 14)),
                 subtitle: Text('关闭后登录页不再显示 QQ 入口', style: TextStyle(color: _t.subText, fontSize: 11)),
+                activeThumbColor: Ux.green,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: const Icon(Icons.save_outlined, size: 18),
+                label: Text(_saving ? '保存中…' : '保存配置'),
+              ),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- GitHub OAuth 配置 ----------------
+class _GithubConfigTab extends StatefulWidget {
+  const _GithubConfigTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_GithubConfigTab> createState() => _GithubConfigTabState();
+}
+
+class _GithubConfigTabState extends State<_GithubConfigTab> {
+  bool _loading = true;
+  String? _error;
+  final clientId = TextEditingController();
+  final clientSecret = TextEditingController();
+  final redirect = TextEditingController();
+  bool enabled = false;
+  bool _saving = false;
+
+  AppConfig get _cfg => widget.config;
+  AppTheme get _t => _cfg.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    clientId.dispose();
+    clientSecret.dispose();
+    redirect.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final d = await widget.api.adminGithubConfig();
+      final c = (d['config'] as Map?) ?? const {};
+      if (!mounted) return;
+      clientId.text = '${c['clientId'] ?? ''}';
+      clientSecret.text = '${c['clientSecret'] ?? ''}';
+      redirect.text = '${c['redirect'] ?? ''}';
+      enabled = c['enabled'] == true;
+      setState(() => _loading = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.api.adminSaveGithubConfig(
+        clientId: clientId.text.trim(),
+        clientSecret: clientSecret.text.trim(),
+        redirect: redirect.text.trim(),
+        enabled: enabled,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存（回调地址需与 GitHub OAuth App 完全一致）')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败：$e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_error!, style: TextStyle(color: _t.subText)),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: _load, child: const Text('重试')),
+        ]),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          SectionCard(
+            config: _cfg,
+            padding: const EdgeInsets.all(14),
+            children: [
+              Text('GitHub OAuth 登录', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _t.text)),
+              const SizedBox(height: 6),
+              Text('在 github.com/settings/developers 创建 OAuth App，填写 Client ID / Secret / 授权回调地址，无需备案，审核即时生效。',
+                  style: TextStyle(fontSize: 12, color: _t.subText, height: 1.5)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SectionCard(
+            config: _cfg,
+            padding: const EdgeInsets.all(14),
+            children: [
+              Text('应用信息', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _t.subText)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: clientId,
+                style: TextStyle(color: _t.text),
+                decoration: InputDecoration(labelText: 'Client ID', labelStyle: TextStyle(color: _t.subText), hintText: 'OAuth App 的 Client ID', hintStyle: TextStyle(color: _t.subText.withValues(alpha: 0.5))),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: clientSecret,
+                obscureText: true,
+                style: TextStyle(color: _t.text),
+                decoration: InputDecoration(labelText: 'Client Secret', labelStyle: TextStyle(color: _t.subText)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: redirect,
+                style: TextStyle(color: _t.text),
+                decoration: InputDecoration(
+                  labelText: '授权回调地址',
+                  labelStyle: TextStyle(color: _t.subText),
+                  hintText: 'https://mc.32768.top:8888/oauth/github/callback',
+                  hintStyle: TextStyle(color: _t.subText.withValues(alpha: 0.5)),
+                  helperText: '必须与 GitHub OAuth App 填写的 Authorization callback URL 完全一致',
+                  helperStyle: TextStyle(fontSize: 10, color: _t.subText),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: enabled,
+                onChanged: (v) => setState(() => enabled = v),
+                title: Text('启用 GitHub 登录', style: TextStyle(color: _t.text, fontSize: 14)),
+                subtitle: Text('关闭后登录页不再显示 GitHub 入口', style: TextStyle(color: _t.subText, fontSize: 11)),
                 activeThumbColor: Ux.green,
               ),
             ],
