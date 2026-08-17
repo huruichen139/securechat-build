@@ -2636,6 +2636,15 @@ body.dark-mode .chat-bg-item { border-color: #334155; }
 .fwd-tag { font-size: 11px; color: #9aa3af; margin: 2px 0 4px; display: block; }
 body.dark-mode .fwd-tag { color: #7a8494; }
 
+/* 移动端"+"附件面板 */
+.plus-panel { position: absolute; bottom: calc(100% + 8px); left: 8px; right: 8px; z-index: 60; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 10px; box-shadow: 0 8px 30px rgba(0,0,0,.16); }
+.plus-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: 10px; cursor: pointer; font-size: 12px; color: #475569; }
+.plus-item:active { background: #f1f5f9; }
+.plus-ico { font-size: 26px; line-height: 1; }
+body.dark-mode .plus-panel { background: #1e293b; border-color: #334155; }
+body.dark-mode .plus-item { color: #cbd5e1; }
+body.dark-mode .plus-item:active { background: #334155; }
+
 /* 表情选择器 */
 .emoji-panel { position: absolute; bottom: calc(100% + 8px); left: 8px; right: 8px; z-index: 60; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.16); max-height: 220px; overflow-y: auto; }
 .emoji-item { font-size: 22px; text-align: center; padding: 5px 0; border-radius: 8px; cursor: pointer; line-height: 1.2; }

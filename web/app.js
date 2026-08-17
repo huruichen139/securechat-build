@@ -2247,7 +2247,7 @@ function renderGroupMessages(msgs) {
   const box = $('messages');
   box.innerHTML = '';
   msgs.forEach(m => appendGroupMessage(m, false));
-  box.scrollTop = box.scrollHeight;
+  scrollToLatest();
 }
 
 // 群聊消息气泡（带昵称）
@@ -2560,7 +2560,7 @@ function renderMessages(msgs) {
   const box = $('messages');
   box.innerHTML = '';
   msgs.forEach(m => appendMessage(m, false));
-  box.scrollTop = box.scrollHeight;
+  scrollToLatest();
 }
 
 function refreshConversationButtons() {
@@ -3559,28 +3559,66 @@ function closeCallBar() {
 }
 $('fileBtn').onclick = () => {
   if (!state.activePeer && !state.activeGroup) return toast('请先选择联系人', 'warn');
-  const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => {
-    const f = inp.files[0]; if (!f) return;
-    $('fileBar').style.display=''; $('fileText').textContent='发送：'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
-    const upload = state.activeGroup
-      ? fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/files?name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
-          method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
-        })
-      : fetch(state.serverHost + '/api/files?to=' + encodeURIComponent(state.activePeer) + '&name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
-          method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
-        });
-    upload.then(async (res) => {
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '上传失败');
-      const meta = '__FILE__' + JSON.stringify({ id: data.id, name: data.name, size: data.size, mime: data.mime });
-      const cmid = 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
-      if (state.activeGroup) send(P.C_GROUP_MSG, { groupId: state.activeGroup, content: meta, clientMsgId: cmid });
-      else send(P.C_MSG, { to: state.activePeer, content: meta, clientMsgId: cmid });
-      $('fileText').textContent='已发送：'+f.name; setProgress(1);
-      setTimeout(()=>$('fileBar').style.display='none',3000);
-    }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
-  }; inp.click();
+  const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => { const f = inp.files[0]; if (f) sendAttachmentFile(f); }; inp.click();
 };
+// 统一附件发送：单聊/群聊通用（桌面文件按钮 / 移动端"+"面板共用）
+function sendAttachmentFile(f) {
+  if (!f) return;
+  if (!state.activePeer && !state.activeGroup) return toast('请先选择联系人', 'warn');
+  $('fileBar').style.display=''; $('fileText').textContent='发送：'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
+  const upload = state.activeGroup
+    ? fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/files?name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
+        method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
+      })
+    : fetch(state.serverHost + '/api/files?to=' + encodeURIComponent(state.activePeer) + '&name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
+        method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
+      });
+  upload.then(async (res) => {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '上传失败');
+    const meta = '__FILE__' + JSON.stringify({ id: data.id, name: data.name, size: data.size, mime: data.mime });
+    const cmid = 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+    if (state.activeGroup) send(P.C_GROUP_MSG, { groupId: state.activeGroup, content: meta, clientMsgId: cmid });
+    else send(P.C_MSG, { to: state.activePeer, content: meta, clientMsgId: cmid });
+    $('fileText').textContent='已发送：'+f.name; setProgress(1);
+    setTimeout(()=>$('fileBar').style.display='none',3000);
+  }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
+}
+// 移动端输入栏"+"附件面板：相册 / 拍照 / 文件
+(function () {
+  const plusBtn = $('plusIconBtn');
+  if (!plusBtn) return;
+  plusBtn.onclick = () => {
+    const existing = document.getElementById('plusPanel');
+    if (existing) { existing.remove(); return; }
+    const host = $('chatMobileComposer');
+    if (!host) return;
+    const p = document.createElement('div');
+    p.id = 'plusPanel';
+    p.className = 'plus-panel';
+    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">🖼️</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">📷</div><span>拍照</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">📎</div><span>文件</span></div>';
+    host.appendChild(p);
+    p.querySelectorAll('.plus-item').forEach(el => {
+      el.onclick = () => {
+        p.remove();
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        if (el.dataset.kind === 'album') inp.accept = 'image/*';
+        if (el.dataset.kind === 'camera') { inp.accept = 'image/*'; inp.capture = 'environment'; }
+        inp.onchange = () => { const f = inp.files[0]; if (f) sendAttachmentFile(f); };
+        inp.click();
+      };
+    });
+  };
+})();
+// 进入会话后强制滚动到最新消息（双保险：渲染后 + 图片异步加载后）
+function scrollToLatest() {
+  const box = $('messages');
+  if (!box) return;
+  box.scrollTop = box.scrollHeight;
+  requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+  setTimeout(() => { box.scrollTop = box.scrollHeight; }, 200);
+}
 function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
   const fUrl = (id) => state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(id);
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
