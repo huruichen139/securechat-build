@@ -783,7 +783,7 @@ app.get('/api/history/:peerId', (req, res) => {
     FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
     WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at ASC`)
     .all(payload.id, peerId, peerId, payload.id);
-  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned }));
+  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled }));
   res.json({ messages: msgs });
 });
 
@@ -813,6 +813,24 @@ app.delete('/api/history/:peerId', (req, res) => {
   const result = prepare('DELETE FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)')
     .run(payload.id, peerId, peerId, payload.id);
   res.json({ ok: true, deleted: result.changes || 0 });
+});
+
+// ---------- 消息撤回 ----------
+// 发送者 5 分钟内可撤回自己的单聊消息；撤回后双方历史显示"撤回了一条消息"。
+app.post('/api/messages/:id/recall', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = parseInt(req.params.id, 10);
+  const row = prepare('SELECT id,from_id,to_id,content,created_at,recalled FROM messages WHERE id=?').get(id);
+  if (!row) return res.status(404).json({ error: '消息不存在' });
+  if (row.from_id !== payload.id) return res.status(403).json({ error: '只能撤回自己发送的消息' });
+  if (row.recalled) return res.json({ ok: true, alreadyRecalled: true });
+  if (Date.now() - row.created_at > 5 * 60 * 1000) return res.status(400).json({ error: '发送超过5分钟，无法撤回' });
+  prepare('UPDATE messages SET recalled=1 WHERE id=?').run(id);
+  persist();
+  if (onlineAny(row.to_id)) sendToUser(row.to_id, P.S_MSG_RECALL, { messageId: id, from: row.from_id, to: row.to_id });
+  res.json({ ok: true, messageId: id });
 });
 
 // 文字消息 REST 发送入口：不依赖发送方浏览器的 WebSocket 状态。
@@ -2767,6 +2785,7 @@ function mountFeatureRoutes(app, db) {
   const rawDb = await getDb();
   ready = true;
   try { rawDb.run('CREATE TABLE IF NOT EXISTS blocklist(blocker_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER DEFAULT 0, PRIMARY KEY(blocker_id, blocked_id))'); } catch (e) { console.error('[db] blocklist 建表失败: ' + (e && e.message || e)); }
+  try { rawDb.run('ALTER TABLE messages ADD COLUMN recalled INTEGER DEFAULT 0'); } catch (e) { /* 已存在则忽略 */ }
   const routeDb = {
     prepare, run: (...a) => rawDb.run(...a), exec: (...a) => rawDb.exec(...a),
     persist, persistNow, getDb, genUid

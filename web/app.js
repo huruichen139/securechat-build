@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.62.0';
+const PACKAGE_VERSION = '1.62.1';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -9,6 +9,7 @@ const P = {
   C_GROUP_MSG: 'group_msg', C_GROUP_READ: 'group_read',
   S_AUTH_OK: 'auth_ok', S_AUTH_FAIL: 'auth_fail', S_MSG: 'msg',
   S_USER_LIST: 'user_list', S_TYPING: 'typing', S_ERROR: 'error',
+  S_MSG_RECALL: 'msg_recall',
   S_SIGNAL: 'signal',
   S_FRIEND_REQ: 'friend_req', S_FRIEND_LIST: 'friend_list',
   S_GROUP_MSG: 'group_msg', S_GROUP_LIST: 'group_list',
@@ -540,8 +541,9 @@ function enterChat() {
   if (window.SCE2EE && typeof window.SCE2EE.ensureKeyPair === 'function') {
     window.SCE2EE.ensureKeyPair().catch(() => {});
   }
-  // 恢复该用户自定义聊天背景图（每个用户独立存储）
+// 恢复该用户自定义聊天背景图（每个用户独立存储）
   applyChatBg(getChatBg());
+  applyMsgFont();
   connectWS();
   loadFriends();
   loadGroups();
@@ -1568,6 +1570,9 @@ case P.S_MSG:
       }
       break;
     case P.S_ERROR: toast((payload && payload.error) || '服务器返回错误', 'error'); console.warn('server error', payload); break;
+    case P.S_MSG_RECALL:
+      if (payload && payload.messageId) markRecalled(payload.messageId, false);
+      break;
     case P.S_SIGNAL: if (window.rtc) window.rtc.handleSignal(payload); break;
     case P.S_FRIEND_LIST:
       state.friends = payload.friends || [];
@@ -2462,7 +2467,17 @@ function appendMessage(m, prepend) {
   if (m.clientMsgId) row.setAttribute('data-cmid', String(m.clientMsgId));
   if (m.createdAt) row.setAttribute('data-ts', String(m.createdAt));
   const fullTime = new Date(m.createdAt).toLocaleString();
-  row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span><div class="message-actions"><button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
+  if (m.recalled) {
+    row.innerHTML = `<div class="bubble recalled">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>`;
+    box.appendChild(row);
+    if (!prepend) box.scrollTop = box.scrollHeight;
+    return;
+  }
+  const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
+  row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span><div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
+  if (canRecall) {
+    row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
+  }
   row.querySelector('[data-action="copy"]').onclick = async () => {
     try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
     catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
@@ -2482,6 +2497,30 @@ function fmtTime(t) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return hh + ':' + mm;
+}
+
+// ============ 消息撤回 ============
+async function recallMessage(msgId) {
+  if (!msgId) return;
+  try {
+    const res = await fetch(state.serverHost + '/api/messages/' + msgId + '/recall', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '撤回失败');
+    markRecalled(msgId, true);
+  } catch (e) {
+    toast(((e && e.message) || '撤回失败'), 'error');
+  }
+}
+function markRecalled(msgId, mine) {
+  const row = document.querySelector('.msg-row[data-id="' + String(msgId).replace(/"/g, '\\"') + '"]');
+  if (!row) return;
+  const bubbles = row.querySelectorAll('.bubble');
+  bubbles.forEach(b => { b.textContent = mine ? '你撤回了一条消息' : '对方撤回了一条消息'; b.classList.add('recalled'); });
+  const actions = row.querySelector('.message-actions');
+  if (actions) actions.style.display = 'none';
 }
 
 // 微信式日期分隔条文案
@@ -3704,8 +3743,12 @@ function openChatMoreMenu(anchor) {
     const blocked = blockedMap ? blockedMap.has(peer.id) : false;
     items.push({ label: blocked ? '解除拉黑' : '拉黑该联系人', danger: !blocked, onClick: () => toggleBlock(peer.id) });
   }
+  if (state.activePeer || state.activeGroup) {
+    items.push({ label: '导出聊天记录', onClick: () => { hideChatMoreMenu(); exportChatLog(); } });
+  }
   items.push({ label: '黑名单管理', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
   items.push({ label: '更多功能', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });
+  items.push({ label: '消息字体：' + msgFontLabel(), onClick: () => { hideChatMoreMenu(); cycleMsgFont(); } });
   if (!items.length) return;
   chatMoreMenu = document.createElement('div');
   chatMoreMenu.className = 'chat-more-menu';
@@ -3719,6 +3762,69 @@ function openChatMoreMenu(anchor) {
 }
 function hideChatMoreMenu() {
   if (chatMoreMenu) { chatMoreMenu.remove(); chatMoreMenu = null; }
+}
+// ============ 导出聊天记录 + 消息字体 ============
+async function exportChatLog() {
+  const peerId = state.activePeer;
+  const groupId = state.activeGroup;
+  if (!peerId && !groupId) { toast('请先选择会话', 'warn'); return; }
+  try {
+    let msgs, title;
+    if (groupId) {
+      const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/messages', { headers: { 'Authorization': 'Bearer ' + state.token } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '加载失败');
+      msgs = data.messages || [];
+      const g = state.groups.find(x => x.id === groupId);
+      title = g ? g.name : ('群聊 #' + groupId);
+    } else {
+      const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(peerId)), { headers: { 'Authorization': 'Bearer ' + state.token } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '加载失败');
+      msgs = data.messages || [];
+      const peer = state.friends.find(u => u.id === peerId);
+      title = peer ? peer.nickname : ('用户 #' + peerId);
+    }
+    if (!msgs.length) { toast('暂无聊天记录', 'info'); return; }
+    const nameOf = (id) => {
+      if (id === state.me.id) return state.me.nickname || '我';
+      const f = state.friends.find(u => u.id === id);
+      return f ? (f.nickname || f.username) : ('用户 ' + id);
+    };
+    const lines = ['SecureChat 聊天记录导出', '会话：' + title, '时间：' + new Date().toLocaleString(), '共 ' + msgs.length + ' 条消息', '----------------------------------------', ''];
+    msgs.forEach(m => {
+      const who = nameOf(m.from);
+      const ts = new Date(m.createdAt).toLocaleString();
+      let body = m.recalled ? (m.from === state.me.id ? '你撤回了一条消息' : '对方撤回了一条消息') : String(m.content || '').replace(/\r?\n/g, '\n    ');
+      lines.push('[' + ts + '] ' + who + ': ' + body);
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'SecureChat-' + title.replace(/[\\/:*?"<>|]/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('聊天记录已导出', 'success');
+  } catch (e) {
+    toast('导出失败：' + ((e && e.message) || e), 'error');
+  }
+}
+function msgFontLabel() {
+  const s = localStorage.getItem('sc_msg_font') || 'm';
+  return s === 's' ? '小' : (s === 'l' ? '大' : '中');
+}
+function applyMsgFont() {
+  const s = localStorage.getItem('sc_msg_font') || 'm';
+  const size = s === 's' ? '13px' : (s === 'l' ? '17px' : '15px');
+  const box = $('messages');
+  if (box) box.style.fontSize = size;
+}
+function cycleMsgFont() {
+  const cur = localStorage.getItem('sc_msg_font') || 'm';
+  const next = cur === 's' ? 'm' : (cur === 'm' ? 'l' : 's');
+  localStorage.setItem('sc_msg_font', next);
+  applyMsgFont();
+  toast('消息字体：' + msgFontLabel(), 'info', 1200);
 }
 async function renderBlocklistPage() {
   const list = document.getElementById('blocklistList');
