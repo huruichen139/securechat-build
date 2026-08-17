@@ -2660,7 +2660,7 @@ wss.on('connection', (ws) => {
     // 群消息：C_GROUP_MSG { groupId, content }
     if (type === P.C_GROUP_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
-      const { groupId, content, clientMsgId, replyTo } = payload || {};
+      const { groupId, content, clientMsgId, replyTo, forwardedFrom } = payload || {};
       const gid = Number(groupId);
       if (!Number.isInteger(gid) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
@@ -2681,16 +2681,22 @@ wss.on('connection', (ws) => {
       const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
         .run(gid, ws.uid, enc, clientMsgId || null, now);
       const replyToId = Number(replyTo) || null;
+      const forwardedFromId = Number(forwardedFrom) || null;
       let replyContent = null, replyFrom = null;
       if (replyToId) {
         try {
-          prepare('INSERT INTO group_message_meta(message_id,reply_to,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,updated_at=excluded.updated_at')
-            .run(info.lastInsertRowid, replyToId, now);
+          prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at')
+            .run(info.lastInsertRowid, replyToId, forwardedFromId || null, now);
           const pm = prepare('SELECT content,from_id FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid);
           if (pm) { replyContent = pm.content; replyFrom = pm.from_id; }
         } catch (e) {}
+      } else if (forwardedFromId) {
+        try {
+          prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at')
+            .run(info.lastInsertRowid, null, forwardedFromId, now);
+        } catch (e) {}
       }
-      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom };
+      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom, forwardedFrom: forwardedFromId || null };
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;
@@ -2818,6 +2824,7 @@ function mountFeatureRoutes(app, db) {
   ready = true;
   try { rawDb.run('CREATE TABLE IF NOT EXISTS blocklist(blocker_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER DEFAULT 0, PRIMARY KEY(blocker_id, blocked_id))'); } catch (e) { console.error('[db] blocklist 建表失败: ' + (e && e.message || e)); }
   try { rawDb.run('ALTER TABLE messages ADD COLUMN recalled INTEGER DEFAULT 0'); } catch (e) { /* 已存在则忽略 */ }
+  try { rawDb.run('ALTER TABLE group_message_meta ADD COLUMN forwarded_from INTEGER'); } catch (e) { /* 已存在则忽略 */ }
   const routeDb = {
     prepare, run: (...a) => rawDb.run(...a), exec: (...a) => rawDb.exec(...a),
     persist, persistNow, getDb, genUid

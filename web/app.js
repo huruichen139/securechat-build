@@ -2294,9 +2294,10 @@ function appendGroupMessage(m, prepend) {
     <div class="bubble-wrap">
       ${nameLine}
       ${quoteBlockHtml(m)}
+      ${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
-      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>
+      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button></div>
     </div>`;
   if (canGroupRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
@@ -2310,6 +2311,8 @@ function appendGroupMessage(m, prepend) {
     setPendingReply(m.id);
     toast('已选择引用，输入内容后发送', 'success', 1500);
   };
+  const fwdBtnG = row.querySelector('[data-action="forward"]');
+  if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
@@ -2652,7 +2655,7 @@ function appendMessage(m, prepend) {
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
-  row.innerHTML = `${quoteBlockHtml(m)}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
@@ -2666,13 +2669,70 @@ function appendMessage(m, prepend) {
     setPendingReply(m.id);
     toast('已选择引用，输入内容后发送', 'success', 1500);
   };
+  const fwdBtn = row.querySelector('[data-action="forward"]');
+  if (fwdBtn) fwdBtn.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
-// ============ 消息引用（微信式） ============
+// ============ 消息转发（微信式） ============
+function openForwardPicker(msg) {
+  const mask = document.createElement('div');
+  mask.className = 'profile-mask';
+  const targets = [];
+  state.friends.forEach(u => targets.push({ kind: 'user', id: u.id, name: u.nickname || u.username, avatar: u.avatar }));
+  state.groups.forEach(g => targets.push({ kind: 'group', id: g.id, name: g.name, avatar: null }));
+  if (!targets.length) { toast('暂无好友或群聊可转发', 'warn', 1500); return; }
+  mask.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-head">
+        <div class="profile-name" style="font-size:15px">选择转发目标</div>
+        <div class="profile-id">${escapeHtml(String(msg.content || '').slice(0, 24))}</div>
+      </div>
+      <div class="profile-members">
+        ${targets.map(t => `<div class="profile-member" data-k="${t.kind}" data-id="${t.id}">
+          <div class="avatar" style="width:34px;height:34px;border-radius:6px">${t.avatar ? '<img src="' + t.avatar + '">' : avatarChar(t.name)}</div>
+          <span>${escapeHtml(t.name)}</span>${t.kind === 'group' ? '<em style="color:#888;font-style:normal;font-size:11px">群聊</em>' : ''}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.querySelectorAll('.profile-member').forEach(el => {
+    el.onclick = async () => {
+      const kind = el.dataset.k;
+      const id = parseInt(el.dataset.id);
+      const content = String(msg.content || '');
+      mask.remove();
+      try {
+        if (kind === 'group') {
+          const res = await fetch(state.serverHost + '/api/groups/' + id + '/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+            body: JSON.stringify({ content, forwardedFrom: msg.id })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '转发失败');
+        } else {
+          const res = await fetch(state.serverHost + '/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+            body: JSON.stringify({ to: id, content, forwardedFrom: msg.id })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '转发失败');
+        }
+        toast('已转发', 'success', 1200);
+        if (state.activePeer === id || state.activeGroup === id) {
+          if (state.activePeer === id) selectPeer(id);
+          else selectGroup(id);
+        }
+      } catch (e) { toast('转发失败：' + e.message, 'error'); }
+    };
+  });
+  mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
+}
 let pendingReply = null;
 function setPendingReply(id) {
   pendingReply = id;
