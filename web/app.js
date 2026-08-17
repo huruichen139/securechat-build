@@ -2296,7 +2296,7 @@ function appendGroupMessage(m, prepend) {
       const file = JSON.parse(m.content.slice(8));
       if (file.id && file.name) {
         row.classList.add('has-file');
-        appendFileMsg(mine, file.name, file.size, file.id, m.createdAt, file.mime);
+        appendFileMsg(mine, file.name, file.size, file.id, m.createdAt, file.mime, true);
         return;
       }
     } catch {}
@@ -3524,39 +3524,48 @@ function closeCallBar() {
   callPeer=null; callKind=null; incomingCall=null;
 }
 $('fileBtn').onclick = () => {
-  if (!state.activePeer) return toast('请先选择联系人', 'warn');
+  if (!state.activePeer && !state.activeGroup) return toast('请先选择联系人', 'warn');
   const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
     $('fileBar').style.display=''; $('fileText').textContent='发送：'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
-    fetch(state.serverHost + '/api/files?to=' + encodeURIComponent(state.activePeer) + '&name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
-      method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
-    }).then(async (res) => {
+    const upload = state.activeGroup
+      ? fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/files?name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
+          method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
+        })
+      : fetch(state.serverHost + '/api/files?to=' + encodeURIComponent(state.activePeer) + '&name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
+          method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
+        });
+    upload.then(async (res) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '上传失败');
-      send(P.C_MSG, { to: state.activePeer, content: '__FILE__' + JSON.stringify({ id: data.id, name: data.name, size: data.size, mime: data.mime }), clientMsgId: 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10) });
+      const meta = '__FILE__' + JSON.stringify({ id: data.id, name: data.name, size: data.size, mime: data.mime });
+      const cmid = 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+      if (state.activeGroup) send(P.C_GROUP_MSG, { groupId: state.activeGroup, content: meta, clientMsgId: cmid });
+      else send(P.C_MSG, { to: state.activePeer, content: meta, clientMsgId: cmid });
       $('fileText').textContent='已发送：'+f.name; setProgress(1);
       setTimeout(()=>$('fileBar').style.display='none',3000);
     }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
   }; inp.click();
 };
-function appendFileMsg(mine, name, size, fileId, createdAt, mime) {
+function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
+  const fUrl = (id) => state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(id);
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
   const isImage = mime && String(mime).startsWith('image/');
   if (isImage) {
     row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">图</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const img = row.querySelector('.file-image');
-    fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
+    fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
       .then(r => { if (!r.ok) throw new Error('加载失败'); return r.blob(); })
       .then(b => { img.src = URL.createObjectURL(b); })
       .catch(() => { img.alt = '加载失败'; });
-    img.onclick = () => openImagePreview(img.src, name, fileId);
+    img.onclick = () => openImagePreview(img.src, name, fileId, isGroup);
   } else {
     row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const download = row.querySelector('.file-download');
     if (download) download.onclick = async () => {
       download.disabled = true;
       try {
-        const res = await fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
+        const res = await fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
         if (!res.ok) throw new Error('下载失败');
         const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } catch (e) { toast(e.message, 'error'); } finally { download.disabled = false; }
@@ -3565,7 +3574,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime) {
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 }
 // 图片全屏预览（微信式）：点击遮罩关闭，底部提供下载
-function openImagePreview(src, name, fileId) {
+function openImagePreview(src, name, fileId, isGroup) {
   if (!src) { toast('图片尚未加载完成', 'warn', 1200); return; }
   const mask = document.createElement('div');
   mask.className = 'img-preview-mask';
@@ -3576,7 +3585,7 @@ function openImagePreview(src, name, fileId) {
     e.stopPropagation();
     dl.disabled = true;
     try {
-      const res = await fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
+      const res = await fetch(state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
       if (!res.ok) throw new Error('下载失败');
       const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       toast('已开始下载', 'success', 1200);
