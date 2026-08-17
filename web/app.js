@@ -2291,6 +2291,16 @@ function appendGroupMessage(m, prepend) {
     return;
   }
   const canGroupRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000;
+  if (typeof m.content === 'string' && m.content.startsWith('__FILE__')) {
+    try {
+      const file = JSON.parse(m.content.slice(8));
+      if (file.id && file.name) {
+        row.classList.add('has-file');
+        appendFileMsg(mine, file.name, file.size, file.id, m.createdAt, file.mime);
+        return;
+      }
+    } catch {}
+  }
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
@@ -2645,7 +2655,7 @@ function appendMessage(m, prepend) {
     try {
       const file = JSON.parse(m.content.slice(8));
       if (file.id && file.name) {
-        appendFileMsg(m.from === state.me.id, file.name, file.size, file.id, m.createdAt);
+        appendFileMsg(m.from === state.me.id, file.name, file.size, file.id, m.createdAt, file.mime);
         return;
       }
     } catch {}
@@ -3529,19 +3539,50 @@ $('fileBtn').onclick = () => {
     }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
   }; inp.click();
 };
-function appendFileMsg(mine, name, size, fileId, createdAt) {
+function appendFileMsg(mine, name, size, fileId, createdAt, mime) {
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
-  row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
-  const download = row.querySelector('.file-download');
-  if (download) download.onclick = async () => {
-    download.disabled = true;
+  const isImage = mime && String(mime).startsWith('image/');
+  if (isImage) {
+    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">图</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    const img = row.querySelector('.file-image');
+    fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
+      .then(r => { if (!r.ok) throw new Error('加载失败'); return r.blob(); })
+      .then(b => { img.src = URL.createObjectURL(b); })
+      .catch(() => { img.alt = '加载失败'; });
+    img.onclick = () => openImagePreview(img.src, name, fileId);
+  } else {
+    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    const download = row.querySelector('.file-download');
+    if (download) download.onclick = async () => {
+      download.disabled = true;
+      try {
+        const res = await fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
+        if (!res.ok) throw new Error('下载失败');
+        const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      } catch (e) { toast(e.message, 'error'); } finally { download.disabled = false; }
+    };
+  }
+  box.appendChild(row); box.scrollTop=box.scrollHeight;
+}
+// 图片全屏预览（微信式）：点击遮罩关闭，底部提供下载
+function openImagePreview(src, name, fileId) {
+  if (!src) { toast('图片尚未加载完成', 'warn', 1200); return; }
+  const mask = document.createElement('div');
+  mask.className = 'img-preview-mask';
+  mask.innerHTML = '<img class="img-preview-img" src="' + src + '" alt="' + escapeHtml(name) + '"><div class="img-preview-bar"><span>' + escapeHtml(name) + '</span><button type="button" class="img-preview-dl">下载</button></div>';
+  mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
+  const dl = mask.querySelector('.img-preview-dl');
+  if (dl) dl.onclick = async (e) => {
+    e.stopPropagation();
+    dl.disabled = true;
     try {
       const res = await fetch(state.serverHost + '/api/files/' + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
       if (!res.ok) throw new Error('下载失败');
       const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    } catch (e) { toast(e.message, 'error'); } finally { download.disabled = false; }
+      toast('已开始下载', 'success', 1200);
+    } catch (e) { toast(e.message, 'error'); } finally { dl.disabled = false; }
   };
-  box.appendChild(row); box.scrollTop=box.scrollHeight;
+  document.body.appendChild(mask);
 }
 $('audioBtn').onclick = () => startOutgoingCall('audio');
 $('videoBtn').onclick = () => startOutgoingCall('video');

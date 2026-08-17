@@ -2607,6 +2607,16 @@ body.dark-mode .at-panel { background: #1a1b1e; border-color: #2a2b2f; }
 body.dark-mode .at-panel .at-item { color: #dcdcdc; }
 body.dark-mode .at-panel .at-item:hover { background: #26272b; color: #07c160; }
 
+/* 图片消息与全屏预览 */
+.file-image-wrap { margin-top: 6px; }
+.file-image { max-width: 200px; max-height: 220px; border-radius: 8px; cursor: zoom-in; display: block; background: #f1f5f9; }
+.img-preview-mask { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+.img-preview-img { max-width: 92vw; max-height: 82vh; border-radius: 4px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.img-preview-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; display: flex; align-items: center; gap: 12px; background: rgba(15,23,42,.75); color: #e2e8f0; padding: 8px 14px; border-radius: 999px; font-size: 12px; max-width: 86vw; }
+.img-preview-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.img-preview-dl { border: 0; border-radius: 999px; background: #10b981; color: #fff; padding: 5px 14px; cursor: pointer; font-size: 12px; }
+.img-preview-dl:disabled { opacity: .6; }
+
 /* 转发的消息标记 */
 .fwd-tag { font-size: 11px; color: #9aa3af; margin: 2px 0 4px; display: block; }
 body.dark-mode .fwd-tag { color: #7a8494; }
