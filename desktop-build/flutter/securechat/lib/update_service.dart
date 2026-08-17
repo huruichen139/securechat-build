@@ -1,10 +1,10 @@
-ï»¿import 'dart:io';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.62.2';
+const kAppVersion = '1.62.3';
 
 class UpdateService {
   UpdateService({required this.api});
@@ -25,7 +25,7 @@ class UpdateService {
 
   bool isNewer(String latest, String current) => _cmpVersion(latest, current) > 0;
 
-  /// è¿”å›éœ€è¦æ›´æ–°çš„ä¿¡æ¯ï¼›æ— æ›´æ–°æˆ–æ— æ³•è·å–è¿”å› nullã€‚
+  /// ·µ»ØĞèÒª¸üĞÂµÄĞÅÏ¢£»ÎŞ¸üĞÂ»òÎŞ·¨»ñÈ¡·µ»Ø null¡£
   Future<Map<String, dynamic>?> check() async {
     try {
       final data = await api.checkVersion();
@@ -42,7 +42,7 @@ class UpdateService {
     }
   }
 
-  /// ä¸‹è½½å®‰è£…åŒ…/ä¾¿æºåŒ…ï¼Œè¿”å›ä¿å­˜è·¯å¾„ï¼›404 è¿”å› nullã€‚
+  /// ÏÂÔØ°²×°°ü/±ãĞ¯°ü£¬·µ»Ø±£´æÂ·¾¶£»404 ·µ»Ø null¡£
   Future<String?> download(String relativePath, {void Function(int, int)? onProgress}) async {
     final uri = api.downloadUri(relativePath);
     final client = http.Client();
@@ -69,7 +69,7 @@ class UpdateService {
     }
   }
 
-  /// æ‰“å¼€/å¯åŠ¨ä¸‹è½½åˆ°çš„å®‰è£…åŒ…ã€‚
+  /// ´ò¿ª/Æô¶¯ÏÂÔØµ½µÄ°²×°°ü¡£
   Future<bool> launchInstaller(String path) async {
     try {
       if (Platform.isWindows) {

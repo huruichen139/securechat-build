@@ -1,7 +1,7 @@
-ï»¿'use strict';
+'use strict';
 
-// å®¢æˆ·ç«¯æ‰“åŒ…ç‰ˆæœ¬å·ï¼›ä¸æœåŠ¡ç«¯ /api/version.latest æ¯”å¯¹ï¼Œæœ€æ–°ç‰ˆåä¼šå¼¹æ›´æ–°æµ®å±‚ã€‚
-const PACKAGE_VERSION = '1.62.2';
+// ¿Í»§¶Ë´ò°ü°æ±¾ºÅ£»Óë·şÎñ¶Ë /api/version.latest ±È¶Ô£¬×îĞÂ°æºó»áµ¯¸üĞÂ¸¡²ã¡£
+const PACKAGE_VERSION = '1.62.3';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -32,31 +32,31 @@ let state = {
   lastMsgTime: {},
   groupLastMsg: {},
   groupLastMsgTime: {},
-  // E2EEï¼šæœ¬è´¦å·ç§é’¥ï¼ˆJWKï¼‰ï¼Œç™»å½•æˆåŠŸåå¡«å……
+  // E2EE£º±¾ÕËºÅË½Ô¿£¨JWK£©£¬µÇÂ¼³É¹¦ºóÌî³ä
   myPrivJwk: null,
-  // å·²å‘é€æ¶ˆæ¯æ˜æ–‡ç¼“å­˜ï¼šclientMsgId -> æ˜æ–‡ï¼Œç”¨äºæœåŠ¡ç«¯å›åŒ…æ›¿æ¢å¯†æ–‡æ˜¾ç¤ºåŸæ–‡å­—
+  // ÒÑ·¢ËÍÏûÏ¢Ã÷ÎÄ»º´æ£ºclientMsgId -> Ã÷ÎÄ£¬ÓÃÓÚ·şÎñ¶Ë»Ø°üÌæ»»ÃÜÎÄÏÔÊ¾Ô­ÎÄ×Ö
   sentPlain: {},
-  // æœ¬åœ°å·²å‘é€ï¼ˆä¹è§‚æ¸²æŸ“ï¼‰æ¶ˆæ¯ï¼šclientMsgId -> trueï¼Œç”¨äºå»é‡æœåŠ¡ç«¯å›æ˜¾
+  // ±¾µØÒÑ·¢ËÍ£¨ÀÖ¹ÛäÖÈ¾£©ÏûÏ¢£ºclientMsgId -> true£¬ÓÃÓÚÈ¥ÖØ·şÎñ¶Ë»ØÏÔ
   pendingLocal: {},
-  // ç¾¤ç»„
+  // Èº×é
   tabContact: 'friends',   // 'friends' | 'groups'
   groups: [],
   activeGroup: null,
   groupUnread: {},
-  groupMsgs: {},           // groupId -> å·²åŠ è½½æ¶ˆæ¯æ•°ç»„ï¼ˆä»…æœ¬åœ°ç¼“å­˜å½“å‰/å†å²ï¼‰
+  groupMsgs: {},           // groupId -> ÒÑ¼ÓÔØÏûÏ¢Êı×é£¨½ö±¾µØ»º´æµ±Ç°/ÀúÊ·£©
 };
 
-// æŒ‚è½½åˆ° windowï¼Œä¾›å„ç‹¬ç«‹æ¨¡å—ï¼ˆmodules/*.jsï¼‰è¯»å–å…¨å±€ç™»å½•æ€/å½“å‰ä¼šè¯ã€‚
-// è¿™äº›æ¨¡å—æ­¤å‰ä¾èµ– window.state ä½†ä»æœªè¢«èµ‹å€¼ï¼Œå¯¼è‡´ token/activePeer/activeGroup å…¨ä¸ºç©º â†’ åŠŸèƒ½å¤±æ•ˆã€‚
+// ¹ÒÔØµ½ window£¬¹©¸÷¶ÀÁ¢Ä£¿é£¨modules/*.js£©¶ÁÈ¡È«¾ÖµÇÂ¼Ì¬/µ±Ç°»á»°¡£
+// ÕâĞ©Ä£¿é´ËÇ°ÒÀÀµ window.state µ«´ÓÎ´±»¸³Öµ£¬µ¼ÖÂ token/activePeer/activeGroup È«Îª¿Õ ¡ú ¹¦ÄÜÊ§Ğ§¡£
 window.P = P; window.state = state;
 
 const $ = (id) => document.getElementById(id);
 
-// i18n çŸ­åï¼šæ‹¿ä¸åˆ°å­—å…¸æˆ–å­—å…¸é‡Œå°šæœªæ”¶å½•è¯¥ key æ—¶ï¼Œå›é€€åˆ°åŸä¸­æ–‡ï¼Œé¿å…ç¡¬ç¼–ç å¤–æ–‡ã€‚
+// i18n ¶ÌÃû£ºÄÃ²»µ½×Öµä»ò×ÖµäÀïÉĞÎ´ÊÕÂ¼¸Ã key Ê±£¬»ØÍËµ½Ô­ÖĞÎÄ£¬±ÜÃâÓ²±àÂëÍâÎÄ¡£
 function t(key, fallback) {
   if (window.SCI18N && typeof SCI18N.t === 'function') {
     const v = SCI18N.t(key);
-    // SCI18N.t åœ¨ç¼ºå¤± key æ—¶ä¼šè¿”å› key æœ¬èº«ï¼›æ­¤æ—¶è½åˆ° fallbackã€‚
+    // SCI18N.t ÔÚÈ±Ê§ key Ê±»á·µ»Ø key ±¾Éí£»´ËÊ±Âäµ½ fallback¡£
     if (v && v !== key) return v;
   }
   return (fallback != null ? fallback : key);
@@ -94,7 +94,7 @@ function saveCurrentDraft() {
   localStorage.setItem(draftStorageKey(), JSON.stringify(drafts));
   const hintId = isMobileChat ? 'draftState' : 'draftStateDesktop';
   const hint = document.getElementById(hintId);
-  if (hint) hint.textContent = value ? t('draftSaved','è‰ç¨¿å·²ä¿å­˜') : t('draftAuto','è‰ç¨¿è‡ªåŠ¨ä¿å­˜');
+  if (hint) hint.textContent = value ? t('draftSaved','²İ¸åÒÑ±£´æ') : t('draftAuto','²İ¸å×Ô¶¯±£´æ');
 }
 function restoreCurrentDraft() {
   const key = activeConversationKey();
@@ -105,170 +105,170 @@ function restoreCurrentDraft() {
   input.value = key ? (readDrafts()[key] || '') : '';
   const hintId = isMobileChat ? 'draftState' : 'draftStateDesktop';
   const hint = document.getElementById(hintId);
-  if (hint) hint.textContent = input.value ? t('draftRestored','å·²æ¢å¤è‰ç¨¿') : t('draftAuto','è‰ç¨¿è‡ªåŠ¨ä¿å­˜');
+  if (hint) hint.textContent = input.value ? t('draftRestored','ÒÑ»Ö¸´²İ¸å') : t('draftAuto','²İ¸å×Ô¶¯±£´æ');
 }
 
-// ============ ä¸ªäººèµ„æ–™å­—æ®µå®šä¹‰ï¼ˆâ‰¥100 é¡¹ï¼‰ ============
-// ç‹¬ç«‹åˆ—å­—æ®µï¼šnickname / country / province / cityï¼ˆä¸æ”¾è¿› extraï¼‰ã€‚
-// å…¶å®ƒå­—æ®µå…¨éƒ¨å­˜å…¥ extraï¼ˆJSON å¯¹è±¡ï¼Œæ‰å¹³ key-valueï¼‰ã€‚
+// ============ ¸öÈË×ÊÁÏ×Ö¶Î¶¨Òå£¨¡İ100 Ïî£© ============
+// ¶ÀÁ¢ÁĞ×Ö¶Î£ºnickname / country / province / city£¨²»·Å½ø extra£©¡£
+// ÆäËü×Ö¶ÎÈ«²¿´æÈë extra£¨JSON ¶ÔÏó£¬±âÆ½ key-value£©¡£
 const PROFILE_FIELDS = [
-  { cat: 'èº«ä»½', items: [
-    { key: 'realname', label: 'çœŸå®å§“å', placeholder: 'å¯ä¸å¡«' },
-    { key: 'englishName', label: 'è‹±æ–‡å' },
-    { key: 'alias', label: 'åˆ«å / æ˜µç§°' },
-    { key: 'gender', label: 'æ€§åˆ«' },
-    { key: 'orientation', label: 'æ€§å–å‘' },
-    { key: 'marital', label: 'å©šå§»çŠ¶å†µ' },
-    { key: 'birthday', label: 'ç”Ÿæ—¥', placeholder: 'YYYY-MM-DD' },
-    { key: 'bloodType', label: 'è¡€å‹' },
-    { key: 'zodiac', label: 'æ˜Ÿåº§' },
-    { key: 'chineseZodiac', label: 'ç”Ÿè‚–' },
-    { key: 'height', label: 'èº«é«˜(cm)' },
-    { key: 'weight', label: 'ä½“é‡(kg)' },
-    { key: 'race', label: 'æ°‘æ— / ç§æ—' },
-    { key: 'idType', label: 'è¯ä»¶ç±»å‹' },
+  { cat: 'Éí·İ', items: [
+    { key: 'realname', label: 'ÕæÊµĞÕÃû', placeholder: '¿É²»Ìî' },
+    { key: 'englishName', label: 'Ó¢ÎÄÃû' },
+    { key: 'alias', label: '±ğÃû / êÇ³Æ' },
+    { key: 'gender', label: 'ĞÔ±ğ' },
+    { key: 'orientation', label: 'ĞÔÈ¡Ïò' },
+    { key: 'marital', label: '»éÒö×´¿ö' },
+    { key: 'birthday', label: 'ÉúÈÕ', placeholder: 'YYYY-MM-DD' },
+    { key: 'bloodType', label: 'ÑªĞÍ' },
+    { key: 'zodiac', label: 'ĞÇ×ù' },
+    { key: 'chineseZodiac', label: 'ÉúĞ¤' },
+    { key: 'height', label: 'Éí¸ß(cm)' },
+    { key: 'weight', label: 'ÌåÖØ(kg)' },
+    { key: 'race', label: 'Ãñ×å / ÖÖ×å' },
+    { key: 'idType', label: 'Ö¤¼şÀàĞÍ' },
   ] },
-  { cat: 'åœ°åŒº', items: [
-    { key: 'hometown', label: 'ç±è´¯ / æ•…ä¹¡' },
-    { key: 'nationality', label: 'å›½ç±' },
-    { key: 'timezone', label: 'æ—¶åŒº' },
-    { key: 'language', label: 'æ¯è¯­' },
-    { key: 'languages2', label: 'å…¶å®ƒè¯­è¨€' },
-    { key: 'district', label: 'åŒº / å¿' },
-    { key: 'street', label: 'è¡—é“ / åœ°å€' },
-    { key: 'village', label: 'å°åŒº' },
-    { key: 'zip', label: 'é‚®ç¼–' },
-    { key: 'currentAddress', label: 'ç°ä½åœ°å€' },
-    { key: 'workAddress', label: 'å·¥ä½œåœ°å€' },
+  { cat: 'µØÇø', items: [
+    { key: 'hometown', label: '¼®¹á / ¹ÊÏç' },
+    { key: 'nationality', label: '¹ú¼®' },
+    { key: 'timezone', label: 'Ê±Çø' },
+    { key: 'language', label: 'Ä¸Óï' },
+    { key: 'languages2', label: 'ÆäËüÓïÑÔ' },
+    { key: 'district', label: 'Çø / ÏØ' },
+    { key: 'street', label: '½ÖµÀ / µØÖ·' },
+    { key: 'village', label: 'Ğ¡Çø' },
+    { key: 'zip', label: 'ÓÊ±à' },
+    { key: 'currentAddress', label: 'ÏÖ×¡µØÖ·' },
+    { key: 'workAddress', label: '¹¤×÷µØÖ·' },
   ] },
-  { cat: 'èŒä¸š', items: [
-    { key: 'company', label: 'å…¬å¸' },
-    { key: 'jobTitle', label: 'èŒä½' },
-    { key: 'department', label: 'éƒ¨é—¨' },
-    { key: 'workPhone', label: 'å·¥ä½œç”µè¯' },
-    { key: 'workEmail', label: 'å·¥ä½œé‚®ç®±' },
-    { key: 'industry', label: 'è¡Œä¸š' },
-    { key: 'jobLevel', label: 'èŒçº§' },
-    { key: 'experience', label: 'å·¥ä½œå¹´é™' },
-    { key: 'skills', label: 'æŠ€èƒ½ç‰¹é•¿' },
-    { key: 'jobStatus', label: 'åœ¨èŒçŠ¶æ€' },
-    { key: 'salary', label: 'è–ªèµ„èŒƒå›´' },
+  { cat: 'Ö°Òµ', items: [
+    { key: 'company', label: '¹«Ë¾' },
+    { key: 'jobTitle', label: 'Ö°Î»' },
+    { key: 'department', label: '²¿ÃÅ' },
+    { key: 'workPhone', label: '¹¤×÷µç»°' },
+    { key: 'workEmail', label: '¹¤×÷ÓÊÏä' },
+    { key: 'industry', label: 'ĞĞÒµ' },
+    { key: 'jobLevel', label: 'Ö°¼¶' },
+    { key: 'experience', label: '¹¤×÷ÄêÏŞ' },
+    { key: 'skills', label: '¼¼ÄÜÌØ³¤' },
+    { key: 'jobStatus', label: 'ÔÚÖ°×´Ì¬' },
+    { key: 'salary', label: 'Ğ½×Ê·¶Î§' },
     { key: 'gitHub', label: 'GitHub' },
   ] },
-  { cat: 'æ•™è‚²', items: [
-    { key: 'eduLevel', label: 'æœ€é«˜å­¦å†' },
-    { key: 'school', label: 'æ¯•ä¸šé™¢æ ¡' },
-    { key: 'major', label: 'ä¸“ä¸š' },
-    { key: 'graduation', label: 'æ¯•ä¸šæ—¶é—´' },
-    { key: 'degree', label: 'å­¦ä½' },
-    { key: 'classRank', label: 'ç­çº§' },
-    { key: 'studentId', label: 'å­¦å·' },
-    { key: 'highSchool', label: 'é«˜ä¸­' },
-    { key: 'middleSchool', label: 'åˆä¸­' },
-    { key: 'primarySchool', label: 'å°å­¦' },
+  { cat: '½ÌÓı', items: [
+    { key: 'eduLevel', label: '×î¸ßÑ§Àú' },
+    { key: 'school', label: '±ÏÒµÔºĞ£' },
+    { key: 'major', label: '×¨Òµ' },
+    { key: 'graduation', label: '±ÏÒµÊ±¼ä' },
+    { key: 'degree', label: 'Ñ§Î»' },
+    { key: 'classRank', label: '°à¼¶' },
+    { key: 'studentId', label: 'Ñ§ºÅ' },
+    { key: 'highSchool', label: '¸ßÖĞ' },
+    { key: 'middleSchool', label: '³õÖĞ' },
+    { key: 'primarySchool', label: 'Ğ¡Ñ§' },
     { key: 'gpa', label: 'GPA' },
-    { key: 'advisor', label: 'å¯¼å¸ˆ' },
+    { key: 'advisor', label: 'µ¼Ê¦' },
   ] },
-  { cat: 'è”ç³»æ–¹å¼', items: [
-    { key: 'phone', label: 'æ‰‹æœºå·' },
-    { key: 'tel', label: 'åº§æœº' },
-    { key: 'fax', label: 'ä¼ çœŸ' },
+  { cat: 'ÁªÏµ·½Ê½', items: [
+    { key: 'phone', label: 'ÊÖ»úºÅ' },
+    { key: 'tel', label: '×ù»ú' },
+    { key: 'fax', label: '´«Õæ' },
     { key: 'qq', label: 'QQ' },
-    { key: 'wechat', label: 'å¾®ä¿¡' },
+    { key: 'wechat', label: 'Î¢ĞÅ' },
     { key: 'telegram', label: 'Telegram' },
     { key: 'twitter', label: 'Twitter / X' },
     { key: 'facebook', label: 'Facebook' },
     { key: 'instagram', label: 'Instagram' },
     { key: 'discord', label: 'Discord' },
-    { key: 'weibo', label: 'å¾®åš' },
-    { key: 'bilibili', label: 'B ç«™ ID' },
-    { key: 'zhihu', label: 'çŸ¥ä¹' },
-    { key: 'website', label: 'ä¸ªäººç½‘ç«™' },
-    { key: 'blog', label: 'åšå®¢' },
+    { key: 'weibo', label: 'Î¢²©' },
+    { key: 'bilibili', label: 'B Õ¾ ID' },
+    { key: 'zhihu', label: 'Öªºõ' },
+    { key: 'website', label: '¸öÈËÍøÕ¾' },
+    { key: 'blog', label: '²©¿Í' },
   ] },
-  { cat: 'å…´è¶£çˆ±å¥½', items: [
-    { key: 'hobby1', label: 'çˆ±å¥½ #1' },
-    { key: 'hobby2', label: 'çˆ±å¥½ #2' },
-    { key: 'hobby3', label: 'çˆ±å¥½ #3' },
-    { key: 'reading', label: 'å¸¸è¯»ä¹¦ç±' },
-    { key: 'readingType', label: 'é˜…è¯»ç±»å‹' },
-    { key: 'sports', label: 'è¿åŠ¨' },
-    { key: 'sportTeam', label: 'ä¸»é˜Ÿ / çƒé˜Ÿ' },
-    { key: 'game', label: 'æ¸¸æˆ' },
-    { key: 'gameId', label: 'æ¸¸æˆ ID' },
-    { key: 'travel', label: 'å¸¸å»æ—…è¡Œåœ°' },
-    { key: 'food', label: 'å–œæ¬¢çš„é£Ÿç‰©' },
-    { key: 'drink', label: 'å–œæ¬¢çš„é¥®æ–™' },
-    { key: 'pet', label: 'å® ç‰©' },
-    { key: 'plant', label: 'æ¤ç‰©' },
-    { key: 'photo', label: 'æ‘„å½±' },
-    { key: 'collection', label: 'æ”¶è—' },
-    { key: 'diy', label: 'æ‰‹ä½œ / DIY' },
-    { key: 'car', label: 'åº§é©¾' },
-    { key: 'movie', label: 'å¸¸çœ‹ç”µå½±' },
-    { key: 'anime', label: 'åŠ¨æ¼«' },
+  { cat: 'ĞËÈ¤°®ºÃ', items: [
+    { key: 'hobby1', label: '°®ºÃ #1' },
+    { key: 'hobby2', label: '°®ºÃ #2' },
+    { key: 'hobby3', label: '°®ºÃ #3' },
+    { key: 'reading', label: '³£¶ÁÊé¼®' },
+    { key: 'readingType', label: 'ÔÄ¶ÁÀàĞÍ' },
+    { key: 'sports', label: 'ÔË¶¯' },
+    { key: 'sportTeam', label: 'Ö÷¶Ó / Çò¶Ó' },
+    { key: 'game', label: 'ÓÎÏ·' },
+    { key: 'gameId', label: 'ÓÎÏ· ID' },
+    { key: 'travel', label: '³£È¥ÂÃĞĞµØ' },
+    { key: 'food', label: 'Ï²»¶µÄÊ³Îï' },
+    { key: 'drink', label: 'Ï²»¶µÄÒûÁÏ' },
+    { key: 'pet', label: '³èÎï' },
+    { key: 'plant', label: 'Ö²Îï' },
+    { key: 'photo', label: 'ÉãÓ°' },
+    { key: 'collection', label: 'ÊÕ²Ø' },
+    { key: 'diy', label: 'ÊÖ×÷ / DIY' },
+    { key: 'car', label: '×ù¼İ' },
+    { key: 'movie', label: '³£¿´µçÓ°' },
+    { key: 'anime', label: '¶¯Âş' },
   ] },
-  { cat: 'éŸ³ä¹/å½±è§†', items: [
-    { key: 'singer', label: 'å–œæ¬¢çš„æ­Œæ‰‹' },
-    { key: 'band', label: 'å–œæ¬¢çš„ä¹é˜Ÿ' },
-    { key: 'song', label: 'å–œæ¬¢çš„æ­Œ' },
-    { key: 'album', label: 'å–œæ¬¢çš„ä¸“è¾‘' },
-    { key: 'musicType', label: 'éŸ³ä¹ç±»å‹' },
-    { key: 'instrument', label: 'ä¹å™¨' },
-    { key: 'movie1', label: 'å–œæ¬¢çš„ç”µå½±' },
-    { key: 'director', label: 'å–œæ¬¢çš„å¯¼æ¼”' },
-    { key: 'actor', label: 'å–œæ¬¢çš„æ¼”å‘˜' },
-    { key: 'actress', label: 'å–œæ¬¢çš„å¥³æ¼”å‘˜' },
-    { key: 'movieType', label: 'ç”µå½±ç±»å‹' },
-    { key: 'tvShow', label: 'è¿½çš„å‰§' },
-    { key: 'show', label: 'ç»¼è‰ºèŠ‚ç›®' },
-    { key: 'podcast', label: 'å¬çš„æ’­å®¢' },
-    { key: 'idol', label: 'å¶åƒ' },
+  { cat: 'ÒôÀÖ/Ó°ÊÓ', items: [
+    { key: 'singer', label: 'Ï²»¶µÄ¸èÊÖ' },
+    { key: 'band', label: 'Ï²»¶µÄÀÖ¶Ó' },
+    { key: 'song', label: 'Ï²»¶µÄ¸è' },
+    { key: 'album', label: 'Ï²»¶µÄ×¨¼­' },
+    { key: 'musicType', label: 'ÒôÀÖÀàĞÍ' },
+    { key: 'instrument', label: 'ÀÖÆ÷' },
+    { key: 'movie1', label: 'Ï²»¶µÄµçÓ°' },
+    { key: 'director', label: 'Ï²»¶µÄµ¼Ñİ' },
+    { key: 'actor', label: 'Ï²»¶µÄÑİÔ±' },
+    { key: 'actress', label: 'Ï²»¶µÄÅ®ÑİÔ±' },
+    { key: 'movieType', label: 'µçÓ°ÀàĞÍ' },
+    { key: 'tvShow', label: '×·µÄ¾ç' },
+    { key: 'show', label: '×ÛÒÕ½ÚÄ¿' },
+    { key: 'podcast', label: 'ÌıµÄ²¥¿Í' },
+    { key: 'idol', label: 'Å¼Ïñ' },
   ] },
-  { cat: 'ç”Ÿæ´»æ–¹å¼', items: [
-    { key: 'smoke', label: 'æ˜¯å¦å¸çƒŸ' },
-    { key: 'drinkAlcohol', label: 'æ˜¯å¦é¥®é…’' },
-    { key: 'sleepTime', label: 'ä½œæ¯' },
-    { key: 'diet', label: 'é¥®é£Ÿåå¥½' },
-    { key: 'religion', label: 'å®—æ•™ä¿¡ä»°' },
-    { key: 'political', label: 'æ”¿æ²»å€¾å‘' },
-    { key: 'vehicle', label: 'å‡ºè¡Œäº¤é€š' },
-    { key: 'house', label: 'ä½æˆ¿' },
-    { key: 'salaryIdeal', label: 'ç†æƒ³æ”¶å…¥' },
-    { key: 'fitness', label: 'å¥èº«é¢‘ç‡' },
-    { key: 'cooking', label: 'æ˜¯å¦ä¼šåšé¥­' },
+  { cat: 'Éú»î·½Ê½', items: [
+    { key: 'smoke', label: 'ÊÇ·ñÎüÑÌ' },
+    { key: 'drinkAlcohol', label: 'ÊÇ·ñÒû¾Æ' },
+    { key: 'sleepTime', label: '×÷Ï¢' },
+    { key: 'diet', label: 'ÒûÊ³Æ«ºÃ' },
+    { key: 'religion', label: '×Ú½ÌĞÅÑö' },
+    { key: 'political', label: 'ÕşÖÎÇãÏò' },
+    { key: 'vehicle', label: '³öĞĞ½»Í¨' },
+    { key: 'house', label: '×¡·¿' },
+    { key: 'salaryIdeal', label: 'ÀíÏëÊÕÈë' },
+    { key: 'fitness', label: '½¡ÉíÆµÂÊ' },
+    { key: 'cooking', label: 'ÊÇ·ñ»á×ö·¹' },
   ] },
-  { cat: 'ä»·å€¼è§‚', items: [
-    { key: 'motto', label: 'åº§å³é“­' },
-    { key: 'dream', label: 'ç†æƒ³ / æ¢¦æƒ³' },
-    { key: 'religionPref', label: 'æ‹©å¶ä¿¡ä»°å€¾å‘' },
-    { key: 'value1', label: 'æœ€çœ‹é‡çš„äº‹ 1' },
-    { key: 'value2', label: 'æœ€çœ‹é‡çš„äº‹ 2' },
-    { key: 'value3', label: 'æœ€çœ‹é‡çš„äº‹ 3' },
-    { key: 'idealAge', label: 'ç†æƒ³ä¼´ä¾£å¹´é¾„' },
-    { key: 'idealHeight', label: 'ç†æƒ³ä¼´ä¾£èº«é«˜' },
-    { key: 'idealJob', label: 'ç†æƒ³ä¼´ä¾£èŒä¸š' },
-    { key: 'idealCharacter', label: 'ç†æƒ³ä¼´ä¾£æ€§æ ¼' },
-    { key: 'taboo', label: 'ä¸èƒ½æ¥å—çš„' },
+  { cat: '¼ÛÖµ¹Û', items: [
+    { key: 'motto', label: '×ùÓÒÃú' },
+    { key: 'dream', label: 'ÀíÏë / ÃÎÏë' },
+    { key: 'religionPref', label: 'ÔñÅ¼ĞÅÑöÇãÏò' },
+    { key: 'value1', label: '×î¿´ÖØµÄÊÂ 1' },
+    { key: 'value2', label: '×î¿´ÖØµÄÊÂ 2' },
+    { key: 'value3', label: '×î¿´ÖØµÄÊÂ 3' },
+    { key: 'idealAge', label: 'ÀíÏë°éÂÂÄêÁä' },
+    { key: 'idealHeight', label: 'ÀíÏë°éÂÂÉí¸ß' },
+    { key: 'idealJob', label: 'ÀíÏë°éÂÂÖ°Òµ' },
+    { key: 'idealCharacter', label: 'ÀíÏë°éÂÂĞÔ¸ñ' },
+    { key: 'taboo', label: '²»ÄÜ½ÓÊÜµÄ' },
   ] },
-  { cat: 'ä¸ªæ€§ç­¾å', items: [
-    { key: 'signature', label: 'ä¸ªæ€§ç­¾å' },
-    { key: 'status', label: 'çŠ¶æ€' },
-    { key: 'intro', label: 'è‡ªæˆ‘ä»‹ç»' },
-    { key: 'nickname2', label: 'å…¶å®ƒæ˜µç§°' },
-    { key: 'tagline', label: 'ä¸€å¥è¯æ ‡ç­¾' },
-    { key: 'mood', label: 'å¿ƒæƒ…' },
+  { cat: '¸öĞÔÇ©Ãû', items: [
+    { key: 'signature', label: '¸öĞÔÇ©Ãû' },
+    { key: 'status', label: '×´Ì¬' },
+    { key: 'intro', label: '×ÔÎÒ½éÉÜ' },
+    { key: 'nickname2', label: 'ÆäËüêÇ³Æ' },
+    { key: 'tagline', label: 'Ò»¾ä»°±êÇ©' },
+    { key: 'mood', label: 'ĞÄÇé' },
   ] },
 ];
 
-// è‡ªå®šä¹‰ Toast æç¤ºï¼ˆæ›¿ä»£ alertï¼‰
+// ×Ô¶¨Òå Toast ÌáÊ¾£¨Ìæ´ú alert£©
 function toast(msg, kind /* info|success|error|warn */, ms) {
   kind = kind || 'info';
   ms = ms || 2200;
   const wrap = $('toastWrap');
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
-  const ico = { info: 'i', success: 'âœ“', error: '!', warn: '!' }[kind] || 'i';
+  const ico = { info: 'i', success: '?', error: '!', warn: '!' }[kind] || 'i';
   el.innerHTML = '<div class="ico">' + ico + '</div><div>' + escapeHtml(msg) + '</div>';
   wrap.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
@@ -278,12 +278,12 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
   }, ms);
 }
 
-// ============ ç™»å½•/æ³¨å†Œ ============
+// ============ µÇÂ¼/×¢²á ============
 let mode = 'login';
-let loginMode = 'password'; // 'password' | 'code'ï¼ˆä»…ç™»å½•æ¨¡å¼ç”Ÿæ•ˆï¼‰
+let loginMode = 'password'; // 'password' | 'code'£¨½öµÇÂ¼Ä£Ê½ÉúĞ§£©
 let qrLoginTimer = null;
 
-// æ ¹æ®å½“å‰ mode ä¸ loginMode ç»Ÿä¸€åˆ·æ–°ç™»å½•/æ³¨å†Œè¡¨å•å­—æ®µçš„æ˜¾éš
+// ¸ù¾İµ±Ç° mode Óë loginMode Í³Ò»Ë¢ĞÂµÇÂ¼/×¢²á±íµ¥×Ö¶ÎµÄÏÔÒş
 function applyLoginMode() {
   const showReg = mode === 'register';
   $('nickname').style.display = showReg ? 'block' : 'none';
@@ -291,11 +291,11 @@ function applyLoginMode() {
   $('country').style.display = showReg ? 'block' : 'none';
   $('province').style.display = showReg ? 'block' : 'none';
   $('city').style.display = showReg ? 'block' : 'none';
-  // ç™»å½•æ–¹å¼åˆ‡æ¢æ§ä»¶ï¼šä»…ç™»å½•æ¨¡å¼æ˜¾ç¤º
+  // µÇÂ¼·½Ê½ÇĞ»»¿Ø¼ş£º½öµÇÂ¼Ä£Ê½ÏÔÊ¾
   $('loginModeRow').style.display = showReg ? 'none' : 'flex';
   const useCode = !showReg && loginMode === 'code';
   const useQr = !showReg && loginMode === 'qr';
-  // å¯†ç ç™»å½•ï¼šç”¨æˆ·å + å¯†ç ï¼›éªŒè¯ç ç™»å½•ï¼šé‚®ç®± + éªŒè¯ç ï¼›æ‰«ç ç™»å½•ï¼šè¡¨å•å†…äºŒç»´ç 
+  // ÃÜÂëµÇÂ¼£ºÓÃ»§Ãû + ÃÜÂë£»ÑéÖ¤ÂëµÇÂ¼£ºÓÊÏä + ÑéÖ¤Âë£»É¨ÂëµÇÂ¼£º±íµ¥ÄÚ¶şÎ¬Âë
   const showPw = showReg || (!useCode && !useQr);
   $('username').style.display = showPw ? 'block' : 'none';
   $('password').style.display = showPw ? 'block' : 'none';
@@ -310,11 +310,11 @@ function applyLoginMode() {
     clearInterval(qrLoginTimer);
     qrLoginTimer = null;
   }
-  // å¯†ç ç™»å½•æ—¶ç”¨æˆ·åè¾“å…¥æ¡† placeholder ä¸ºã€Œç”¨æˆ·åæˆ–é‚®ç®±ã€ï¼›æ³¨å†Œ/éªŒè¯ç ç™»å½•æ—¶ä¸ºã€Œç”¨æˆ·åã€
-  $('username').placeholder = (showReg || useCode || useQr) ? t('username', 'ç”¨æˆ·å') : t('usernameOrEmail', 'ç”¨æˆ·åæˆ–é‚®ç®±');
-  // é‚®ç®± placeholderï¼šæ³¨å†Œæ—¶æç¤ºã€Œæ³¨å†Œæ—¶å¡«å†™ã€ï¼Œç™»å½•éªŒè¯ç æ—¶æç¤ºã€Œé‚®ç®±ã€
-  $('email').placeholder = showReg ? t('email', 'é‚®ç®±ï¼ˆæ³¨å†Œæ—¶å¡«å†™ï¼‰') : t('emailLogin', 'é‚®ç®±');
-  // ç™»å½•æ–¹å¼æŒ‰é’®é«˜äº®
+  // ÃÜÂëµÇÂ¼Ê±ÓÃ»§ÃûÊäÈë¿ò placeholder Îª¡¸ÓÃ»§Ãû»òÓÊÏä¡¹£»×¢²á/ÑéÖ¤ÂëµÇÂ¼Ê±Îª¡¸ÓÃ»§Ãû¡¹
+  $('username').placeholder = (showReg || useCode || useQr) ? t('username', 'ÓÃ»§Ãû') : t('usernameOrEmail', 'ÓÃ»§Ãû»òÓÊÏä');
+  // ÓÊÏä placeholder£º×¢²áÊ±ÌáÊ¾¡¸×¢²áÊ±ÌîĞ´¡¹£¬µÇÂ¼ÑéÖ¤ÂëÊ±ÌáÊ¾¡¸ÓÊÏä¡¹
+  $('email').placeholder = showReg ? t('email', 'ÓÊÏä£¨×¢²áÊ±ÌîĞ´£©') : t('emailLogin', 'ÓÊÏä');
+  // µÇÂ¼·½Ê½°´Å¥¸ßÁÁ
   document.querySelectorAll('.login-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.loginMode === loginMode));
   $('authErr').textContent = '';
 }
@@ -323,12 +323,12 @@ document.querySelectorAll('.tab').forEach(tt => {
   tt.onclick = () => {
     mode = tt.dataset.tab;
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === tt));
-    $('authBtn').textContent = mode === 'login' ? t('login', 'ç™»å½•') : t('register', 'æ³¨å†Œ');
+    $('authBtn').textContent = mode === 'login' ? t('login', 'µÇÂ¼') : t('register', '×¢²á');
     applyLoginMode();
   };
 });
 
-// ç™»å½•æ–¹å¼åˆ‡æ¢æŒ‰é’®
+// µÇÂ¼·½Ê½ÇĞ»»°´Å¥
 document.querySelectorAll('.login-mode-btn').forEach(b => {
   b.onclick = () => {
     loginMode = b.dataset.loginMode;
@@ -336,7 +336,7 @@ document.querySelectorAll('.login-mode-btn').forEach(b => {
   };
 });
 
-// åˆå§‹åŒ–ç™»å½•é¡µï¼Œé¦–æ¬¡æ‰“å¼€æ—¶ç›´æ¥æ˜¾ç¤ºå¯†ç ç™»å½•/éªŒè¯ç ç™»å½•åˆ‡æ¢ã€‚
+// ³õÊ¼»¯µÇÂ¼Ò³£¬Ê×´Î´ò¿ªÊ±Ö±½ÓÏÔÊ¾ÃÜÂëµÇÂ¼/ÑéÖ¤ÂëµÇÂ¼ÇĞ»»¡£
 applyLoginMode();
 
 $('authBtn').onclick = async () => {
@@ -351,30 +351,30 @@ $('authBtn').onclick = async () => {
   $('authErr').textContent = '';
   let endpoint, body;
   if (mode === 'register') {
-    // æ³¨å†Œï¼šç”¨æˆ·å + å¯†ç  + é‚®ç®± + éªŒè¯ç 
-    if (!username || !password) { $('authErr').textContent = 'è¯·è¾“å…¥ç”¨æˆ·åå’Œå¯†ç '; return; }
-    if (!email) { $('authErr').textContent = 'è¯·å¡«å†™é‚®ç®±'; return; }
-    if (!code) { $('authErr').textContent = 'è¯·è¾“å…¥é‚®ç®±éªŒè¯ç '; return; }
+    // ×¢²á£ºÓÃ»§Ãû + ÃÜÂë + ÓÊÏä + ÑéÖ¤Âë
+    if (!username || !password) { $('authErr').textContent = 'ÇëÊäÈëÓÃ»§ÃûºÍÃÜÂë'; return; }
+    if (!email) { $('authErr').textContent = 'ÇëÌîĞ´ÓÊÏä'; return; }
+    if (!code) { $('authErr').textContent = 'ÇëÊäÈëÓÊÏäÑéÖ¤Âë'; return; }
     endpoint = '/api/register';
     body = { username, password, nickname, email, code, customUid: $('customUid').value.trim(), country, province, city };
   } else if (loginMode === 'code') {
-    // ç™»å½•-éªŒè¯ç ï¼šé‚®ç®± + éªŒè¯ç 
-    if (!email) { $('authErr').textContent = 'è¯·å¡«å†™é‚®ç®±'; return; }
-    if (!code) { $('authErr').textContent = 'è¯·è¾“å…¥é‚®ç®±éªŒè¯ç '; return; }
+    // µÇÂ¼-ÑéÖ¤Âë£ºÓÊÏä + ÑéÖ¤Âë
+    if (!email) { $('authErr').textContent = 'ÇëÌîĞ´ÓÊÏä'; return; }
+    if (!code) { $('authErr').textContent = 'ÇëÊäÈëÓÊÏäÑéÖ¤Âë'; return; }
     endpoint = '/api/login/code';
     body = { email, code };
   } else if (loginMode === 'qr') {
-    // æ‰«ç ç™»å½•ï¼šäºŒç»´ç åœ¨è¡¨å•å†…æ¸²æŸ“ï¼ŒauthBtn éšè—ï¼›æ­¤åˆ†æ”¯ä¸åº”è§¦å‘
+    // É¨ÂëµÇÂ¼£º¶şÎ¬ÂëÔÚ±íµ¥ÄÚäÖÈ¾£¬authBtn Òş²Ø£»´Ë·ÖÖ§²»Ó¦´¥·¢
     return;
   } else {
-    // ç™»å½•-å¯†ç ï¼šè´¦å·ï¼ˆç”¨æˆ·åæˆ–é‚®ç®±ï¼‰+ å¯†ç 
-    if (!username || !password) { $('authErr').textContent = 'è¯·è¾“å…¥ç”¨æˆ·åæˆ–é‚®ç®±å’Œå¯†ç '; return; }
+    // µÇÂ¼-ÃÜÂë£ºÕËºÅ£¨ÓÃ»§Ãû»òÓÊÏä£©+ ÃÜÂë
+    if (!username || !password) { $('authErr').textContent = 'ÇëÊäÈëÓÃ»§Ãû»òÓÊÏäºÍÃÜÂë'; return; }
     endpoint = '/api/login';
     body = { account: username, password };
   }
   const btn = $('authBtn');
   btn.disabled = true;
-  btn.textContent = t('loggingIn', 'ç™»å½•ä¸­â€¦');
+  btn.textContent = t('loggingIn', 'µÇÂ¼ÖĞ¡­');
   try {
     const res = await fetch(state.serverHost + endpoint, {
       method: 'POST',
@@ -382,7 +382,7 @@ $('authBtn').onclick = async () => {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (!res.ok) { $('authErr').textContent = data.error || 'è¯·æ±‚å¤±è´¥'; return; }
+    if (!res.ok) { $('authErr').textContent = data.error || 'ÇëÇóÊ§°Ü'; return; }
     state.token = data.token;
     state.me = data.user;
     localStorage.setItem('sc_token', state.token);
@@ -390,10 +390,10 @@ $('authBtn').onclick = async () => {
     enterChat();
     fetchAnnouncements();
   } catch (e) {
-    $('authErr').textContent = 'æ— æ³•è¿æ¥æœåŠ¡å™¨ï¼š' + e.message;
+    $('authErr').textContent = 'ÎŞ·¨Á¬½Ó·şÎñÆ÷£º' + e.message;
   } finally {
     btn.disabled = false;
-    btn.textContent = mode === 'register' ? t('register', 'æ³¨å†Œ') : (loginMode === 'code' ? t('codeLogin', 'éªŒè¯ç ç™»å½•') : t('login', 'ç™»å½•'));
+    btn.textContent = mode === 'register' ? t('register', '×¢²á') : (loginMode === 'code' ? t('codeLogin', 'ÑéÖ¤ÂëµÇÂ¼') : t('login', 'µÇÂ¼'));
   }
 };
 
@@ -405,9 +405,9 @@ async function setQrLogin() {
   try {
     const res = await fetch(state.serverHost + '/api/login/qr/create', { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'äºŒç»´ç ç”Ÿæˆå¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '¶şÎ¬ÂëÉú³ÉÊ§°Ü');
     if (img) { img.src = state.serverHost + '/api/login/qr/image?token=' + encodeURIComponent(data.token); img.style.display = 'block'; }
-    if (tip) tip.textContent = 'è¯·ä½¿ç”¨å·²ç™»å½•çš„ SecureChat æ‰‹æœºç«¯ã€Œæ‰«ä¸€æ‰«ã€æ‰«æäºŒç»´ç ç™»å½•ï¼ŒäºŒç»´ç  2 åˆ†é’Ÿå†…æœ‰æ•ˆã€‚';
+    if (tip) tip.textContent = 'ÇëÊ¹ÓÃÒÑµÇÂ¼µÄ SecureChat ÊÖ»ú¶Ë¡¸É¨Ò»É¨¡¹É¨Ãè¶şÎ¬ÂëµÇÂ¼£¬¶şÎ¬Âë 2 ·ÖÖÓÄÚÓĞĞ§¡£';
     if ($('authErr')) $('authErr').textContent = '';
     let done = false;
     qrLoginTimer = setInterval(async () => {
@@ -418,7 +418,7 @@ async function setQrLogin() {
           body: JSON.stringify({ token: data.token })
         });
         const rdata = await r.json();
-        if (r.status === 410) { done = true; clearInterval(qrLoginTimer); if (tip) tip.textContent = 'äºŒç»´ç å·²å¤±æ•ˆï¼Œè¯·åˆ·æ–°é‡è¯•'; return; }
+        if (r.status === 410) { done = true; clearInterval(qrLoginTimer); if (tip) tip.textContent = '¶şÎ¬ÂëÒÑÊ§Ğ§£¬ÇëË¢ĞÂÖØÊÔ'; return; }
         if (rdata.status === 'ok' && rdata.token && rdata.user) {
           done = true; clearInterval(qrLoginTimer); qrLoginTimer = null;
           state.token = rdata.token;
@@ -429,51 +429,51 @@ async function setQrLogin() {
         }
       } catch (e) {}
     }, 2000);
-  } catch (e) { if (tip) tip.textContent = e.message || 'äºŒç»´ç ç”Ÿæˆå¤±è´¥'; }
+  } catch (e) { if (tip) tip.textContent = e.message || '¶şÎ¬ÂëÉú³ÉÊ§°Ü'; }
 }
 
 const qrRegenBtnEl = $('qrRegenBtn');
 if (qrRegenBtnEl) qrRegenBtnEl.onclick = () => setQrLogin();
 
-// å‘é€é‚®ç®±éªŒè¯ç ï¼ˆæ³¨å†Œç”¨ purpose='register'ï¼›ç™»å½•éªŒè¯ç ç™»å½•ç”¨ purpose='login'ï¼‰
+// ·¢ËÍÓÊÏäÑéÖ¤Âë£¨×¢²áÓÃ purpose='register'£»µÇÂ¼ÑéÖ¤ÂëµÇÂ¼ÓÃ purpose='login'£©
 let codeTimer = null;
 $('sendCodeBtn').onclick = async () => {
   const email = $('email').value.trim();
-  if (!email) { $('authErr').textContent = 'è¯·å…ˆå¡«å†™é‚®ç®±'; return; }
-  if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { $('authErr').textContent = 'é‚®ç®±æ ¼å¼é”™è¯¯'; return; }
-  // æ ¹æ®å½“å‰çŠ¶æ€å†³å®šéªŒè¯ç ç”¨é€”ï¼šæ³¨å†Œ â†’ registerï¼›ç™»å½•+éªŒè¯ç ç™»å½• â†’ login
+  if (!email) { $('authErr').textContent = 'ÇëÏÈÌîĞ´ÓÊÏä'; return; }
+  if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { $('authErr').textContent = 'ÓÊÏä¸ñÊ½´íÎó'; return; }
+  // ¸ù¾İµ±Ç°×´Ì¬¾ö¶¨ÑéÖ¤ÂëÓÃÍ¾£º×¢²á ¡ú register£»µÇÂ¼+ÑéÖ¤ÂëµÇÂ¼ ¡ú login
   const purpose = mode === 'register' ? 'register' : 'login';
   $('sendCodeBtn').disabled = true;
-  $('authErr').textContent = 'æ­£åœ¨å‘é€éªŒè¯ç ...';
+  $('authErr').textContent = 'ÕıÔÚ·¢ËÍÑéÖ¤Âë...';
   try {
     const res = await fetch(state.serverHost + '/api/email/code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, purpose })
     });
     const data = await res.json();
-    if (!res.ok) { $('authErr').textContent = data.error || 'å‘é€å¤±è´¥'; $('sendCodeBtn').disabled = false; return; }
+    if (!res.ok) { $('authErr').textContent = data.error || '·¢ËÍÊ§°Ü'; $('sendCodeBtn').disabled = false; return; }
     $('authErr').textContent = '';
-    toast('éªŒè¯ç å·²å‘é€ï¼Œè¯·æŸ¥æ”¶é‚®ç®±', 'success');
-    // 60s å€’è®¡æ—¶
+    toast('ÑéÖ¤ÂëÒÑ·¢ËÍ£¬Çë²éÊÕÓÊÏä', 'success');
+    // 60s µ¹¼ÆÊ±
     let n = 60;
     $('sendCodeBtn').textContent = n + 's';
     if (codeTimer) clearInterval(codeTimer);
     codeTimer = setInterval(() => {
       n--;
-      if (n <= 0) { clearInterval(codeTimer); $('sendCodeBtn').textContent = t('sendCode', 'å‘é€éªŒè¯ç '); $('sendCodeBtn').disabled = false; }
+      if (n <= 0) { clearInterval(codeTimer); $('sendCodeBtn').textContent = t('sendCode', '·¢ËÍÑéÖ¤Âë'); $('sendCodeBtn').disabled = false; }
       else $('sendCodeBtn').textContent = n + 's';
     }, 1000);
   } catch (e) {
-    $('authErr').textContent = 'å‘é€å¤±è´¥ï¼š' + e.message;
+    $('authErr').textContent = '·¢ËÍÊ§°Ü£º' + e.message;
     $('sendCodeBtn').disabled = false;
-    $('sendCodeBtn').textContent = t('sendCode', 'å‘é€éªŒè¯ç ');
+    $('sendCodeBtn').textContent = t('sendCode', '·¢ËÍÑéÖ¤Âë');
   }
 };
 
 $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('authBtn').click(); });
 
-// ---------- è‡ªåŠ¨æ£€æŸ¥æ›´æ–° ----------
-// è¯­ä¹‰åŒ–ç‰ˆæœ¬æ¯”è¾ƒï¼šè¿”å› -1/0/1
+// ---------- ×Ô¶¯¼ì²é¸üĞÂ ----------
+// ÓïÒå»¯°æ±¾±È½Ï£º·µ»Ø -1/0/1
 function cmpVersion(a, b) {
   a = String(a || '0').split('.');
   b = String(b || '0').split('.');
@@ -486,12 +486,12 @@ function cmpVersion(a, b) {
   }
   return 0;
 }
-// æ›´æ–°æç¤ºä»…å±•ç¤ºåœ¨ä¸‹è½½é¡µï¼ˆdownload.html ä¸‹æ–¹æ›´æ–°æ—¥å¿—ï¼‰ï¼Œweb ç«¯ä¸å†å¼¹æ›´æ–°æµ®å±‚ã€‚
+// ¸üĞÂÌáÊ¾½öÕ¹Ê¾ÔÚÏÂÔØÒ³£¨download.html ÏÂ·½¸üĞÂÈÕÖ¾£©£¬web ¶Ë²»ÔÙµ¯¸üĞÂ¸¡²ã¡£
 async function checkUpdate() {
   return;
 }
 
-// è‡ªåŠ¨æ¢å¤ç™»å½•ï¼ˆå…ˆéªŒè¯ token å†è¿›èŠå¤©ï¼‰
+// ×Ô¶¯»Ö¸´µÇÂ¼£¨ÏÈÑéÖ¤ token ÔÙ½øÁÄÌì£©
 function tryRestore() {
   const savedToken = localStorage.getItem('sc_token');
   const savedMe = localStorage.getItem('sc_me');
@@ -520,35 +520,35 @@ function logout() {
   if (window.SCE2EE) window.SCE2EE._cache = {};
   if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
   if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
-  // æ¸…æ‰å½“å‰ä¼šè¯/è”ç³»äººçŠ¶æ€
+  // Çåµôµ±Ç°»á»°/ÁªÏµÈË×´Ì¬
   state.current = null;
   if (state.messages) state.messages = {};
-  // åˆ‡æ¢å›ç™»å½•é¡µå¹¶é‡ç½®ç™»å½•æ¨¡å¼
+  // ÇĞ»»»ØµÇÂ¼Ò³²¢ÖØÖÃµÇÂ¼Ä£Ê½
   $('chatView').style.display = 'none';
   $('authView').style.display = 'flex';
   mode = 'login';
   loginMode = 'password';
   try { applyLoginMode(); } catch {}
-  toast(t('logout', 'å·²é€€å‡ºç™»å½•'), 'info');
+  toast(t('logout', 'ÒÑÍË³öµÇÂ¼'), 'info');
 }
 
-// ============ è¿›å…¥èŠå¤© ============
+// ============ ½øÈëÁÄÌì ============
 function enterChat() {
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
   renderMyInfo();
-  // ç™»å½•æˆåŠŸåç«‹å³ä¸Šä¼ èº«ä»½å…¬é’¥ï¼Œé¿å…å¯¹æ–¹åªèƒ½å¤ç”¨æ—§ä¼šè¯å¯¼è‡´æ— æ³•è§£å¯†ã€‚
+  // µÇÂ¼³É¹¦ºóÁ¢¼´ÉÏ´«Éí·İ¹«Ô¿£¬±ÜÃâ¶Ô·½Ö»ÄÜ¸´ÓÃ¾É»á»°µ¼ÖÂÎŞ·¨½âÃÜ¡£
   if (window.SCE2EE && typeof window.SCE2EE.ensureKeyPair === 'function') {
     window.SCE2EE.ensureKeyPair().catch(() => {});
   }
-// æ¢å¤è¯¥ç”¨æˆ·è‡ªå®šä¹‰èŠå¤©èƒŒæ™¯å›¾ï¼ˆæ¯ä¸ªç”¨æˆ·ç‹¬ç«‹å­˜å‚¨ï¼‰
+// »Ö¸´¸ÃÓÃ»§×Ô¶¨ÒåÁÄÌì±³¾°Í¼£¨Ã¿¸öÓÃ»§¶ÀÁ¢´æ´¢£©
   applyChatBg(getChatBg());
   applyMsgFont();
   connectWS();
   loadFriends();
   loadGroups();
-  // E2EE å·²åœç”¨ï¼šæ¶ˆæ¯ä»¥æ˜æ–‡å‘é€ï¼Œä¸å†ç”Ÿæˆ/ä¸Šä¼ å¯†é’¥ã€‚
-  // ç§»åŠ¨ç«¯ï¼šç™»å½•åé»˜è®¤æ˜¾ç¤ºè”ç³»äººåˆ—è¡¨ï¼ˆä¸è‡ªåŠ¨è¿›å…¥èŠå¤©æ€ï¼‰
+  // E2EE ÒÑÍ£ÓÃ£ºÏûÏ¢ÒÔÃ÷ÎÄ·¢ËÍ£¬²»ÔÙÉú³É/ÉÏ´«ÃÜÔ¿¡£
+  // ÒÆ¶¯¶Ë£ºµÇÂ¼ºóÄ¬ÈÏÏÔÊ¾ÁªÏµÈËÁĞ±í£¨²»×Ô¶¯½øÈëÁÄÌìÌ¬£©
   if (window.IS_MOBILE) {
     const cv = document.getElementById('chatView');
     if (cv) cv.classList.remove('mobile-chat-active');
@@ -559,7 +559,7 @@ function renderMyInfo() {
   const hasImg = state.me && state.me.avatar;
   const avHtml = hasImg ? '<img src="' + state.me.avatar + '">'
     : avatarChar(state.me.nickname);
-  // åœ°åŒºï¼šcountry/province/city æ˜¯ç‹¬ç«‹åˆ—ï¼›è‹¥ä¸‰è€…çš†ç©ºï¼Œå†å°è¯•ä» extra å–ç°ä½åœ°ï¼ˆcurrentAddress / hometownï¼‰
+  // µØÇø£ºcountry/province/city ÊÇ¶ÀÁ¢ÁĞ£»ÈôÈıÕß½Ô¿Õ£¬ÔÙ³¢ÊÔ´Ó extra È¡ÏÖ×¡µØ£¨currentAddress / hometown£©
   const c = (state.me && state.me.country) || '';
   const p = (state.me && state.me.province) || '';
   const ct = (state.me && state.me.city) || '';
@@ -572,32 +572,32 @@ function renderMyInfo() {
   }
   let regionHtml;
   if (regionText) {
-    regionHtml = '<div class="my-id region-display" style="cursor:pointer" title="ç‚¹å‡»ç¼–è¾‘èµ„æ–™">' + escapeHtml(regionText) + '</div>';
+    regionHtml = '<div class="my-id region-display" style="cursor:pointer" title="µã»÷±à¼­×ÊÁÏ">' + escapeHtml(regionText) + '</div>';
   } else {
-    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">åœ°åŒºï¼šæœªè®¾ç½®ï¼Œç‚¹â€œèµ„æ–™â€å¡«å†™</div>';
+    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">µØÇø£ºÎ´ÉèÖÃ£¬µã¡°×ÊÁÏ¡±ÌîĞ´</div>';
   }
   const dark = document.body.classList.contains('dark-mode');
   $('myInfo').innerHTML = '<div class="account-card">'
     + '<div class="account-main">'
-    + '<div class="avatar my-avatar" id="myAvatar" title="ç‚¹å‡»æ¢å¤´åƒ">' + avHtml + '</div>'
+    + '<div class="avatar my-avatar" id="myAvatar" title="µã»÷»»Í·Ïñ">' + avHtml + '</div>'
     + '<div class="account-copy"><div class="my-name">' + escapeHtml(state.me.nickname) + '</div>'
-    + '<div class="my-id" id="myIdText" style="cursor:pointer" title="ç‚¹å‡»å¤åˆ¶ID">ID: ' + (state.me.uid || '') + '</div></div>'
-    + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', 'é€€å‡ºç™»å½•')) + '">' + escapeHtml(t('logout', 'é€€å‡º')) + '</button>'
+    + '<div class="my-id" id="myIdText" style="cursor:pointer" title="µã»÷¸´ÖÆID">ID: ' + (state.me.uid || '') + '</div></div>'
+    + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', 'ÍË³öµÇÂ¼')) + '">' + escapeHtml(t('logout', 'ÍË³ö')) + '</button>'
     + '</div>'
     + '<div class="account-region">' + regionHtml + '</div>'
     + '<div class="account-toolbar">'
-    + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', 'èµ„æ–™')) + '</button>'
-    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', 'æ”¹ ID')) + '</button>'
-    + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', 'åç‰‡')) + '</button>'
-    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', 'æ‰«ä¸€æ‰«')) + '</button>'
-    + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', 'èƒŒæ™¯')) + '</button>'
-    + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', 'åé¦ˆ')) + '</button>'
-    + '<span class="theme-switch" role="group" aria-label="å¤–è§‚ä¸»é¢˜">'
-    + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', 'æ—¥')) + '</button>'
-    + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', 'å¤œ')) + '</button>'
+    + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', '×ÊÁÏ')) + '</button>'
+    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '¸Ä ID')) + '</button>'
+    + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', 'ÃûÆ¬')) + '</button>'
+    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', 'É¨Ò»É¨')) + '</button>'
+    + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '±³¾°')) + '</button>'
+    + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '·´À¡')) + '</button>'
+    + '<span class="theme-switch" role="group" aria-label="Íâ¹ÛÖ÷Ìâ">'
+    + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', 'ÈÕ')) + '</button>'
+    + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', 'Ò¹')) + '</button>'
     + '</span></div>'
     + '</div>';
-  // è´¦æˆ·å¡é‡Œè‹¥å­æ ‡ç­¾åç»­åŠ äº† data-i18nï¼Œapply() ä¼šå…œåº•ï¼›è¿™é‡Œå†æ‰«ä¸€æ¬¡ã€‚
+  // ÕË»§¿¨ÀïÈô×Ó±êÇ©ºóĞø¼ÓÁË data-i18n£¬apply() »á¶µµ×£»ÕâÀïÔÙÉ¨Ò»´Î¡£
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
   $('myAvatar').onclick = pickAvatar;
   $('bgBtn').onclick = pickChatBg;
@@ -618,20 +618,20 @@ function renderMyInfo() {
   $('logoutBtn').onclick = logout;
   $('myIdText').onclick = () => {
     const uid = state.me && state.me.uid;
-    if (!uid) { toast('æš‚æ— IDå¯å¤åˆ¶', 'warn', 1000); return; }
+    if (!uid) { toast('ÔİÎŞID¿É¸´ÖÆ', 'warn', 1000); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(String(uid))
-        .then(() => toast('ID å·²å¤åˆ¶', 'success', 1000))
-        .catch(() => toast('å¤åˆ¶å¤±è´¥', 'error', 1000));
+        .then(() => toast('ID ÒÑ¸´ÖÆ', 'success', 1000))
+        .catch(() => toast('¸´ÖÆÊ§°Ü', 'error', 1000));
     } else {
-      toast('å½“å‰æµè§ˆå™¨ä¸æ”¯æŒå¤åˆ¶', 'warn', 1000);
+      toast('µ±Ç°ä¯ÀÀÆ÷²»Ö§³Ö¸´ÖÆ', 'warn', 1000);
     }
   };
 }
 
-// å±•ç¤ºæˆ‘çš„åç‰‡ï¼ˆåŠ å¥½å‹äºŒç»´ç ï¼‰
+// Õ¹Ê¾ÎÒµÄÃûÆ¬£¨¼ÓºÃÓÑ¶şÎ¬Âë£©
 function showMyCard() {
-  if (!state.me || !state.me.uid) { toast('æš‚æ— IDï¼Œæ— æ³•ç”Ÿæˆåç‰‡', 'warn', 1500); return; }
+  if (!state.me || !state.me.uid) { toast('ÔİÎŞID£¬ÎŞ·¨Éú³ÉÃûÆ¬', 'warn', 1500); return; }
   const uid = String(state.me.uid);
   const qrText = 'securechat://friend?uid=' + encodeURIComponent(uid);
   const imgUrl = state.serverHost + '/api/qrcode/render?text=' + encodeURIComponent(qrText) + '&w=300';
@@ -642,21 +642,21 @@ function showMyCard() {
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
-  h3.textContent = t('myCard', 'åç‰‡');
+  h3.textContent = t('myCard', 'ÃûÆ¬');
   const xBtn = document.createElement('button');
-  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', 'å…³é—­'); xBtn.innerHTML = '&times;';
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '¹Ø±Õ'); xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
   body.style.cssText = 'text-align:center;padding:6px 0 4px';
-  body.innerHTML = '<img src="' + imgUrl + '" alt="åç‰‡äºŒç»´ç " style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
+  body.innerHTML = '<img src="' + imgUrl + '" alt="ÃûÆ¬¶şÎ¬Âë" style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
     + '<div style="margin-top:12px;font-size:14px;font-weight:600">' + escapeHtml(state.me.nickname) + '</div>'
     + '<div style="font-size:12px;color:#64748b;margin-top:3px">ID: ' + escapeHtml(uid) + '</div>'
-    + '<div style="margin-top:8px;font-size:12px;color:#64748b">è®©æœ‹å‹ç”¨æ‰‹æœºã€Œæ‰«ä¸€æ‰«ã€æ·»åŠ æˆ‘ä¸ºå¥½å‹</div>';
+    + '<div style="margin-top:8px;font-size:12px;color:#64748b">ÈÃÅóÓÑÓÃÊÖ»ú¡¸É¨Ò»É¨¡¹Ìí¼ÓÎÒÎªºÃÓÑ</div>';
   box.appendChild(body);
   const acts = document.createElement('div');
   acts.className = 'modal-actions';
   const ok = document.createElement('button');
-  ok.className = 'ok'; ok.textContent = t('close', 'å…³é—­');
+  ok.className = 'ok'; ok.textContent = t('close', '¹Ø±Õ');
   acts.appendChild(ok); box.appendChild(acts);
   mask.appendChild(box); document.body.appendChild(mask);
   const close = () => mask.remove();
@@ -666,16 +666,16 @@ function showMyCard() {
   document.addEventListener('keydown', onKey);
 }
 
-// ä»å›¾åƒçš„ ImageData è§£ç äºŒç»´ç ï¼ˆjsQR ä¸ºåŒæ­¥çº¯å‰ç«¯è§£ç ï¼Œå›¾ç‰‡ä¸ä¸Šä¼ ï¼‰
+// ´ÓÍ¼ÏñµÄ ImageData ½âÂë¶şÎ¬Âë£¨jsQR ÎªÍ¬²½´¿Ç°¶Ë½âÂë£¬Í¼Æ¬²»ÉÏ´«£©
 function decodeQRFromImageData(imageData) {
-  if (typeof jsQR !== 'function') throw new Error('äºŒç»´ç è§£ç åº“æœªåŠ è½½');
+  if (typeof jsQR !== 'function') throw new Error('¶şÎ¬Âë½âÂë¿âÎ´¼ÓÔØ');
   const res = jsQR(imageData.data, imageData.width, imageData.height, {
     inversionAttempts: 'dontInvert'
   });
   return res ? res.data : null;
 }
 
-// æ¸²æŸ“å›¾ç‰‡åˆ° canvasï¼Œè¿”å› ImageData å’ŒåŸå§‹ä½å›¾
+// äÖÈ¾Í¼Æ¬µ½ canvas£¬·µ»Ø ImageData ºÍÔ­Ê¼Î»Í¼
 function renderToImageData(img) {
   const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
@@ -688,52 +688,52 @@ function renderToImageData(img) {
   return ctx.getImageData(0, 0, w, h);
 }
 
-// å¤„ç†æ‰«æç»“æœï¼šå¥½å‹ç  â†’ åŠ å¥½å‹ï¼›ç™»å½•ç  â†’ ç¡®è®¤ç™»å½•
+// ´¦ÀíÉ¨Ãè½á¹û£ººÃÓÑÂë ¡ú ¼ÓºÃÓÑ£»µÇÂ¼Âë ¡ú È·ÈÏµÇÂ¼
 async function handleScanText(text) {
   const raw = String(text || '').trim();
-  if (!raw) throw new Error('æœªè¯†åˆ«åˆ°äºŒç»´ç å†…å®¹');
-  // å¥½å‹ç 
+  if (!raw) throw new Error('Î´Ê¶±ğµ½¶şÎ¬ÂëÄÚÈİ');
+  // ºÃÓÑÂë
   let uid = null;
   try {
     const u = new URL(raw);
     if (u.protocol === 'securechat:' && (u.hostname === 'friend' || u.pathname.indexOf('/friend') === 0)) uid = u.searchParams.get('uid');
-  } catch (_) { /* é URL åˆ™å°è¯•è£¸æ ¼å¼ */ }
+  } catch (_) { /* ·Ç URL Ôò³¢ÊÔÂã¸ñÊ½ */ }
   if (!uid && raw.startsWith('securechat://friend')) {
     const m = raw.match(/uid=(.+?)(&|$)/i);
     if (m) uid = m[1];
   }
   if (uid) {
-    const ok = await confirmOpen('æ‰«ä¸€æ‰«', 'è¯†åˆ«åˆ°å¥½å‹äºŒç»´ç ï¼ŒIDï¼š' + uid + 'ã€‚ç¡®è®¤å‘é€å¥½å‹è¯·æ±‚ï¼Ÿ');
-    if (!ok) return 'å·²å–æ¶ˆ';
+    const ok = await confirmOpen('É¨Ò»É¨', 'Ê¶±ğµ½ºÃÓÑ¶şÎ¬Âë£¬ID£º' + uid + '¡£È·ÈÏ·¢ËÍºÃÓÑÇëÇó£¿');
+    if (!ok) return 'ÒÑÈ¡Ïû';
     const res = await fetch(state.serverHost + '/api/friend/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ friendUid: String(uid).trim() })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'åŠ å¥½å‹å¤±è´¥');
-    return 'å¥½å‹è¯·æ±‚å·²å‘é€ï¼š' + ((data.friend && (data.friend.nickname || data.friend.username)) || uid);
+    if (!res.ok) throw new Error(data.error || '¼ÓºÃÓÑÊ§°Ü');
+    return 'ºÃÓÑÇëÇóÒÑ·¢ËÍ£º' + ((data.friend && (data.friend.nickname || data.friend.username)) || uid);
   }
-  // ç™»å½•ç ï¼šå·²ç™»å½•è®¾å¤‡æ‰«ç ç¡®è®¤ï¼Œç›®æ ‡è®¾å¤‡å³å¯ç™»å½•ä¸ºå½“å‰è´¦å·
+  // µÇÂ¼Âë£ºÒÑµÇÂ¼Éè±¸É¨ÂëÈ·ÈÏ£¬Ä¿±êÉè±¸¼´¿ÉµÇÂ¼Îªµ±Ç°ÕËºÅ
   if (raw.startsWith('securechat://login')) {
     const m = raw.match(/token=(.+?)(&|$)/i);
     const token = m ? m[1] : null;
-    if (!token) throw new Error('ç™»å½•äºŒç»´ç æ— æ•ˆ');
-    const ok = await confirmOpen('æ‰«ä¸€æ‰«', 'ç¡®è®¤å…è®¸å¦ä¸€å°è®¾å¤‡ç™»å½• SecureChat å—ï¼Ÿ');
-    if (!ok) return 'å·²å–æ¶ˆ';
+    if (!token) throw new Error('µÇÂ¼¶şÎ¬ÂëÎŞĞ§');
+    const ok = await confirmOpen('É¨Ò»É¨', 'È·ÈÏÔÊĞíÁíÒ»Ì¨Éè±¸µÇÂ¼ SecureChat Âğ£¿');
+    if (!ok) return 'ÒÑÈ¡Ïû';
     const res = await fetch(state.serverHost + '/api/login/qr/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ token })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'ç¡®è®¤å¤±è´¥');
-    return 'å·²ç¡®è®¤ï¼Œç›®æ ‡è®¾å¤‡å¯ç™»å½•';
+    if (!res.ok) throw new Error(data.error || 'È·ÈÏÊ§°Ü');
+    return 'ÒÑÈ·ÈÏ£¬Ä¿±êÉè±¸¿ÉµÇÂ¼';
   }
-  throw new Error('ä¸æ˜¯ SecureChat äºŒç»´ç ');
+  throw new Error('²»ÊÇ SecureChat ¶şÎ¬Âë');
 }
 
-// ç¡®è®¤å¼¹çª—ï¼ˆå¤ç”¨ openModal é£æ ¼ï¼‰
+// È·ÈÏµ¯´°£¨¸´ÓÃ openModal ·ç¸ñ£©
 function confirmOpen(title, message) {
   return new Promise((resolve) => {
     const mask = document.createElement('div');
@@ -751,8 +751,8 @@ function confirmOpen(title, message) {
     box.appendChild(body);
     const acts = document.createElement('div');
     acts.className = 'modal-actions';
-    const no = document.createElement('button'); no.className = 'cancel'; no.textContent = t('cancel', 'å–æ¶ˆ');
-    const yes = document.createElement('button'); yes.className = 'ok'; yes.textContent = t('confirm', 'ç¡®è®¤');
+    const no = document.createElement('button'); no.className = 'cancel'; no.textContent = t('cancel', 'È¡Ïû');
+    const yes = document.createElement('button'); yes.className = 'ok'; yes.textContent = t('confirm', 'È·ÈÏ');
     acts.appendChild(no); acts.appendChild(yes); box.appendChild(acts);
     mask.appendChild(box); document.body.appendChild(mask);
     const settle = (v) => { mask.remove(); resolve(v); };
@@ -761,7 +761,7 @@ function confirmOpen(title, message) {
   });
 }
 
-// æ‰“å¼€æ‰«ä¸€æ‰«å¼¹çª—ï¼šæ”¯æŒé€‰æ‹©å›¾ç‰‡ / æ‹–æ‹½ / ç²˜è´´å‰ªè´´æ¿å›¾ç‰‡ï¼Œå‰ç«¯ç”¨ jsQR è§£ç 
+// ´ò¿ªÉ¨Ò»É¨µ¯´°£ºÖ§³ÖÑ¡ÔñÍ¼Æ¬ / ÍÏ×§ / Õ³Ìù¼ôÌù°åÍ¼Æ¬£¬Ç°¶ËÓÃ jsQR ½âÂë
 function openQrScanner() {
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
@@ -769,7 +769,7 @@ function openQrScanner() {
   box.className = 'modal';
   const head = document.createElement('div');
   head.className = 'modal-head';
-  const h3 = document.createElement('h3'); h3.textContent = t('scan', 'æ‰«ä¸€æ‰«');
+  const h3 = document.createElement('h3'); h3.textContent = t('scan', 'É¨Ò»É¨');
   const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
@@ -779,13 +779,13 @@ function openQrScanner() {
   const dropId = 'scanDrop_' + Date.now();
   drop.className = 'scan-drop'; drop.id = dropId;
   drop.innerHTML = '<div style="font-size:40px;opacity:.6">&#128269;</div>'
-    + '<div style="margin-top:8px;font-size:14px">é€‰æ‹©æˆ–æ‹–æ‹½äºŒç»´ç å›¾ç‰‡åˆ°æ­¤å¤„</div>'
-    + '<div style="margin-top:4px;font-size:12px;color:#64748b">ä¹Ÿæ”¯æŒ Ctrl+V ç²˜è´´å›¾ç‰‡ï¼Œå›¾ç‰‡ä»…åœ¨æœ¬æœºè§£ç </div>';
+    + '<div style="margin-top:8px;font-size:14px">Ñ¡Ôñ»òÍÏ×§¶şÎ¬ÂëÍ¼Æ¬µ½´Ë´¦</div>'
+    + '<div style="margin-top:4px;font-size:12px;color:#64748b">Ò²Ö§³Ö Ctrl+V Õ³ÌùÍ¼Æ¬£¬Í¼Æ¬½öÔÚ±¾»ú½âÂë</div>';
   const preview = document.createElement('img');
   preview.style.cssText = 'max-width:240px;max-height:240px;margin-top:12px;border-radius:10px;border:1px solid var(--border);display:none';
   const btnRow = document.createElement('div');
   btnRow.className = 'modal-actions';
-  const pick = document.createElement('button'); pick.className = 'ok'; pick.textContent = t('chooseImage', 'é€‰æ‹©å›¾ç‰‡');
+  const pick = document.createElement('button'); pick.className = 'ok'; pick.textContent = t('chooseImage', 'Ñ¡ÔñÍ¼Æ¬');
   const fileInput = document.createElement('input');
   fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.style.display = 'none';
   btnRow.appendChild(pick);
@@ -810,7 +810,7 @@ function openQrScanner() {
     try {
       const img = await new Promise((resolve, reject) => {
         const im = new Image();
-        im.onload = () => resolve(im); im.onerror = () => reject(new Error('æ— æ³•è¯»å–å›¾ç‰‡'));
+        im.onload = () => resolve(im); im.onerror = () => reject(new Error('ÎŞ·¨¶ÁÈ¡Í¼Æ¬'));
         im.src = url;
       });
       const data = renderToImageData(img);
@@ -826,14 +826,14 @@ function openQrScanner() {
     try {
       const { data, url } = await renderFileToImageData(file);
       preview.src = url; preview.style.display = 'block';
-      status.textContent = 'æ­£åœ¨è¯†åˆ«â€¦';
+      status.textContent = 'ÕıÔÚÊ¶±ğ¡­';
       const text = decodeQRFromImageData(data);
-      if (text === null) { status.textContent = 'æœªè¯†åˆ«åˆ°äºŒç»´ç ï¼Œè¯·æ¢ä¸€å¼ æ›´æ¸…æ™°çš„å›¾ç‰‡'; return; }
-      status.textContent = 'è¯†åˆ«æˆåŠŸï¼Œå¤„ç†ä¸­â€¦';
+      if (text === null) { status.textContent = 'Î´Ê¶±ğµ½¶şÎ¬Âë£¬Çë»»Ò»ÕÅ¸üÇåÎúµÄÍ¼Æ¬'; return; }
+      status.textContent = 'Ê¶±ğ³É¹¦£¬´¦ÀíÖĞ¡­';
       const result = await handleScanText(text);
-      status.textContent = result || 'å¤„ç†å®Œæˆ';
+      status.textContent = result || '´¦ÀíÍê³É';
     } catch (e) {
-      status.textContent = e.message || 'è¯†åˆ«å¤±è´¥';
+      status.textContent = e.message || 'Ê¶±ğÊ§°Ü';
     } finally {
       busy = false;
     }
@@ -860,14 +860,14 @@ function openQrScanner() {
   });
 }
 
-// é€šç”¨æ¨¡æ€å¼¹çª—ï¼ˆæ›¿ä»£æµè§ˆå™¨ prompt/confirmï¼‰
+// Í¨ÓÃÄ£Ì¬µ¯´°£¨Ìæ´úä¯ÀÀÆ÷ prompt/confirm£©
 function openModal(title, fields, onOk) {
   // fields: [{key, label, value, placeholder}]
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
   box.className = 'modal';
-  // é¡¶éƒ¨æ ï¼šæ ‡é¢˜ + å‰å‰ï¼ˆå‰å‰ç­‰åŒå–æ¶ˆï¼‰
+  // ¶¥²¿À¸£º±êÌâ + ²æ²æ£¨²æ²æµÈÍ¬È¡Ïû£©
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
@@ -875,7 +875,7 @@ function openModal(title, fields, onOk) {
   const xBtn = document.createElement('button');
   xBtn.className = 'modal-x';
   xBtn.type = 'button';
-  xBtn.setAttribute('aria-label', 'å…³é—­');
+  xBtn.setAttribute('aria-label', '¹Ø±Õ');
   xBtn.innerHTML = '&times;';
   head.appendChild(h3);
   head.appendChild(xBtn);
@@ -893,9 +893,9 @@ function openModal(title, fields, onOk) {
   const acts = document.createElement('div');
   acts.className = 'modal-actions';
   const cancel = document.createElement('button');
-  cancel.className = 'cancel'; cancel.textContent = 'å–æ¶ˆ';
+  cancel.className = 'cancel'; cancel.textContent = 'È¡Ïû';
   const ok = document.createElement('button');
-  ok.className = 'ok'; ok.textContent = 'ä¿å­˜';
+  ok.className = 'ok'; ok.textContent = '±£´æ';
   acts.appendChild(cancel); acts.appendChild(ok);
   box.appendChild(acts);
   mask.appendChild(box);
@@ -908,24 +908,24 @@ function openModal(title, fields, onOk) {
     fields.forEach(f => out[f.key] = f._el.value.trim());
     onOk(out, close);
   };
-  // ç‚¹é®ç½©å…³é—­
+  // µãÕÚÕÖ¹Ø±Õ
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-  // ESC å…³é—­
+  // ESC ¹Ø±Õ
   const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
-  // è‡ªåŠ¨èšç„¦ç¬¬ä¸€ä¸ª
+  // ×Ô¶¯¾Û½¹µÚÒ»¸ö
   if (fields[0] && fields[0]._el) fields[0]._el.focus();
 }
 
-// ---------- ç‰¹æ€§å‘ç°ä¸­å¿ƒï¼ˆæ›´å¤šåŠŸèƒ½å…¥å£ï¼‰----------
-// èšåˆå„ä¸šåŠ¡æ¨¡å—ï¼ˆgroups/chat-ext/rtc/media/lifestyle/payment/status-collar ç­‰ï¼‰çš„
-// å…¥å£åˆ°ä¸€ä¸ªåˆ†ç±»é¢æ¿ã€‚æ‰€æœ‰æ¨¡å—éƒ½é€šè¿‡ window.SecureChatExt.registerFeature ç™»è®°ï¼Œ
-// è¿™é‡Œç»Ÿä¸€ç”¨ SecureChatExt.getFeature(name) å–ç”¨ï¼Œé¿å…è€¦åˆå…·ä½“æ¨¡å—çš„å®ç°ç»†èŠ‚ã€‚
-// è¯´æ˜ï¼šfeature.open æœ‰ä¸¤ç§å½¢æ€â€”â€”
-//   â‘  è‡ªå¸¦æµ®å±‚ï¼ˆoa/videos/live/nearby/shake/scan/miniapp/groups/pay ç­‰ï¼‰ï¼šç›´æ¥ feature.open()ï¼›
-//   â‘¡ éœ€è¦å®¹å™¨ï¼ˆstatus/favorites/moment-extï¼‰ï¼šfeature.open(containerEl)ã€‚
-// openFeatureCenter å¯¹å‰è€…è°ƒç”¨ open()ï¼Œå¯¹åè€…æ–°å»º modal å¹¶æŠŠå†…å®¹å®¹å™¨ä¼ ç»™ feature.open(container)ã€‚
-// æ¯ä¸ªå…¥å£çš„æ¸å˜é…è‰²ï¼ˆ135degï¼‰ï¼šå¾®ä¿¡ã€Œå‘ç°ã€é¡µé£æ ¼å½©è‰²åœ†è§’æ–¹å—ã€‚
+// ---------- ÌØĞÔ·¢ÏÖÖĞĞÄ£¨¸ü¶à¹¦ÄÜÈë¿Ú£©----------
+// ¾ÛºÏ¸÷ÒµÎñÄ£¿é£¨groups/chat-ext/rtc/media/lifestyle/payment/status-collar µÈ£©µÄ
+// Èë¿Úµ½Ò»¸ö·ÖÀàÃæ°å¡£ËùÓĞÄ£¿é¶¼Í¨¹ı window.SecureChatExt.registerFeature µÇ¼Ç£¬
+// ÕâÀïÍ³Ò»ÓÃ SecureChatExt.getFeature(name) È¡ÓÃ£¬±ÜÃâñîºÏ¾ßÌåÄ£¿éµÄÊµÏÖÏ¸½Ú¡£
+// ËµÃ÷£ºfeature.open ÓĞÁ½ÖÖĞÎÌ¬¡ª¡ª
+//   ¢Ù ×Ô´ø¸¡²ã£¨oa/videos/live/nearby/shake/scan/miniapp/groups/pay µÈ£©£ºÖ±½Ó feature.open()£»
+//   ¢Ú ĞèÒªÈİÆ÷£¨status/favorites/moment-ext£©£ºfeature.open(containerEl)¡£
+// openFeatureCenter ¶ÔÇ°Õßµ÷ÓÃ open()£¬¶ÔºóÕßĞÂ½¨ modal ²¢°ÑÄÚÈİÈİÆ÷´«¸ø feature.open(container)¡£
+// Ã¿¸öÈë¿ÚµÄ½¥±äÅäÉ«£¨135deg£©£ºÎ¢ĞÅ¡¸·¢ÏÖ¡¹Ò³·ç¸ñ²ÊÉ«Ô²½Ç·½¿é¡£
 const FEATURE_GRADS = [
   'linear-gradient(135deg,#07c160,#06ad56)',
   'linear-gradient(135deg,#10aeff,#0a7fe0)',
@@ -946,15 +946,15 @@ function featureGrad(i) {
 }
 function featureKey(label) {
   const keys = {
-    'ç¾¤èŠç®¡ç†':'groups','æŠ•ç¥¨æ¥é¾™':'polls','ç¾¤å¾…åŠ':'todos','å®šæ—¶æé†’':'remind','ç¿»è¯‘':'translate','æœ‹å‹åœˆå¢å¼º':'moments',
-    'çœ‹ä¸€çœ‹':'read','æœä¸€æœ':'search','è§†é¢‘å·':'videos','å…¬ä¼—å·':'oa','ç›´æ’­':'live','å°ç¨‹åº':'miniapp',
-    'ç›¸å†Œ':'album','å¡åŒ…':'cards','è¡¨æƒ…':'stickers','è´­ç‰©':'shop','æ¸¸æˆ':'games','çº¢åŒ…':'redpacket','é™„è¿‘çš„äºº':'nearby','æ‘‡ä¸€æ‘‡':'shake','æ‰«ä¸€æ‰«':'scan','æ”¯ä»˜ç”Ÿæ´»':'pay',
-    'æˆ‘çš„çŠ¶æ€':'status','æˆ‘çš„æ”¶è—':'favorites','æ”¶ä»˜æ¬¾ç ':'payment','å…‘æ¢ç å……å€¼':'redeem'
+    'ÈºÁÄ¹ÜÀí':'groups','Í¶Æ±½ÓÁú':'polls','Èº´ı°ì':'todos','¶¨Ê±ÌáĞÑ':'remind','·­Òë':'translate','ÅóÓÑÈ¦ÔöÇ¿':'moments',
+    '¿´Ò»¿´':'read','ËÑÒ»ËÑ':'search','ÊÓÆµºÅ':'videos','¹«ÖÚºÅ':'oa','Ö±²¥':'live','Ğ¡³ÌĞò':'miniapp',
+    'Ïà²á':'album','¿¨°ü':'cards','±íÇé':'stickers','¹ºÎï':'shop','ÓÎÏ·':'games','ºì°ü':'redpacket','¸½½üµÄÈË':'nearby','Ò¡Ò»Ò¡':'shake','É¨Ò»É¨':'scan','Ö§¸¶Éú»î':'pay',
+    'ÎÒµÄ×´Ì¬':'status','ÎÒµÄÊÕ²Ø':'favorites','ÊÕ¸¶¿îÂë':'payment','¶Ò»»Âë³äÖµ':'redeem'
   };
   return keys[label] || 'feature';
 }
 
-// ã€Œé€‰æ‹©ç¾¤ã€å¯¹è¯æ¡†ï¼šåˆ—å‡ºå½“å‰ç”¨æˆ·ç¾¤åˆ—è¡¨ï¼Œé€‰å®šåå›è°ƒ groupã€‚æ— ç¾¤åˆ™æç¤ºå…ˆè¿›å…¥ç›®æ ‡ç¾¤èŠã€‚
+// ¡¸Ñ¡ÔñÈº¡¹¶Ô»°¿ò£ºÁĞ³öµ±Ç°ÓÃ»§ÈºÁĞ±í£¬Ñ¡¶¨ºó»Øµ÷ group¡£ÎŞÈºÔòÌáÊ¾ÏÈ½øÈëÄ¿±êÈºÁÄ¡£
 function pickGroupDialog(title, onPick) {
   const get = (name) => window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(name);
   const groups = get('groups');
@@ -966,9 +966,9 @@ function pickGroupDialog(title, onPick) {
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
-  h3.textContent = title || 'é€‰æ‹©ç¾¤';
+  h3.textContent = title || 'Ñ¡ÔñÈº';
   const xBtn = document.createElement('button');
-  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', 'å…³é—­');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '¹Ø±Õ');
   xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn);
   box.appendChild(head);
@@ -976,7 +976,7 @@ function pickGroupDialog(title, onPick) {
   body.style.cssText = 'padding:4px 2px 8px';
   const tip = document.createElement('div');
   tip.style.cssText = 'font-size:12px;color:#999;padding:4px 6px 10px';
-  tip.textContent = 'è¯¥å·¥å…·éœ€è¦é€‰å®šä¸€ä¸ªç›®æ ‡ç¾¤èŠï¼š';
+  tip.textContent = '¸Ã¹¤¾ßĞèÒªÑ¡¶¨Ò»¸öÄ¿±êÈºÁÄ£º';
   body.appendChild(tip);
   const list = document.createElement('div');
   list.style.cssText = 'display:flex;flex-direction:column;gap:8px';
@@ -991,19 +991,19 @@ function pickGroupDialog(title, onPick) {
 
   const loading = document.createElement('div');
   loading.style.cssText = 'text-align:center;color:#999;padding:30px 0';
-  loading.textContent = 'æ­£åœ¨åŠ è½½ç¾¤åˆ—è¡¨â€¦';
+  loading.textContent = 'ÕıÔÚ¼ÓÔØÈºÁĞ±í¡­';
   list.appendChild(loading);
 
   const load = () => {
     if (!groups || typeof groups.listGroups !== 'function') {
-      list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">æš‚æœªè·å–åˆ°ç¾¤åˆ—è¡¨ï¼Œè¯·å…ˆè¿›å…¥ç›®æ ‡ç¾¤èŠï¼Œç”¨ç¾¤å·¥å…·é¢æ¿æ“ä½œ</div>';
+      list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">ÔİÎ´»ñÈ¡µ½ÈºÁĞ±í£¬ÇëÏÈ½øÈëÄ¿±êÈºÁÄ£¬ÓÃÈº¹¤¾ßÃæ°å²Ù×÷</div>';
       return;
     }
     groups.listGroups().then((d) => {
       const arr = (d && d.groups) || [];
       list.innerHTML = '';
       if (!arr.length) {
-        list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">è¿˜æ²¡æœ‰ç¾¤èŠï¼Œè¯·å…ˆåˆ›å»ºä¸€ä¸ªç¾¤</div>';
+        list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">»¹Ã»ÓĞÈºÁÄ£¬ÇëÏÈ´´½¨Ò»¸öÈº</div>';
         return;
       }
       arr.forEach((g) => {
@@ -1018,96 +1018,96 @@ function pickGroupDialog(title, onPick) {
         const info = document.createElement('div');
         info.style.cssText = 'flex:1;overflow:hidden';
         const n1 = document.createElement('div');
-        n1.textContent = g.displayName || g.name || ('ç¾¤ #' + g.id);
+        n1.textContent = g.displayName || g.name || ('Èº #' + g.id);
         n1.style.cssText = 'font-size:14px;font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         const n2 = document.createElement('div');
         n2.style.cssText = 'font-size:12px;color:#999';
-        n2.textContent = (g.memberCount != null ? g.memberCount + ' æˆå‘˜' : (g.members ? g.members.length + ' æˆå‘˜' : ''));
+        n2.textContent = (g.memberCount != null ? g.memberCount + ' ³ÉÔ±' : (g.members ? g.members.length + ' ³ÉÔ±' : ''));
         info.appendChild(n1); info.appendChild(n2);
         row.appendChild(av); row.appendChild(info);
         row.onclick = () => {
           close();
-          if (typeof onPick === 'function') { try { onPick(g); } catch (e) { console.error('[feature] æ‰§è¡Œå¤±è´¥', e); toast('æ“ä½œå¤±è´¥ï¼š' + (e && e.message || e), 'error'); } }
+          if (typeof onPick === 'function') { try { onPick(g); } catch (e) { console.error('[feature] Ö´ĞĞÊ§°Ü', e); toast('²Ù×÷Ê§°Ü£º' + (e && e.message || e), 'error'); } }
         };
         list.appendChild(row);
       });
     }).catch((e) => {
-      list.innerHTML = '<div style="text-align:center;color:#c0392b;padding:30px 0">è½½å…¥ç¾¤åˆ—è¡¨å¤±è´¥ï¼š' + escapeHtml((e && e.message) || e) + '</div>';
+      list.innerHTML = '<div style="text-align:center;color:#c0392b;padding:30px 0">ÔØÈëÈºÁĞ±íÊ§°Ü£º' + escapeHtml((e && e.message) || e) + '</div>';
     });
   };
   load();
 }
 
-// ä¾› polls/todos ç­‰ç¾¤å†…å·¥å…·é€‰ç¾¤åè°ƒç”¨ï¼šå…ˆ loadByGroup å† openCreateã€‚
+// ¹© polls/todos µÈÈºÄÚ¹¤¾ßÑ¡Èººóµ÷ÓÃ£ºÏÈ loadByGroup ÔÙ openCreate¡£
 function openGroupTool(name, openMethod) {
   const get = (nm) => window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(nm);
   const feature = get(name);
-  if (!feature) { toast('è¯¥åŠŸèƒ½ç»„ä»¶æœªåŠ è½½', 'warn'); return; }
-  pickGroupDialog('é€‰å®šç›®æ ‡ç¾¤', async (g) => {
-    if (feature.loadByGroup) { try { await feature.loadByGroup(g.id); } catch (e) { /* loadByGroup å†…éƒ¨å·² toast */ } }
+  if (!feature) { toast('¸Ã¹¦ÄÜ×é¼şÎ´¼ÓÔØ', 'warn'); return; }
+  pickGroupDialog('Ñ¡¶¨Ä¿±êÈº', async (g) => {
+    if (feature.loadByGroup) { try { await feature.loadByGroup(g.id); } catch (e) { /* loadByGroup ÄÚ²¿ÒÑ toast */ } }
     const fn = feature[openMethod] || feature.openCreate;
-    if (typeof fn !== 'function') { toast('è¯¥åŠŸèƒ½æš‚æœªæä¾›å…¥å£', 'warn'); return; }
+    if (typeof fn !== 'function') { toast('¸Ã¹¦ÄÜÔİÎ´Ìá¹©Èë¿Ú', 'warn'); return; }
     fn(g.id);
   });
 }
 
 function openFeatureCenter() {
   if (!window.SecureChatExt || typeof window.SecureChatExt.getFeature !== 'function') {
-    toast('åŠŸèƒ½æ¨¡å—å°šæœªåŠ è½½ï¼Œè¯·åˆ·æ–°é¡µé¢é‡è¯•', 'warn');
+    toast('¹¦ÄÜÄ£¿éÉĞÎ´¼ÓÔØ£¬ÇëË¢ĞÂÒ³ÃæÖØÊÔ', 'warn');
     return;
   }
   const get = (name) => window.SecureChatExt.getFeature(name);
 
-  // æ¯ä¸ªæ¡ç›®ï¼š{label, short, grad, open}ï¼Œshort ä¸ºå›¾æ ‡æ–¹å—å†…æ˜¾ç¤ºçš„å®Œæ•´çŸ­åï¼ˆ2-4 å­—ï¼‰ï¼Œgrad ä¸ºæ¸å˜é…è‰²ç´¢å¼•ã€‚
-  // åˆ†ç±»ï¼šç¤¾åŒº / å†…å®¹ / ç”Ÿæ´» / å·¥å…·
+  // Ã¿¸öÌõÄ¿£º{label, short, grad, open}£¬short ÎªÍ¼±ê·½¿éÄÚÏÔÊ¾µÄÍêÕû¶ÌÃû£¨2-4 ×Ö£©£¬grad Îª½¥±äÅäÉ«Ë÷Òı¡£
+  // ·ÖÀà£ºÉçÇø / ÄÚÈİ / Éú»î / ¹¤¾ß
   const groups = [
-    { id: 'community', label: 'ç¤¾åŒº', items: [
-      { label: 'ç¾¤èŠç®¡ç†', short: 'ç¾¤èŠ', grad: 0, open: () => openFeatureModalFrom(get('groups'), 'openManager') },
-      { label: 'æŠ•ç¥¨æ¥é¾™', short: 'æŠ•ç¥¨', grad: 1, open: () => openGroupTool('polls', 'openCreate') },
-      { label: 'ç¾¤å¾…åŠ', short: 'å¾…åŠ', grad: 2, open: () => openGroupTool('todos', 'openCreate') },
-      { label: 'å®šæ—¶æé†’', short: 'æé†’', grad: 3, open: () => pickGroupDialog('é€‰å®šç›®æ ‡ç¾¤', (g) => {
+    { id: 'community', label: 'ÉçÇø', items: [
+      { label: 'ÈºÁÄ¹ÜÀí', short: 'ÈºÁÄ', grad: 0, open: () => openFeatureModalFrom(get('groups'), 'openManager') },
+      { label: 'Í¶Æ±½ÓÁú', short: 'Í¶Æ±', grad: 1, open: () => openGroupTool('polls', 'openCreate') },
+      { label: 'Èº´ı°ì', short: '´ı°ì', grad: 2, open: () => openGroupTool('todos', 'openCreate') },
+      { label: '¶¨Ê±ÌáĞÑ', short: 'ÌáĞÑ', grad: 3, open: () => pickGroupDialog('Ñ¡¶¨Ä¿±êÈº', (g) => {
           const feature = get('remind');
-          if (!feature || typeof feature.openCreate !== 'function') { toast('è¯¥åŠŸèƒ½ç»„ä»¶æœªåŠ è½½', 'warn'); return; }
+          if (!feature || typeof feature.openCreate !== 'function') { toast('¸Ã¹¦ÄÜ×é¼şÎ´¼ÓÔØ', 'warn'); return; }
           feature.openCreate({ targetType: 'group', targetId: g.id, defaultContent: '' });
         }) },
-      { label: 'ç¿»è¯‘', short: 'ç¿»è¯‘', grad: 4, open: () => toast('è¯·åœ¨èŠå¤©æ¶ˆæ¯ä¸Šå³é”®ï¼ˆæˆ–é•¿æŒ‰ï¼‰ä½¿ç”¨ç¿»è¯‘', 'info') },
-      { label: 'æœ‹å‹åœˆå¢å¼º', short: 'æœ‹å‹åœˆ', grad: 5, open: () => openContainerFeature(get('moment-ext'), 'æœ‹å‹åœˆç®¡ç†') },
+      { label: '·­Òë', short: '·­Òë', grad: 4, open: () => toast('ÇëÔÚÁÄÌìÏûÏ¢ÉÏÓÒ¼ü£¨»ò³¤°´£©Ê¹ÓÃ·­Òë', 'info') },
+      { label: 'ÅóÓÑÈ¦ÔöÇ¿', short: 'ÅóÓÑÈ¦', grad: 5, open: () => openContainerFeature(get('moment-ext'), 'ÅóÓÑÈ¦¹ÜÀí') },
     ]},
-    { id: 'content', label: 'å†…å®¹', items: [
-      { label: 'çœ‹ä¸€çœ‹', short: 'çœ‹ä¸€çœ‹', grad: 6, open: () => window.SecureChatRead && window.SecureChatRead.open() },
-      { label: 'æœä¸€æœ', short: 'æœä¸€æœ', grad: 7, open: () => window.SecureChatSearch && window.SecureChatSearch.open() },
-      { label: 'è§†é¢‘å·', short: 'è§†é¢‘å·', grad: 8, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
-      { label: 'å…¬ä¼—å·', short: 'å…¬ä¼—å·', grad: 9, open: () => window.SecureChatOa && window.SecureChatOa.open() },
-      { label: 'ç›´æ’­', short: 'ç›´æ’­', grad: 10, open: () => window.SecureChatLive && window.SecureChatLive.open() },
-      { label: 'å°ç¨‹åº', short: 'å°ç¨‹åº', grad: 11, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
+    { id: 'content', label: 'ÄÚÈİ', items: [
+      { label: '¿´Ò»¿´', short: '¿´Ò»¿´', grad: 6, open: () => window.SecureChatRead && window.SecureChatRead.open() },
+      { label: 'ËÑÒ»ËÑ', short: 'ËÑÒ»ËÑ', grad: 7, open: () => window.SecureChatSearch && window.SecureChatSearch.open() },
+      { label: 'ÊÓÆµºÅ', short: 'ÊÓÆµºÅ', grad: 8, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
+      { label: '¹«ÖÚºÅ', short: '¹«ÖÚºÅ', grad: 9, open: () => window.SecureChatOa && window.SecureChatOa.open() },
+      { label: 'Ö±²¥', short: 'Ö±²¥', grad: 10, open: () => window.SecureChatLive && window.SecureChatLive.open() },
+      { label: 'Ğ¡³ÌĞò', short: 'Ğ¡³ÌĞò', grad: 11, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
     ]},
-    { id: 'life', label: 'ç”Ÿæ´»', items: [
-      { label: 'ç›¸å†Œ', short: 'ç›¸å†Œ', grad: 0, open: () => window.SecureChatAlbum && window.SecureChatAlbum.open() },
-      { label: 'å¡åŒ…', short: 'å¡åŒ…', grad: 1, open: () => window.SecureChatCards && window.SecureChatCards.open() },
-      { label: 'è¡¨æƒ…', short: 'è¡¨æƒ…', grad: 2, open: () => window.SecureChatStickers && window.SecureChatStickers.open() },
-      { label: 'è´­ç‰©', short: 'è´­ç‰©', grad: 3, open: () => window.SecureChatShop && window.SecureChatShop.open() },
-      { label: 'æ¸¸æˆ', short: 'æ¸¸æˆ', grad: 4, open: () => window.SecureChatGames && window.SecureChatGames.open() },
-      { label: 'çº¢åŒ…', short: 'çº¢åŒ…', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
-      { label: 'é™„è¿‘çš„äºº', short: 'é™„è¿‘', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
-      { label: 'æ‘‡ä¸€æ‘‡', short: 'æ‘‡ä¸€æ‘‡', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
-      { label: 'æ‰«ä¸€æ‰«', short: 'æ‰«ä¸€æ‰«', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
-      { label: 'æ”¯ä»˜ç”Ÿæ´»', short: 'æ”¯ä»˜', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
+    { id: 'life', label: 'Éú»î', items: [
+      { label: 'Ïà²á', short: 'Ïà²á', grad: 0, open: () => window.SecureChatAlbum && window.SecureChatAlbum.open() },
+      { label: '¿¨°ü', short: '¿¨°ü', grad: 1, open: () => window.SecureChatCards && window.SecureChatCards.open() },
+      { label: '±íÇé', short: '±íÇé', grad: 2, open: () => window.SecureChatStickers && window.SecureChatStickers.open() },
+      { label: '¹ºÎï', short: '¹ºÎï', grad: 3, open: () => window.SecureChatShop && window.SecureChatShop.open() },
+      { label: 'ÓÎÏ·', short: 'ÓÎÏ·', grad: 4, open: () => window.SecureChatGames && window.SecureChatGames.open() },
+      { label: 'ºì°ü', short: 'ºì°ü', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
+      { label: '¸½½üµÄÈË', short: '¸½½ü', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
+      { label: 'Ò¡Ò»Ò¡', short: 'Ò¡Ò»Ò¡', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
+      { label: 'É¨Ò»É¨', short: 'É¨Ò»É¨', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
+      { label: 'Ö§¸¶Éú»î', short: 'Ö§¸¶', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
-{ id: 'tools', label: 'å·¥å…·', items: [
-      { label: 'æˆ‘çš„çŠ¶æ€', short: 'çŠ¶æ€', grad: 2, open: () => openContainerFeature(get('status'), 'æˆ‘çš„çŠ¶æ€') },
-      { label: 'æˆ‘çš„æ”¶è—', short: 'æ”¶è—', grad: 3, open: () => openContainerFeature(get('favorites'), 'æˆ‘çš„æ”¶è—') },
-      { label: 'æ”¶ä»˜æ¬¾ç ', short: 'æ”¶ä»˜æ¬¾', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
-      { label: 'å…‘æ¢ç å……å€¼', short: 'å…‘æ¢', grad: 5, open: () => { const p = get('pay'); if (p && typeof p.redeemFlow === 'function') p.redeemFlow(); else toast('å…‘æ¢åŠŸèƒ½æœªåŠ è½½', 'warn'); } },
-      { label: 'çŸ¥è¯†åº“ä¸­å¿ƒ', short: 'çŸ¥è¯†åº“', grad: 0, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter(); else toast('çŸ¥è¯†åº“æ¨¡å—æœªåŠ è½½ï¼Œè¯·åˆ·æ–°é‡è¯•', 'warn'); } },
-      { label: 'æˆè¯­è¯å…¸', short: 'æˆè¯­', grad: 1, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('idioms'); else toast('çŸ¥è¯†åº“æ¨¡å—æœªåŠ è½½ï¼Œè¯·åˆ·æ–°é‡è¯•', 'warn'); } },
-      { label: 'å”è¯—ä¸‰ç™¾é¦–', short: 'å”è¯—', grad: 2, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('poems'); else toast('çŸ¥è¯†åº“æ¨¡å—æœªåŠ è½½ï¼Œè¯·åˆ·æ–°é‡è¯•', 'warn'); } },
-      { label: 'æ­‡åè¯­', short: 'æ­‡åè¯­', grad: 3, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('xiehouyu'); else toast('çŸ¥è¯†åº“æ¨¡å—æœªåŠ è½½ï¼Œè¯·åˆ·æ–°é‡è¯•', 'warn'); } },
-      { label: 'ç¬‘è¯å¤§å…¨', short: 'ç¬‘è¯', grad: 4, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('jokes'); else toast('çŸ¥è¯†åº“æ¨¡å—æœªåŠ è½½ï¼Œè¯·åˆ·æ–°é‡è¯•', 'warn'); } },
-      { label: 'åäººåè¨€', short: 'åè¨€', grad: 5, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('quotes'); else toast('çŸ¥è¯†åº“æ¨¡å—æœªåŠ è½½ï¼Œè¯·åˆ·æ–°é‡è¯•', 'warn'); } },
+{ id: 'tools', label: '¹¤¾ß', items: [
+      { label: 'ÎÒµÄ×´Ì¬', short: '×´Ì¬', grad: 2, open: () => openContainerFeature(get('status'), 'ÎÒµÄ×´Ì¬') },
+      { label: 'ÎÒµÄÊÕ²Ø', short: 'ÊÕ²Ø', grad: 3, open: () => openContainerFeature(get('favorites'), 'ÎÒµÄÊÕ²Ø') },
+      { label: 'ÊÕ¸¶¿îÂë', short: 'ÊÕ¸¶¿î', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
+      { label: '¶Ò»»Âë³äÖµ', short: '¶Ò»»', grad: 5, open: () => { const p = get('pay'); if (p && typeof p.redeemFlow === 'function') p.redeemFlow(); else toast('¶Ò»»¹¦ÄÜÎ´¼ÓÔØ', 'warn'); } },
+      { label: 'ÖªÊ¶¿âÖĞĞÄ', short: 'ÖªÊ¶¿â', grad: 0, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter(); else toast('ÖªÊ¶¿âÄ£¿éÎ´¼ÓÔØ£¬ÇëË¢ĞÂÖØÊÔ', 'warn'); } },
+      { label: '³ÉÓï´Êµä', short: '³ÉÓï', grad: 1, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('idioms'); else toast('ÖªÊ¶¿âÄ£¿éÎ´¼ÓÔØ£¬ÇëË¢ĞÂÖØÊÔ', 'warn'); } },
+      { label: 'ÌÆÊ«Èı°ÙÊ×', short: 'ÌÆÊ«', grad: 2, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('poems'); else toast('ÖªÊ¶¿âÄ£¿éÎ´¼ÓÔØ£¬ÇëË¢ĞÂÖØÊÔ', 'warn'); } },
+      { label: 'ĞªºóÓï', short: 'ĞªºóÓï', grad: 3, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('xiehouyu'); else toast('ÖªÊ¶¿âÄ£¿éÎ´¼ÓÔØ£¬ÇëË¢ĞÂÖØÊÔ', 'warn'); } },
+      { label: 'Ğ¦»°´óÈ«', short: 'Ğ¦»°', grad: 4, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('jokes'); else toast('ÖªÊ¶¿âÄ£¿éÎ´¼ÓÔØ£¬ÇëË¢ĞÂÖØÊÔ', 'warn'); } },
+      { label: 'ÃûÈËÃûÑÔ', short: 'ÃûÑÔ', grad: 5, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('quotes'); else toast('ÖªÊ¶¿âÄ£¿éÎ´¼ÓÔØ£¬ÇëË¢ĞÂÖØÊÔ', 'warn'); } },
     ]},
   ];
 
-  // æ¸²æŸ“é®ç½©
+  // äÖÈ¾ÕÚÕÖ
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
@@ -1116,9 +1116,9 @@ function openFeatureCenter() {
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
-  h3.textContent = 'æ›´å¤šåŠŸèƒ½';
+  h3.textContent = '¸ü¶à¹¦ÄÜ';
   const xBtn = document.createElement('button');
-  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', 'å…³é—­');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '¹Ø±Õ');
   xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn);
   box.appendChild(head);
@@ -1129,7 +1129,7 @@ function openFeatureCenter() {
   const allTab = document.createElement('button');
   allTab.type = 'button';
   allTab.className = 'feature-tab active';
-  allTab.textContent = 'å…¨éƒ¨';
+  allTab.textContent = 'È«²¿';
   tabs.appendChild(allTab);
   groups.forEach(cat => {
     const tab = document.createElement('button');
@@ -1161,7 +1161,7 @@ function openFeatureCenter() {
         '<span class="feature-label">' + escapeHtml(it.label) + '</span>';
       b.onclick = () => {
         mask.remove();
-        try { it.open(); } catch (e) { console.error('[feature] æ‰“å¼€å¤±è´¥ ' + it.label, e); toast('æ‰“å¼€ã€Œ' + it.label + 'ã€å¤±è´¥', 'error'); }
+        try { it.open(); } catch (e) { console.error('[feature] ´ò¿ªÊ§°Ü ' + it.label, e); toast('´ò¿ª¡¸' + it.label + '¡¹Ê§°Ü', 'error'); }
       };
       grid.appendChild(b);
     });
@@ -1192,9 +1192,9 @@ function openFeatureCenter() {
   document.addEventListener('keydown', onKey);
 }
 
-// æ‰“å¼€ã€Œå®¹å™¨å‹ã€ç‰¹æ€§ï¼šä¸ºå®ƒæ–°å»ºä¸€ä¸ª modal å®¹å™¨å¹¶ä¼ ç»™ feature.open(container)
+// ´ò¿ª¡¸ÈİÆ÷ĞÍ¡¹ÌØĞÔ£ºÎªËüĞÂ½¨Ò»¸ö modal ÈİÆ÷²¢´«¸ø feature.open(container)
 function openContainerFeature(feature, title) {
-  if (!feature || typeof feature.open !== 'function') { toast('è¯¥åŠŸèƒ½ç»„ä»¶æœªåŠ è½½', 'warn'); return; }
+  if (!feature || typeof feature.open !== 'function') { toast('¸Ã¹¦ÄÜ×é¼şÎ´¼ÓÔØ', 'warn'); return; }
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
@@ -1203,9 +1203,9 @@ function openContainerFeature(feature, title) {
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
-  h3.textContent = title || 'åŠŸèƒ½';
+  h3.textContent = title || '¹¦ÄÜ';
   const xBtn = document.createElement('button');
-  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', 'å…³é—­');
+  xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '¹Ø±Õ');
   xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn);
   box.appendChild(head);
@@ -1217,16 +1217,16 @@ function openContainerFeature(feature, title) {
   mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
   const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
-  try { feature.open(host); } catch (e) { console.error('[feature] æ‰“å¼€å¤±è´¥', e); toast('æ‰“å¼€å¤±è´¥ï¼š' + (e && e.message || e), 'error'); }
+  try { feature.open(host); } catch (e) { console.error('[feature] ´ò¿ªÊ§°Ü', e); toast('´ò¿ªÊ§°Ü£º' + (e && e.message || e), 'error'); }
 }
 
-// æ‰“å¼€ã€Œè‡ªå¸¦æµ®å±‚ã€ç‰¹æ€§ï¼šfeature[method] ä¸ºæ–¹æ³•åï¼ˆç¼ºçœç”¨ openï¼‰ï¼Œä¸”è¯¥æ–¹æ³•å¯èƒ½æ¥å—å®¹å™¨å‚æ•°ã€‚
+// ´ò¿ª¡¸×Ô´ø¸¡²ã¡¹ÌØĞÔ£ºfeature[method] Îª·½·¨Ãû£¨È±Ê¡ÓÃ open£©£¬ÇÒ¸Ã·½·¨¿ÉÄÜ½ÓÊÜÈİÆ÷²ÎÊı¡£
 function openFeatureModalFrom(feature, method, hint) {
-  if (!feature) { toast('è¯¥åŠŸèƒ½ç»„ä»¶æœªåŠ è½½' + (hint ? 'ï¼ˆ' + hint + 'ï¼‰' : ''), 'warn'); return; }
+  if (!feature) { toast('¸Ã¹¦ÄÜ×é¼şÎ´¼ÓÔØ' + (hint ? '£¨' + hint + '£©' : ''), 'warn'); return; }
   const call = feature[method] || feature.open || feature.homePanel;
-  if (typeof call !== 'function') { toast('è¯¥åŠŸèƒ½æš‚æœªæä¾›å…¥å£', 'warn'); return; }
+  if (typeof call !== 'function') { toast('¸Ã¹¦ÄÜÔİÎ´Ìá¹©Èë¿Ú', 'warn'); return; }
   try {
-    // ä¸ºéœ€è¦ container å‚æ•°çš„æ–¹æ³•ï¼ˆå¦‚ homePanelï¼‰è‡ªåŠ¨åˆ›å»ºå®¹å™¨
+    // ÎªĞèÒª container ²ÎÊıµÄ·½·¨£¨Èç homePanel£©×Ô¶¯´´½¨ÈİÆ÷
     if (method === 'homePanel' || method === 'mount' || method === 'open') {
       const mask = document.createElement('div'); mask.className = 'modal-mask';
       const box = document.createElement('div'); box.className = 'modal';
@@ -1244,40 +1244,40 @@ function openFeatureModalFrom(feature, method, hint) {
     } else {
       call();
     }
-  } catch (e) { console.error('[feature] æ‰“å¼€å¤±è´¥', e); toast('æ‰“å¼€å¤±è´¥ï¼š' + (e && e.message || e), 'error'); }
+  } catch (e) { console.error('[feature] ´ò¿ªÊ§°Ü', e); toast('´ò¿ªÊ§°Ü£º' + (e && e.message || e), 'error'); }
 }
 
-// ç¼–è¾‘ä¸ªäººèµ„æ–™ï¼šæ»šåŠ¨ modalï¼ŒæŒ‰ PROFILE_FIELDS åˆ†ç±»åˆ—å‡ºæ‰€æœ‰å­—æ®µã€‚
-// nickname/country/province/city èµ°ç‹¬ç«‹åˆ—ï¼›å…¶ä½™æ‰€æœ‰å­—æ®µå…¨éƒ¨å¡è¿› extraã€‚
+// ±à¼­¸öÈË×ÊÁÏ£º¹ö¶¯ modal£¬°´ PROFILE_FIELDS ·ÖÀàÁĞ³öËùÓĞ×Ö¶Î¡£
+// nickname/country/province/city ×ß¶ÀÁ¢ÁĞ£»ÆäÓàËùÓĞ×Ö¶ÎÈ«²¿Èû½ø extra¡£
 function editProfile() {
   if (!state.me) return;
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
   box.className = 'modal modal-scroll';
-  // é¡¶éƒ¨å¸¦å‰å‰çš„æ ‡é¢˜æ 
+  // ¶¥²¿´ø²æ²æµÄ±êÌâÀ¸
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
-  h3.textContent = 'ç¼–è¾‘ä¸ªäººèµ„æ–™';
+  h3.textContent = '±à¼­¸öÈË×ÊÁÏ';
   const xBtn = document.createElement('button');
   xBtn.className = 'modal-x';
   xBtn.type = 'button';
-  xBtn.setAttribute('aria-label', 'å…³é—­');
+  xBtn.setAttribute('aria-label', '¹Ø±Õ');
   xBtn.innerHTML = '&times;';
   head.appendChild(h3);
   head.appendChild(xBtn);
   box.appendChild(head);
-  // é¡¶éƒ¨ç¬¬ä¸€ä¸ªåˆ†ç±»ï¼šèº«ä»½ä¿¡æ¯ï¼ˆæ˜µç§°ç‹¬ç«‹åˆ—ï¼‰
+  // ¶¥²¿µÚÒ»¸ö·ÖÀà£ºÉí·İĞÅÏ¢£¨êÇ³Æ¶ÀÁ¢ÁĞ£©
   const headCat = document.createElement('div');
   headCat.className = 'field-cat';
-  headCat.textContent = 'åŸºæœ¬ä¿¡æ¯';
+  headCat.textContent = '»ù±¾ĞÅÏ¢';
   box.appendChild(headCat);
   const builtIn = [
-    { key: 'nickname', label: 'æ˜µç§°', value: state.me.nickname || '', placeholder: 'ä½ çš„æ˜µç§°' },
-    { key: 'country',  label: 'å›½å®¶ / åœ°åŒº', value: state.me.country || '', placeholder: 'å¦‚ï¼šä¸­å›½' },
-    { key: 'province', label: 'çœ / å·', value: state.me.province || '', placeholder: 'å¯ç•™ç©º' },
-    { key: 'city',     label: 'åŸå¸‚', value: state.me.city || '', placeholder: 'å¯ç•™ç©º' }
+    { key: 'nickname', label: 'êÇ³Æ', value: state.me.nickname || '', placeholder: 'ÄãµÄêÇ³Æ' },
+    { key: 'country',  label: '¹ú¼Ò / µØÇø', value: state.me.country || '', placeholder: 'Èç£ºÖĞ¹ú' },
+    { key: 'province', label: 'Ê¡ / Öİ', value: state.me.province || '', placeholder: '¿ÉÁô¿Õ' },
+    { key: 'city',     label: '³ÇÊĞ', value: state.me.city || '', placeholder: '¿ÉÁô¿Õ' }
   ];
   const builtInEls = {};
   builtIn.forEach(f => appendFieldRow(box, f.key, f.label, f.value, f.placeholder, builtInEls));
@@ -1290,14 +1290,14 @@ function editProfile() {
     box.appendChild(h);
     group.items.forEach(it => appendFieldRow(box, it.key, it.label, extra[it.key] || '', it.placeholder || '', extraInputs));
   });
-  // æŒ‰é’®
+  // °´Å¥
   const acts = document.createElement('div');
   acts.className = 'modal-actions';
   acts.style.marginTop = '18px';
   const cancel = document.createElement('button');
-  cancel.className = 'cancel'; cancel.textContent = 'å–æ¶ˆ';
+  cancel.className = 'cancel'; cancel.textContent = 'È¡Ïû';
   const ok = document.createElement('button');
-  ok.className = 'ok'; ok.textContent = 'ä¿å­˜';
+  ok.className = 'ok'; ok.textContent = '±£´æ';
   acts.appendChild(cancel); acts.appendChild(ok);
   box.appendChild(acts);
   mask.appendChild(box);
@@ -1305,7 +1305,7 @@ function editProfile() {
   const close = () => mask.remove();
   cancel.onclick = close;
   xBtn.onclick = close;
-  // ESC å…³é—­
+  // ESC ¹Ø±Õ
   const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
   ok.onclick = () => {
@@ -1318,14 +1318,14 @@ function editProfile() {
     const extraOut = {};
     for (const k of Object.keys(extraInputs)) {
       const v = (extraInputs[k].value || '').trim();
-      if (v) extraOut[k] = v; // ç©ºå€¼ä¸å†™å…¥ï¼ˆé¦–å­˜çœä¸€ç‚¹ï¼‰
+      if (v) extraOut[k] = v; // ¿ÕÖµ²»Ğ´Èë£¨Ê×´æÊ¡Ò»µã£©
     }
     patch.extra = extraOut;
     close();
     saveProfile(patch);
   };
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-  // è‡ªåŠ¨èšç„¦æ˜µç§°
+  // ×Ô¶¯¾Û½¹êÇ³Æ
   if (builtInEls.nickname) builtInEls.nickname.focus();
 
   function appendFieldRow(parent, key, label, value, placeholder, bucket) {
@@ -1342,7 +1342,7 @@ function editProfile() {
   }
 }
 
-// å®é™… POST åˆ°æœåŠ¡ç«¯ï¼špatch = { nickname, country, province, city, extra }
+// Êµ¼Ê POST µ½·şÎñ¶Ë£ºpatch = { nickname, country, province, city, extra }
 async function saveProfile(patch) {
   try {
     const res = await fetch(state.serverHost + '/api/profile', {
@@ -1351,25 +1351,25 @@ async function saveProfile(patch) {
       body: JSON.stringify(patch)
     });
     const data = await res.json();
-    if (!res.ok) { toast(data.error || 'ä¿å­˜å¤±è´¥', 'error'); return; }
+    if (!res.ok) { toast(data.error || '±£´æÊ§°Ü', 'error'); return; }
     if (data.user) state.me = data.user;
     localStorage.setItem('sc_me', JSON.stringify(state.me));
     renderMyInfo();
-    toast('èµ„æ–™å·²æ›´æ–°', 'success');
+    toast('×ÊÁÏÒÑ¸üĞÂ', 'success');
   } catch (e) {
-    toast('ä¿å­˜å¤±è´¥ï¼š' + e.message, 'error');
+    toast('±£´æÊ§°Ü£º' + e.message, 'error');
   }
 }
 
-// ä¿®æ”¹è‡ªå®šä¹‰IDï¼ˆä¸€ä¸ªæœˆåªèƒ½æ”¹ä¸€æ¬¡ï¼Œåç«¯æ§åˆ¶ï¼‰
+// ĞŞ¸Ä×Ô¶¨ÒåID£¨Ò»¸öÔÂÖ»ÄÜ¸ÄÒ»´Î£¬ºó¶Ë¿ØÖÆ£©
 function editUid() {
   if (!state.me) return;
-  openModal('ä¿®æ”¹ ID', [{
-    key: 'uid', label: 'æ–°IDï¼ˆ4-16ä½å­—æ¯æ•°å­—ï¼‰', value: state.me.uid || '', placeholder: 'xY7mK3n4'
+  openModal('ĞŞ¸Ä ID', [{
+    key: 'uid', label: 'ĞÂID£¨4-16Î»×ÖÄ¸Êı×Ö£©', value: state.me.uid || '', placeholder: 'xY7mK3n4'
   }], async (out, close) => {
     const uid = out.uid;
-    if (!uid) { toast('ID ä¸èƒ½ä¸ºç©º', 'warn', 1000); return; }
-    if (!/^[A-Za-z0-9]{4,16}$/.test(uid)) { toast('ID éœ€ä¸º 4-16 ä½å­—æ¯æ•°å­—', 'warn', 1500); return; }
+    if (!uid) { toast('ID ²»ÄÜÎª¿Õ', 'warn', 1000); return; }
+    if (!/^[A-Za-z0-9]{4,16}$/.test(uid)) { toast('ID ĞèÎª 4-16 Î»×ÖÄ¸Êı×Ö', 'warn', 1500); return; }
     close();
     try {
       const res = await fetch(state.serverHost + '/api/uid', {
@@ -1378,27 +1378,27 @@ function editUid() {
         body: JSON.stringify({ uid })
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || 'ä¿®æ”¹å¤±è´¥', 'error'); return; }
+      if (!res.ok) { toast(data.error || 'ĞŞ¸ÄÊ§°Ü', 'error'); return; }
       if (data.user) state.me = data.user;
       else state.me.uid = data.uid || uid;
       localStorage.setItem('sc_me', JSON.stringify(state.me));
       renderMyInfo();
-      toast('ID å·²æ›´æ–°', 'success');
+      toast('ID ÒÑ¸üĞÂ', 'success');
     } catch (e) {
-      toast('è¯·æ±‚å¤±è´¥ï¼š' + e.message, 'error');
+      toast('ÇëÇóÊ§°Ü£º' + e.message, 'error');
     }
   });
 }
 
-// åé¦ˆ / Bug ä¸ŠæŠ¥ï¼šå¼¹å‡º modalï¼Œæäº¤åˆ° /api/feedback
+// ·´À¡ / Bug ÉÏ±¨£ºµ¯³ö modal£¬Ìá½»µ½ /api/feedback
 function openFeedback() {
   if (!state.me) return;
-  openModal('åé¦ˆ / Bug ä¸ŠæŠ¥', [
-    { key: 'kind', label: 'ç±»å‹ï¼ˆbug/suggestion/complaint/otherï¼‰', value: 'bug' },
-    { key: 'content', label: 'å†…å®¹', placeholder: 'è¯¦ç»†æè¿°ï¼ˆâ‰¥10å­—ï¼‰' }
+  openModal('·´À¡ / Bug ÉÏ±¨', [
+    { key: 'kind', label: 'ÀàĞÍ£¨bug/suggestion/complaint/other£©', value: 'bug' },
+    { key: 'content', label: 'ÄÚÈİ', placeholder: 'ÏêÏ¸ÃèÊö£¨¡İ10×Ö£©' }
   ], async (out, close) => {
     if (!out.kind || !out.content || out.content.length < 10) {
-      toast('å†…å®¹è‡³å°‘ 10 å­—', 'warn');
+      toast('ÄÚÈİÖÁÉÙ 10 ×Ö', 'warn');
       return;
     }
     close();
@@ -1409,15 +1409,15 @@ function openFeedback() {
         body: JSON.stringify({ kind: out.kind, content: out.content })
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || 'æäº¤å¤±è´¥', 'error'); return; }
-      toast('å·²æäº¤ï¼Œæ„Ÿè°¢åé¦ˆï¼', 'success');
+      if (!res.ok) { toast(data.error || 'Ìá½»Ê§°Ü', 'error'); return; }
+      toast('ÒÑÌá½»£¬¸ĞĞ»·´À¡£¡', 'success');
     } catch (e) {
-      toast(e.message || 'æäº¤å¤±è´¥', 'error');
+      toast(e.message || 'Ìá½»Ê§°Ü', 'error');
     }
   });
 }
 
-// èƒŒæ™¯å›¾æŒ‰ç”¨æˆ·IDéš”ç¦»å­˜å‚¨ï¼Œæ¯ä¸ªç”¨æˆ·å„è‡ªçš„èƒŒæ™¯
+// ±³¾°Í¼°´ÓÃ»§ID¸ôÀë´æ´¢£¬Ã¿¸öÓÃ»§¸÷×ÔµÄ±³¾°
 function bgKey() { return 'sc_chatbg_' + (state.me && state.me.id || 'anon'); }
 function getChatBg() { return localStorage.getItem(bgKey()); }
 function setChatBg(uri) {
@@ -1425,13 +1425,13 @@ function setChatBg(uri) {
   else localStorage.removeItem(bgKey());
 }
 
-// é€‰æ‹©å¹¶ä¸Šä¼ å¤´åƒ
+// Ñ¡Ôñ²¢ÉÏ´«Í·Ïñ
 function pickAvatar() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    if (f.size > 500 * 1024) { toast('å¤´åƒå›¾ç‰‡è¿‡å¤§ï¼ˆé™500KBï¼‰', 'warn'); return; }
+    if (f.size > 500 * 1024) { toast('Í·ÏñÍ¼Æ¬¹ı´ó£¨ÏŞ500KB£©', 'warn'); return; }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -1441,32 +1441,32 @@ function pickAvatar() {
           body: JSON.stringify({ avatar: reader.result })
         });
         const data = await res.json();
-        if (!res.ok) { toast(data.error || 'ä¸Šä¼ å¤±è´¥', 'error'); return; }
+        if (!res.ok) { toast(data.error || 'ÉÏ´«Ê§°Ü', 'error'); return; }
         state.me.avatar = data.user.avatar;
         localStorage.setItem('sc_me', JSON.stringify(state.me));
         renderMyInfo();
-        toast('å¤´åƒå·²æ›´æ–°', 'success');
-      } catch (e) { toast('ä¸Šä¼ å¤±è´¥ï¼š' + e.message, 'error'); }
+        toast('Í·ÏñÒÑ¸üĞÂ', 'success');
+      } catch (e) { toast('ÉÏ´«Ê§°Ü£º' + e.message, 'error'); }
     };
     reader.readAsDataURL(f);
   };
   inp.click();
 }
 
-// ä¸Šä¼ å›¾ç‰‡ä½œä¸ºèŠå¤©ç•Œé¢èƒŒæ™¯ï¼ˆæ•´ä¸ª chat-viewï¼‰
+// ÉÏ´«Í¼Æ¬×÷ÎªÁÄÌì½çÃæ±³¾°£¨Õû¸ö chat-view£©
 function pickChatBg() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    if (f.size > 4 * 1024 * 1024) { toast('èƒŒæ™¯å›¾ç‰‡è¿‡å¤§ï¼ˆé™4MBï¼‰', 'warn'); return; }
+    if (f.size > 4 * 1024 * 1024) { toast('±³¾°Í¼Æ¬¹ı´ó£¨ÏŞ4MB£©', 'warn'); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setChatBg(reader.result);
       applyChatBg(reader.result);
-      toast('èƒŒæ™¯å·²åº”ç”¨', 'success');
+      toast('±³¾°ÒÑÓ¦ÓÃ', 'success');
     };
-    reader.onerror = () => toast('è¯»å–å¤±è´¥', 'error');
+    reader.onerror = () => toast('¶ÁÈ¡Ê§°Ü', 'error');
     reader.readAsDataURL(f);
   };
   inp.click();
@@ -1484,11 +1484,11 @@ function applyChatBg(uri) {
     view.style.backgroundColor = '';
   }
 }
-function clearChatBg() { setChatBg(null); applyChatBg(null); toast('å·²æ¢å¤é»˜è®¤èƒŒæ™¯', 'info', 1000); }
+function clearChatBg() { setChatBg(null); applyChatBg(null); toast('ÒÑ»Ö¸´Ä¬ÈÏ±³¾°', 'info', 1000); }
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 
-// ç™»å½•åè‡ªæ£€åª’ä½“æƒé™ï¼Œé¿å…"ç‚¹æ¥å¬æ²¡ååº”"
+// µÇÂ¼ºó×Ô¼ìÃ½ÌåÈ¨ÏŞ£¬±ÜÃâ"µã½ÓÌıÃ»·´Ó¦"
 async function checkMediaPermissionHint() {
   try {
     if (!navigator.permissions || !navigator.permissions.query) return;
@@ -1498,7 +1498,7 @@ async function checkMediaPermissionHint() {
     ]);
     const states = checks.map((c) => c.status === 'fulfilled' ? c.value : 'prompt');
     if (states.indexOf('denied') >= 0) {
-      toast('æ‘„åƒå¤´/éº¦å…‹é£æƒé™å·²è¢«æ‹’ç»ï¼šç‚¹å‡»åœ°å€æ  ğŸ”’ â†’ ç½‘ç«™è®¾ç½® â†’ å…è®¸"æ‘„åƒå¤´/éº¦å…‹é£"åå³å¯é€šè¯', 'error', 6000);
+      toast('ÉãÏñÍ·/Âó¿Ë·çÈ¨ÏŞÒÑ±»¾Ü¾ø£ºµã»÷µØÖ·À¸ ?? ¡ú ÍøÕ¾ÉèÖÃ ¡ú ÔÊĞí"ÉãÏñÍ·/Âó¿Ë·ç"ºó¼´¿ÉÍ¨»°', 'error', 6000);
     }
   } catch (e) {}
 }
@@ -1527,7 +1527,7 @@ function send(type, payload) {
     state.ws.send(JSON.stringify({ type, payload }));
     return true;
   }
-  // å·²è®¤è¯ä½† socket å°šæœªå°±ç»ªï¼ˆé‡è¿çª—å£/æ­£åœ¨ CONNECTINGï¼‰ï¼šå…¥é˜Ÿï¼Œé‡è¿åç»Ÿä¸€å†²åˆ·ï¼Œé¿å…é™é»˜ä¸¢å¼ƒã€‚
+  // ÒÑÈÏÖ¤µ« socket ÉĞÎ´¾ÍĞ÷£¨ÖØÁ¬´°¿Ú/ÕıÔÚ CONNECTING£©£ºÈë¶Ó£¬ÖØÁ¬ºóÍ³Ò»³åË¢£¬±ÜÃâ¾²Ä¬¶ªÆú¡£
   if (type !== P.C_AUTH) {
     state.outboundQueue.push({ type, payload });
     return true;
@@ -1546,14 +1546,14 @@ function handleServer(data) {
       }
       checkMediaPermissionHint();
       break;
-    case P.S_AUTH_FAIL: toast(payload.error || 'ç™»å½•å¤±æ•ˆ', 'error'); logout(); break;
+    case P.S_AUTH_FAIL: toast(payload.error || 'µÇÂ¼Ê§Ğ§', 'error'); logout(); break;
     case P.S_USER_LIST:
       state.users = payload.users || [];
       renderContacts();
       break;
 case P.S_MSG:
-      // è§£å¯†å®Œæˆåå†æ¸²æŸ“ï¼Œå¦åˆ™å®æ—¶æ¶ˆæ¯ä¼šå…ˆæ˜¾ç¤ºå¯†æ–‡ä¸”ä¸ä¼šè‡ªåŠ¨åˆ·æ–°ã€‚
-      // è§£å¯†åŠ  3s è¶…æ—¶ï¼šç½‘ç»œæŒ‚èµ·æ—¶ä¸èƒ½å¡æ­»æ¶ˆæ¯æ¸²æŸ“ï¼›æ•´æ¡é“¾å…œåº•é¿å… Unhandled Rejectionã€‚
+      // ½âÃÜÍê³ÉºóÔÙäÖÈ¾£¬·ñÔòÊµÊ±ÏûÏ¢»áÏÈÏÔÊ¾ÃÜÎÄÇÒ²»»á×Ô¶¯Ë¢ĞÂ¡£
+      // ½âÃÜ¼Ó 3s ³¬Ê±£ºÍøÂç¹ÒÆğÊ±²»ÄÜ¿¨ËÀÏûÏ¢äÖÈ¾£»ÕûÌõÁ´¶µµ×±ÜÃâ Unhandled Rejection¡£
       Promise.race([
         maybeDecryptLive(payload),
         new Promise((_, rej) => setTimeout(() => rej(new Error('decrypt timeout')), 3000))
@@ -1564,12 +1564,12 @@ case P.S_MSG:
     case P.S_TYPING:
       if (state.activePeer === payload.from) {
         const tip = document.querySelector('.typing-tip') || makeTypingTip();
-        tip.textContent = 'å¯¹æ–¹æ­£åœ¨è¾“å…¥...';
+        tip.textContent = '¶Ô·½ÕıÔÚÊäÈë...';
         clearTimeout(typingTimer);
         typingTimer = setTimeout(() => tip.textContent = '', 2000);
       }
       break;
-    case P.S_ERROR: toast((payload && payload.error) || 'æœåŠ¡å™¨è¿”å›é”™è¯¯', 'error'); console.warn('server error', payload); break;
+    case P.S_ERROR: toast((payload && payload.error) || '·şÎñÆ÷·µ»Ø´íÎó', 'error'); console.warn('server error', payload); break;
     case P.S_MSG_RECALL:
       if (payload && payload.messageId) markRecalled(payload.messageId, false);
       break;
@@ -1588,7 +1588,7 @@ case P.S_MSG:
     case P.S_GROUP_LIST:
       state.groups = payload.groups || [];
       renderContacts();
-      // è‹¥å½“å‰é€‰ä¸­çš„ç¾¤è¿˜åœ¨åˆ—è¡¨é‡Œï¼Œåˆ·æ–°ä¸€ä¸‹é¡¶éƒ¨ header ä¸åœ¨çº¿çŠ¶æ€
+      // Èôµ±Ç°Ñ¡ÖĞµÄÈº»¹ÔÚÁĞ±íÀï£¬Ë¢ĞÂÒ»ÏÂ¶¥²¿ header ÓëÔÚÏß×´Ì¬
       if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {
         renderChatHeader();
       }
@@ -1600,42 +1600,42 @@ case P.S_MSG:
       if (payload && payload.announcement) showAnnouncement(payload.announcement, true);
       break;
     case P.S_KICKED:
-      toast(payload.reason || 'å·²è¢«å¼ºåˆ¶ä¸‹çº¿', 'error');
+      toast(payload.reason || 'ÒÑ±»Ç¿ÖÆÏÂÏß', 'error');
       logout();
       break;
   }
 }
 
-// ============ ç³»ç»Ÿå…¬å‘Šå±•ç¤º ============
+// ============ ÏµÍ³¹«¸æÕ¹Ê¾ ============
 let shownAnnouncements = new Set();
 function announcementLevelClass(l) { return l === 'danger' ? 'danger' : (l === 'warning' ? 'warning' : 'info'); }
 function showAnnouncement(ann, force) {
   if (!ann || !ann.id) return;
   if (shownAnnouncements.has(ann.id) && !force) return;
   shownAnnouncements.add(ann.id);
-  const title = ann.title || 'ç³»ç»Ÿå…¬å‘Š';
+  const title = ann.title || 'ÏµÍ³¹«¸æ';
   const cls = announcementLevelClass(ann.level);
-  // å¤ç”¨ toast ç³»ç»Ÿï¼Œä½†ç”¨æ›´é†’ç›®çš„æ¨ªå¹…
+  // ¸´ÓÃ toast ÏµÍ³£¬µ«ÓÃ¸üĞÑÄ¿µÄºá·ù
   try {
     const mask = document.createElement('div');
     mask.className = 'announcement-mask';
     mask.innerHTML =
       '<div class="announcement-box ' + cls + '">' +
-      '<div class="announcement-badge">' + (ann.level === 'danger' ? 'é‡è¦é€šçŸ¥' : (ann.level === 'warning' ? 'ç³»ç»Ÿè­¦å‘Š' : 'ç³»ç»Ÿå…¬å‘Š')) + '</div>' +
+      '<div class="announcement-badge">' + (ann.level === 'danger' ? 'ÖØÒªÍ¨Öª' : (ann.level === 'warning' ? 'ÏµÍ³¾¯¸æ' : 'ÏµÍ³¹«¸æ')) + '</div>' +
       '<div class="announcement-title">' + escapeHtml(title) + '</div>' +
       '<div class="announcement-content">' + escapeHtml(ann.content || '').replace(/\n/g, '<br>') + '</div>' +
-      '<div class="announcement-actions"><button class="announcement-ok">çŸ¥é“äº†</button></div>' +
+      '<div class="announcement-actions"><button class="announcement-ok">ÖªµÀÁË</button></div>' +
       '</div>';
     document.body.appendChild(mask);
     const ok = mask.querySelector('.announcement-ok');
     ok.onclick = () => mask.remove();
     mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
   } catch (e) {
-    toast(title + 'ï¼š' + ann.content, 'info');
+    toast(title + '£º' + ann.content, 'info');
   }
 }
 
-// ç™»å½•åæ‹‰å–æœªè¯»å…¬å‘Š
+// µÇÂ¼ºóÀ­È¡Î´¶Á¹«¸æ
 async function fetchAnnouncements() {
   if (!state.token) return;
   try {
@@ -1645,7 +1645,7 @@ async function fetchAnnouncements() {
     if (!res.ok) return;
     const data = await res.json();
     const anns = data.announcements || [];
-    // å€’åºå¼¹ï¼ˆæœ€æ–°åœ¨æœ€å‰ï¼Œä½†å…ˆå¼¹æ—§çš„å†å¼¹æ–°çš„ä½“éªŒæ›´å¥½ï¼‰
+    // µ¹Ğòµ¯£¨×îĞÂÔÚ×îÇ°£¬µ«ÏÈµ¯¾ÉµÄÔÙµ¯ĞÂµÄÌåÑé¸üºÃ£©
     for (let i = anns.length - 1; i >= 0; i--) showAnnouncement(anns[i], false);
   } catch (e) {}
 }
@@ -1658,7 +1658,7 @@ function makeTypingTip() {
   return d;
 }
 
-// ============ è”ç³»äººåˆ—è¡¨ï¼ˆåªæ˜¾ç¤ºå¥½å‹ï¼‰ ============
+// ============ ÁªÏµÈËÁĞ±í£¨Ö»ÏÔÊ¾ºÃÓÑ£© ============
 async function loadFriends() {
   try {
     const res = await fetch(state.serverHost + '/api/friends', {
@@ -1690,11 +1690,11 @@ function renderContacts() {
   friends.forEach(u => conversations.push({ kind: 'user', item: u, key: 'u:' + u.id, time: state.lastMsgTime[u.id] || 0 }));
   groups.forEach(g => conversations.push({ kind: 'group', item: g, key: 'g:' + g.id, time: state.groupLastMsgTime[g.id] || 0 }));
   conversations.sort((a, b) => Number(!!chatPrefs().pinned[b.key]) - Number(!!chatPrefs().pinned[a.key]) || b.time - a.time);
-  if (count) count.textContent = conversations.length + ' ä¸ªä¼šè¯';
+  if (count) count.textContent = conversations.length + ' ¸ö»á»°';
   if (!conversations.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? 'æ²¡æœ‰åŒ¹é…çš„å¥½å‹æˆ–ç¾¤èŠ' : 'è¿˜æ²¡æœ‰ä¼šè¯ï¼Œæ·»åŠ å¥½å‹æˆ–åˆ›å»ºç¾¤èŠå¼€å§‹èŠå¤©';
+    tip.textContent = kw ? 'Ã»ÓĞÆ¥ÅäµÄºÃÓÑ»òÈºÁÄ' : '»¹Ã»ÓĞ»á»°£¬Ìí¼ÓºÃÓÑ»ò´´½¨ÈºÁÄ¿ªÊ¼ÁÄÌì';
     list.appendChild(tip);
     return;
   }
@@ -1704,11 +1704,11 @@ function renderContacts() {
       const div = document.createElement('div');
       div.className = 'contact conversation-group' + (state.activeGroup === g.id ? ' active' : '');
       const unread = state.groupUnread[g.id] || 0;
-      const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || 'ç¾¤èŠ';
+      const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || 'ÈºÁÄ';
       const lastTime = state.groupLastMsgTime[g.id] || 0;
       const isPinned = !!chatPrefs().pinned[c.key];
       const isMuted = !!chatPrefs().muted[c.key];
-      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('ç¾¤ #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">ç½®é¡¶</span>' : ''}${isMuted ? '<span class="contact-mark muted">é™éŸ³</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
+      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('Èº #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">ÖÃ¶¥</span>' : ''}${isMuted ? '<span class="contact-mark muted">¾²Òô</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
       list.appendChild(div);
       return;
@@ -1722,14 +1722,14 @@ function renderContacts() {
     const isMuted = !!chatPrefs().muted['u:' + u.id];
     const lastMsg = state.lastFrom[u.id];
     const lastTime = state.lastMsgTime ? state.lastMsgTime[u.id] : 0;
-    const preview = lastMsg ? escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30)) : (u.online ? 'åœ¨çº¿' : 'ç¦»çº¿');
+    const preview = lastMsg ? escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30)) : (u.online ? 'ÔÚÏß' : 'ÀëÏß');
     const timeStr = lastTime ? fmtChatListTime(lastTime) : '';
     div.innerHTML = `<div class="avatar">${avHtml}</div>
       <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(u.nickname)}</div>
         <div class="last">${preview}</div>
       </div>
-      ${timeStr ? `<span class="chat-time">${timeStr}</span>` : ''}${isPinned ? '<span class="contact-mark">ç½®é¡¶</span>' : ''}${isMuted ? '<span class="contact-mark muted">é™éŸ³</span>' : ''}
+      ${timeStr ? `<span class="chat-time">${timeStr}</span>` : ''}${isPinned ? '<span class="contact-mark">ÖÃ¶¥</span>' : ''}${isMuted ? '<span class="contact-mark muted">¾²Òô</span>' : ''}
       ${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
     div.onclick = () => selectPeer(u.id);
     if (state.activePeer === u.id && unread) {
@@ -1740,7 +1740,7 @@ function renderContacts() {
   });
 }
 
-// é€šè®¯å½•ç›®å½•æ¸²æŸ“ï¼ˆå¾®ä¿¡å¼ï¼šç¾¤èŠ + A-Z å¥½å‹ï¼Œæ— æ—¶é—´/æœªè¯»ï¼‰
+// Í¨Ñ¶Â¼Ä¿Â¼äÖÈ¾£¨Î¢ĞÅÊ½£ºÈºÁÄ + A-Z ºÃÓÑ£¬ÎŞÊ±¼ä/Î´¶Á£©
 function renderContactsDirectory() {
   const kw = ($('search') && $('search').value.trim().toLowerCase()) || '';
   const list = $('contactList');
@@ -1748,16 +1748,16 @@ function renderContactsDirectory() {
   list.innerHTML = '';
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
-  const count = $('listCount'); if (count) count.textContent = state.friends.length + ' ä½å¥½å‹';
+  const count = $('listCount'); if (count) count.textContent = state.friends.length + ' Î»ºÃÓÑ';
 
   const sections = [];
-  // ç¾¤èŠåˆ†ç»„
+  // ÈºÁÄ·Ö×é
   const groups = state.groups.filter(g => !kw
     || (g.name || '').toLowerCase().includes(kw)
     || String(g.id).includes(kw)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  if (groups.length) sections.push({ title: 'ç¾¤èŠ', items: groups.map(g => ({ kind: 'group', g })) });
+  if (groups.length) sections.push({ title: 'ÈºÁÄ', items: groups.map(g => ({ kind: 'group', g })) });
 
-  // å¥½å‹ï¼šæŒ‰æ˜µç§°é¦–å­—æ¯åˆ†ç»„
+  // ºÃÓÑ£º°´êÇ³ÆÊ××ÖÄ¸·Ö×é
   const friends = state.friends.filter(u => !kw
     || (u.nickname || '').toLowerCase().includes(kw)
     || (u.username || '').toLowerCase().includes(kw)
@@ -1774,7 +1774,7 @@ function renderContactsDirectory() {
   if (!sections.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? 'æ²¡æœ‰åŒ¹é…çš„è”ç³»äºº' : 'è¿˜æ²¡æœ‰è”ç³»äººï¼Œæ·»åŠ å¥½å‹å¼€å§‹èŠå¤©';
+    tip.textContent = kw ? 'Ã»ÓĞÆ¥ÅäµÄÁªÏµÈË' : '»¹Ã»ÓĞÁªÏµÈË£¬Ìí¼ÓºÃÓÑ¿ªÊ¼ÁÄÌì';
     list.appendChild(tip);
     return;
   }
@@ -1789,13 +1789,13 @@ function renderContactsDirectory() {
       if (item.kind === 'group') {
         const g = item.g;
         div.className = 'contact conversation-group';
-        div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('ç¾¤ #' + g.id))}</div><div class="last">${(g.members || []).length} äºº</div></div>`;
+        div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('Èº #' + g.id))}</div><div class="last">${(g.members || []).length} ÈË</div></div>`;
         div.onclick = () => selectGroup(g.id);
       } else {
         const u = item.u;
         const avHtml = u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname);
         div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
-        div.innerHTML = `<div class="avatar">${avHtml}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(u.nickname)}</div><div class="last">${u.online ? 'åœ¨çº¿' : 'ç¦»çº¿'}</div></div>`;
+        div.innerHTML = `<div class="avatar">${avHtml}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(u.nickname)}</div><div class="last">${u.online ? 'ÔÚÏß' : 'ÀëÏß'}</div></div>`;
         div.onclick = () => selectPeer(u.id);
       }
       list.appendChild(div);
@@ -1803,7 +1803,7 @@ function renderContactsDirectory() {
   });
 }
 
-// ç¾¤ç»„åˆ—è¡¨æ¸²æŸ“
+// Èº×éÁĞ±íäÖÈ¾
 function renderGroupList() {
   const list = $('contactList');
   const kw = $('search').value.trim().toLowerCase();
@@ -1813,11 +1813,11 @@ function renderGroupList() {
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
   const count = $('listCount');
-  if (count) count.textContent = groups.length + ' ä¸ªç¾¤';
+  if (count) count.textContent = groups.length + ' ¸öÈº';
   if (!groups.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? 'æ²¡æœ‰åŒ¹é…çš„ç¾¤' : 'è¿˜æ²¡æœ‰åŠ å…¥ä»»ä½•ç¾¤ï¼Œç‚¹å‡»"åˆ›å»ºç¾¤"æˆ–"åŠ å…¥ç¾¤"';
+    tip.textContent = kw ? 'Ã»ÓĞÆ¥ÅäµÄÈº' : '»¹Ã»ÓĞ¼ÓÈëÈÎºÎÈº£¬µã»÷"´´½¨Èº"»ò"¼ÓÈëÈº"';
     list.appendChild(tip);
     return;
   }
@@ -1826,9 +1826,9 @@ function renderGroupList() {
     div.className = 'contact' + (state.activeGroup === g.id ? ' active' : '');
     const unread = state.groupUnread[g.id] || 0;
     const isOwner = state.me && g.ownerId === state.me.id;
-    const ownerMark = isOwner ? ' (ç¾¤ä¸»)' : '';
+    const ownerMark = isOwner ? ' (ÈºÖ÷)' : '';
     const memberCnt = (g.members || []).length;
-    const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('æˆå‘˜ ' + memberCnt + ' äºº');
+    const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('³ÉÔ± ' + memberCnt + ' ÈË');
     const groupTime = state.groupLastMsgTime[g.id] ? fmtChatListTime(state.groupLastMsgTime[g.id]) : '';
     const isPinned = !!chatPrefs().pinned['g:' + g.id];
     const isMuted = !!chatPrefs().muted['g:' + g.id];
@@ -1838,7 +1838,7 @@ function renderGroupList() {
         <div class="last">${escapeHtml(String(lastMsg).slice(0, 30))}</div>
        </div>
        ${groupTime ? `<span class="chat-time">${groupTime}</span>` : ''}
-      ${isPinned ? '<span class="contact-mark">ç½®é¡¶</span>' : ''}${isMuted ? '<span class="contact-mark muted">é™éŸ³</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
+      ${isPinned ? '<span class="contact-mark">ÖÃ¶¥</span>' : ''}${isMuted ? '<span class="contact-mark muted">¾²Òô</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
     div.onclick = () => selectGroup(g.id);
     if (state.activeGroup === g.id && unread) {
       state.groupUnread[g.id] = 0;
@@ -1848,7 +1848,7 @@ function renderGroupList() {
   });
 }
 
-// åˆ‡æ¢ side-tab
+// ÇĞ»» side-tab
 function syncMobileNav(active) {
   document.querySelectorAll('#mobileBottomNav .side-tab').forEach(b => {
     b.classList.toggle('on', b.dataset.side === active);
@@ -1860,7 +1860,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === tt));
     syncMobileNav(tt.dataset.side);
 
-    // å‘ç° tabï¼šå¾®ä¿¡å¼å‘ç°é¡µï¼ˆæœ‹å‹åœˆ/è§†é¢‘å·/ç›´æ’­/æ‰«ä¸€æ‰«/æœä¸€æœ/çœ‹ä¸€çœ‹/é™„è¿‘/è´­ç‰©/æ¸¸æˆ/å°ç¨‹åº/AIï¼‰
+    // ·¢ÏÖ tab£ºÎ¢ĞÅÊ½·¢ÏÖÒ³£¨ÅóÓÑÈ¦/ÊÓÆµºÅ/Ö±²¥/É¨Ò»É¨/ËÑÒ»ËÑ/¿´Ò»¿´/¸½½ü/¹ºÎï/ÓÎÏ·/Ğ¡³ÌĞò/AI£©
     if (tt.dataset.side === 'ai') {
       showMobilePage('discoverPage');
       renderDiscoverPage();
@@ -1868,14 +1868,14 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // æ›´å¤šåŠŸèƒ½ tabï¼šæ‰“å¼€ç‰¹æ€§å‘ç°ä¸­å¿ƒï¼ˆæ–°å¢ä¸šåŠ¡æ¨¡å—ç»Ÿä¸€å…¥å£ï¼‰
+    // ¸ü¶à¹¦ÄÜ tab£º´ò¿ªÌØĞÔ·¢ÏÖÖĞĞÄ£¨ĞÂÔöÒµÎñÄ£¿éÍ³Ò»Èë¿Ú£©
     if (tt.dataset.side === 'more') {
-      tt.classList.remove('on'); // ä¸å æ®å¸¸é©»é«˜äº®ï¼Œç‚¹å‡»å³å¼¹å‡ºåå¤å½’
+      tt.classList.remove('on'); // ²»Õ¼¾İ³£×¤¸ßÁÁ£¬µã»÷¼´µ¯³öºó¸´¹é
       openFeatureCenter();
       return;
     }
 
-    // æˆ‘ tabï¼šå¾®ä¿¡å¼"æˆ‘"é¡µï¼ˆèµ„æ–™ + æ”¯ä»˜/æ”¶è—/ç›¸å†Œ/è®¾ç½® + ä¸‹è½½ + æ„è§åé¦ˆï¼‰
+    // ÎÒ tab£ºÎ¢ĞÅÊ½"ÎÒ"Ò³£¨×ÊÁÏ + Ö§¸¶/ÊÕ²Ø/Ïà²á/ÉèÖÃ + ÏÂÔØ + Òâ¼û·´À¡£©
     if (tt.dataset.side === 'downloads' || tt.dataset.side === 'dl') {
       showMobilePage('mePage');
       renderMePage();
@@ -1883,7 +1883,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // è½¬è´¦ tabï¼šæ‰“å¼€è½¬è´¦å¼¹çª—
+    // ×ªÕË tab£º´ò¿ª×ªÕËµ¯´°
     if (tt.dataset.side === 'pay') {
       if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
       const main2 = document.querySelector('.main');
@@ -1892,19 +1892,19 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       const downloadView2 = $('downloadView'); if (downloadView2) downloadView2.style.display = 'none';
       const fs = $('friendsSide'); if (fs) fs.style.display = '';
       const gs = $('groupsSide'); if (gs) gs.style.display = 'none';
-      // ç›´æ¥æ‰“å¼€è½¬è´¦å¼¹çª—
+      // Ö±½Ó´ò¿ª×ªÕËµ¯´°
       if (window.godoMods && window.godoMods.pay && typeof window.godoMods.pay.openTransfer === 'function') {
         window.godoMods.pay.openTransfer();
       } else if (window.SecureChatExt && typeof window.SecureChatExt.getFeature === 'function') {
         const payFeat = window.SecureChatExt.getFeature('pay');
         if (payFeat && typeof payFeat.openTransfer === 'function') payFeat.openTransfer();
       } else {
-        toast('è½¬è´¦åŠŸèƒ½æš‚æœªåŠ è½½ï¼Œè¯·åœ¨ã€Œæ›´å¤šã€ä¸­è¿›å…¥', 'warn');
+        toast('×ªÕË¹¦ÄÜÔİÎ´¼ÓÔØ£¬ÇëÔÚ¡¸¸ü¶à¡¹ÖĞ½øÈë', 'warn');
       }
       return;
     }
 
-    // é€šè®¯å½• tabï¼šå¾®ä¿¡å¼è”ç³»äººç›®å½•ï¼ˆç¾¤èŠ + æ–°å¥½å‹ + A-Z å¥½å‹ï¼‰
+    // Í¨Ñ¶Â¼ tab£ºÎ¢ĞÅÊ½ÁªÏµÈËÄ¿Â¼£¨ÈºÁÄ + ĞÂºÃÓÑ + A-Z ºÃÓÑ£©
     if (tt.dataset.side === 'contacts') {
       showMobilePage('contactsPage');
       renderContactsPage();
@@ -1912,7 +1912,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // åˆ‡å›å¥½å‹/ç¾¤ç»„ï¼šæ¢å¤ .main æ˜¾ç¤ºï¼Œéšè— AI/å‘ç°/æˆ‘/é€šè®¯å½• å…¨å±é¡µ
+    // ÇĞ»ØºÃÓÑ/Èº×é£º»Ö¸´ .main ÏÔÊ¾£¬Òş²Ø AI/·¢ÏÖ/ÎÒ/Í¨Ñ¶Â¼ È«ÆÁÒ³
     hideMobilePages();
     const aiView2 = $('aiView');
     if (aiView2) aiView2.style.display = 'none';
@@ -1920,7 +1920,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     if (downloadView2) downloadView2.style.display = 'none';
     const main2 = document.querySelector('.main');
     if (main2) main2.style.display = 'flex';
-    // ç§»åŠ¨ç«¯ï¼šåˆ‡å›å¥½å‹/ç¾¤ç»„ tabï¼Œå›åˆ°åˆ—è¡¨æ€
+    // ÒÆ¶¯¶Ë£ºÇĞ»ØºÃÓÑ/Èº×é tab£¬»Øµ½ÁĞ±íÌ¬
     if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
 
     const fs = $('friendsSide'); if (fs) fs.style.display = '';
@@ -1928,11 +1928,11 @@ document.querySelectorAll('.side-tab').forEach(tt => {
   };
 });
 
-// ç§»åŠ¨ç«¯åº•éƒ¨å¯¼èˆªï¼šå…‹éš† rail tab åˆ°åº•éƒ¨æ ï¼Œç‚¹å‡»æ—¶è½¬å‘åˆ°åŸ tab
+// ÒÆ¶¯¶Ëµ×²¿µ¼º½£º¿ËÂ¡ rail tab µ½µ×²¿À¸£¬µã»÷Ê±×ª·¢µ½Ô­ tab
 (function initMobileBottomNav() {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
-  // å¾®ä¿¡å¼åº•éƒ¨å¯¼èˆªï¼šä»…ä¿ç•™ 4 ä¸ªæ ¸å¿ƒ Tabï¼ˆå¾®ä¿¡ / é€šè®¯å½• / å‘ç° / æˆ‘ï¼‰
+  // Î¢ĞÅÊ½µ×²¿µ¼º½£º½ö±£Áô 4 ¸öºËĞÄ Tab£¨Î¢ĞÅ / Í¨Ñ¶Â¼ / ·¢ÏÖ / ÎÒ£©
   const CORE_TABS = ['friends', 'contacts', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
     if (!CORE_TABS.includes(src.dataset.side)) return;
@@ -1960,10 +1960,10 @@ if (downloadBackBtn) downloadBackBtn.onclick = () => {
   if (tab) tab.click();
 };
 
-// åˆ›å»ºç¾¤ / åŠ å…¥ç¾¤
+// ´´½¨Èº / ¼ÓÈëÈº
 $('createGroupBtn').onclick = () => {
-  openModal('åˆ›å»ºç¾¤', [{ key: 'name', label: 'ç¾¤å' }], async (out, close) => {
-    if (!out.name) { toast('ç¾¤åä¸èƒ½ä¸ºç©º', 'warn', 1000); return; }
+  openModal('´´½¨Èº', [{ key: 'name', label: 'ÈºÃû' }], async (out, close) => {
+    if (!out.name) { toast('ÈºÃû²»ÄÜÎª¿Õ', 'warn', 1000); return; }
     close();
     try {
       const res = await fetch(state.serverHost + '/api/groups', {
@@ -1972,22 +1972,22 @@ $('createGroupBtn').onclick = () => {
         body: JSON.stringify({ name: out.name, uids: [] })
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || 'åˆ›å»ºå¤±è´¥', 'error'); return; }
+      if (!res.ok) { toast(data.error || '´´½¨Ê§°Ü', 'error'); return; }
       if (data.group) {
         const g = data.group;
         if (!state.groups.some(x => Number(x.id) === Number(g.id))) state.groups.push(g);
       }
       renderContacts();
-      toast('ç¾¤ã€Œ' + (data.group && data.group.name) + 'ã€å·²åˆ›å»ºï¼ˆID: ' + (data.group && data.group.id) + 'ï¼‰', 'success');
-      // å¼ºåˆ¶åˆ‡åˆ°ç¾¤ç»„ tab
+      toast('Èº¡¸' + (data.group && data.group.name) + '¡¹ÒÑ´´½¨£¨ID: ' + (data.group && data.group.id) + '£©', 'success');
+      // Ç¿ÖÆÇĞµ½Èº×é tab
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
-    } catch (e) { toast('è¯·æ±‚å¤±è´¥ï¼š' + e.message, 'error'); }
+    } catch (e) { toast('ÇëÇóÊ§°Ü£º' + e.message, 'error'); }
   });
 };
 $('joinGroupBtn').onclick = () => {
-  openModal('åŠ å…¥ç¾¤', [{ key: 'groupId', label: 'ç¾¤ IDï¼ˆåˆ›å»ºç¾¤æˆåŠŸåå¼¹å‡ºçš„æ•°å­—ï¼‰', placeholder: 'ç¤ºä¾‹ï¼š1' }], async (out, close) => {
-    if (!out.groupId) { toast('ç¾¤IDä¸èƒ½ä¸ºç©º', 'warn', 1000); return; }
+  openModal('¼ÓÈëÈº', [{ key: 'groupId', label: 'Èº ID£¨´´½¨Èº³É¹¦ºóµ¯³öµÄÊı×Ö£©', placeholder: 'Ê¾Àı£º1' }], async (out, close) => {
+    if (!out.groupId) { toast('ÈºID²»ÄÜÎª¿Õ', 'warn', 1000); return; }
     close();
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + parseInt(out.groupId, 10) + '/join', {
@@ -1996,27 +1996,27 @@ $('joinGroupBtn').onclick = () => {
         body: JSON.stringify({ groupId: parseInt(out.groupId, 10) })
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || 'åŠ ç¾¤å¤±è´¥', 'error'); return; }
+      if (!res.ok) { toast(data.error || '¼ÓÈºÊ§°Ü', 'error'); return; }
       loadFriends();
-      toast('å·²åŠ å…¥ç¾¤', 'success');
+      toast('ÒÑ¼ÓÈëÈº', 'success');
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
-    } catch (e) { toast('è¯·æ±‚å¤±è´¥ï¼š' + e.message, 'error'); }
+    } catch (e) { toast('ÇëÇóÊ§°Ü£º' + e.message, 'error'); }
   });
 };
 
-// å¾®ä¿¡å¼é‚€è¯·è¿›ç¾¤ï¼šå¥½å‹æœç´¢ã€å¤šé€‰ã€ç›´æ¥å…¥ç¾¤ã€é™„å¸¦é‚€è¯·è¯´æ˜ã€‚
+// Î¢ĞÅÊ½ÑûÇë½øÈº£ººÃÓÑËÑË÷¡¢¶àÑ¡¡¢Ö±½ÓÈëÈº¡¢¸½´øÑûÇëËµÃ÷¡£
 function openGroupInvitePicker() {
-  if (!state.activeGroup) { toast('è¯·å…ˆé€‰æ‹©ä¸€ä¸ªç¾¤', 'warn', 1000); return; }
+  if (!state.activeGroup) { toast('ÇëÏÈÑ¡ÔñÒ»¸öÈº', 'warn', 1000); return; }
   const mask = document.createElement('div'); mask.className = 'modal-mask';
   const box = document.createElement('div'); box.className = 'modal group-invite-modal';
-  box.innerHTML = '<div class="modal-head"><h3>é‚€è¯·å¥½å‹è¿›ç¾¤</h3><button class="modal-x" type="button">&times;</button></div>' +
-    '<div class="group-invite-tip">é€‰æ‹©å¥½å‹åç›´æ¥åŠ å…¥ç¾¤èŠï¼Œä¸éœ€è¦å¯¹æ–¹ç”³è¯·ã€‚</div>' +
-    '<input class="search group-invite-search" placeholder="æœç´¢å¥½å‹æ˜µç§°ã€ç”¨æˆ·åæˆ– ID" />' +
+  box.innerHTML = '<div class="modal-head"><h3>ÑûÇëºÃÓÑ½øÈº</h3><button class="modal-x" type="button">&times;</button></div>' +
+    '<div class="group-invite-tip">Ñ¡ÔñºÃÓÑºóÖ±½Ó¼ÓÈëÈºÁÄ£¬²»ĞèÒª¶Ô·½ÉêÇë¡£</div>' +
+    '<input class="search group-invite-search" placeholder="ËÑË÷ºÃÓÑêÇ³Æ¡¢ÓÃ»§Ãû»ò ID" />' +
     '<div class="group-invite-list"></div>' +
-    '<label class="group-intro-label">é‚€è¯·è¯´æ˜ï¼ˆå¯é€‰ï¼‰</label>' +
-    '<textarea class="group-intro" maxlength="200" placeholder="ä»‹ç»ä¸€ä¸‹è¿™ä¸ªç¾¤ï¼Œæˆ–å‘Šè¯‰æœ‹å‹ä¸ºä»€ä¹ˆé‚€è¯·ä»–â€¦"></textarea>' +
-    '<div class="modal-actions"><button type="button" class="cancel">å–æ¶ˆ</button><button type="button" class="ok group-invite-submit">ç›´æ¥é‚€è¯·</button></div>';
+    '<label class="group-intro-label">ÑûÇëËµÃ÷£¨¿ÉÑ¡£©</label>' +
+    '<textarea class="group-intro" maxlength="200" placeholder="½éÉÜÒ»ÏÂÕâ¸öÈº£¬»ò¸æËßÅóÓÑÎªÊ²Ã´ÑûÇëËû¡­"></textarea>' +
+    '<div class="modal-actions"><button type="button" class="cancel">È¡Ïû</button><button type="button" class="ok group-invite-submit">Ö±½ÓÑûÇë</button></div>';
   mask.appendChild(box); document.body.appendChild(mask);
   const close = () => mask.remove();
   box.querySelector('.modal-x').onclick = close;
@@ -2028,51 +2028,51 @@ function openGroupInvitePicker() {
   const render = () => {
     const kw = search.value.trim().toLowerCase();
     const rows = state.friends.filter(u => !kw || [u.nickname, u.username, u.uid, u.id].some(v => String(v || '').toLowerCase().includes(kw)));
-    list.innerHTML = rows.length ? rows.map(u => '<label class="group-invite-user"><input type="checkbox" data-id="' + u.id + '"' + (selected.has(u.id) ? ' checked' : '') + '><span class="avatar">' + (u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(avatarChar(u.nickname))) + '</span><span class="group-invite-user-info"><b>' + escapeHtml(u.nickname || u.username) + '</b><small>ID: ' + escapeHtml(u.uid || u.id) + '</small></span></label>').join('') : '<div class="group-invite-empty">æ²¡æœ‰åŒ¹é…çš„å¥½å‹</div>';
+    list.innerHTML = rows.length ? rows.map(u => '<label class="group-invite-user"><input type="checkbox" data-id="' + u.id + '"' + (selected.has(u.id) ? ' checked' : '') + '><span class="avatar">' + (u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(avatarChar(u.nickname))) + '</span><span class="group-invite-user-info"><b>' + escapeHtml(u.nickname || u.username) + '</b><small>ID: ' + escapeHtml(u.uid || u.id) + '</small></span></label>').join('') : '<div class="group-invite-empty">Ã»ÓĞÆ¥ÅäµÄºÃÓÑ</div>';
     list.querySelectorAll('input').forEach(input => { input.onchange = () => input.checked ? selected.add(Number(input.dataset.id)) : selected.delete(Number(input.dataset.id)); });
   };
   search.oninput = render;
   render();
   box.querySelector('.group-invite-submit').onclick = async () => {
-    if (!selected.size) { toast('è‡³å°‘é€‰æ‹©ä¸€ä½å¥½å‹', 'warn'); return; }
+    if (!selected.size) { toast('ÖÁÉÙÑ¡ÔñÒ»Î»ºÃÓÑ', 'warn'); return; }
     const btn = box.querySelector('.group-invite-submit'); btn.disabled = true;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token }, body: JSON.stringify({ userIds: Array.from(selected), intro: box.querySelector('.group-intro').value.trim() }) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'é‚€è¯·å¤±è´¥');
-      close(); await loadGroups(); toast('å·²ç›´æ¥é‚€è¯· ' + (data.count || 0) + ' ä½å¥½å‹è¿›ç¾¤', 'success');
-    } catch (e) { btn.disabled = false; toast(e.message || 'é‚€è¯·å¤±è´¥', 'error'); }
+      if (!res.ok) throw new Error(data.error || 'ÑûÇëÊ§°Ü');
+      close(); await loadGroups(); toast('ÒÑÖ±½ÓÑûÇë ' + (data.count || 0) + ' Î»ºÃÓÑ½øÈº', 'success');
+    } catch (e) { btn.disabled = false; toast(e.message || 'ÑûÇëÊ§°Ü', 'error'); }
   };
 }
 $('inviteGroupBtn').onclick = openGroupInvitePicker;
 
-// ç»Ÿä¸€æ¸²æŸ“é¡¶éƒ¨ headerï¼ˆæ ¹æ®è”ç³»äºº/ç¾¤è€Œå¼‚ï¼‰
+// Í³Ò»äÖÈ¾¶¥²¿ header£¨¸ù¾İÁªÏµÈË/Èº¶øÒì£©
 function renderChatHeader() {
   if (state.activeGroup) {
     const g = state.groups.find(x => x.id === state.activeGroup);
-    const name = g ? g.name : ('ç¾¤ #' + state.activeGroup);
-    $('chatHeader').textContent = 'ç¾¤èŠï¼š' + name;
+    const name = g ? g.name : ('Èº #' + state.activeGroup);
+    $('chatHeader').textContent = 'ÈºÁÄ£º' + name;
     $('chatHeader').onclick = () => openGroupProfile(state.activeGroup);
     const mt = document.getElementById('chatMobileTitle');
-    if (mt) { mt.textContent = 'ç¾¤èŠï¼š' + name; mt.onclick = () => openGroupProfile(state.activeGroup); }
+    if (mt) { mt.textContent = 'ÈºÁÄ£º' + name; mt.onclick = () => openGroupProfile(state.activeGroup); }
     $('inviteBar').style.display = '';
     return;
   }
   if (state.activePeer) {
     const peer = state.friends.find(u => u.id === state.activePeer);
-    const name = peer ? peer.nickname : 'èŠå¤©';
+    const name = peer ? peer.nickname : 'ÁÄÌì';
     $('chatHeader').textContent = name;
     $('chatHeader').onclick = () => openPeerProfile(state.activePeer);
     const mt = document.getElementById('chatMobileTitle');
     if (mt) { mt.textContent = name; mt.onclick = () => openPeerProfile(state.activePeer); }
   } else {
-    $('chatHeader').textContent = t('noConversation', 'è¯·é€‰æ‹©è”ç³»äºº');
+    $('chatHeader').textContent = t('noConversation', 'ÇëÑ¡ÔñÁªÏµÈË');
     $('chatHeader').onclick = null;
   }
   $('inviteBar').style.display = 'none';
 }
 
-// å¥½å‹èµ„æ–™å¡ï¼ˆç‚¹å‡»èŠå¤©å¤´éƒ¨æ‰“å¼€ï¼‰
+// ºÃÓÑ×ÊÁÏ¿¨£¨µã»÷ÁÄÌìÍ·²¿´ò¿ª£©
 function openPeerProfile(peerId) {
   const peer = state.friends.find(u => u.id === peerId);
   if (!peer) return;
@@ -2085,13 +2085,13 @@ function openPeerProfile(peerId) {
       <div class="profile-head">
         <div class="profile-avatar">${peer.avatar ? '<img src="' + peer.avatar + '">' : avatarChar(peer.nickname)}</div>
         <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
-        <div class="profile-id">å¾®ä¿¡å·ï¼š${escapeHtml(peer.uid || '')} Â· ID: ${peer.id}</div>
-        <div class="profile-online">${peer.online ? '<span class="dot online"></span> åœ¨çº¿' : 'ç¦»çº¿'}</div>
-        ${region ? '<div class="profile-region">åœ°åŒºï¼š' + escapeHtml(region) + '</div>' : ''}
+        <div class="profile-id">Î¢ĞÅºÅ£º${escapeHtml(peer.uid || '')} ¡¤ ID: ${peer.id}</div>
+        <div class="profile-online">${peer.online ? '<span class="dot online"></span> ÔÚÏß' : 'ÀëÏß'}</div>
+        ${region ? '<div class="profile-region">µØÇø£º' + escapeHtml(region) + '</div>' : ''}
       </div>
       <div class="profile-actions">
-        <button class="btn-cn" id="profileMsgBtn">å‘æ¶ˆæ¯</button>
-        <button class="btn-cn gray" id="profileBlockBtn">${blocked ? 'è§£é™¤æ‹‰é»‘' : 'æ‹‰é»‘'}</button>
+        <button class="btn-cn" id="profileMsgBtn">·¢ÏûÏ¢</button>
+        <button class="btn-cn gray" id="profileBlockBtn">${blocked ? '½â³ıÀ­ºÚ' : 'À­ºÚ'}</button>
       </div>
     </div>`;
   document.body.appendChild(mask);
@@ -2100,13 +2100,13 @@ function openPeerProfile(peerId) {
     toggleBlock(peer.id, () => {
       const bl = mask.querySelector('#profileBlockBtn');
       const nowBlocked = blockedMap ? blockedMap.has(peer.id) : false;
-      if (bl) bl.textContent = nowBlocked ? 'è§£é™¤æ‹‰é»‘' : 'æ‹‰é»‘';
+      if (bl) bl.textContent = nowBlocked ? '½â³ıÀ­ºÚ' : 'À­ºÚ';
     });
   };
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 
-// ç¾¤èµ„æ–™å¡ï¼ˆç‚¹å‡»ç¾¤åæ‰“å¼€ï¼šå…¬å‘Š/æˆå‘˜/é€€å‡ºï¼‰
+// Èº×ÊÁÏ¿¨£¨µã»÷ÈºÃû´ò¿ª£º¹«¸æ/³ÉÔ±/ÍË³ö£©
 async function openGroupProfile(groupId) {
   const g = state.groups.find(x => x.id === groupId);
   if (!g) return;
@@ -2127,20 +2127,20 @@ async function openGroupProfile(groupId) {
   mask.innerHTML = `
     <div class="profile-card">
       <div class="profile-head">
-        <div class="profile-avatar">${escapeHtml((g.name || 'ç¾¤').charAt(0))}</div>
+        <div class="profile-avatar">${escapeHtml((g.name || 'Èº').charAt(0))}</div>
         <div class="profile-name">${escapeHtml(g.name)}</div>
-        <div class="profile-id">${members.length} åæˆå‘˜</div>
-        ${announcement && announcement.content ? '<div class="profile-region" style="margin-top:6px;word-break:break-all">å…¬å‘Šï¼š' + escapeHtml(String(announcement.content).slice(0, 60)) + '</div>' : ''}
+        <div class="profile-id">${members.length} Ãû³ÉÔ±</div>
+        ${announcement && announcement.content ? '<div class="profile-region" style="margin-top:6px;word-break:break-all">¹«¸æ£º' + escapeHtml(String(announcement.content).slice(0, 60)) + '</div>' : ''}
       </div>
       <div class="profile-members">
         ${members.length ? members.map(m => `<div class="profile-member" data-mid="${m.id}">
           <div class="avatar" style="width:34px;height:34px;border-radius:6px">${m.avatar ? '<img src="' + m.avatar + '">' : avatarChar(m.myNickname || m.nickname)}</div>
-          <span>${escapeHtml(m.myNickname || m.nickname)}</span>${m.id === (g.ownerId) ? '<em style="color:#fa5151;font-style:normal;font-size:11px">ç¾¤ä¸»</em>' : ''}
-        </div>`).join('') : '<div style="padding:12px;color:#aaa;font-size:13px">æš‚æ— æˆå‘˜</div>'}
+          <span>${escapeHtml(m.myNickname || m.nickname)}</span>${m.id === (g.ownerId) ? '<em style="color:#fa5151;font-style:normal;font-size:11px">ÈºÖ÷</em>' : ''}
+        </div>`).join('') : '<div style="padding:12px;color:#aaa;font-size:13px">ÔİÎŞ³ÉÔ±</div>'}
       </div>
       <div class="profile-actions">
-        <button class="btn-cn" id="groupInviteBtn">é‚€è¯·æˆå‘˜</button>
-        ${isOwner ? '<button class="btn-cn gray" id="groupDissolveBtn">è§£æ•£ç¾¤èŠ</button>' : '<button class="btn-cn gray" id="groupLeaveBtn">é€€å‡ºç¾¤èŠ</button>'}
+        <button class="btn-cn" id="groupInviteBtn">ÑûÇë³ÉÔ±</button>
+        ${isOwner ? '<button class="btn-cn gray" id="groupDissolveBtn">½âÉ¢ÈºÁÄ</button>' : '<button class="btn-cn gray" id="groupLeaveBtn">ÍË³öÈºÁÄ</button>'}
       </div>
     </div>`;
   document.body.appendChild(mask);
@@ -2150,40 +2150,40 @@ async function openGroupProfile(groupId) {
   mask.querySelector('#groupInviteBtn').onclick = () => { mask.remove(); const btn = $('inviteBtn'); if (btn) btn.click(); };
   const leaveBtn = mask.querySelector('#groupLeaveBtn');
   if (leaveBtn) leaveBtn.onclick = async () => {
-    if (!confirm('ç¡®å®šé€€å‡ºè¯¥ç¾¤èŠï¼Ÿ')) return;
+    if (!confirm('È·¶¨ÍË³ö¸ÃÈºÁÄ£¿')) return;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/leave', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'æ“ä½œå¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '²Ù×÷Ê§°Ü');
       mask.remove();
-      toast('å·²é€€å‡ºç¾¤èŠ', 'success', 1200);
+      toast('ÒÑÍË³öÈºÁÄ', 'success', 1200);
       state.groups = state.groups.filter(x => x.id !== groupId);
       const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
       state.activeGroup = null;
       renderChatHeader();
       renderContacts();
-    } catch (e) { toast('é€€å‡ºå¤±è´¥ï¼š' + e.message, 'error'); }
+    } catch (e) { toast('ÍË³öÊ§°Ü£º' + e.message, 'error'); }
   };
   const dissolveBtn = mask.querySelector('#groupDissolveBtn');
   if (dissolveBtn) dissolveBtn.onclick = async () => {
-    if (!confirm('ç¡®å®šè§£æ•£è¯¥ç¾¤ï¼Ÿæ‰€æœ‰æˆå‘˜å°†è¢«ç§»å‡ºï¼Œä¸å¯æ¢å¤ã€‚')) return;
+    if (!confirm('È·¶¨½âÉ¢¸ÃÈº£¿ËùÓĞ³ÉÔ±½«±»ÒÆ³ö£¬²»¿É»Ö¸´¡£')) return;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/dissolve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'æ“ä½œå¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '²Ù×÷Ê§°Ü');
       mask.remove();
-      toast('ç¾¤èŠå·²è§£æ•£', 'success', 1200);
+      toast('ÈºÁÄÒÑ½âÉ¢', 'success', 1200);
       state.groups = state.groups.filter(x => x.id !== groupId);
       const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
       state.activeGroup = null;
       renderChatHeader();
       renderContacts();
-    } catch (e) { toast('è§£æ•£å¤±è´¥ï¼š' + e.message, 'error'); }
+    } catch (e) { toast('½âÉ¢Ê§°Ü£º' + e.message, 'error'); }
   };
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 
-// é€‰æ‹©ç¾¤ + åŠ è½½ç¾¤å†å²
+// Ñ¡ÔñÈº + ¼ÓÔØÈºÀúÊ·
 async function selectGroup(groupId) {
   state.activeGroup = groupId;
   state.activePeer = null;
@@ -2199,13 +2199,13 @@ async function selectGroup(groupId) {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
-    if (!res.ok) { $('messages').innerHTML = '<div style="color:#999;text-align:center">' + (data.error || 'åŠ è½½å†å²å¤±è´¥') + '</div>'; return; }
+    if (!res.ok) { $('messages').innerHTML = '<div style="color:#999;text-align:center">' + (data.error || '¼ÓÔØÀúÊ·Ê§°Ü') + '</div>'; return; }
     state.groupMsgs[groupId] = data.messages || [];
     renderGroupMessages(data.messages || []);
   } catch (e) {
-    $('messages').innerHTML = '<div style="color:#999;text-align:center">åŠ è½½å†å²å¤±è´¥</div>';
+    $('messages').innerHTML = '<div style="color:#999;text-align:center">¼ÓÔØÀúÊ·Ê§°Ü</div>';
   }
-  // ç§»åŠ¨ç«¯ï¼šé€‰ä¸­ç¾¤ç»„ååˆ‡æ¢åˆ°èŠå¤©åŒºï¼ˆæ”¶èµ·ä¾§è¾¹æ å¹¶éšè—å…¨å±é¡µï¼Œé¿å…æŒ¡ä½è¾“å…¥æ¡†ï¼‰
+  // ÒÆ¶¯¶Ë£ºÑ¡ÖĞÈº×éºóÇĞ»»µ½ÁÄÌìÇø£¨ÊÕÆğ²à±ßÀ¸²¢Òş²ØÈ«ÆÁÒ³£¬±ÜÃâµ²×¡ÊäÈë¿ò£©
   if (window.IS_MOBILE) showMobileChatView();
   else { hideMobilePages(); setRailActive('friends'); setChatListVisible(true); }
 }
@@ -2217,9 +2217,9 @@ function renderGroupMessages(msgs) {
   box.scrollTop = box.scrollHeight;
 }
 
-// ç¾¤èŠæ¶ˆæ¯æ°”æ³¡ï¼ˆå¸¦æ˜µç§°ï¼‰
+// ÈºÁÄÏûÏ¢ÆøÅİ£¨´øêÇ³Æ£©
 function appendGroupMessage(m, prepend) {
-  // ç»Ÿä¸€å»é‡ï¼šåŒä¸€æ¡ç¾¤æ¶ˆæ¯ï¼ˆæœåŠ¡ç«¯ id æˆ– clientMsgIdï¼‰åªæ¸²æŸ“ä¸€æ¬¡
+  // Í³Ò»È¥ÖØ£ºÍ¬Ò»ÌõÈºÏûÏ¢£¨·şÎñ¶Ë id »ò clientMsgId£©Ö»äÖÈ¾Ò»´Î
   const box0 = $('messages');
   if (box0) {
     if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
@@ -2229,7 +2229,7 @@ function appendGroupMessage(m, prepend) {
     }
   }
   if (isMsgDeleted(m.id)) return;
-  // ç¾¤èŠè¯­éŸ³ï¼šå¤ç”¨æ°”æ³¡ç»“æ„ï¼Œä½†å¸¦ä¸Šå‘é€äººæ˜µç§°/å¤´åƒ
+  // ÈºÁÄÓïÒô£º¸´ÓÃÆøÅİ½á¹¹£¬µ«´øÉÏ·¢ËÍÈËêÇ³Æ/Í·Ïñ
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
     const rest = m.content.slice(VOICE_PREFIX.length);
     const sep = rest.indexOf('|');
@@ -2239,7 +2239,7 @@ function appendGroupMessage(m, prepend) {
     const mine = m.from === (state.me && state.me.id);
     const row = document.createElement('div');
     row.className = 'msg-row ' + (mine ? 'me' : 'other');
-    const fromName = (m.fromUser && m.fromUser.nickname) || ('ç”¨æˆ·' + m.from);
+    const fromName = (m.fromUser && m.fromUser.nickname) || ('ÓÃ»§' + m.from);
     const avHtml = (m.fromUser && m.fromUser.avatar)
       ? '<img src="' + m.fromUser.avatar + '">'
       : avatarChar(fromName);
@@ -2262,7 +2262,7 @@ function appendGroupMessage(m, prepend) {
         const btn = this.querySelector('.play') || this;
         btn.textContent = '\u23F8';
         audio.onended = () => { btn.textContent = '\u25B6'; };
-        audio.onerror = () => { toast('æ’­æ”¾å¤±è´¥', 'error'); btn.textContent = '\u25B6'; };
+        audio.onerror = () => { toast('²¥·ÅÊ§°Ü', 'error'); btn.textContent = '\u25B6'; };
       };
     }
     box.appendChild(row);
@@ -2273,7 +2273,7 @@ function appendGroupMessage(m, prepend) {
   const mine = m.from === (state.me && state.me.id);
   const row = document.createElement('div');
   row.className = 'msg-row ' + (mine ? 'me' : 'other');
-  const fromName = (m.fromUser && m.fromUser.nickname) || ('ç”¨æˆ·' + m.from);
+  const fromName = (m.fromUser && m.fromUser.nickname) || ('ÓÃ»§' + m.from);
   const avHtml = (m.fromUser && m.fromUser.avatar)
     ? '<img src="' + m.fromUser.avatar + '">'
     : avatarChar(fromName);
@@ -2284,7 +2284,7 @@ function appendGroupMessage(m, prepend) {
     row.innerHTML = `<div class="avatar">${avHtml}</div>
       <div class="bubble-wrap">
         ${nameLine}
-        <div class="bubble recalled">${escapeHtml(fromName)}æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯</div>
+        <div class="bubble recalled">${escapeHtml(fromName)}³·»ØÁËÒ»ÌõÏûÏ¢</div>
       </div>`;
     box.appendChild(row);
     if (!prepend) box.scrollTop = box.scrollHeight;
@@ -2305,27 +2305,27 @@ function appendGroupMessage(m, prepend) {
     <div class="bubble-wrap">
       ${nameLine}
       ${quoteBlockHtml(m)}
-      ${m.forwardedFrom ? '<div class="fwd-tag">è½¬å‘çš„æ¶ˆæ¯</div>' : ''}
+      ${m.forwardedFrom ? '<div class="fwd-tag">×ª·¢µÄÏûÏ¢</div>' : ''}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
-      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">æ’¤å›</button>' : ''}<button type="button" data-action="copy">å¤åˆ¶</button><button type="button" data-action="quote">å¼•ç”¨</button><button type="button" data-action="forward">è½¬å‘</button><button type="button" data-action="del">åˆ é™¤</button></div>
+      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">³·»Ø</button>' : ''}<button type="button" data-action="copy">¸´ÖÆ</button><button type="button" data-action="quote">ÒıÓÃ</button><button type="button" data-action="forward">×ª·¢</button><button type="button" data-action="del">É¾³ı</button></div>
     </div>`;
   if (canGroupRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
   }
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('å·²å¤åˆ¶', 'success', 1200); }
-    catch { toast('å¤åˆ¶å¤±è´¥ï¼Œè¯·æ‰‹åŠ¨é€‰æ‹©æ–‡æœ¬', 'warn', 1500); }
+    try { await navigator.clipboard.writeText(String(m.content || '')); toast('ÒÑ¸´ÖÆ', 'success', 1200); }
+    catch { toast('¸´ÖÆÊ§°Ü£¬ÇëÊÖ¶¯Ñ¡ÔñÎÄ±¾', 'warn', 1500); }
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
-    if (m.id == null) { toast('æ— æ³•å¼•ç”¨è¯¥æ¶ˆæ¯', 'warn', 1200); return; }
+    if (m.id == null) { toast('ÎŞ·¨ÒıÓÃ¸ÃÏûÏ¢', 'warn', 1200); return; }
     setPendingReply(m.id);
-    toast('å·²é€‰æ‹©å¼•ç”¨ï¼Œè¾“å…¥å†…å®¹åå‘é€', 'success', 1500);
+    toast('ÒÑÑ¡ÔñÒıÓÃ£¬ÊäÈëÄÚÈİºó·¢ËÍ', 'success', 1500);
   };
   const fwdBtnG = row.querySelector('[data-action="forward"]');
-  if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('æ— æ³•è½¬å‘è¯¥æ¶ˆæ¯', 'warn', 1200); return; } openForwardPicker(m); };
+  if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('ÎŞ·¨×ª·¢¸ÃÏûÏ¢', 'warn', 1200); return; } openForwardPicker(m); };
   const delBtnG = row.querySelector('[data-action="del"]');
-  if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('æ— æ³•åˆ é™¤è¯¥æ¶ˆæ¯', 'warn', 1200); return; } if (confirm('åˆ é™¤åä»…åœ¨è‡ªå·±æ‰‹æœºä¸Šæ¶ˆå¤±ï¼Œç¡®å®šåˆ é™¤å—ï¼Ÿ')) deleteMsgLocal(m.id); };
+  if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('ÎŞ·¨É¾³ı¸ÃÏûÏ¢', 'warn', 1200); return; } if (confirm('É¾³ıºó½öÔÚ×Ô¼ºÊÖ»úÉÏÏûÊ§£¬È·¶¨É¾³ıÂğ£¿')) deleteMsgLocal(m.id); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
@@ -2333,16 +2333,16 @@ function appendGroupMessage(m, prepend) {
 }
 
 async function recallGroupMessage(id) {
-  if (!state.activeGroup || !confirm('ç¡®å®šæ’¤å›è¿™æ¡æ¶ˆæ¯å—ï¼Ÿ')) return;
+  if (!state.activeGroup || !confirm('È·¶¨³·»ØÕâÌõÏûÏ¢Âğ£¿')) return;
   try {
     const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/messages/' + id + '/recall', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'æ’¤å›å¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '³·»ØÊ§°Ü');
     markGroupRecalled(id);
   } catch (e) {
-    toast('æ’¤å›å¤±è´¥ï¼š' + e.message, 'error');
+    toast('³·»ØÊ§°Ü£º' + e.message, 'error');
   }
 }
 function markGroupRecalled(id) {
@@ -2350,26 +2350,26 @@ function markGroupRecalled(id) {
   if (!row) return;
   const mine = row.classList.contains('me');
   const name = row.querySelector('.name');
-  const fromName = name ? name.textContent : (mine ? 'ä½ ' : 'å¯¹æ–¹');
-  row.innerHTML = '<div class="bubble recalled">' + escapeHtml(fromName) + 'æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯</div>';
+  const fromName = name ? name.textContent : (mine ? 'Äã' : '¶Ô·½');
+  row.innerHTML = '<div class="bubble recalled">' + escapeHtml(fromName) + '³·»ØÁËÒ»ÌõÏûÏ¢</div>';
   const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
 }
 function onIncomingGroupMsg(payload) {
-  state.groupLastMsg[payload.groupId] = payload.content || '[æ¶ˆæ¯]';
+  state.groupLastMsg[payload.groupId] = payload.content || '[ÏûÏ¢]';
   state.groupLastMsgTime[payload.groupId] = payload.createdAt || Date.now();
   if (state.activeGroup === payload.groupId) {
     appendGroupMessage(payload, false);
   } else {
    	state.groupUnread[payload.groupId] = (state.groupUnread[payload.groupId] || 0) + 1;
-    const fromName = (payload.fromUser && payload.fromUser.nickname) || ('ç”¨æˆ·' + payload.from);
+    const fromName = (payload.fromUser && payload.fromUser.nickname) || ('ÓÃ»§' + payload.from);
     const g = state.groups.find(x => x.id === payload.groupId);
-    const gname = g ? g.name : ('ç¾¤#' + payload.groupId);
+    const gname = g ? g.name : ('Èº#' + payload.groupId);
     showMessageNotice({ from: payload.from, content: payload.content }, gname + ' ' + fromName);
     renderContacts();
   }
 }
 
-// ç¾¤å‘é€æ¶ˆæ¯ï¼ˆE2E åŠ å¯†ï¼šè‹¥ä¼šè¯å·²å»ºç«‹åˆ™å…ˆåŠ å¯†å†å‘ï¼Œå¤±è´¥è‡ªåŠ¨é™çº§æ˜æ–‡ï¼‰
+// Èº·¢ËÍÏûÏ¢£¨E2E ¼ÓÃÜ£ºÈô»á»°ÒÑ½¨Á¢ÔòÏÈ¼ÓÃÜÔÙ·¢£¬Ê§°Ü×Ô¶¯½µ¼¶Ã÷ÎÄ£©
 async function sendCurrentGroup() {
   if (!state.activeGroup) return false;
   const cv = document.getElementById('chatView');
@@ -2378,8 +2378,8 @@ async function sendCurrentGroup() {
   const text = input.value.trim();
   if (!text) return true;
   const gid = state.activeGroup;
-  // ç¾¤èŠä¸èƒ½å¤ç”¨å•èŠçš„ peer E2EE ä¼šè¯ï¼šgroupId ä¸æ˜¯ç”¨æˆ·å…¬é’¥ IDã€‚
-  // å…ˆä½¿ç”¨ç¾¤æ¶ˆæ¯åè®®å‘é€æ˜æ–‡ï¼Œé¿å…æŠŠç¾¤ ID å½“æˆç”¨æˆ· ID å¯¼è‡´å‘é€å¤±è´¥ã€‚
+  // ÈºÁÄ²»ÄÜ¸´ÓÃµ¥ÁÄµÄ peer E2EE »á»°£ºgroupId ²»ÊÇÓÃ»§¹«Ô¿ ID¡£
+  // ÏÈÊ¹ÓÃÈºÏûÏ¢Ğ­Òé·¢ËÍÃ÷ÎÄ£¬±ÜÃâ°ÑÈº ID µ±³ÉÓÃ»§ ID µ¼ÖÂ·¢ËÍÊ§°Ü¡£
   const reply = pendingReply || null;
   const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text, replyTo: reply });
   if (ok) {
@@ -2388,7 +2388,7 @@ async function sendCurrentGroup() {
     clearPendingReply();
     return true;
   }
-  // WS ä¸å¯ç”¨ï¼šèµ° REST å…œåº•ï¼ˆæœåŠ¡ç«¯å·²æ”¯æŒ POST /api/groups/:id/messagesï¼‰ã€‚
+  // WS ²»¿ÉÓÃ£º×ß REST ¶µµ×£¨·şÎñ¶ËÒÑÖ§³Ö POST /api/groups/:id/messages£©¡£
   try {
     const res = await fetch(state.serverHost + '/api/groups/' + gid + '/messages', {
       method: 'POST',
@@ -2396,13 +2396,13 @@ async function sendCurrentGroup() {
       body: JSON.stringify({ content: text, replyTo: reply })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'å‘é€å¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '·¢ËÍÊ§°Ü');
     input.value = '';
     saveCurrentDraft();
     clearPendingReply();
     return true;
   } catch (e) {
-    toast('ç¾¤æ¶ˆæ¯å‘é€å¤±è´¥ï¼š' + ((e && e.message) || e), 'error');
+    toast('ÈºÏûÏ¢·¢ËÍÊ§°Ü£º' + ((e && e.message) || e), 'error');
     return false;
   }
 }
@@ -2414,7 +2414,7 @@ async function loadGroups() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    // ä»¥æˆå‘˜å…³ç³»ä¸ºå‡†ï¼Œç©ºç¾¤æ²¡æœ‰æ¶ˆæ¯ä¹Ÿå¿…é¡»ä¿ç•™åœ¨ä¼šè¯åˆ—è¡¨ã€‚
+    // ÒÔ³ÉÔ±¹ØÏµÎª×¼£¬¿ÕÈºÃ»ÓĞÏûÏ¢Ò²±ØĞë±£ÁôÔÚ»á»°ÁĞ±í¡£
     state.groups = Array.isArray(data.groups) ? data.groups : [];
     renderContacts();
   } catch (e) {}
@@ -2427,7 +2427,7 @@ $('search').oninput = () => {
   else renderContacts();
 };
 
-// ============ åŠ å¥½å‹ ============
+// ============ ¼ÓºÃÓÑ ============
 $('addFriendBtn').onclick = async () => {
   const fid = $('addFriendInput').value.trim();
   if (!fid) return;
@@ -2438,17 +2438,17 @@ $('addFriendBtn').onclick = async () => {
       body: JSON.stringify({ friendUid: fid })
     });
     const data = await res.json();
-    if (!res.ok) { toast(data.error || 'åŠ å¥½å‹å¤±è´¥', 'error'); return; }
+    if (!res.ok) { toast(data.error || '¼ÓºÃÓÑÊ§°Ü', 'error'); return; }
     $('addFriendInput').value = '';
-    toast('å·²å‘é€å¥½å‹è¯·æ±‚ï¼Œç­‰å¾…å¯¹æ–¹æ¥å—', 'success');
-  } catch (e) { toast('è¯·æ±‚å¤±è´¥ï¼š' + e.message, 'error'); }
+    toast('ÒÑ·¢ËÍºÃÓÑÇëÇó£¬µÈ´ı¶Ô·½½ÓÊÜ', 'success');
+  } catch (e) { toast('ÇëÇóÊ§°Ü£º' + e.message, 'error'); }
 };
 
-// å¥½å‹è¯·æ±‚æç¤ºæ¡
+// ºÃÓÑÇëÇóÌáÊ¾Ìõ
 function showFriendReqBar() {
   const req = state.pendingReq[0];
   if (!req || !req.fromUser) { $('friendReqBar').style.display = 'none'; return; }
-  $('friendReqText').textContent = req.fromUser.nickname + 'ï¼ˆID:' + req.fromUser.uid + 'ï¼‰è¯·æ±‚åŠ ä½ ä¸ºå¥½å‹';
+  $('friendReqText').textContent = req.fromUser.nickname + '£¨ID:' + req.fromUser.uid + '£©ÇëÇó¼ÓÄãÎªºÃÓÑ';
   $('friendReqBar').style.display = 'flex';
 }
 $('acceptFriendBtn').onclick = async () => {
@@ -2464,7 +2464,7 @@ $('acceptFriendBtn').onclick = async () => {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     state.pendingReq.shift();
   } catch (e) {
-    toast('æ¥å—å¥½å‹è¯·æ±‚å¤±è´¥ï¼š' + e.message, 'error');
+    toast('½ÓÊÜºÃÓÑÇëÇóÊ§°Ü£º' + e.message, 'error');
     showFriendReqBar();
     return;
   }
@@ -2484,14 +2484,14 @@ $('rejectFriendBtn').onclick = async () => {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     state.pendingReq.shift();
   } catch (e) {
-    toast('æ‹’ç»å¥½å‹è¯·æ±‚å¤±è´¥ï¼š' + e.message, 'error');
+    toast('¾Ü¾øºÃÓÑÇëÇóÊ§°Ü£º' + e.message, 'error');
     showFriendReqBar();
     return;
   }
   showFriendReqBar();
 };
 
-// ============ é€‰æ‹©è”ç³»äºº + å†å² ============
+// ============ Ñ¡ÔñÁªÏµÈË + ÀúÊ· ============
 async function selectPeer(peerId) {
   state.activePeer = peerId;
   state.activeGroup = null;
@@ -2499,7 +2499,7 @@ async function selectPeer(peerId) {
   state.unread[peerId] = 0;
   loadCallReplays(peerId);
   const peer = state.friends.find(u => u.id === peerId);
-  $('chatHeader').textContent = peer ? peer.nickname : 'èŠå¤©';
+  $('chatHeader').textContent = peer ? peer.nickname : 'ÁÄÌì';
   $('inviteBar').style.display = 'none';
   renderContacts();
   refreshConversationButtons();
@@ -2511,13 +2511,13 @@ async function selectPeer(peerId) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const msgs = data.messages || [];
-    // å†å²æ¶ˆæ¯é€æ¡å°è¯• E2EE è§£å¯†ï¼ˆè‹¥ä¸º 0x02 å¯†æ–‡ä¸”ä¼šè¯å¯å»ºç«‹ï¼‰
+    // ÀúÊ·ÏûÏ¢ÖğÌõ³¢ÊÔ E2EE ½âÃÜ£¨ÈôÎª 0x02 ÃÜÎÄÇÒ»á»°¿É½¨Á¢£©
     for (const m of msgs) { try { await maybeDecryptLive(m); } catch (e) {} }
     renderMessages(msgs);
   } catch (e) {
-    $('messages').innerHTML = '<div style="color:#999;text-align:center">åŠ è½½å†å²å¤±è´¥</div>';
+    $('messages').innerHTML = '<div style="color:#999;text-align:center">¼ÓÔØÀúÊ·Ê§°Ü</div>';
   }
-  // ç§»åŠ¨ç«¯ï¼šé€‰ä¸­è”ç³»äººååˆ‡æ¢åˆ°èŠå¤©åŒºï¼ˆæ”¶èµ·ä¾§è¾¹æ å¹¶éšè—å…¨å±é¡µï¼Œé¿å…æŒ¡ä½è¾“å…¥æ¡†ï¼‰
+  // ÒÆ¶¯¶Ë£ºÑ¡ÖĞÁªÏµÈËºóÇĞ»»µ½ÁÄÌìÇø£¨ÊÕÆğ²à±ßÀ¸²¢Òş²ØÈ«ÆÁÒ³£¬±ÜÃâµ²×¡ÊäÈë¿ò£©
   if (window.IS_MOBILE) showMobileChatView();
   else { hideMobilePages(); setRailActive('friends'); setChatListVisible(true); }
 }
@@ -2533,8 +2533,8 @@ function refreshConversationButtons() {
   const key = activeConversationKey();
   const prefs = chatPrefs();
   const pin = $('pinChatBtn'); const mute = $('muteChatBtn');
-  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','å·²ç½®é¡¶') : t('pin','ç½®é¡¶'); }
-  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','å·²é™éŸ³') : t('mute','å…æ‰“æ‰°'); }
+  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','ÒÑÖÃ¶¥') : t('pin','ÖÃ¶¥'); }
+  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','ÒÑ¾²Òô') : t('mute','Ãâ´òÈÅ'); }
 }
 
 function wireConversationTools() {
@@ -2542,7 +2542,7 @@ function wireConversationTools() {
   const clear = $('clearChatBtn');
   const searchBtn = $('messageSearchBtn'); const searchBar = $('messageSearchBar');
   const searchInput = $('messageSearchInput'); const searchClose = $('messageSearchClose');
-  // ç§»åŠ¨ç«¯è¿”å›æŒ‰é’®ï¼šå›åˆ°ä¼šè¯åˆ—è¡¨ï¼Œå¹¶æ¸…ç©ºå½“å‰ä¼šè¯é€‰ä¸­æ€
+  // ÒÆ¶¯¶Ë·µ»Ø°´Å¥£º»Øµ½»á»°ÁĞ±í£¬²¢Çå¿Õµ±Ç°»á»°Ñ¡ÖĞÌ¬
   const backBtn = $('backToListBtn');
   if (backBtn) backBtn.onclick = () => {
     const cv = document.getElementById('chatView');
@@ -2557,33 +2557,33 @@ function wireConversationTools() {
     renderContacts();
   };
   if (pin) pin.onclick = () => {
-    const key = activeConversationKey(); if (!key) return toast('è¯·å…ˆé€‰æ‹©ä¼šè¯', 'warn', 1200);
+    const key = activeConversationKey(); if (!key) return toast('ÇëÏÈÑ¡Ôñ»á»°', 'warn', 1200);
     const prefs = chatPrefs(); prefs.pinned[key] = !prefs.pinned[key]; saveChatPrefs(prefs); refreshConversationButtons(); renderContacts();
   };
   if (mute) mute.onclick = () => {
-    const key = activeConversationKey(); if (!key) return toast('è¯·å…ˆé€‰æ‹©ä¼šè¯', 'warn', 1200);
+    const key = activeConversationKey(); if (!key) return toast('ÇëÏÈÑ¡Ôñ»á»°', 'warn', 1200);
     const prefs = chatPrefs(); prefs.muted[key] = !prefs.muted[key]; saveChatPrefs(prefs); refreshConversationButtons(); renderContacts();
   };
   if (notify) notify.onclick = async () => {
-    if (!('Notification' in window)) return toast('å½“å‰æµè§ˆå™¨ä¸æ”¯æŒç³»ç»Ÿé€šçŸ¥', 'warn', 1500);
+    if (!('Notification' in window)) return toast('µ±Ç°ä¯ÀÀÆ÷²»Ö§³ÖÏµÍ³Í¨Öª', 'warn', 1500);
     const permission = await Notification.requestPermission();
     notify.classList.toggle('active', permission === 'granted');
-    notify.textContent = permission === 'granted' ? t('notifyOn','é€šçŸ¥å·²å¼€') : t('notify','é€šçŸ¥');
-    toast(permission === 'granted' ? 'æµè§ˆå™¨é€šçŸ¥å·²å¼€å¯' : 'æœªæˆäºˆé€šçŸ¥æƒé™', permission === 'granted' ? 'success' : 'warn', 1500);
+    notify.textContent = permission === 'granted' ? t('notifyOn','Í¨ÖªÒÑ¿ª') : t('notify','Í¨Öª');
+    toast(permission === 'granted' ? 'ä¯ÀÀÆ÷Í¨ÖªÒÑ¿ªÆô' : 'Î´ÊÚÓèÍ¨ÖªÈ¨ÏŞ', permission === 'granted' ? 'success' : 'warn', 1500);
   };
   if (clear) clear.onclick = async () => {
-    if (!state.activePeer) return toast('è¯·å…ˆé€‰æ‹©è”ç³»äºº', 'warn', 1200);
-    if (!confirm('ç¡®å®šæ¸…ç©ºå½“å‰èŠå¤©è®°å½•å—ï¼Ÿæ­¤æ“ä½œä¸å¯æ¢å¤ã€‚')) return;
+    if (!state.activePeer) return toast('ÇëÏÈÑ¡ÔñÁªÏµÈË', 'warn', 1200);
+    if (!confirm('È·¶¨Çå¿Õµ±Ç°ÁÄÌì¼ÇÂ¼Âğ£¿´Ë²Ù×÷²»¿É»Ö¸´¡£')) return;
     clear.disabled = true;
     try {
       const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
         method: 'DELETE', headers: { 'Authorization': 'Bearer ' + state.token }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'æ¸…ç©ºå¤±è´¥');
+      if (!res.ok) throw new Error(data.error || 'Çå¿ÕÊ§°Ü');
       $('messages').innerHTML = '';
-      toast('å½“å‰èŠå¤©è®°å½•å·²æ¸…ç©º', 'success', 1500);
-    } catch (e) { toast('æ¸…ç©ºå¤±è´¥ï¼š' + e.message, 'error'); }
+      toast('µ±Ç°ÁÄÌì¼ÇÂ¼ÒÑÇå¿Õ', 'success', 1500);
+    } catch (e) { toast('Çå¿ÕÊ§°Ü£º' + e.message, 'error'); }
     finally { clear.disabled = false; }
   };
   let searchHits = []; let searchIdx = -1;
@@ -2620,7 +2620,7 @@ function wireConversationTools() {
   if (searchClose && searchBar) searchClose.onclick = () => { searchBar.style.display = 'none'; if (searchInput) searchInput.value = ''; applySearch(); };
 }
 
-// æ¬¢è¿å·¥ä½œå°å¿«æ·å…¥å£
+// »¶Ó­¹¤×÷Ì¨¿ì½İÈë¿Ú
 const welcomeAddBtn = $('welcomeAddBtn');
 const welcomeGroupBtn = $('welcomeGroupBtn');
 const welcomeAiBtn = $('welcomeAiBtn');
@@ -2636,15 +2636,15 @@ if (welcomeAiBtn) welcomeAiBtn.onclick = () => {
 };
 
 function appendMessage(m, prepend) {
-  // ç»Ÿä¸€å»é‡ï¼šåŒä¸€æ¡æ¶ˆæ¯ï¼ˆæœåŠ¡ç«¯ id æˆ– clientMsgIdï¼‰åªæ¸²æŸ“ä¸€æ¬¡ã€‚
-  // ä¹è§‚æ¸²æŸ“çš„è¡Œ id ä¸º 'local-<clientMsgId>'ï¼ŒæœåŠ¡ç«¯å›æ˜¾åˆ°è¾¾æ—¶æŒ‰ clientMsgId å‘½ä¸­åŒä¸€è¡Œã€‚
+  // Í³Ò»È¥ÖØ£ºÍ¬Ò»ÌõÏûÏ¢£¨·şÎñ¶Ë id »ò clientMsgId£©Ö»äÖÈ¾Ò»´Î¡£
+  // ÀÖ¹ÛäÖÈ¾µÄĞĞ id Îª 'local-<clientMsgId>'£¬·şÎñ¶Ë»ØÏÔµ½´ïÊ±°´ clientMsgId ÃüÖĞÍ¬Ò»ĞĞ¡£
   const box0 = $('messages');
   if (box0) {
     if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
     if (m.clientMsgId) {
       const local = box0.querySelector('.msg-row[data-cmid="' + String(m.clientMsgId).replace(/"/g, '\\"') + '"]');
       if (local) {
-        // å·²æœ‰æœ¬åœ°ä¹è§‚è¡Œï¼šè¡¥ä¸ŠæœåŠ¡ç«¯ idï¼Œä¸å†æ–°å¢ä¸€è¡Œ
+        // ÒÑÓĞ±¾µØÀÖ¹ÛĞĞ£º²¹ÉÏ·şÎñ¶Ë id£¬²»ÔÙĞÂÔöÒ»ĞĞ
         if (m.id != null) local.setAttribute('data-id', String(m.id));
         return;
       }
@@ -2660,13 +2660,13 @@ function appendMessage(m, prepend) {
       }
     } catch {}
   }
-  // å¾®ä¿¡å¼æ—¥æœŸåˆ†éš”æ¡ï¼šè·¨å¤©æ—¶æ’å…¥
+  // Î¢ĞÅÊ½ÈÕÆÚ·Ö¸ôÌõ£º¿çÌìÊ±²åÈë
   const mb = $('messages');
   if (mb && m.createdAt) {
     const mk = (d) => new Date(d).toDateString();
     const last = mb.lastElementChild;
     if (!last || !last.classList.contains('msg-row')) {
-      // é¦–ä¸ªæ¶ˆæ¯æˆ–ä¸Šæ¬¡æ˜¯åˆ†éš”æ¡ï¼šåˆ¤æ–­æ˜¯å¦éœ€è¦
+      // Ê×¸öÏûÏ¢»òÉÏ´ÎÊÇ·Ö¸ôÌõ£ºÅĞ¶ÏÊÇ·ñĞèÒª
       const prevDivider = mb.querySelector('.day-divider:last-of-type');
       const prevDay = prevDivider ? prevDivider.getAttribute('data-day') : null;
       if (!prevDay || prevDay !== mk(m.createdAt)) addDayDivider(m.createdAt);
@@ -2685,36 +2685,36 @@ function appendMessage(m, prepend) {
   if (m.createdAt) row.setAttribute('data-ts', String(m.createdAt));
   const fullTime = new Date(m.createdAt).toLocaleString();
   if (m.recalled) {
-    row.innerHTML = `<div class="bubble recalled">${mine ? 'ä½ æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯' : 'å¯¹æ–¹æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯'}</div>`;
+    row.innerHTML = `<div class="bubble recalled">${mine ? 'Äã³·»ØÁËÒ»ÌõÏûÏ¢' : '¶Ô·½³·»ØÁËÒ»ÌõÏûÏ¢'}</div>`;
     box.appendChild(row);
     if (!prepend) box.scrollTop = box.scrollHeight;
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">è½¬å‘çš„æ¶ˆæ¯</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? 'å·²è¯»' : 'æœªè¯»') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">æ’¤å›</button>' : ''}<button type="button" data-action="copy">å¤åˆ¶</button><button type="button" data-action="quote">å¼•ç”¨</button><button type="button" data-action="forward">è½¬å‘</button><button type="button" data-action="del">åˆ é™¤</button></div>`;
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">×ª·¢µÄÏûÏ¢</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? 'ÒÑ¶Á' : 'Î´¶Á') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">³·»Ø</button>' : ''}<button type="button" data-action="copy">¸´ÖÆ</button><button type="button" data-action="quote">ÒıÓÃ</button><button type="button" data-action="forward">×ª·¢</button><button type="button" data-action="del">É¾³ı</button></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
   }
-  row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('æ— æ³•åˆ é™¤è¯¥æ¶ˆæ¯', 'warn', 1200); return; } if (confirm('åˆ é™¤åä»…åœ¨æœ¬ç«¯æ¶ˆå¤±ï¼Œç¡®å®šåˆ é™¤å—ï¼Ÿ')) deleteMsgLocal(m.id); };
+  row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('ÎŞ·¨É¾³ı¸ÃÏûÏ¢', 'warn', 1200); return; } if (confirm('É¾³ıºó½öÔÚ±¾¶ËÏûÊ§£¬È·¶¨É¾³ıÂğ£¿')) deleteMsgLocal(m.id); };
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('å·²å¤åˆ¶', 'success', 1200); }
-    catch { toast('å¤åˆ¶å¤±è´¥ï¼Œè¯·æ‰‹åŠ¨é€‰æ‹©æ–‡æœ¬', 'warn', 1500); }
+    try { await navigator.clipboard.writeText(String(m.content || '')); toast('ÒÑ¸´ÖÆ', 'success', 1200); }
+    catch { toast('¸´ÖÆÊ§°Ü£¬ÇëÊÖ¶¯Ñ¡ÔñÎÄ±¾', 'warn', 1500); }
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
-    if (m.id == null) { toast('æ— æ³•å¼•ç”¨è¯¥æ¶ˆæ¯', 'warn', 1200); return; }
+    if (m.id == null) { toast('ÎŞ·¨ÒıÓÃ¸ÃÏûÏ¢', 'warn', 1200); return; }
     setPendingReply(m.id);
-    toast('å·²é€‰æ‹©å¼•ç”¨ï¼Œè¾“å…¥å†…å®¹åå‘é€', 'success', 1500);
+    toast('ÒÑÑ¡ÔñÒıÓÃ£¬ÊäÈëÄÚÈİºó·¢ËÍ', 'success', 1500);
   };
   const fwdBtn = row.querySelector('[data-action="forward"]');
-  if (fwdBtn) fwdBtn.onclick = () => { if (m.id == null) { toast('æ— æ³•è½¬å‘è¯¥æ¶ˆæ¯', 'warn', 1200); return; } openForwardPicker(m); };
+  if (fwdBtn) fwdBtn.onclick = () => { if (m.id == null) { toast('ÎŞ·¨×ª·¢¸ÃÏûÏ¢', 'warn', 1200); return; } openForwardPicker(m); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
-// ============ æ¶ˆæ¯æœ¬åœ°åˆ é™¤ï¼ˆä»…æœ¬ç«¯ï¼‰ ============
+// ============ ÏûÏ¢±¾µØÉ¾³ı£¨½ö±¾¶Ë£© ============
 function isMsgDeleted(id) {
   if (id == null) return false;
   try { const s = localStorage.getItem('deletedMsgIds'); if (!s) return false; return JSON.parse(s).indexOf(String(id)) !== -1; } catch (e) { return false; }
@@ -2730,24 +2730,24 @@ function deleteMsgLocal(id) {
   const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
 }
 
-// ============ æ¶ˆæ¯è½¬å‘ï¼ˆå¾®ä¿¡å¼ï¼‰ ============
+// ============ ÏûÏ¢×ª·¢£¨Î¢ĞÅÊ½£© ============
 function openForwardPicker(msg) {
   const mask = document.createElement('div');
   mask.className = 'profile-mask';
   const targets = [];
   state.friends.forEach(u => targets.push({ kind: 'user', id: u.id, name: u.nickname || u.username, avatar: u.avatar }));
   state.groups.forEach(g => targets.push({ kind: 'group', id: g.id, name: g.name, avatar: null }));
-  if (!targets.length) { toast('æš‚æ— å¥½å‹æˆ–ç¾¤èŠå¯è½¬å‘', 'warn', 1500); return; }
+  if (!targets.length) { toast('ÔİÎŞºÃÓÑ»òÈºÁÄ¿É×ª·¢', 'warn', 1500); return; }
   mask.innerHTML = `
     <div class="profile-card">
       <div class="profile-head">
-        <div class="profile-name" style="font-size:15px">é€‰æ‹©è½¬å‘ç›®æ ‡</div>
+        <div class="profile-name" style="font-size:15px">Ñ¡Ôñ×ª·¢Ä¿±ê</div>
         <div class="profile-id">${escapeHtml(String(msg.content || '').slice(0, 24))}</div>
       </div>
       <div class="profile-members">
         ${targets.map(t => `<div class="profile-member" data-k="${t.kind}" data-id="${t.id}">
           <div class="avatar" style="width:34px;height:34px;border-radius:6px">${t.avatar ? '<img src="' + t.avatar + '">' : avatarChar(t.name)}</div>
-          <span>${escapeHtml(t.name)}</span>${t.kind === 'group' ? '<em style="color:#888;font-style:normal;font-size:11px">ç¾¤èŠ</em>' : ''}
+          <span>${escapeHtml(t.name)}</span>${t.kind === 'group' ? '<em style="color:#888;font-style:normal;font-size:11px">ÈºÁÄ</em>' : ''}
         </div>`).join('')}
       </div>
     </div>`;
@@ -2766,7 +2766,7 @@ function openForwardPicker(msg) {
             body: JSON.stringify({ content, forwardedFrom: msg.id })
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'è½¬å‘å¤±è´¥');
+          if (!res.ok) throw new Error(data.error || '×ª·¢Ê§°Ü');
         } else {
           const res = await fetch(state.serverHost + '/api/messages', {
             method: 'POST',
@@ -2774,14 +2774,14 @@ function openForwardPicker(msg) {
             body: JSON.stringify({ to: id, content, forwardedFrom: msg.id })
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'è½¬å‘å¤±è´¥');
+          if (!res.ok) throw new Error(data.error || '×ª·¢Ê§°Ü');
         }
-        toast('å·²è½¬å‘', 'success', 1200);
+        toast('ÒÑ×ª·¢', 'success', 1200);
         if (state.activePeer === id || state.activeGroup === id) {
           if (state.activePeer === id) selectPeer(id);
           else selectGroup(id);
         }
-      } catch (e) { toast('è½¬å‘å¤±è´¥ï¼š' + e.message, 'error'); }
+      } catch (e) { toast('×ª·¢Ê§°Ü£º' + e.message, 'error'); }
     };
   });
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
@@ -2805,7 +2805,7 @@ function renderReplyHint() {
     if (!hint) {
       hint = document.createElement('div');
       hint.className = 'reply-hint';
-      hint.innerHTML = '<span class="reply-hint-text">æ­£åœ¨å¼•ç”¨ä¸€æ¡æ¶ˆæ¯</span><button type="button" class="reply-hint-cancel">å–æ¶ˆ</button>';
+      hint.innerHTML = '<span class="reply-hint-text">ÕıÔÚÒıÓÃÒ»ÌõÏûÏ¢</span><button type="button" class="reply-hint-cancel">È¡Ïû</button>';
       hint.querySelector('.reply-hint-cancel').onclick = () => clearPendingReply();
       const wrap = c.querySelector('.composer-input-wrap') || c;
       wrap.insertBefore(hint, wrap.firstChild);
@@ -2820,8 +2820,8 @@ function fmtTime(t) {
   return hh + ':' + mm;
 }
 
-// ============ è¡¨æƒ…é€‰æ‹©å™¨ ============
-const EMOJI_SET = ['ğŸ˜€','ğŸ˜','ğŸ˜‚','ğŸ¤£','ğŸ˜Š','ğŸ˜','ğŸ˜˜','ğŸ˜œ','ğŸ¤”','ğŸ˜´','ğŸ¥³','ğŸ˜','ğŸ¤©','ğŸ˜­','ğŸ˜¡','ğŸ¥¶','ğŸ¤¯','ğŸ˜‡','ğŸ™ƒ','ğŸ˜‰','ğŸ˜º','ğŸ‘','ğŸ‘','ğŸ‘','ğŸ™','ğŸ’ª','ğŸ¤','âœŒï¸','ğŸ‘Œ','â¤ï¸','ğŸ’”','ğŸ’–','âœ¨','ğŸ‰','ğŸ”¥','ğŸŒˆ','ğŸ€','ğŸ‚','ğŸº','â˜•','ğŸ¶','ğŸ±','ğŸ¼','ğŸ¦Š','ğŸŒ¹','ğŸ','âš½','ğŸš—','âœˆï¸','ğŸŒ™','â­','ğŸ’¤','ğŸ’°','ğŸ“±','ğŸ’¬','ğŸ”’','âœ…','âŒ','â“','â—'];
+// ============ ±íÇéÑ¡ÔñÆ÷ ============
+const EMOJI_SET = ['??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','??','?','??','??','??','??','??','??','?','??','??','??','??','??','??','?','??','??','??','?','??','??','??','??','??','?','?','?','?'];
 function toggleEmojiPanel() {
   const existing = document.getElementById('emojiPanel');
   if (existing) { existing.remove(); return; }
@@ -2849,30 +2849,30 @@ function toggleEmojiPanel() {
   if (emojiBtn) emojiBtn.onclick = toggleEmojiPanel;
 })();
 
-// ============ è¡¨æƒ…é€‰æ‹©å™¨ END ============
+// ============ ±íÇéÑ¡ÔñÆ÷ END ============
 
-// å¼•ç”¨å—ï¼šæ¸²æŸ“è¢«å¼•ç”¨æ¶ˆæ¯çš„åŸæ–‡ï¼Œç‚¹å‡»æ»šåŠ¨å®šä½
+// ÒıÓÃ¿é£ºäÖÈ¾±»ÒıÓÃÏûÏ¢µÄÔ­ÎÄ£¬µã»÷¹ö¶¯¶¨Î»
 function quoteBlockHtml(m) {
   if (!m.replyTo) return '';
   let text = m.replyContent;
-  if (m.replyRecalled) text = '[æ¶ˆæ¯å·²æ’¤å›]';
+  if (m.replyRecalled) text = '[ÏûÏ¢ÒÑ³·»Ø]';
   if (text == null) {
     const el = document.querySelector('#messages .msg-row[data-id="' + String(m.replyTo).replace(/"/g, '\\"') + '"] .bubble');
     if (el) text = el.textContent;
   }
   if (text == null) return '';
-  return '<div class="quote-block" data-reply="' + String(m.replyTo).replace(/"/g, '&quot;') + '" title="ç‚¹å‡»æŸ¥çœ‹åŸæ–‡">' + escapeHtml(String(text).replace(/\s+/g, ' ').slice(0, 80)) + '</div>';
+  return '<div class="quote-block" data-reply="' + String(m.replyTo).replace(/"/g, '&quot;') + '" title="µã»÷²é¿´Ô­ÎÄ">' + escapeHtml(String(text).replace(/\s+/g, ' ').slice(0, 80)) + '</div>';
 }
 function bindQuoteClicks(row) {
   row.querySelectorAll('.quote-block').forEach(qb => {
     qb.onclick = () => {
       const t = document.querySelector('.msg-row[data-id="' + qb.dataset.reply + '"]');
       if (t) t.scrollIntoView({ block: 'center' });
-      else toast('åŸæ–‡ä¸åœ¨å½“å‰åŠ è½½èŒƒå›´å†…', 'warn', 1200);
+      else toast('Ô­ÎÄ²»ÔÚµ±Ç°¼ÓÔØ·¶Î§ÄÚ', 'warn', 1200);
     };
   });
 }
-// ç§»åŠ¨ç«¯é•¿æŒ‰æ¶ˆæ¯æ˜¾ç¤ºæ“ä½œæ¡ï¼ˆæ—  hover çš„æ›¿ä»£äº¤äº’ï¼‰
+// ÒÆ¶¯¶Ë³¤°´ÏûÏ¢ÏÔÊ¾²Ù×÷Ìõ£¨ÎŞ hover µÄÌæ´ú½»»¥£©
 function bindMobileLongPress(row) {
   if (!window.IS_MOBILE) return;
   let timer = null;
@@ -2890,7 +2890,7 @@ if (window.IS_MOBILE) {
   }, { passive: true });
 }
 
-// ============ ç¾¤èŠ @ æˆå‘˜ ============
+// ============ ÈºÁÄ @ ³ÉÔ± ============
 let atPanel = null;
 function showAtPanel(anchorInput) {
   if (!state.activeGroup) return;
@@ -2900,7 +2900,7 @@ function showAtPanel(anchorInput) {
   hideAtPanel();
   const list = members.map(id => {
     const u = state.friends.find(f => f.id === id);
-    return { id, name: u ? (u.nickname || u.username) : ('ç”¨æˆ·' + id) };
+    return { id, name: u ? (u.nickname || u.username) : ('ÓÃ»§' + id) };
   });
   atPanel = document.createElement('div');
   atPanel.className = 'at-panel';
@@ -2930,7 +2930,7 @@ function onAtKey(input) {
   if (v.slice(-1) === '@' && state.activeGroup) showAtPanel(input);
 }
 
-// ============ æ¶ˆæ¯æ’¤å› ============
+// ============ ÏûÏ¢³·»Ø ============
 async function recallMessage(msgId) {
   if (!msgId) return;
   try {
@@ -2939,40 +2939,40 @@ async function recallMessage(msgId) {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'æ’¤å›å¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '³·»ØÊ§°Ü');
     markRecalled(msgId, true);
   } catch (e) {
-    toast(((e && e.message) || 'æ’¤å›å¤±è´¥'), 'error');
+    toast(((e && e.message) || '³·»ØÊ§°Ü'), 'error');
   }
 }
 function markRecalled(msgId, mine) {
   const row = document.querySelector('.msg-row[data-id="' + String(msgId).replace(/"/g, '\\"') + '"]');
   if (!row) return;
   const bubbles = row.querySelectorAll('.bubble');
-  bubbles.forEach(b => { b.textContent = mine ? 'ä½ æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯' : 'å¯¹æ–¹æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯'; b.classList.add('recalled'); });
+  bubbles.forEach(b => { b.textContent = mine ? 'Äã³·»ØÁËÒ»ÌõÏûÏ¢' : '¶Ô·½³·»ØÁËÒ»ÌõÏûÏ¢'; b.classList.add('recalled'); });
   const actions = row.querySelector('.message-actions');
   if (actions) actions.style.display = 'none';
 }
 function markConversationRead() {
   document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
-    el.textContent = 'å·²è¯»';
+    el.textContent = 'ÒÑ¶Á';
     el.classList.add('read');
   });
 }
 
-// å¾®ä¿¡å¼æ—¥æœŸåˆ†éš”æ¡æ–‡æ¡ˆ
+// Î¢ĞÅÊ½ÈÕÆÚ·Ö¸ôÌõÎÄ°¸
 function dayLabel(ts) {
   const d = new Date(ts);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.floor((today - day) / 86400000);
-  if (diff === 0) return 'ä»Šå¤©';
-  if (diff === 1) return 'æ˜¨å¤©';
-  if (diff === 2) return 'å‰å¤©';
-  const w = ['å‘¨æ—¥', 'å‘¨ä¸€', 'å‘¨äºŒ', 'å‘¨ä¸‰', 'å‘¨å››', 'å‘¨äº”', 'å‘¨å…­'];
+  if (diff === 0) return '½ñÌì';
+  if (diff === 1) return '×òÌì';
+  if (diff === 2) return 'Ç°Ìì';
+  const w = ['ÖÜÈÕ', 'ÖÜÒ»', 'ÖÜ¶ş', 'ÖÜÈı', 'ÖÜËÄ', 'ÖÜÎå', 'ÖÜÁù'];
   if (diff < 7) return w[d.getDay()];
-  return (d.getMonth() + 1) + 'æœˆ' + d.getDate() + 'æ—¥';
+  return (d.getMonth() + 1) + 'ÔÂ' + d.getDate() + 'ÈÕ';
 }
 function addDayDivider(ts) {
   const box = $('messages');
@@ -2992,8 +2992,8 @@ function fmtChatListTime(t) {
   const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.floor((today - day) / 86400000);
   if (diff === 0) return fmtTime(t);
-  if (diff === 1) return 'æ˜¨å¤©';
-  if (diff < 7) return ['å‘¨æ—¥', 'å‘¨ä¸€', 'å‘¨äºŒ', 'å‘¨ä¸‰', 'å‘¨å››', 'å‘¨äº”', 'å‘¨å…­'][d.getDay()];
+  if (diff === 1) return '×òÌì';
+  if (diff < 7) return ['ÖÜÈÕ', 'ÖÜÒ»', 'ÖÜ¶ş', 'ÖÜÈı', 'ÖÜËÄ', 'ÖÜÎå', 'ÖÜÁù'][d.getDay()];
   return (d.getMonth() + 1) + '/' + d.getDate();
 }
 
@@ -3054,26 +3054,26 @@ function stopCallRingtone() {
   if (callRingtoneTimer) { clearInterval(callRingtoneTimer); callRingtoneTimer = null; }
 }
 function showMessageNotice(m, name) {
-  const text = String(m.content || '').startsWith('__FILE__') ? 'æ”¶åˆ°ä¸€ä¸ªæ–‡ä»¶' : String(m.content || '').slice(0, 240);
+  const text = String(m.content || '').startsWith('__FILE__') ? 'ÊÕµ½Ò»¸öÎÄ¼ş' : String(m.content || '').slice(0, 240);
   playMessageNoticeSound();
   const stack = $('messageNoticeStack');
   if (stack) {
     const item = document.createElement('div'); item.className = 'message-notice';
-    item.innerHTML = '<strong>' + escapeHtml(name || 'æ–°æ¶ˆæ¯') + '</strong><span>' + escapeHtml(text || 'æ”¶åˆ°æ–°æ¶ˆæ¯') + '</span>';
+    item.innerHTML = '<strong>' + escapeHtml(name || 'ĞÂÏûÏ¢') + '</strong><span>' + escapeHtml(text || 'ÊÕµ½ĞÂÏûÏ¢') + '</span>';
     item.onclick = () => { if (state.activePeer !== m.from) selectPeer(m.from); item.remove(); };
     stack.appendChild(item); setTimeout(() => item.remove(), 6500);
   }
   if ('Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(name || 'æ–°æ¶ˆæ¯', { body: text || 'æ”¶åˆ°æ–°æ¶ˆæ¯', tag: 'securechat-' + m.from }); } catch {}
+    try { new Notification(name || 'ĞÂÏûÏ¢', { body: text || 'ÊÕµ½ĞÂÏûÏ¢', tag: 'securechat-' + m.from }); } catch {}
   }
-  if (window.chatAPI) window.chatAPI.notify(name + ' å‘æ¥æ¶ˆæ¯', text);
+  if (window.chatAPI) window.chatAPI.notify(name + ' ·¢À´ÏûÏ¢', text);
 }
 
-// ============ æ”¶æ¶ˆæ¯ ============
-// å®æ—¶å›åŒ…ï¼šè‹¥æ˜¯å…¶å®ƒç«¯å‘çš„ 0x02 åŒæ£˜è½®å¯†æ–‡ï¼Œå…ˆåš E2E è§£å¯†å†è¿›å…¥å±•ç¤ºé€»è¾‘ã€‚
+// ============ ÊÕÏûÏ¢ ============
+// ÊµÊ±»Ø°ü£ºÈôÊÇÆäËü¶Ë·¢µÄ 0x02 Ë«¼¬ÂÖÃÜÎÄ£¬ÏÈ×ö E2E ½âÃÜÔÙ½øÈëÕ¹Ê¾Âß¼­¡£
 async function maybeDecryptLive(m) {
   if (!m || typeof m.content !== 'string') return;
-  if (m.from === state.me.id) return; // è‡ªå·±å‘çš„ï¼ˆå›å£°ï¼‰ç”± sentPlain æ›¿æ¢ï¼Œä¸é‡å¤è§£å¯†
+  if (m.from === state.me.id) return; // ×Ô¼º·¢µÄ£¨»ØÉù£©ÓÉ sentPlain Ìæ»»£¬²»ÖØ¸´½âÃÜ
   if (!window.SCE2EE || !SCE2EE.isRatchetCipher(m.content)) return;
   try {
     const plain = await SCE2EE.decryptFrom(m.from, m.content);
@@ -3083,28 +3083,28 @@ async function maybeDecryptLive(m) {
   } catch {}
 }
 async function onIncomingMsg(m) {
-  // æ˜æ–‡æ¨¡å¼ï¼šä¸å†åš E2EE è§£å¯†ï¼Œç›´æ¥æ˜¾ç¤ºåŸæ–‡ã€‚
+  // Ã÷ÎÄÄ£Ê½£º²»ÔÙ×ö E2EE ½âÃÜ£¬Ö±½ÓÏÔÊ¾Ô­ÎÄ¡£
   if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
     m.content = state.sentPlain[m.clientMsgId];
     delete state.sentPlain[m.clientMsgId];
   }
   if (m.from === state.me.id && m.clientMsgId && state.pendingLocal[m.clientMsgId]) {
     delete state.pendingLocal[m.clientMsgId];
-    // å·²ä¹è§‚æ¸²æŸ“è¿‡ï¼šä»…è¡¥æœåŠ¡ç«¯ idï¼ˆappendMessage å†…éƒ¨æŒ‰ data-cmid å‘½ä¸­å¹¶å›å¡«ï¼‰ï¼Œä¸æ–°å¢è¡Œ
+    // ÒÑÀÖ¹ÛäÖÈ¾¹ı£º½ö²¹·şÎñ¶Ë id£¨appendMessage ÄÚ²¿°´ data-cmid ÃüÖĞ²¢»ØÌî£©£¬²»ĞÂÔöĞĞ
     appendMessage(m);
     state.lastFrom[m.from] = m.content;
     state.lastMsgTime[m.from] = m.createdAt || Date.now();
     renderContacts();
     return;
   }
-  // æœåŠ¡ç«¯ä¼šå›æ˜¾å‘é€è€…è‡ªå·±çš„æ¶ˆæ¯ï¼›è‡ªå·±çš„æ¶ˆæ¯ä¹Ÿå¿…é¡»æ¸²æŸ“åˆ°å½“å‰ä¼šè¯ã€‚
+  // ·şÎñ¶Ë»á»ØÏÔ·¢ËÍÕß×Ô¼ºµÄÏûÏ¢£»×Ô¼ºµÄÏûÏ¢Ò²±ØĞëäÖÈ¾µ½µ±Ç°»á»°¡£
   if (m.from === state.me.id || state.activePeer === m.from) {
     appendMessage(m);
     if (m.from !== state.me.id) send(P.C_READ, { from: m.from });
   } else {
     state.unread[m.from] = (state.unread[m.from] || 0) + 1;
     const fromUser = state.friends.find(u => u.id === m.from);
-    const name = fromUser ? fromUser.nickname : 'æ–°æ¶ˆæ¯';
+    const name = fromUser ? fromUser.nickname : 'ĞÂÏûÏ¢';
     showMessageNotice(m, name);
   }
   state.lastFrom[m.from] = m.content;
@@ -3112,8 +3112,8 @@ async function onIncomingMsg(m) {
   renderContacts();
 }
 
-// ============ å‘é€ ============
-// E2E åŠ å¯†è¾…åŠ©ï¼šè‹¥ SCE2EE å°±ç»ªåˆ™åŠ å¯†ï¼Œå¤±è´¥é™çº§æ˜æ–‡
+// ============ ·¢ËÍ ============
+// E2E ¼ÓÃÜ¸¨Öú£ºÈô SCE2EE ¾ÍĞ÷Ôò¼ÓÃÜ£¬Ê§°Ü½µ¼¶Ã÷ÎÄ
 async function _e2eeSendContent(peerId, text) {
   if (!peerId || !text) return text;
   if (window.SCE2EE) {
@@ -3133,7 +3133,7 @@ function sendCurrent() {
   state.pendingLocal[clientMsgId] = true;
   input.value = '';
   saveCurrentDraft();
-  // UI å…ˆå±•ç¤ºæ˜æ–‡ï¼›å®é™…å­˜å‚¨èµ°åŠ å¯†å†…å®¹
+  // UI ÏÈÕ¹Ê¾Ã÷ÎÄ£»Êµ¼Ê´æ´¢×ß¼ÓÃÜÄÚÈİ
   const localCreatedAt = Date.now();
   state.lastFrom[peerId] = text;
   state.lastMsgTime[peerId] = localCreatedAt;
@@ -3146,11 +3146,11 @@ function sendCurrent() {
       body: JSON.stringify(payload)
     }).then(async (res) => {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'å‘é€å¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '·¢ËÍÊ§°Ü');
       delete state.pendingLocal[clientMsgId];
-    }).catch((e) => toast('æ¶ˆæ¯ä¿å­˜å¤±è´¥ï¼š' + e.message, 'error'));
+    }).catch((e) => toast('ÏûÏ¢±£´æÊ§°Ü£º' + e.message, 'error'));
   }).catch(() => {
-    // åŠ å¯†å¤±è´¥é™çº§æ˜æ–‡
+    // ¼ÓÃÜÊ§°Ü½µ¼¶Ã÷ÎÄ
     const payload = { to: peerId, content: text, clientMsgId };
     fetch(state.serverHost + '/api/messages', {
       method: 'POST',
@@ -3158,15 +3158,15 @@ function sendCurrent() {
       body: JSON.stringify(payload)
     }).then(async (res) => {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'å‘é€å¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '·¢ËÍÊ§°Ü');
       delete state.pendingLocal[clientMsgId];
-    }).catch((e) => toast('æ¶ˆæ¯ä¿å­˜å¤±è´¥ï¼š' + e.message, 'error'));
+    }).catch((e) => toast('ÏûÏ¢±£´æÊ§°Ü£º' + e.message, 'error'));
   });
 }
 
 $('sendBtn').type = 'button';
 $('sendBtn').onclick = (event) => { event.preventDefault(); sendCurrent(); };
-// æ¡Œé¢ç«¯å‘é€æŒ‰é’®
+// ×ÀÃæ¶Ë·¢ËÍ°´Å¥
 const desktopSendBtnEl = document.getElementById('desktopSendBtn');
 if (desktopSendBtnEl) { desktopSendBtnEl.type = 'button'; desktopSendBtnEl.onclick = (event) => { event.preventDefault(); sendCurrent(); }; }
 $('input').addEventListener('keydown', (e) => {
@@ -3192,19 +3192,19 @@ if (desktopInput) desktopInput.addEventListener('input', () => {
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
 });
 
-// æœ¬åœ°ä¸»é¢˜åˆ‡æ¢ï¼Œä¸å½±å“è´¦å·å’ŒèŠå¤©æ•°æ®
+// ±¾µØÖ÷ÌâÇĞ»»£¬²»Ó°ÏìÕËºÅºÍÁÄÌìÊı¾İ
 const themeToggle = $('themeToggle');
 const savedTheme = localStorage.getItem('sc_theme');
 if (savedTheme === 'dark') document.body.classList.add('dark-mode');
 if (themeToggle) themeToggle.onclick = () => {
   const dark = document.body.classList.toggle('dark-mode');
   localStorage.setItem('sc_theme', dark ? 'dark' : 'light');
-  themeToggle.textContent = dark ? t('light', 'æ—¥') : t('dark', 'å¤œ');
+  themeToggle.textContent = dark ? t('light', 'ÈÕ') : t('dark', 'Ò¹');
 };
-if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', 'æ—¥');
+if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', 'ÈÕ');
 
-// ============ è¯­è¨€åˆ‡æ¢æµ®å±‚ ============
-// ç‚¹å‡»ä¾§è¾¹æ åº•éƒ¨ localeToggle å¼¹å‡ºè¯­è¨€é€‰æ‹©èœå•ï¼›é€‰æ‹©åäº¤ç»™ SCI18N.setLocaleã€‚
+// ============ ÓïÑÔÇĞ»»¸¡²ã ============
+// µã»÷²à±ßÀ¸µ×²¿ localeToggle µ¯³öÓïÑÔÑ¡Ôñ²Ëµ¥£»Ñ¡Ôñºó½»¸ø SCI18N.setLocale¡£
 const localeToggle = $('localeToggle');
 let localeMenu = null;
 function closeLocaleMenu() {
@@ -3232,39 +3232,39 @@ function openLocaleMenu() {
     };
     menu.appendChild(item);
   });
-  // å®šä½äº¤ç»™ CSSï¼ˆ.locale-menu fixed å®šä½åˆ°å±å¹•å·¦ä¸‹ã€rail åº•éƒ¨ä¸Šæ–¹ï¼‰ã€‚
-  // å…³é”®ï¼šåŠ  .open class æ‰ä¼šæŠŠ display:none å˜ä¸º flexï¼Œèœå•æ‰å¯è§ã€‚
+  // ¶¨Î»½»¸ø CSS£¨.locale-menu fixed ¶¨Î»µ½ÆÁÄ»×óÏÂ¡¢rail µ×²¿ÉÏ·½£©¡£
+  // ¹Ø¼ü£º¼Ó .open class ²Å»á°Ñ display:none ±äÎª flex£¬²Ëµ¥²Å¿É¼û¡£
   menu.classList.add('open');
   document.body.appendChild(menu);
   localeMenu = menu;
   document.addEventListener('keydown', onLocaleMenuEsc, true);
 }
 if (localeToggle) localeToggle.onclick = (e) => { e.stopPropagation(); openLocaleMenu(); };
-// ç‚¹å‡»æµ®å±‚å¤–å…³é—­
+// µã»÷¸¡²ãÍâ¹Ø±Õ
 document.addEventListener('click', (e) => {
   if (!localeMenu) return;
   if (localeMenu.contains(e.target) || e.target === localeToggle) return;
   closeLocaleMenu();
 });
-// åˆ‡æ¢è¯­è¨€åï¼šé‡æ–°æ¸²æŸ“è´¦æˆ·å¡ / é‡æ–°ç¿»è¯‘é™æ€ DOM / åŒæ­¥ä¸»é¢˜æŒ‰é’®æ–‡æ¡ˆ
+// ÇĞ»»ÓïÑÔºó£ºÖØĞÂäÖÈ¾ÕË»§¿¨ / ÖØĞÂ·­Òë¾²Ì¬ DOM / Í¬²½Ö÷Ìâ°´Å¥ÎÄ°¸
 document.addEventListener('sc-locale-change', () => {
   if (state.me) renderMyInfo();
-  // åˆ·æ–° chatHeader é™æ€æ–‡æ¡ˆï¼ˆå¦‚â€œè¯·é€‰æ‹©è”ç³»äººâ€ï¼‰
-  if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', 'è¯·é€‰æ‹©è”ç³»äºº');
+  // Ë¢ĞÂ chatHeader ¾²Ì¬ÎÄ°¸£¨Èç¡°ÇëÑ¡ÔñÁªÏµÈË¡±£©
+  if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', 'ÇëÑ¡ÔñÁªÏµÈË');
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply();
-  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', 'æ—¥') : t('dark', 'å¤œ');
+  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', 'ÈÕ') : t('dark', 'Ò¹');
 });
 
 window.addEventListener('focus', () => { if (window.chatAPI) window.chatAPI.stopFlash(); });
 
-// ============ å·¥å…· ============
+// ============ ¹¤¾ß ============
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
     '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
   }[c]));
 }
 
-// ============ WebRTCï¼šæ–‡ä»¶ / è¯­éŸ³ / è§†é¢‘ ============
+// ============ WebRTC£ºÎÄ¼ş / ÓïÒô / ÊÓÆµ ============
 let rtc, callPeer = null, callKind = null, incomingCall = null, localStream = null;
 let pendingRemoteStream = null;
 let callRecorder = null, callRecordChunks = [], callRecordStartedAt = 0;
@@ -3275,13 +3275,13 @@ function renderCallReplays() {
   if (!box) return;
   if (!callRecordings.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = '';
-  box.innerHTML = '<strong>é€šè¯å›æ”¾</strong>' + callRecordings.map((r, i) => '<div class="call-replay"><span>' + escapeHtml(r.kind === 'video' ? 'è§†é¢‘' : 'è¯­éŸ³') + ' ' + new Date(r.createdAt).toLocaleString() + '</span><a href="' + r.url + '" target="_blank">æ’­æ”¾/ä¸‹è½½</a></div>').join('');
+  box.innerHTML = '<strong>Í¨»°»Ø·Å</strong>' + callRecordings.map((r, i) => '<div class="call-replay"><span>' + escapeHtml(r.kind === 'video' ? 'ÊÓÆµ' : 'ÓïÒô') + ' ' + new Date(r.createdAt).toLocaleString() + '</span><a href="' + r.url + '" target="_blank">²¥·Å/ÏÂÔØ</a></div>').join('');
 }
 async function loadCallReplays(peerId) {
   try {
     const res = await fetch(state.serverHost + '/api/call-recordings?peer=' + encodeURIComponent(peerId), { headers: { 'Authorization': 'Bearer ' + state.token } });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'åŠ è½½å›æ”¾å¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '¼ÓÔØ»Ø·ÅÊ§°Ü');
     callRecordings = (data.recordings || []).map(r => ({ ...r, url: state.serverHost + '/api/call-recordings/' + encodeURIComponent(r.id) }));
     renderCallReplays();
   } catch (e) { callRecordings = []; renderCallReplays(); }
@@ -3302,7 +3302,7 @@ function startCallRecording(remoteStream) {
       const peerId = callPeer;
       fetch(state.serverHost + '/api/call-recordings?to=' + encodeURIComponent(peerId) + '&kind=' + encodeURIComponent(kind), { method: 'POST', body: blob, headers: { 'Content-Type': 'video/webm', 'Authorization': 'Bearer ' + state.token } })
         .then(() => loadCallReplays(peerId))
-        .catch((e) => toast('å›æ”¾ä¸Šä¼ å¤±è´¥ï¼š' + e.message, 'error'));
+        .catch((e) => toast('»Ø·ÅÉÏ´«Ê§°Ü£º' + e.message, 'error'));
       callRecorder = null; callRecordChunks = [];
     };
     callRecorder.start(1000);
@@ -3312,17 +3312,17 @@ function stopCallRecording() {
   if (callRecorder && callRecorder.state !== 'inactive') callRecorder.stop();
 }
 
-// é€šè¯è¶…æ—¶/æ¢å¤/è¿œç«¯ç”»é¢æ˜¾ç¤ºï¼ˆé¡¶å±‚å‡½æ•°ï¼Œä¾› initRtc äº‹ä»¶ä¸é€šè¯æŒ‰é’®å…±ç”¨ï¼‰
+// Í¨»°³¬Ê±/»Ö¸´/Ô¶¶Ë»­ÃæÏÔÊ¾£¨¶¥²ãº¯Êı£¬¹© initRtc ÊÂ¼şÓëÍ¨»°°´Å¥¹²ÓÃ£©
 let callTimer = null;
 function clearCallTimer() { if (callTimer) { clearTimeout(callTimer); callTimer = null; } }
 function startCallTimer() {
-  // è‹¥å·²æœ‰è®¡æ—¶å™¨æˆ–å·²æ¥é€šåˆ™ä¸é‡å¤
+  // ÈôÒÑÓĞ¼ÆÊ±Æ÷»òÒÑ½ÓÍ¨Ôò²»ÖØ¸´
   if (callTimer) return;
   callTimer = setTimeout(() => {
     callTimer = null;
-    // 8 ç§’åä»æœªæ¢å¤åˆ™å…³é—­é€šè¯
+    // 8 ÃëºóÈÔÎ´»Ö¸´Ôò¹Ø±ÕÍ¨»°
     closeCallBar();
-    toast('ç½‘ç»œè¿æ¥ä¸­æ–­ï¼Œé€šè¯å·²ç»“æŸ', 'warn');
+    toast('ÍøÂçÁ¬½ÓÖĞ¶Ï£¬Í¨»°ÒÑ½áÊø', 'warn');
   }, 8000);
 }
 function startCallTimeout() {
@@ -3330,25 +3330,25 @@ function startCallTimeout() {
   callTimer = setTimeout(() => {
     callTimer = null;
     if (callPeer && !incomingCall) {
-      toast('å¯¹æ–¹æ— å“åº”ï¼Œé€šè¯è¶…æ—¶', 'warn');
+      toast('¶Ô·½ÎŞÏìÓ¦£¬Í¨»°³¬Ê±', 'warn');
       closeCallBar();
       if (rtc && callPeer) rtc.hangup(callPeer);
     }
   }, 30000);
 }
 function maybeShowRemote(peerId) {
-  // æ˜¾ç¤ºè§„åˆ™ï¼šå¿…é¡»å·²"æ¥é€š"â€”â€”incomingCall=nullï¼ˆå·²æ¥å¬ï¼Œä»æ¥ç”µçŠ¶æ€è¿‡æ¸¡ï¼‰
-  // ä¸”å½“å‰ callPeer = è¯¥ peerï¼›æˆ–ä¸»åŠ¨å‘¼å‡ºæ–¹æ— éœ€"æ¥å¬"åŠ¨ä½œï¼Œå¯¹æ–¹ä¸€æ­ä¸Šå°±æ˜¾ç¤º
+  // ÏÔÊ¾¹æÔò£º±ØĞëÒÑ"½ÓÍ¨"¡ª¡ªincomingCall=null£¨ÒÑ½ÓÌı£¬´ÓÀ´µç×´Ì¬¹ı¶É£©
+  // ÇÒµ±Ç° callPeer = ¸Ã peer£»»òÖ÷¶¯ºô³ö·½ÎŞĞè"½ÓÌı"¶¯×÷£¬¶Ô·½Ò»´îÉÏ¾ÍÏÔÊ¾
   if (!pendingRemoteStream) return;
   if (!callPeer) return;
-  // ä¸»å‘¼æ–¹ï¼šincomingCall ä¸€ç›´ä¸º null å³å¯æ˜¾ç¤º
-  // è¢«å‘¼æ–¹ï¼šå¿…é¡» incomingCall=nullï¼ˆå·² acceptIncomingCall æ¸…ç©ºï¼‰
-  if (incomingCall) return; // è¿˜åœ¨å¾…æ¥å¬
+  // Ö÷ºô·½£ºincomingCall Ò»Ö±Îª null ¼´¿ÉÏÔÊ¾
+  // ±»ºô·½£º±ØĞë incomingCall=null£¨ÒÑ acceptIncomingCall Çå¿Õ£©
+  if (incomingCall) return; // »¹ÔÚ´ı½ÓÌı
   const v = $('remoteVideo');
   if (!v) return;
   v.srcObject = pendingRemoteStream;
   v.style.display = '';
-  // WebView é»˜è®¤ç¦æ­¢æ— æ‰‹åŠ¿è‡ªåŠ¨æ’­æ”¾ï¼Œå¿…é¡»æ˜¾å¼ play()ï¼Œå¦åˆ™æ¥é€šåæ— å£°/æ— ç”»é¢
+  // WebView Ä¬ÈÏ½ûÖ¹ÎŞÊÖÊÆ×Ô¶¯²¥·Å£¬±ØĞëÏÔÊ½ play()£¬·ñÔò½ÓÍ¨ºóÎŞÉù/ÎŞ»­Ãæ
   try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
   if (callKind === 'video') $('callBar').classList.add('with-video');
   $('callBar').style.display = 'flex';
@@ -3364,7 +3364,7 @@ function initRtc() {
     window.rtc = rtc;
   }
   window.addEventListener('rtc-remote-stream', (e) => {
-    // æœªæ¥å¬æ—¶æš‚å­˜ï¼Œä¸æŒ‚åˆ° UI
+    // Î´½ÓÌıÊ±Ôİ´æ£¬²»¹Òµ½ UI
     pendingRemoteStream = e.detail.stream;
     startCallRecording(e.detail.stream);
     maybeShowRemote(e.detail.peerId);
@@ -3373,32 +3373,32 @@ function initRtc() {
     if (e.detail.state === 'connected') { clearCallTimer(); stopCallDuration(); maybeShowRemote(e.detail.peerId); }
     if (e.detail.state === 'failed') {
       clearCallTimer(); stopCallDuration();
-      toast('é€šè¯è¿æ¥å¤±è´¥ï¼šè¯·ç¡®è®¤åŒæ–¹ç½‘ç»œå¯äº’é€šï¼ˆNAT/é˜²ç«å¢™é™åˆ¶ï¼‰', 'error', 3000);
+      toast('Í¨»°Á¬½ÓÊ§°Ü£ºÇëÈ·ÈÏË«·½ÍøÂç¿É»¥Í¨£¨NAT/·À»ğÇ½ÏŞÖÆ£©', 'error', 3000);
       closeCallBar();
       if (rtc && callPeer) rtc.hangup(callPeer);
     }
     if (e.detail.state === 'closed') { clearCallTimer(); stopCallDuration(); closeCallBar(); }
-    // disconnectedï¼šä¸ç«‹å³å…³é—­ï¼Œç­‰å¾…æ¢å¤ï¼›è¶…è¿‡ 8s ä» disconnected åˆ™æŒ‰å¤±è´¥å¤„ç†
+    // disconnected£º²»Á¢¼´¹Ø±Õ£¬µÈ´ı»Ö¸´£»³¬¹ı 8s ÈÔ disconnected Ôò°´Ê§°Ü´¦Àí
     if (e.detail.state === 'disconnected') startCallTimer();
   });
   window.addEventListener('call-incoming', (e) => {
     clearCallTimer();
     startCallRingtone();
     incomingCall = { from: e.detail.from, kind: e.detail.kind };
-    $('callText').textContent = (e.detail.kind === 'video' ? 'è§†é¢‘' : 'è¯­éŸ³') + 'æ¥ç”µï¼ˆæ¥è‡ªç”¨æˆ· ' + e.detail.from + 'ï¼‰';
+    $('callText').textContent = (e.detail.kind === 'video' ? 'ÊÓÆµ' : 'ÓïÒô') + 'À´µç£¨À´×ÔÓÃ»§ ' + e.detail.from + '£©';
     $('acceptCallBtn').style.display = ''; $('rejectCallBtn').style.display = ''; $('hangupBtn').style.display = 'none';
     $('callBar').classList.remove('with-video'); $('callBar').style.display = 'flex';
     callTimer = setTimeout(() => {
       if (incomingCall) rejectIncomingCall();
     }, 30000);
   });
-  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('å¯¹æ–¹å·²æ‹’ç»', 'warn'); closeCallBar(); });
-  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('å¯¹æ–¹ä¸åœ¨çº¿', 'warn'); closeCallBar(); });
-  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('å¯¹æ–¹å·²æŒ‚æ–­', 'info'); closeCallBar(); });
-  window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = 'æ¥æ”¶ï¼š' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
+  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('¶Ô·½ÒÑ¾Ü¾ø', 'warn'); closeCallBar(); });
+  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('¶Ô·½²»ÔÚÏß', 'warn'); closeCallBar(); });
+  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('¶Ô·½ÒÑ¹Ò¶Ï', 'info'); closeCallBar(); });
+  window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '½ÓÊÕ£º' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {
-    $('fileText').textContent = 'å·²æ¥æ”¶ï¼š' + e.detail.name; setProgress(1);
+    $('fileText').textContent = 'ÒÑ½ÓÊÕ£º' + e.detail.name; setProgress(1);
     appendFileMsg(true, e.detail.name, e.detail.size, e.detail.url);
     setTimeout(() => $('fileBar').style.display = 'none', 4000);
   });
@@ -3410,24 +3410,24 @@ async function loadMiniPrograms() {
   try {
     const res = await fetch(state.serverHost + '/api/mini-programs', { headers: { Authorization: 'Bearer ' + state.token } });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'åŠ è½½å¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '¼ÓÔØÊ§°Ü');
     list.innerHTML = '';
     (data.programs || []).forEach((program) => {
       const item = document.createElement('button');
       item.type = 'button'; item.className = 'mini-program-item';
       item.innerHTML = '<strong>' + escapeHtml(program.name) + '</strong><span>v' + escapeHtml(program.version) + '</span>';
       item.onclick = () => {
-        if (!String(program.entry).startsWith('/mini-programs/')) return toast('å°ç¨‹åºå…¥å£ä¸å—ä¿¡ä»»', 'error');
+        if (!String(program.entry).startsWith('/mini-programs/')) return toast('Ğ¡³ÌĞòÈë¿Ú²»ÊÜĞÅÈÎ', 'error');
         window.open(state.serverHost + program.entry, '_blank', 'noopener');
       };
       list.appendChild(item);
     });
-  } catch (e) { list.textContent = 'å°ç¨‹åºæš‚ä¸å¯ç”¨'; }
+  } catch (e) { list.textContent = 'Ğ¡³ÌĞòÔİ²»¿ÉÓÃ'; }
 }
 function setProgress(r) { $('fileProgress').style.width = Math.round(r * 100) + '%'; }
 function humanSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1)+' KB'; if (b < 1073741824) return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }
 
-// é€šè¯æ—¶é•¿è®¡æ—¶ï¼ˆæ¥é€šåæ˜¾ç¤º é€šè¯ä¸­ MM:SSï¼‰
+// Í¨»°Ê±³¤¼ÆÊ±£¨½ÓÍ¨ºóÏÔÊ¾ Í¨»°ÖĞ MM:SS£©
 let durationTimer = null;
 let callStartAt = 0;
 function showCallDuration() {
@@ -3438,14 +3438,14 @@ function showCallDuration() {
     const s = Math.floor((Date.now() - callStartAt) / 1000);
     const mm = String(Math.floor(s / 60)).padStart(2, '0');
     const ss = String(s % 60).padStart(2, '0');
-    $('callText').textContent = 'é€šè¯ä¸­ ' + mm + ':' + ss;
+    $('callText').textContent = 'Í¨»°ÖĞ ' + mm + ':' + ss;
   }, 1000);
 }
 function stopCallDuration() {
   if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
 }
 
-// é‡Šæ”¾æœ¬åœ°åª’ä½“è®¾å¤‡ï¼ˆæ¯æ¬¡å‘èµ·/æ¥å¬/æŒ‚æ–­å‰è°ƒç”¨ï¼Œé˜²æ­¢"Device in use"ï¼‰
+// ÊÍ·Å±¾µØÃ½ÌåÉè±¸£¨Ã¿´Î·¢Æğ/½ÓÌı/¹Ò¶ÏÇ°µ÷ÓÃ£¬·ÀÖ¹"Device in use"£©
 function releaseLocalMedia() {
   if (localStream) {
     try { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); } catch (e) {}
@@ -3462,38 +3462,38 @@ function releaseLocalMedia() {
 
 function startOutgoingCall(kind) {
   stopCallRingtone();
-  if (!state.activePeer) return toast('è¯·å…ˆé€‰æ‹©è”ç³»äºº', 'warn');
-  // è‹¥æ­£åœ¨é€šè¯æˆ–è®¾å¤‡è¢«å ç”¨ï¼Œå…ˆå½»åº•é‡Šæ”¾
+  if (!state.activePeer) return toast('ÇëÏÈÑ¡ÔñÁªÏµÈË', 'warn');
+  // ÈôÕıÔÚÍ¨»°»òÉè±¸±»Õ¼ÓÃ£¬ÏÈ³¹µ×ÊÍ·Å
   releaseLocalMedia();
   if (rtc && callPeer) rtc.hangup(callPeer);
   callPeer = state.activePeer; callKind = kind;
   send(P.C_SIGNAL, { to: callPeer, sub: 'call', data: { kind } });
-  $('callText').textContent = 'æ­£åœ¨å‘¼å«(' + (kind==='video'?'è§†é¢‘':'è¯­éŸ³') + ')...';
+  $('callText').textContent = 'ÕıÔÚºô½Ğ(' + (kind==='video'?'ÊÓÆµ':'ÓïÒô') + ')...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   $('callBar').style.display = 'flex';
-  if (!window.getLocalStream) return toast('WebRTC ä¸å¯ç”¨', 'error');
+  if (!window.getLocalStream) return toast('WebRTC ²»¿ÉÓÃ', 'error');
   window.getLocalStream(kind).then((s) => {
     localStream = s;
     const v = $('localVideo'); if (v && kind==='video') v.srcObject = s;
     rtc.startCall(callPeer, kind, s);
     startCallTimeout();
-  }).catch((e) => { toast('æ— æ³•è·å–åª’ä½“ï¼š'+e.message, 'error'); closeCallBar(); });
+  }).catch((e) => { toast('ÎŞ·¨»ñÈ¡Ã½Ìå£º'+e.message, 'error'); closeCallBar(); });
 }
 async function acceptIncomingCall() {
   if (!incomingCall) {
-    toast('æ²¡æœ‰æ­£åœ¨å“é“ƒçš„æ¥ç”µï¼Œè¯·è®©å¯¹æ–¹é‡æ–°æ‹¨æ‰“', 'warn', 3000);
+    toast('Ã»ÓĞÕıÔÚÏìÁåµÄÀ´µç£¬ÇëÈÃ¶Ô·½ÖØĞÂ²¦´ò', 'warn', 3000);
     return;
   }
   stopCallRingtone();
   clearCallTimer();
   const pendingCall = incomingCall;
   callPeer = pendingCall.from; callKind = pendingCall.kind;
-  $('callText').textContent = 'é€šè¯ä¸­...';
+  $('callText').textContent = 'Í¨»°ÖĞ...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   try {
-    if (!window.getLocalStream) throw new Error('WebRTC ä¸å¯ç”¨');
-    $('callText').textContent = 'æ­£åœ¨è¯·æ±‚éº¦å…‹é£/æ‘„åƒå¤´æƒé™...';
-    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('æµè§ˆå™¨æƒé™è¯·æ±‚è¶…æ—¶ï¼Œè¯·å…è®¸æ‘„åƒå¤´å’Œéº¦å…‹é£æƒé™åé‡è¯•')), 12000));
+    if (!window.getLocalStream) throw new Error('WebRTC ²»¿ÉÓÃ');
+    $('callText').textContent = 'ÕıÔÚÇëÇóÂó¿Ë·ç/ÉãÏñÍ·È¨ÏŞ...';
+    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('ä¯ÀÀÆ÷È¨ÏŞÇëÇó³¬Ê±£¬ÇëÔÊĞíÉãÏñÍ·ºÍÂó¿Ë·çÈ¨ÏŞºóÖØÊÔ')), 12000));
     localStream = await Promise.race([window.getLocalStream(callKind), mediaTimeout]);
     incomingCall = null;
     const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream;
@@ -3502,10 +3502,10 @@ async function acceptIncomingCall() {
   } catch (e) {
     incomingCall = pendingCall;
     const code = e && e.code;
-    const isPerm = code === 'PERMISSION' || code === 'NOT_SUPPORTED' || /NotAllowed|Permission|denied|æ‹’ç»|å®‰å…¨/i.test(String(e && e.message || e && e.name || ''));
-    $('callText').textContent = isPerm ? 'éœ€è¦æ‘„åƒå¤´/éº¦å…‹é£æƒé™æ‰èƒ½æ¥å¬' : 'æ¥å¬å¤±è´¥ï¼Œè¯·é‡è¯•';
+    const isPerm = code === 'PERMISSION' || code === 'NOT_SUPPORTED' || /NotAllowed|Permission|denied|¾Ü¾ø|°²È«/i.test(String(e && e.message || e && e.name || ''));
+    $('callText').textContent = isPerm ? 'ĞèÒªÉãÏñÍ·/Âó¿Ë·çÈ¨ÏŞ²ÅÄÜ½ÓÌı' : '½ÓÌıÊ§°Ü£¬ÇëÖØÊÔ';
     $('acceptCallBtn').style.display=''; $('rejectCallBtn').style.display=''; $('hangupBtn').style.display='none';
-    toast((isPerm ? 'æœªæˆæƒåª’ä½“æƒé™ï¼šè¯·åœ¨æµè§ˆå™¨åœ°å€æ ç‚¹å‡» ğŸ”’ â†’ ç½‘ç«™è®¾ç½® â†’ å…è®¸"æ‘„åƒå¤´/éº¦å…‹é£"ï¼Œç„¶åé‡æ–°æ¥å¬' : 'æ— æ³•è·å–åª’ä½“ï¼š') + (e.message || e.name || ''), 'error', 5000);
+    toast((isPerm ? 'Î´ÊÚÈ¨Ã½ÌåÈ¨ÏŞ£ºÇëÔÚä¯ÀÀÆ÷µØÖ·À¸µã»÷ ?? ¡ú ÍøÕ¾ÉèÖÃ ¡ú ÔÊĞí"ÉãÏñÍ·/Âó¿Ë·ç"£¬È»ºóÖØĞÂ½ÓÌı' : 'ÎŞ·¨»ñÈ¡Ã½Ìå£º') + (e.message || e.name || ''), 'error', 5000);
     clearCallTimer();
     callTimer = setTimeout(() => { if (incomingCall === pendingCall) rejectIncomingCall(); }, 30000);
   }
@@ -3524,10 +3524,10 @@ function closeCallBar() {
   callPeer=null; callKind=null; incomingCall=null;
 }
 $('fileBtn').onclick = () => {
-  if (!state.activePeer && !state.activeGroup) return toast('è¯·å…ˆé€‰æ‹©è”ç³»äºº', 'warn');
+  if (!state.activePeer && !state.activeGroup) return toast('ÇëÏÈÑ¡ÔñÁªÏµÈË', 'warn');
   const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    $('fileBar').style.display=''; $('fileText').textContent='å‘é€ï¼š'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
+    $('fileBar').style.display=''; $('fileText').textContent='·¢ËÍ£º'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
     const upload = state.activeGroup
       ? fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/files?name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
           method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + state.token }
@@ -3537,14 +3537,14 @@ $('fileBtn').onclick = () => {
         });
     upload.then(async (res) => {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'ä¸Šä¼ å¤±è´¥');
+      if (!res.ok) throw new Error(data.error || 'ÉÏ´«Ê§°Ü');
       const meta = '__FILE__' + JSON.stringify({ id: data.id, name: data.name, size: data.size, mime: data.mime });
       const cmid = 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
       if (state.activeGroup) send(P.C_GROUP_MSG, { groupId: state.activeGroup, content: meta, clientMsgId: cmid });
       else send(P.C_MSG, { to: state.activePeer, content: meta, clientMsgId: cmid });
-      $('fileText').textContent='å·²å‘é€ï¼š'+f.name; setProgress(1);
+      $('fileText').textContent='ÒÑ·¢ËÍ£º'+f.name; setProgress(1);
       setTimeout(()=>$('fileBar').style.display='none',3000);
-    }).catch((e)=>{ $('fileText').textContent='å‘é€å¤±è´¥ï¼š'+e.message; toast('æ–‡ä»¶å‘é€å¤±è´¥ï¼š' + e.message, 'error'); });
+    }).catch((e)=>{ $('fileText').textContent='·¢ËÍÊ§°Ü£º'+e.message; toast('ÎÄ¼ş·¢ËÍÊ§°Ü£º' + e.message, 'error'); });
   }; inp.click();
 };
 function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
@@ -3552,33 +3552,33 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
   const isImage = mime && String(mime).startsWith('image/');
   if (isImage) {
-    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">å›¾</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="ç‚¹å‡»é¢„è§ˆ" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">Í¼</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="µã»÷Ô¤ÀÀ" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const img = row.querySelector('.file-image');
     fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
-      .then(r => { if (!r.ok) throw new Error('åŠ è½½å¤±è´¥'); return r.blob(); })
+      .then(r => { if (!r.ok) throw new Error('¼ÓÔØÊ§°Ü'); return r.blob(); })
       .then(b => { img.src = URL.createObjectURL(b); })
-      .catch(() => { img.alt = 'åŠ è½½å¤±è´¥'; });
+      .catch(() => { img.alt = '¼ÓÔØÊ§°Ü'; });
     img.onclick = () => openImagePreview(img.src, name, fileId, isGroup);
   } else {
-    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">æ–‡</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">ä¸‹è½½</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">ÎÄ</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">ÏÂÔØ</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const download = row.querySelector('.file-download');
     if (download) download.onclick = async () => {
       download.disabled = true;
       try {
         const res = await fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
-        if (!res.ok) throw new Error('ä¸‹è½½å¤±è´¥');
+        if (!res.ok) throw new Error('ÏÂÔØÊ§°Ü');
         const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } catch (e) { toast(e.message, 'error'); } finally { download.disabled = false; }
     };
   }
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 }
-// å›¾ç‰‡å…¨å±é¢„è§ˆï¼ˆå¾®ä¿¡å¼ï¼‰ï¼šç‚¹å‡»é®ç½©å…³é—­ï¼Œåº•éƒ¨æä¾›ä¸‹è½½
+// Í¼Æ¬È«ÆÁÔ¤ÀÀ£¨Î¢ĞÅÊ½£©£ºµã»÷ÕÚÕÖ¹Ø±Õ£¬µ×²¿Ìá¹©ÏÂÔØ
 function openImagePreview(src, name, fileId, isGroup) {
-  if (!src) { toast('å›¾ç‰‡å°šæœªåŠ è½½å®Œæˆ', 'warn', 1200); return; }
+  if (!src) { toast('Í¼Æ¬ÉĞÎ´¼ÓÔØÍê³É', 'warn', 1200); return; }
   const mask = document.createElement('div');
   mask.className = 'img-preview-mask';
-  mask.innerHTML = '<img class="img-preview-img" src="' + src + '" alt="' + escapeHtml(name) + '"><div class="img-preview-bar"><span>' + escapeHtml(name) + '</span><button type="button" class="img-preview-dl">ä¸‹è½½</button></div>';
+  mask.innerHTML = '<img class="img-preview-img" src="' + src + '" alt="' + escapeHtml(name) + '"><div class="img-preview-bar"><span>' + escapeHtml(name) + '</span><button type="button" class="img-preview-dl">ÏÂÔØ</button></div>';
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
   const dl = mask.querySelector('.img-preview-dl');
   if (dl) dl.onclick = async (e) => {
@@ -3586,9 +3586,9 @@ function openImagePreview(src, name, fileId, isGroup) {
     dl.disabled = true;
     try {
       const res = await fetch(state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
-      if (!res.ok) throw new Error('ä¸‹è½½å¤±è´¥');
+      if (!res.ok) throw new Error('ÏÂÔØÊ§°Ü');
       const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      toast('å·²å¼€å§‹ä¸‹è½½', 'success', 1200);
+      toast('ÒÑ¿ªÊ¼ÏÂÔØ', 'success', 1200);
     } catch (e) { toast(e.message, 'error'); } finally { dl.disabled = false; }
   };
   document.body.appendChild(mask);
@@ -3609,13 +3609,13 @@ $('hangupBtn').addEventListener('click', (event) => {
 });
 initRtc();
 
-// ============ è¯­éŸ³æ¶ˆæ¯ï¼ˆç‚¹ä¸€ä¸‹å¼€å§‹å½•éŸ³ï¼Œå†ç‚¹ä¸€ä¸‹å‘é€ï¼‰ ============
+// ============ ÓïÒôÏûÏ¢£¨µãÒ»ÏÂ¿ªÊ¼Â¼Òô£¬ÔÙµãÒ»ÏÂ·¢ËÍ£© ============
 let recState = null; // { mediaRec, stream, chunks, startTime, timer, canceled, el }
 const VOICE_PREFIX = '__VOICE__';
 
 async function startVoiceRec() {
   if (recState) return;
-  if (!state.activePeer) { toast('è¯·å…ˆé€‰æ‹©è”ç³»äºº', 'warn'); return; }
+  if (!state.activePeer) { toast('ÇëÏÈÑ¡ÔñÁªÏµÈË', 'warn'); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mr = new MediaRecorder(stream);
@@ -3629,9 +3629,9 @@ async function startVoiceRec() {
       const st = recState; recState = null;
       st.stream.getTracks().forEach(t => t.stop());
       if (canceled) { return; }
-      if (elapsed < 1) { toast('è¯­éŸ³å¤ªçŸ­', 'warn', 1000); return; }
+      if (elapsed < 1) { toast('ÓïÒôÌ«¶Ì', 'warn', 1000); return; }
       const blob = new Blob(chunks, { type: 'audio/webm' });
-      if (blob.size > 500 * 1024) { toast('è¯­éŸ³è¿‡é•¿ï¼ˆé™60ç§’ï¼‰', 'warn'); return; }
+      if (blob.size > 500 * 1024) { toast('ÓïÒô¹ı³¤£¨ÏŞ60Ãë£©', 'warn'); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result;
@@ -3639,7 +3639,7 @@ async function startVoiceRec() {
         const body = VOICE_PREFIX + elapsed.toFixed(1) + '|' + b64;
         const clientMsgId = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
         send(P.C_MSG, { to: state.activePeer, content: body, clientMsgId });
-        // è‡ªå·±ä¹Ÿå­˜ b64ï¼Œæ–¹ä¾¿ç‚¹æ’­æ”¾èƒ½å¬
+        // ×Ô¼ºÒ²´æ b64£¬·½±ãµã²¥·ÅÄÜÌı
         appendVoiceMsg(true, elapsed, b64);
       };
       reader.readAsDataURL(blob);
@@ -3653,11 +3653,11 @@ async function startVoiceRec() {
       if (!recState) return;
       const s = (Date.now() - recState.startTime) / 1000;
       $('recTime').textContent = s.toFixed(1) + 's';
-      // è¶…è¿‡ 60 ç§’è‡ªåŠ¨å‘
+      // ³¬¹ı 60 Ãë×Ô¶¯·¢
       if (s >= 60) stopVoiceRec();
     }, 100);
   } catch (e) {
-    toast('æ— æ³•è®¿é—®éº¦å…‹é£: ' + e.message, 'error');
+    toast('ÎŞ·¨·ÃÎÊÂó¿Ë·ç: ' + e.message, 'error');
   }
 }
 
@@ -3668,33 +3668,33 @@ function stopVoiceRec(cancel) {
   try { recState.mediaRec.stop(); } catch {}
   $('recBar').style.display = 'none';
   $('voiceTip').style.display = 'none';
-  // å¤ä½è¯­éŸ³æŒ‰é’®æ–‡å­—
+  // ¸´Î»ÓïÒô°´Å¥ÎÄ×Ö
   const btn = $('voiceBtn');
-  if (btn) { btn.classList.remove('recording'); btn.textContent = t('voice','è¯­éŸ³'); }
+  if (btn) { btn.classList.remove('recording'); btn.textContent = t('voice','ÓïÒô'); }
   document.dispatchEvent(new Event('recrecstate'));
 }
 
-// ç‚¹å‡»è¯­éŸ³æŒ‰é’® = å¼€å§‹å½•éŸ³ï¼›å†ç‚¹å‡» = å‘é€
+// µã»÷ÓïÒô°´Å¥ = ¿ªÊ¼Â¼Òô£»ÔÙµã»÷ = ·¢ËÍ
 (function bindVoiceButton() {
   const btn = $('voiceBtn');
   btn.addEventListener('click', () => {
     if (recState) {
-      stopVoiceRec(false); // å†ç‚¹ä¸€æ¬¡ = å‘é€
+      stopVoiceRec(false); // ÔÙµãÒ»´Î = ·¢ËÍ
     } else {
       startVoiceRec();
     }
   });
 })();
 
-// æµè§ˆå™¨è¯­éŸ³è½¬æ–‡å­—ï¼šä½¿ç”¨ Web Speech APIï¼Œè¯†åˆ«ç»“æœå†™å…¥æ™®é€šæ¶ˆæ¯è¾“å…¥æ¡†ã€‚
-// Chrome / Edge æ”¯æŒè¾ƒå¥½ï¼›ä¸æ”¯æŒæ—¶ç»™å‡ºæ¸…æ™°æç¤ºï¼Œä¸å½±å“è¯­éŸ³æ¶ˆæ¯åŠŸèƒ½ã€‚
+// ä¯ÀÀÆ÷ÓïÒô×ªÎÄ×Ö£ºÊ¹ÓÃ Web Speech API£¬Ê¶±ğ½á¹ûĞ´ÈëÆÕÍ¨ÏûÏ¢ÊäÈë¿ò¡£
+// Chrome / Edge Ö§³Ö½ÏºÃ£»²»Ö§³ÖÊ±¸ø³öÇåÎúÌáÊ¾£¬²»Ó°ÏìÓïÒôÏûÏ¢¹¦ÄÜ¡£
 (function bindSpeechToText() {
   const btn = $('speechBtn');
   if (!btn) return;
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Recognition) {
-    btn.title = 'å½“å‰æµè§ˆå™¨ä¸æ”¯æŒè¯­éŸ³è½¬æ–‡å­—';
-    btn.onclick = () => toast('å½“å‰æµè§ˆå™¨ä¸æ”¯æŒè¯­éŸ³è½¬æ–‡å­—ï¼Œè¯·ä½¿ç”¨æœ€æ–°ç‰ˆ Chrome æˆ– Edge', 'warn', 2200);
+    btn.title = 'µ±Ç°ä¯ÀÀÆ÷²»Ö§³ÖÓïÒô×ªÎÄ×Ö';
+    btn.onclick = () => toast('µ±Ç°ä¯ÀÀÆ÷²»Ö§³ÖÓïÒô×ªÎÄ×Ö£¬ÇëÊ¹ÓÃ×îĞÂ°æ Chrome »ò Edge', 'warn', 2200);
     return;
   }
   let recognition = null;
@@ -3709,7 +3709,7 @@ function stopVoiceRec(cancel) {
     baseText = $('input').value;
     active = true;
     btn.classList.add('transcribing');
-    btn.textContent = 'åœæ­¢è½¬å†™';
+    btn.textContent = 'Í£Ö¹×ªĞ´';
     let finalText = '';
     recognition.onresult = ev => {
       let interim = '';
@@ -3723,22 +3723,22 @@ function stopVoiceRec(cancel) {
     };
     recognition.onerror = ev => {
       if (ev.error !== 'aborted') {
-        const msg = ev.error === 'not-allowed' ? 'éº¦å…‹é£æƒé™è¢«æ‹’ç»ï¼Œè¯·åœ¨æµè§ˆå™¨åœ°å€æ å…è®¸éº¦å…‹é£æƒé™' : 'è¯­éŸ³è½¬æ–‡å­—å¤±è´¥ï¼š' + ev.error;
+        const msg = ev.error === 'not-allowed' ? 'Âó¿Ë·çÈ¨ÏŞ±»¾Ü¾ø£¬ÇëÔÚä¯ÀÀÆ÷µØÖ·À¸ÔÊĞíÂó¿Ë·çÈ¨ÏŞ' : 'ÓïÒô×ªÎÄ×ÖÊ§°Ü£º' + ev.error;
         toast(msg, 'warn', 2400);
       }
     };
     recognition.onend = () => {
       active = false;
       btn.classList.remove('transcribing');
-      btn.textContent = t('transcribe','è½¬æ–‡å­—');
+      btn.textContent = t('transcribe','×ªÎÄ×Ö');
       saveCurrentDraft();
     };
-    try { recognition.start(); toast('å¼€å§‹è¯­éŸ³è½¬æ–‡å­—ï¼Œå†æ¬¡ç‚¹å‡»å¯åœæ­¢', 'info', 1400); }
-    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','è½¬æ–‡å­—'); }
+    try { recognition.start(); toast('¿ªÊ¼ÓïÒô×ªÎÄ×Ö£¬ÔÙ´Îµã»÷¿ÉÍ£Ö¹', 'info', 1400); }
+    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','×ªÎÄ×Ö'); }
   };
 })();
 
-// å‘é€/æ”¶åˆ°è¯­éŸ³æ°”æ³¡
+// ·¢ËÍ/ÊÕµ½ÓïÒôÆøÅİ
 function appendVoiceMsg(mine, durationSec, b64) {
   const box = $('messages');
   const row = document.createElement('div');
@@ -3761,12 +3761,12 @@ function appendVoiceMsg(mine, durationSec, b64) {
       const orig = btn.textContent;
       btn.textContent = '\u23F8';
       audio.onended = () => { btn.textContent = orig; };
-      audio.onerror = () => { toast('æ’­æ”¾å¤±è´¥', 'error'); btn.textContent = orig; };
+      audio.onerror = () => { toast('²¥·ÅÊ§°Ü', 'error'); btn.textContent = orig; };
     };
   }
 }
 
-// åœ¨ onIncomingMsg / renderMessages é‡Œè¯†åˆ«å¹¶ç‰¹æ®Šå¤„ç† voice
+// ÔÚ onIncomingMsg / renderMessages ÀïÊ¶±ğ²¢ÌØÊâ´¦Àí voice
 const _orig_onIncomingMsg = onIncomingMsg;
 onIncomingMsg = function (m) {
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
@@ -3780,16 +3780,16 @@ onIncomingMsg = function (m) {
     } else {
       state.unread[m.from] = (state.unread[m.from] || 0) + 1;
       const fromUser = state.friends.find(u => u.id === m.from);
-      if (window.chatAPI) window.chatAPI.notify((fromUser ? fromUser.nickname : 'æ–°æ¶ˆæ¯') + ' å‘æ¥è¯­éŸ³', '');
+      if (window.chatAPI) window.chatAPI.notify((fromUser ? fromUser.nickname : 'ĞÂÏûÏ¢') + ' ·¢À´ÓïÒô', '');
     }
-    state.lastFrom[m.from] = '[è¯­éŸ³]';
+    state.lastFrom[m.from] = '[ÓïÒô]';
     renderContacts();
     return;
   }
   _orig_onIncomingMsg(m);
 };
 
-// å†å²ï¼šè¯†åˆ«è¯­éŸ³æ¶ˆæ¯æ ¼å¼ï¼ŒBåšæ˜¾ç¤ºï¼ˆæ—  b64 ä¸èƒ½æ’­ä½†æ˜¾ç¤ºæ—¶é•¿ï¼‰
+// ÀúÊ·£ºÊ¶±ğÓïÒôÏûÏ¢¸ñÊ½£¬B×öÏÔÊ¾£¨ÎŞ b64 ²»ÄÜ²¥µ«ÏÔÊ¾Ê±³¤£©
 const _orig_appendMessage = appendMessage;
 appendMessage = function (m, prepend) {
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
@@ -3803,7 +3803,7 @@ appendMessage = function (m, prepend) {
   _orig_appendMessage(m, prepend);
 };
 
-// ============ å¾®ä¿¡å¼ç§»åŠ¨ç«¯é¡µé¢å¯¼èˆª ============
+// ============ Î¢ĞÅÊ½ÒÆ¶¯¶ËÒ³Ãæµ¼º½ ============
 function showMobileChatView() {
   const chatView = document.getElementById('chatView');
   if (!chatView) return;
@@ -3855,30 +3855,30 @@ function showMobilePage(pageId) {
   if (chatComposer) chatComposer.style.display = 'none';
 }
 
-// å‘ç°é¡µæ¸²æŸ“ï¼ˆå¾®ä¿¡å¼åˆ—è¡¨ï¼‰
+// ·¢ÏÖÒ³äÖÈ¾£¨Î¢ĞÅÊ½ÁĞ±í£©
 function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
   const items = [
-    { name: 'æœ‹å‹åœˆ', icon: 'æœ‹å‹åœˆ', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('æœ‹å‹åœˆåŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'è§†é¢‘å·', icon: 'è§†é¢‘', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('è§†é¢‘å·åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'çœ‹ä¸€çœ‹', icon: 'çœ‹', action: () => { if (window.SecureChatRead) window.SecureChatRead.open(); else toast('çœ‹ä¸€çœ‹åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'æœä¸€æœ', icon: 'æœ', action: () => { if (window.SecureChatSearch) window.SecureChatSearch.open(); else toast('æœä¸€æœåŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'ç›´æ’­', icon: 'ç›´æ’­', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('ç›´æ’­åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'é™„è¿‘', icon: 'é™„', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('é™„è¿‘åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'è´­ç‰©', icon: 'è´­', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('è´­ç‰©åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'æ¸¸æˆ', icon: 'æ¸¸', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('æ¸¸æˆåŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'å°ç¨‹åº', icon: 'å°', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('å°ç¨‹åºåŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'AI åŠ©æ‰‹', icon: 'AI', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); } },
+    { name: 'ÅóÓÑÈ¦', icon: 'ÅóÓÑÈ¦', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('ÅóÓÑÈ¦¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'ÊÓÆµºÅ', icon: 'ÊÓÆµ', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('ÊÓÆµºÅ¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: '¿´Ò»¿´', icon: '¿´', action: () => { if (window.SecureChatRead) window.SecureChatRead.open(); else toast('¿´Ò»¿´¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'ËÑÒ»ËÑ', icon: 'ËÑ', action: () => { if (window.SecureChatSearch) window.SecureChatSearch.open(); else toast('ËÑÒ»ËÑ¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'Ö±²¥', icon: 'Ö±²¥', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('Ö±²¥¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: '¸½½ü', icon: '¸½', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('¸½½ü¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: '¹ºÎï', icon: '¹º', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('¹ºÎï¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'ÓÎÏ·', icon: 'ÓÎ', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('ÓÎÏ·¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'Ğ¡³ÌĞò', icon: 'Ğ¡', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('Ğ¡³ÌĞò¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'AI ÖúÊÖ', icon: 'AI', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); } },
   ];
-  // åˆ†ç»„ï¼šé¡¶éƒ¨å¸¸ç”¨ï¼Œä¸­é—´å°ç¨‹åºåŒº
+  // ·Ö×é£º¶¥²¿³£ÓÃ£¬ÖĞ¼äĞ¡³ÌĞòÇø
   const group1 = items.slice(0, 3);
   const group2 = items.slice(3);
   const itemHtml = (it, i) => `
     <div class="wx-discover-item" data-idx="${i}">
       <div class="wx-discover-icon">${it.icon}</div>
       <div class="wx-discover-name">${it.name}</div>
-      <span class="wx-discover-arrow">â€º</span>
+      <span class="wx-discover-arrow">?</span>
     </div>`;
   list.innerHTML = `
     <div class="wx-group">${group1.map((it, i) => itemHtml(it, i)).join('')}</div>
@@ -3888,7 +3888,7 @@ function renderDiscoverPage() {
   });
 }
 
-// æˆ‘çš„é¡µæ¸²æŸ“ï¼ˆå¾®ä¿¡å¼ï¼‰
+// ÎÒµÄÒ³äÖÈ¾£¨Î¢ĞÅÊ½£©
 function renderMePage() {
   if (!state.me) return;
   const header = document.getElementById('meHeaderContent');
@@ -3899,31 +3899,31 @@ function renderMePage() {
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
       <div class="me-name">${escapeHtml(state.me.nickname)}</div>
-      <div class="me-id">å¾®ä¿¡å·ï¼š${escapeHtml(state.me.uid || '')}</div>
+      <div class="me-id">Î¢ĞÅºÅ£º${escapeHtml(state.me.uid || '')}</div>
     </div>
-    <span class="me-qr" id="meQrBtn"><span class="wx-ico-sm">æ‰«</span></span>`;
+    <span class="me-qr" id="meQrBtn"><span class="wx-ico-sm">É¨</span></span>`;
   const qrBtn = document.getElementById('meQrBtn');
   if (qrBtn) qrBtn.onclick = () => openQrScanner();
 
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
 const services = [
-    { name: 'æ”¯ä»˜', icon: 'æ”¯ä»˜', action: () => {
+    { name: 'Ö§¸¶', icon: 'Ö§¸¶', action: () => {
       const pay = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
-      else toast('æ”¯ä»˜åŠŸèƒ½å¼€å‘ä¸­', 'info');
+      else toast('Ö§¸¶¹¦ÄÜ¿ª·¢ÖĞ', 'info');
     } },
-    { name: 'æ”¶è—', icon: 'â˜…', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('æ”¶è—åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'ç›¸å†Œ', icon: 'ç›¸', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('ç›¸å†ŒåŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'å¡åŒ…', icon: 'å¡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('å¡åŒ…åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'è¡¨æƒ…', icon: 'â˜º', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('è¡¨æƒ…åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'é»‘åå•', icon: 'é»‘', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
-    { name: 'æ›´å¤šåŠŸèƒ½', icon: 'æ›´', action: () => openFeatureCenter() },
-    { name: 'ä¸‹è½½', icon: 'ä¸‹', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
-    { name: 'æ„è§åé¦ˆ', icon: 'å', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('æ„è§åé¦ˆåŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
-    { name: 'è®¾ç½®', icon: 'è®¾', action: () => { if (window.openAiSettings) { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; window.openAiSettings(); } else toast('è®¾ç½®åŠŸèƒ½å¼€å‘ä¸­', 'info'); } },
+    { name: 'ÊÕ²Ø', icon: '¡ï', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('ÊÕ²Ø¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'Ïà²á', icon: 'Ïà', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('Ïà²á¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: '¿¨°ü', icon: '¿¨', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('¿¨°ü¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: '±íÇé', icon: '?', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('±íÇé¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'ºÚÃûµ¥', icon: 'ºÚ', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
+    { name: '¸ü¶à¹¦ÄÜ', icon: '¸ü', action: () => openFeatureCenter() },
+    { name: 'ÏÂÔØ', icon: 'ÏÂ', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
+    { name: 'Òâ¼û·´À¡', icon: '·´', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('Òâ¼û·´À¡¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
+    { name: 'ÉèÖÃ', icon: 'Éè', action: () => { if (window.openAiSettings) { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; window.openAiSettings(); } else toast('ÉèÖÃ¹¦ÄÜ¿ª·¢ÖĞ', 'info'); } },
   ];
-  // å¾®ä¿¡å¼åˆ†ç»„ï¼šç¬¬ä¸€ç»„ æ”¯ä»˜/æ”¶è—ï¼Œç¬¬äºŒç»„ ç›¸å†Œ/å¡åŒ…/è¡¨æƒ…ï¼Œç¬¬ä¸‰ç»„ æ›´å¤šåŠŸèƒ½/ä¸‹è½½/æ„è§åé¦ˆ/è®¾ç½®
+  // Î¢ĞÅÊ½·Ö×é£ºµÚÒ»×é Ö§¸¶/ÊÕ²Ø£¬µÚ¶ş×é Ïà²á/¿¨°ü/±íÇé£¬µÚÈı×é ¸ü¶à¹¦ÄÜ/ÏÂÔØ/Òâ¼û·´À¡/ÉèÖÃ
   svc.innerHTML = `
     <div class="wx-me-group">${services.slice(0, 2).map((s, i) => meItemHtml(s, i)).join('')}</div>
     <div class="wx-me-group">${services.slice(2, 5).map((s, i) => meItemHtml(s, i + 2)).join('')}</div>
@@ -3931,10 +3931,10 @@ const services = [
   svc.querySelectorAll('.wx-me-item').forEach((el, i) => { el.onclick = services[Number(el.dataset.si)].action; });
 }
 function meItemHtml(s, i) {
-  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">â€º</span></div>`;
+  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">?</span></div>`;
 }
 
-// é€šè®¯å½•é¡µæ¸²æŸ“
+// Í¨Ñ¶Â¼Ò³äÖÈ¾
 function renderContactsPage() {
   const kw = (document.getElementById('contactsSearch') || {}).value || '';
   const newFEl = document.getElementById('contactsNewFriends');
@@ -3942,19 +3942,19 @@ function renderContactsPage() {
   const alpEl = document.getElementById('contactsAlphabetSection');
   if (!newFEl || !grpEl || !alpEl) return;
 
-  // æ–°å¥½å‹ï¼ˆpending requestsï¼‰
+  // ĞÂºÃÓÑ£¨pending requests£©
   newFEl.innerHTML = state.pendingReq.length ? state.pendingReq.map(r => {
     const u = r.fromUser || {};
     return `<div class="contact" data-uid="${r.from}">
       <div class="avatar">${u.avatar ? '<img src="'+u.avatar+'">' : avatarChar(u.nickname)}</div>
       <div style="flex:1;overflow:hidden">
-        <div class="name">${escapeHtml(u.nickname || 'æœªçŸ¥')}</div>
+        <div class="name">${escapeHtml(u.nickname || 'Î´Öª')}</div>
         <div class="last">ID: ${escapeHtml(String(r.from))}</div>
       </div>
-      <button class="btn-cn" style="padding:4px 10px;font-size:12px;margin-right:4px" data-accept="${r.from}">æ¥å—</button>
-      <button class="btn-cn gray" style="padding:4px 10px;font-size:12px" data-reject="${r.from}">æ‹’ç»</button>
+      <button class="btn-cn" style="padding:4px 10px;font-size:12px;margin-right:4px" data-accept="${r.from}">½ÓÊÜ</button>
+      <button class="btn-cn gray" style="padding:4px 10px;font-size:12px" data-reject="${r.from}">¾Ü¾ø</button>
     </div>`;
-  }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">æš‚æ— æ–°å¥½å‹è¯·æ±‚</div>';
+  }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">ÔİÎŞĞÂºÃÓÑÇëÇó</div>';
   newFEl.querySelectorAll('[data-accept]').forEach(btn => {
     btn.onclick = () => {
       const uid = btn.dataset.accept;
@@ -3971,7 +3971,7 @@ function renderContactsPage() {
     };
   });
 
-  // æœ‹å‹ç¾¤
+  // ÅóÓÑÈº
   const friendGroups = state.groups.filter(g => {
     const m = (g.members || []);
     return m.some(mid => state.friends.some(f => f.id === mid));
@@ -3981,14 +3981,14 @@ function renderContactsPage() {
       <div class="avatar">${(g.name || '?').charAt(0).toUpperCase()}</div>
       <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(g.name)}</div>
-        <div class="last">${(g.members || []).length} æˆå‘˜</div>
+        <div class="last">${(g.members || []).length} ³ÉÔ±</div>
       </div>
-    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">æš‚æ— æœ‹å‹ç¾¤</div>';
+    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">ÔİÎŞÅóÓÑÈº</div>';
   grpEl.querySelectorAll('[data-gid]').forEach(btn => {
     btn.onclick = () => { const gid = parseInt(btn.dataset.gid); if (gid) selectGroup(gid); };
   });
 
-  // å­—æ¯ç´¢å¼•å¥½å‹
+  // ×ÖÄ¸Ë÷ÒıºÃÓÑ
   const allFriends = state.friends.filter(u =>
     !kw || (u.nickname || '').toLowerCase().includes(kw) ||
     (u.username || '').toLowerCase().includes(kw) ||
@@ -4010,7 +4010,7 @@ function renderContactsPage() {
           <div class="avatar">${u.avatar ? '<img src="'+u.avatar+'">' : avatarChar(u.nickname)}</div>
           <div style="flex:1;overflow:hidden">
             <div class="name">${escapeHtml(u.nickname)}</div>
-            <div class="last">${u.online ? '<span class="dot online"></span> åœ¨çº¿' : 'ç¦»çº¿'}</div>
+            <div class="last">${u.online ? '<span class="dot online"></span> ÔÚÏß' : 'ÀëÏß'}</div>
           </div>
         </div>`).join('')}
     </div>`).join('');
@@ -4033,12 +4033,12 @@ function renderContactsPage() {
   }
 }
 
-// ä¾§è¾¹æ  Tab é«˜äº®ï¼šrail æŒ‰é’® + ç§»åŠ¨ç«¯åº•éƒ¨å¯¼èˆªåŒæ­¥
+// ²à±ßÀ¸ Tab ¸ßÁÁ£ºrail °´Å¥ + ÒÆ¶¯¶Ëµ×²¿µ¼º½Í¬²½
 function setRailActive(side) {
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === side));
   if (typeof syncMobileNav === 'function') syncMobileNav(side);
 }
-// ä¾§è¾¹æ "å¾®ä¿¡"tab æœªè¯»æ€»æ•°è§’æ ‡ï¼ˆå…æ‰“æ‰°ä¼šè¯ä¸è®¡å…¥ï¼‰
+// ²à±ßÀ¸"Î¢ĞÅ"tab Î´¶Á×ÜÊı½Ç±ê£¨Ãâ´òÈÅ»á»°²»¼ÆÈë£©
 function updateUnreadBadge() {
   const prefs = chatPrefs();
   const total = Object.keys(state.unread || {}).reduce((a, k) => a + (prefs.muted['u:' + k] ? 0 : (state.unread[k] || 0)), 0)
@@ -4054,13 +4054,13 @@ function updateUnreadBadge() {
   badge.style.display = total > 0 ? 'flex' : 'none';
   badge.textContent = total > 99 ? '99+' : String(total);
 }
-// æ¡Œé¢ç«¯ï¼šèŠå¤©äººåˆ—è¡¨åªåœ¨ç‚¹å‡»"å¾®ä¿¡"æ—¶æ˜¾ç¤º
+// ×ÀÃæ¶Ë£ºÁÄÌìÈËÁĞ±íÖ»ÔÚµã»÷"Î¢ĞÅ"Ê±ÏÔÊ¾
 function setChatListVisible(show) {
   document.documentElement.classList.toggle('chat-list-hidden', !show);
 }
-// ä¾§è¾¹æ  Tab â†’ å¾®ä¿¡å¼é¡µé¢è·¯ç”±ï¼ˆå…¨ç«¯é€šç”¨ï¼‰
+// ²à±ßÀ¸ Tab ¡ú Î¢ĞÅÊ½Ò³ÃæÂ·ÓÉ£¨È«¶ËÍ¨ÓÃ£©
 (function initWechatMobileNav() {
-  // å‘ç° tab â†’ å¾®ä¿¡å¼å‘ç°é¡µ
+  // ·¢ÏÖ tab ¡ú Î¢ĞÅÊ½·¢ÏÖÒ³
   const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
   if (discoverTab) {
     discoverTab.onclick = (e) => {
@@ -4071,7 +4071,7 @@ function setChatListVisible(show) {
       showMobilePage('discoverPage');
     };
   }
-  // æˆ‘ tab â†’ æˆ‘çš„é¡µ
+  // ÎÒ tab ¡ú ÎÒµÄÒ³
   const meTab = document.querySelector('.sidebar-rail .side-tab[data-side="downloads"]');
   if (meTab) {
     meTab.onclick = (e) => {
@@ -4082,7 +4082,7 @@ function setChatListVisible(show) {
       showMobilePage('mePage');
     };
   }
-  // é€šè®¯å½• tab â†’ é€šè®¯å½•é¡µ
+  // Í¨Ñ¶Â¼ tab ¡ú Í¨Ñ¶Â¼Ò³
   const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="contacts"]');
   if (contactsTab) {
     contactsTab.onclick = (e) => {
@@ -4093,7 +4093,7 @@ function setChatListVisible(show) {
       showMobilePage('contactsPage');
     };
   }
-  // å¾®ä¿¡ tab â†’ åˆ‡å›èŠå¤©ä¸»ç•Œé¢ï¼ˆæ¡Œé¢ç«¯åŒæ—¶æ˜¾ç¤ºèŠå¤©äººåˆ—è¡¨ï¼‰
+  // Î¢ĞÅ tab ¡ú ÇĞ»ØÁÄÌìÖ÷½çÃæ£¨×ÀÃæ¶ËÍ¬Ê±ÏÔÊ¾ÁÄÌìÈËÁĞ±í£©
   const friendsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
   if (friendsTab) {
     friendsTab.onclick = (e) => {
@@ -4110,7 +4110,7 @@ function setChatListVisible(show) {
       if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
     };
   }
-  // è¿”å›æŒ‰é’®ï¼ˆå‘ç°é¡µ / æˆ‘çš„é¡µ / é€šè®¯å½•é¡µï¼‰
+  // ·µ»Ø°´Å¥£¨·¢ÏÖÒ³ / ÎÒµÄÒ³ / Í¨Ñ¶Â¼Ò³£©
   const pages = [
     { id: 'discoverPage', tab: 'ai' },
     { id: 'mePage', tab: 'downloads' },
@@ -4132,7 +4132,7 @@ function setChatListVisible(show) {
       };
     }
   });
-  // é€šè®¯å½•è¿”å›
+  // Í¨Ñ¶Â¼·µ»Ø
   const contactsBackBtn = document.getElementById('contactsBackBtn');
   if (contactsBackBtn) {
     contactsBackBtn.onclick = () => {
@@ -4143,7 +4143,7 @@ function setChatListVisible(show) {
       if (chatView) chatView.classList.add('mobile-chat-active');
     };
   }
-  // èŠå¤©è¿”å›æŒ‰é’®
+  // ÁÄÌì·µ»Ø°´Å¥
   const chatMobileBackBtn = document.getElementById('chatMobileBackBtn');
   if (chatMobileBackBtn) {
     chatMobileBackBtn.onclick = () => {
@@ -4156,7 +4156,7 @@ function setChatListVisible(show) {
       renderContacts();
     };
   }
-  // æ›´å¤šæŒ‰é’®ï¼ˆèŠå¤©å¤´éƒ¨ï¼‰â†’ å¼¹å‡ºèœå•ï¼šæ‹‰é»‘ / é»‘åå• / æ›´å¤šåŠŸèƒ½
+  // ¸ü¶à°´Å¥£¨ÁÄÌìÍ·²¿£©¡ú µ¯³ö²Ëµ¥£ºÀ­ºÚ / ºÚÃûµ¥ / ¸ü¶à¹¦ÄÜ
   const chatMobileMoreBtn = document.getElementById('chatMobileMoreBtn');
   if (chatMobileMoreBtn) {
     chatMobileMoreBtn.onclick = (e) => {
@@ -4164,7 +4164,7 @@ function setChatListVisible(show) {
       openChatMoreMenu(chatMobileMoreBtn);
     };
   }
-  // æ¡Œé¢ç«¯èŠå¤©å¤´éƒ¨"â‹¯"æŒ‰é’®
+  // ×ÀÃæ¶ËÁÄÌìÍ·²¿"?"°´Å¥
   const chatHeaderMoreBtn = document.getElementById('chatHeaderMoreBtn');
   if (chatHeaderMoreBtn) {
     chatHeaderMoreBtn.onclick = (e) => {
@@ -4172,7 +4172,7 @@ function setChatListVisible(show) {
       openChatMoreMenu(chatHeaderMoreBtn);
     };
   }
-  // è¯­éŸ³å›¾æ ‡ â†’ è§¦å‘å½•éŸ³
+  // ÓïÒôÍ¼±ê ¡ú ´¥·¢Â¼Òô
   const voiceIconBtn = document.getElementById('voiceIconBtn');
   if (voiceIconBtn) {
     voiceIconBtn.onclick = () => {
@@ -4180,7 +4180,7 @@ function setChatListVisible(show) {
       if (realBtn) realBtn.click();
     };
   }
-  // é»‘åå•é¡µè¿”å› â†’ å›"æˆ‘"é¡µ
+  // ºÚÃûµ¥Ò³·µ»Ø ¡ú »Ø"ÎÒ"Ò³
   const blocklistBackBtn = document.getElementById('blocklistBackBtn');
   if (blocklistBackBtn) {
     blocklistBackBtn.onclick = () => {
@@ -4188,7 +4188,7 @@ function setChatListVisible(show) {
       if (tab) tab.click();
     };
   }
-  // é»˜è®¤æ‰“å¼€èŠå¤©ç•Œé¢ï¼ˆèŠå¤©åˆ—è¡¨å¯è§ï¼‰ï¼›åˆ‡åˆ°å‘ç°/æˆ‘/é€šè®¯å½•æ—¶éšè—ï¼Œç‚¹"å¾®ä¿¡"å†æ˜¾ç¤º
+  // Ä¬ÈÏ´ò¿ªÁÄÌì½çÃæ£¨ÁÄÌìÁĞ±í¿É¼û£©£»ÇĞµ½·¢ÏÖ/ÎÒ/Í¨Ñ¶Â¼Ê±Òş²Ø£¬µã"Î¢ĞÅ"ÔÙÏÔÊ¾
   setChatListVisible(true);
 })();
 
@@ -4196,7 +4196,7 @@ tryRestore();
 checkUpdate();
 wireConversationTools();
 
-// ============ æ‹‰é»‘ï¼ˆé»‘åå•ï¼‰============
+// ============ À­ºÚ£¨ºÚÃûµ¥£©============
 let blockedMap = null; // Map: id -> user
 async function loadBlocklist(force) {
   if (!force && blockedMap !== null) return blockedMap;
@@ -4221,12 +4221,12 @@ async function toggleBlock(peerId, onDone) {
       body: JSON.stringify({ targetId: peerId })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'æ“ä½œå¤±è´¥');
+    if (!res.ok) throw new Error(data.error || '²Ù×÷Ê§°Ü');
     if (action === 'block') bl.set(peerId, { id: peerId }); else bl.delete(peerId);
-    toast(action === 'block' ? 'å·²æ‹‰é»‘è¯¥è”ç³»äºº' : 'å·²è§£é™¤æ‹‰é»‘', 'success');
+    toast(action === 'block' ? 'ÒÑÀ­ºÚ¸ÃÁªÏµÈË' : 'ÒÑ½â³ıÀ­ºÚ', 'success');
     if (typeof onDone === 'function') onDone();
   } catch (e) {
-    toast(((e && e.message) || 'æ“ä½œå¤±è´¥'), 'error');
+    toast(((e && e.message) || '²Ù×÷Ê§°Ü'), 'error');
   }
 }
 let chatMoreMenu = null;
@@ -4236,21 +4236,21 @@ function openChatMoreMenu(anchor) {
   const items = [];
   if (peer) {
     const blocked = blockedMap ? blockedMap.has(peer.id) : false;
-    items.push({ label: blocked ? 'è§£é™¤æ‹‰é»‘' : 'æ‹‰é»‘è¯¥è”ç³»äºº', danger: !blocked, onClick: () => toggleBlock(peer.id) });
+    items.push({ label: blocked ? '½â³ıÀ­ºÚ' : 'À­ºÚ¸ÃÁªÏµÈË', danger: !blocked, onClick: () => toggleBlock(peer.id) });
   }
   if (state.activePeer || state.activeGroup) {
     const key = state.activePeer ? 'u:' + state.activePeer : 'g:' + state.activeGroup;
     const prefs = chatPrefs();
     const pinned = !!prefs.pinned[key];
     const muted = !!prefs.muted[key];
-    items.push({ label: 'å¯¼å‡ºèŠå¤©è®°å½•', onClick: () => { hideChatMoreMenu(); exportChatLog(); } });
-    items.push({ label: pinned ? 'å–æ¶ˆç½®é¡¶' : 'ç½®é¡¶ä¼šè¯', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.pinned[key] = !p.pinned[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
-    items.push({ label: muted ? 'æ¢å¤æé†’' : 'å…æ‰“æ‰°', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.muted[key] = !p.muted[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
+    items.push({ label: 'µ¼³öÁÄÌì¼ÇÂ¼', onClick: () => { hideChatMoreMenu(); exportChatLog(); } });
+    items.push({ label: pinned ? 'È¡ÏûÖÃ¶¥' : 'ÖÃ¶¥»á»°', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.pinned[key] = !p.pinned[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
+    items.push({ label: muted ? '»Ö¸´ÌáĞÑ' : 'Ãâ´òÈÅ', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.muted[key] = !p.muted[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
   }
-  items.push({ label: 'é»‘åå•ç®¡ç†', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
-  items.push({ label: 'æ›´å¤šåŠŸèƒ½', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });
-  items.push({ label: 'æ¶ˆæ¯å­—ä½“ï¼š' + msgFontLabel(), onClick: () => { hideChatMoreMenu(); cycleMsgFont(); } });
-  items.push({ label: 'èŠå¤©èƒŒæ™¯', onClick: () => { hideChatMoreMenu(); openChatBgPicker(); } });
+  items.push({ label: 'ºÚÃûµ¥¹ÜÀí', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
+  items.push({ label: '¸ü¶à¹¦ÄÜ', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });
+  items.push({ label: 'ÏûÏ¢×ÖÌå£º' + msgFontLabel(), onClick: () => { hideChatMoreMenu(); cycleMsgFont(); } });
+  items.push({ label: 'ÁÄÌì±³¾°', onClick: () => { hideChatMoreMenu(); openChatBgPicker(); } });
   if (!items.length) return;
   chatMoreMenu = document.createElement('div');
   chatMoreMenu.className = 'chat-more-menu';
@@ -4265,16 +4265,16 @@ function openChatMoreMenu(anchor) {
 function hideChatMoreMenu() {
   if (chatMoreMenu) { chatMoreMenu.remove(); chatMoreMenu = null; }
 }
-// ============ èŠå¤©èƒŒæ™¯ ============
+// ============ ÁÄÌì±³¾° ============
 const CHAT_BGS = [
-  { name: 'é»˜è®¤', color: '' },
-  { name: 'ç±³ç™½', color: '#f8fafc' },
-  { name: 'æµ…ç°', color: '#e8eaed' },
-  { name: 'å¢¨ç»¿', color: '#2f4f43' },
-  { name: 'è—é’', color: '#2b3a55' },
-  { name: 'æš–æ©™', color: '#f5e6d3' },
-  { name: 'æ·¡è“', color: '#dbe9f7' },
-  { name: 'é›¾ç´«', color: '#e6e0f0' },
+  { name: 'Ä¬ÈÏ', color: '' },
+  { name: 'Ã×°×', color: '#f8fafc' },
+  { name: 'Ç³»Ò', color: '#e8eaed' },
+  { name: 'Ä«ÂÌ', color: '#2f4f43' },
+  { name: '²ØÇà', color: '#2b3a55' },
+  { name: 'Å¯³È', color: '#f5e6d3' },
+  { name: 'µ­À¶', color: '#dbe9f7' },
+  { name: 'Îí×Ï', color: '#e6e0f0' },
 ];
 function applyChatBg(color) {
   const key = 'chatBgColor';
@@ -4288,49 +4288,49 @@ function openChatBgPicker() {
   const mask = document.createElement('div');
   mask.className = 'profile-mask';
   mask.innerHTML = `<div class="profile-card" style="max-width:340px">
-    <div class="profile-head"><div class="profile-name" style="font-size:15px">èŠå¤©èƒŒæ™¯</div></div>
+    <div class="profile-head"><div class="profile-name" style="font-size:15px">ÁÄÌì±³¾°</div></div>
     <div class="chat-bg-grid">${CHAT_BGS.map(b => `<div class="chat-bg-item" data-c="${escapeHtml(b.color)}" style="${b.color ? 'background:' + b.color : 'background:#f8fafc;border:1px dashed #cbd5e1'}"><span style="${b.color ? '' : 'color:#94a3b8'}">${escapeHtml(b.name)}</span></div>`).join('')}</div>
   </div>`;
   document.body.appendChild(mask);
   mask.querySelectorAll('.chat-bg-item').forEach(el => {
-    el.onclick = () => { applyChatBg(el.dataset.c); mask.remove(); toast('èŠå¤©èƒŒæ™¯å·²æ›´æ–°', 'success', 1200); };
+    el.onclick = () => { applyChatBg(el.dataset.c); mask.remove(); toast('ÁÄÌì±³¾°ÒÑ¸üĞÂ', 'success', 1200); };
   });
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 initChatBg();
-// ============ å¯¼å‡ºèŠå¤©è®°å½• + æ¶ˆæ¯å­—ä½“ ============
+// ============ µ¼³öÁÄÌì¼ÇÂ¼ + ÏûÏ¢×ÖÌå ============
 async function exportChatLog() {
   const peerId = state.activePeer;
   const groupId = state.activeGroup;
-  if (!peerId && !groupId) { toast('è¯·å…ˆé€‰æ‹©ä¼šè¯', 'warn'); return; }
+  if (!peerId && !groupId) { toast('ÇëÏÈÑ¡Ôñ»á»°', 'warn'); return; }
   try {
     let msgs, title;
     if (groupId) {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/messages', { headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'åŠ è½½å¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '¼ÓÔØÊ§°Ü');
       msgs = data.messages || [];
       const g = state.groups.find(x => x.id === groupId);
-      title = g ? g.name : ('ç¾¤èŠ #' + groupId);
+      title = g ? g.name : ('ÈºÁÄ #' + groupId);
     } else {
       const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(peerId)), { headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'åŠ è½½å¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '¼ÓÔØÊ§°Ü');
       msgs = data.messages || [];
       const peer = state.friends.find(u => u.id === peerId);
-      title = peer ? peer.nickname : ('ç”¨æˆ· #' + peerId);
+      title = peer ? peer.nickname : ('ÓÃ»§ #' + peerId);
     }
-    if (!msgs.length) { toast('æš‚æ— èŠå¤©è®°å½•', 'info'); return; }
+    if (!msgs.length) { toast('ÔİÎŞÁÄÌì¼ÇÂ¼', 'info'); return; }
     const nameOf = (id) => {
-      if (id === state.me.id) return state.me.nickname || 'æˆ‘';
+      if (id === state.me.id) return state.me.nickname || 'ÎÒ';
       const f = state.friends.find(u => u.id === id);
-      return f ? (f.nickname || f.username) : ('ç”¨æˆ· ' + id);
+      return f ? (f.nickname || f.username) : ('ÓÃ»§ ' + id);
     };
-    const lines = ['SecureChat èŠå¤©è®°å½•å¯¼å‡º', 'ä¼šè¯ï¼š' + title, 'æ—¶é—´ï¼š' + new Date().toLocaleString(), 'å…± ' + msgs.length + ' æ¡æ¶ˆæ¯', '----------------------------------------', ''];
+    const lines = ['SecureChat ÁÄÌì¼ÇÂ¼µ¼³ö', '»á»°£º' + title, 'Ê±¼ä£º' + new Date().toLocaleString(), '¹² ' + msgs.length + ' ÌõÏûÏ¢', '----------------------------------------', ''];
     msgs.forEach(m => {
       const who = nameOf(m.from);
       const ts = new Date(m.createdAt).toLocaleString();
-      let body = m.recalled ? (m.from === state.me.id ? 'ä½ æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯' : 'å¯¹æ–¹æ’¤å›äº†ä¸€æ¡æ¶ˆæ¯') : String(m.content || '').replace(/\r?\n/g, '\n    ');
+      let body = m.recalled ? (m.from === state.me.id ? 'Äã³·»ØÁËÒ»ÌõÏûÏ¢' : '¶Ô·½³·»ØÁËÒ»ÌõÏûÏ¢') : String(m.content || '').replace(/\r?\n/g, '\n    ');
       lines.push('[' + ts + '] ' + who + ': ' + body);
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
@@ -4339,14 +4339,14 @@ async function exportChatLog() {
     a.download = 'SecureChat-' + title.replace(/[\\/:*?"<>|]/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.txt';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    toast('èŠå¤©è®°å½•å·²å¯¼å‡º', 'success');
+    toast('ÁÄÌì¼ÇÂ¼ÒÑµ¼³ö', 'success');
   } catch (e) {
-    toast('å¯¼å‡ºå¤±è´¥ï¼š' + ((e && e.message) || e), 'error');
+    toast('µ¼³öÊ§°Ü£º' + ((e && e.message) || e), 'error');
   }
 }
 function msgFontLabel() {
   const s = localStorage.getItem('sc_msg_font') || 'm';
-  return s === 's' ? 'å°' : (s === 'l' ? 'å¤§' : 'ä¸­');
+  return s === 's' ? 'Ğ¡' : (s === 'l' ? '´ó' : 'ÖĞ');
 }
 function applyMsgFont() {
   const s = localStorage.getItem('sc_msg_font') || 'm';
@@ -4359,33 +4359,33 @@ function cycleMsgFont() {
   const next = cur === 's' ? 'm' : (cur === 'm' ? 'l' : 's');
   localStorage.setItem('sc_msg_font', next);
   applyMsgFont();
-  toast('æ¶ˆæ¯å­—ä½“ï¼š' + msgFontLabel(), 'info', 1200);
+  toast('ÏûÏ¢×ÖÌå£º' + msgFontLabel(), 'info', 1200);
 }
 async function renderBlocklistPage() {
   const list = document.getElementById('blocklistList');
   if (!list) return;
-  list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">åŠ è½½ä¸­â€¦</div>';
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">¼ÓÔØÖĞ¡­</div>';
   const bl = await loadBlocklist(true);
-  if (!bl.size) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">æš‚æ— é»‘åå•</div>'; return; }
+  if (!bl.size) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">ÔİÎŞºÚÃûµ¥</div>'; return; }
   list.innerHTML = [...bl.values()].map(u => '<div class="contact" style="display:flex;align-items:center;padding:10px 14px;background:#fff">' +
     '<div class="avatar">' + (u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname || u.username)) + '</div>' +
     '<div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(u.nickname || u.username) + '</div>' +
     '<div class="last">ID: ' + escapeHtml(String(u.uid || u.id)) + '</div></div>' +
-    '<button class="btn-cn" style="padding:4px 10px;font-size:12px" data-unblock="' + u.id + '">è§£é™¤æ‹‰é»‘</button></div>').join('');
+    '<button class="btn-cn" style="padding:4px 10px;font-size:12px" data-unblock="' + u.id + '">½â³ıÀ­ºÚ</button></div>').join('');
   list.querySelectorAll('[data-unblock]').forEach(btn => {
     btn.onclick = () => toggleBlock(parseInt(btn.dataset.unblock, 10), () => renderBlocklistPage());
   });
 }
 
-// i18n å…œåº•ï¼ši18n.js åœ¨ DOMContentLoaded æ—¶å·²è‡ªè¡Œ apply() ä¸€æ¬¡ï¼›
-// è¿™é‡Œå†è¡¥ä¸€æ¬¡ï¼Œè¦†ç›– app.js åœ¨ DOMContentLoaded ä¹‹å‰æˆ–ä¹‹åæ‰§è¡Œçš„åœºæ™¯ï¼Œç¡®ä¿é™æ€ DOM è¯‘å¥½ã€‚
+// i18n ¶µµ×£ºi18n.js ÔÚ DOMContentLoaded Ê±ÒÑ×ÔĞĞ apply() Ò»´Î£»
+// ÕâÀïÔÙ²¹Ò»´Î£¬¸²¸Ç app.js ÔÚ DOMContentLoaded Ö®Ç°»òÖ®ºóÖ´ĞĞµÄ³¡¾°£¬È·±£¾²Ì¬ DOM ÒëºÃ¡£
 if (window.SCI18N && typeof SCI18N.apply === 'function') {
   const _applyI18n = () => SCI18N.apply();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _applyI18n, { once: true });
   else _applyI18n();
 }
-// E2EE æ¡æ‰‹é¢„çƒ­ï¼šç™»å½•åç«‹å³åˆå§‹åŒ– identity key å¹¶ä¸Šä¼  prekey bundleï¼Œ
-// ç¡®ä¿æ”¶åˆ°ç¬¬ä¸€æ¡ Flutter å¯†æ–‡æ—¶èƒ½å¤Ÿç«‹å³è§£å¯†ã€‚
+// E2EE ÎÕÊÖÔ¤ÈÈ£ºµÇÂ¼ºóÁ¢¼´³õÊ¼»¯ identity key ²¢ÉÏ´« prekey bundle£¬
+// È·±£ÊÕµ½µÚÒ»Ìõ Flutter ÃÜÎÄÊ±ÄÜ¹»Á¢¼´½âÃÜ¡£
 (function initE2EEOnLogin() {
   function warmup() {
     if (window.SCE2EE && state && state.me) {
@@ -4397,11 +4397,11 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
 })();
 
 
-// ============ ç®¡ç†åå°ï¼šä½™é¢å…‘æ¢ç ç”Ÿæˆä¸ç®¡ç† ============
+// ============ ¹ÜÀíºóÌ¨£ºÓà¶î¶Ò»»ÂëÉú³ÉÓë¹ÜÀí ============
 (function initAdminPanel() {
   const adminEntry = $('adminEntry');
   if (!adminEntry) return;
-  // ä»…ç®¡ç†å‘˜å¯è§
+  // ½ö¹ÜÀíÔ±¿É¼û
   function isAdminUser() {
     if (!state.me || !state.me.email) return false;
     try {
@@ -4421,8 +4421,8 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
   }
   adminEntry.onclick = () => {
-    if (!isAdminUser()) { toast('æ— ç®¡ç†æƒé™', 'warn'); return; }
-    // åˆ‡æ¢ admin tab é«˜äº®
+    if (!isAdminUser()) { toast('ÎŞ¹ÜÀíÈ¨ÏŞ', 'warn'); return; }
+    // ÇĞ»» admin tab ¸ßÁÁ
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === adminEntry));
     syncMobileNav('admin');
     if (document.querySelector('.main')) document.querySelector('.main').style.display = 'none';
@@ -4430,7 +4430,7 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
     loadAdminCodes('');
   };
-  // è¿”å›æŒ‰é’®
+  // ·µ»Ø°´Å¥
   const adminBackBtn = $('adminBackBtn');
   if (adminBackBtn) adminBackBtn.onclick = () => {
     const friendsTab = document.querySelector('.side-tab[data-side="friends"]');
@@ -4438,43 +4438,43 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     else { document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === 'friends')); syncMobileNav('friends'); }
     hideAdminView();
   };
-  // ç”Ÿæˆå…‘æ¢ç 
+  // Éú³É¶Ò»»Âë
   const adminIssueBtn = $('adminIssueBtn');
   if (adminIssueBtn) {
     adminIssueBtn.onclick = async () => {
       const value = parseFloat($('adminRedeemValue').value);
       const count = Math.min(parseInt($('adminRedeemCount').value) || 1, 500);
-      if (!value || value <= 0) { toast('è¯·è¾“å…¥æœ‰æ•ˆé¢å€¼', 'warn'); return; }
-      adminIssueBtn.disabled = true; adminIssueBtn.textContent = 'ç”Ÿæˆä¸­...';
+      if (!value || value <= 0) { toast('ÇëÊäÈëÓĞĞ§ÃæÖµ', 'warn'); return; }
+      adminIssueBtn.disabled = true; adminIssueBtn.textContent = 'Éú³ÉÖĞ...';
       try {
         const res = await fetch(state.serverHost + '/api/admin/redeem/issue', {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
           body: JSON.stringify({ value, count })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'ç”Ÿæˆå¤±è´¥');
+        if (!res.ok) throw new Error(data.error || 'Éú³ÉÊ§°Ü');
         $('adminIssueCount').textContent = data.count;
         const list = $('adminCodeList');
-        list.innerHTML = (data.codes || []).map(c => '<span class="admin-code-item" title="ç‚¹å‡»å¤åˆ¶">' + escapeHtml(c) + '</span>').join('');
+        list.innerHTML = (data.codes || []).map(c => '<span class="admin-code-item" title="µã»÷¸´ÖÆ">' + escapeHtml(c) + '</span>').join('');
         list.querySelectorAll('.admin-code-item').forEach(el => {
-          el.onclick = () => { navigator.clipboard.writeText(el.textContent).then(() => toast('å·²å¤åˆ¶: ' + el.textContent, 'success', 1200)); };
+          el.onclick = () => { navigator.clipboard.writeText(el.textContent).then(() => toast('ÒÑ¸´ÖÆ: ' + el.textContent, 'success', 1200)); };
         });
         $('adminIssueResult').style.display = '';
-        toast('æˆåŠŸç”Ÿæˆ ' + data.count + ' ä¸ªå…‘æ¢ç ', 'success');
+        toast('³É¹¦Éú³É ' + data.count + ' ¸ö¶Ò»»Âë', 'success');
         loadAdminCodes('');
-      } catch (e) { toast('ç”Ÿæˆå¤±è´¥ï¼š' + e.message, 'error'); }
-      finally { adminIssueBtn.disabled = false; adminIssueBtn.textContent = 'ç”Ÿæˆå…‘æ¢ç '; }
+      } catch (e) { toast('Éú³ÉÊ§°Ü£º' + e.message, 'error'); }
+      finally { adminIssueBtn.disabled = false; adminIssueBtn.textContent = 'Éú³É¶Ò»»Âë'; }
     };
   }
-  // å¤åˆ¶å…¨éƒ¨
+  // ¸´ÖÆÈ«²¿
   const adminCopyAllBtn = $('adminCopyAllBtn');
   if (adminCopyAllBtn) {
     adminCopyAllBtn.onclick = () => {
       const codes = Array.from($('adminCodeList').querySelectorAll('.admin-code-item')).map(el => el.textContent).join('\n');
-      navigator.clipboard.writeText(codes).then(() => toast('å·²å¤åˆ¶å…¨éƒ¨å…‘æ¢ç ', 'success'));
+      navigator.clipboard.writeText(codes).then(() => toast('ÒÑ¸´ÖÆÈ«²¿¶Ò»»Âë', 'success'));
     };
   }
-  // å…‘æ¢ç åˆ—è¡¨ tab åˆ‡æ¢
+  // ¶Ò»»ÂëÁĞ±í tab ÇĞ»»
   document.querySelectorAll('.admin-tab').forEach(tab => {
     tab.onclick = () => {
       document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('on'));
@@ -4482,25 +4482,25 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
       loadAdminCodes(tab.dataset.claimed);
     };
   });
-  // åŠ è½½å…‘æ¢ç åˆ—è¡¨
+  // ¼ÓÔØ¶Ò»»ÂëÁĞ±í
   window.loadAdminCodes = async function(claimed) {
     const tbl = $('adminCodeTable');
     if (!tbl) return;
-    tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">åŠ è½½ä¸­...</div>';
+    tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">¼ÓÔØÖĞ...</div>';
     try {
       const res = await fetch(state.serverHost + '/api/admin/redeem' + (claimed !== undefined && claimed !== '' ? '?claimed=' + claimed : ''), {
         headers: { 'Authorization': 'Bearer ' + state.token }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'åŠ è½½å¤±è´¥');
+      if (!res.ok) throw new Error(data.error || '¼ÓÔØÊ§°Ü');
       const codes = data.codes || [];
-      if (!codes.length) { tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">æš‚æ— å…‘æ¢ç </div>'; return; }
+      if (!codes.length) { tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">ÔİÎŞ¶Ò»»Âë</div>'; return; }
       tbl.innerHTML = codes.map(c => {
         const claimedAt = c.claimed_at ? new Date(c.claimed_at).toLocaleString() : '-';
         const statusCls = c.claimed_by ? 'used' : 'unused';
-        const statusText = c.claimed_by ? 'å·²ä½¿ç”¨' : 'æœªä½¿ç”¨';
-        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><span class="value">' + c.value + 'å…ƒ</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
+        const statusText = c.claimed_by ? 'ÒÑÊ¹ÓÃ' : 'Î´Ê¹ÓÃ';
+        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><span class="value">' + c.value + 'Ôª</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
       }).join('');
-    } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">åŠ è½½å¤±è´¥ï¼š' + escapeHtml(e.message) + '</div>'; }
+    } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">¼ÓÔØÊ§°Ü£º' + escapeHtml(e.message) + '</div>'; }
   };
 })();
