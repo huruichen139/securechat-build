@@ -93,6 +93,7 @@ class _LoginPageState extends State<LoginPage> {
   int mode = 0;
   final api = SecureChatApi();
   Timer? qrTimer;
+  Timer? qqTimer;
   Timer? codeTimer;
   int countdown = 0;
   String? qrText;
@@ -106,6 +107,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     qrTimer?.cancel();
+    qqTimer?.cancel();
     codeTimer?.cancel();
     account.dispose();
     password.dispose();
@@ -191,6 +193,54 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> beginQq() async {
+    if (busy) return;
+    setState(() { busy = true; error = null; });
+    try {
+      final st = await api.qqStatus();
+      if (!mounted) return;
+      if (st['enabled'] != true) {
+        setState(() { busy = false; error = 'QQ 登录尚未启用，请在管理后台配置'; });
+        return;
+      }
+      final state = '${DateTime.now().millisecondsSinceEpoch}${(DateTime.now().microsecondsSinceEpoch % 1000).toString().padLeft(3, '0')}${api.myId ?? 0}';
+      final url = await api.qqLoginUrl(state);
+      // 打开系统默认浏览器（qq 互联 OAuth2 需要浏览器完成授权）
+      try {
+        await Process.start('cmd.exe', ['/c', 'start', '', url]);
+      } catch (e) {
+        await Process.start('cmd.exe', ['/c', 'start', url]);
+      }
+      setState(() { busy = false; error = '请在浏览器中完成 QQ 授权…'; });
+      qqTimer?.cancel();
+      qqTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final r = await api.qqPoll(state);
+          if (!mounted) { qqTimer?.cancel(); return; }
+          if (r['status'] == 'ok') {
+            qqTimer?.cancel();
+            setState(() => error = '登录成功，正在进入…');
+            await api.applyLoginData(r);
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
+          } else if (r['status'] == 'need_bind') {
+            // 绑定在浏览器回调页完成，继续等待
+          } else if (r['status'] == 'waiting') {
+            // 继续等待
+          } else {
+            qqTimer?.cancel();
+            if (mounted) setState(() => error = (r['error'] ?? 'QQ 登录失败').toString());
+          }
+        } catch (e) {
+          qqTimer?.cancel();
+          if (mounted) setState(() => error = 'QQ 登录会话已过期，请重试');
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() { busy = false; error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
   void _showForgotPassword(BuildContext context) {
     showDialog(context: context, builder: (_) => _ForgotPasswordDialog(api: api));
   }
@@ -248,6 +298,7 @@ class _LoginPageState extends State<LoginPage> {
           _mode('密码登录', 0, t),
           _mode('邮箱验证码', 1, t),
           _mode('扫码登录', 2, t),
+          _mode('QQ登录', 3, t),
         ]),
       ),
       const SizedBox(height: 22),
@@ -259,13 +310,21 @@ class _LoginPageState extends State<LoginPage> {
         TextField(controller: email, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '邮箱地址', labelStyle: TextStyle(color: t.subText))),
         const SizedBox(height: 12),
         Row(children: [Expanded(child: TextField(controller: code, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '验证码', labelStyle: TextStyle(color: t.subText)))), const SizedBox(width: 10), OutlinedButton(onPressed: busy ? null : sendEmailCode, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))]),
-      ] else ...[
+      ] else if (mode == 2) ...[
         Center(child: Column(children: [
           Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: t.div), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
           const SizedBox(height: 14),
           Text('请使用已登录的手机扫描此二维码', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
           const SizedBox(height: 4),
           Text('手机确认后，电脑端会自动登录', style: TextStyle(color: t.subText, fontSize: 12)),
+        ])),
+      ] else ...[
+        Center(child: Column(children: [
+          Container(width: 72, height: 72, decoration: const BoxDecoration(color: Color(0xff12b7f5), borderRadius: BorderRadius.all(Radius.circular(20))), child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 40)),
+          const SizedBox(height: 14),
+          Text('使用 QQ 账号快速登录', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
+          const SizedBox(height: 4),
+          Text('点击按钮后将在浏览器中完成 QQ 授权', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
       ],
       if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12))),
@@ -279,7 +338,12 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
       const SizedBox(height: 6),
-      SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: busy ? null : (mode == 2 ? beginQr : login), child: Text(busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'))),
+      SizedBox(width: double.infinity, height: 48, child: FilledButton(
+        onPressed: busy ? null : (mode == 2 ? beginQr : mode == 3 ? beginQq : login),
+        child: Text(mode == 3
+            ? (busy ? '处理中…' : 'QQ 登录')
+            : busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'),
+      )),
       const SizedBox(height: 18),
       Center(child: Text('SecureChat $kAppVersion', style: TextStyle(color: t.subText, fontSize: 12))),
     ]);

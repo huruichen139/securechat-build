@@ -567,4 +567,44 @@ class SecureChatApi {
   }
 
   Future<void> adminDeletePackage(String platform) => _json('DELETE', '/api/admin/upload/$platform');
+
+  // ============ QQ 互联 ============
+  Future<Map<String, dynamic>> qqStatus() => _json('GET', '/api/oauth/qq/status', auth: false);
+
+  Future<String> qqLoginUrl(String state) async {
+    final data = await _json('GET', '/api/oauth/qq/url', query: {'state': state}, auth: false);
+    final url = (data['url'] ?? '').toString();
+    if (url.isEmpty) throw StateError(data['error'] ?? 'QQ 登录未启用');
+    return url;
+  }
+
+  Future<Map<String, dynamic>> qqPoll(String state) =>
+      _json('GET', '/api/oauth/qq/poll', query: {'state': state}, auth: false);
+
+  /// 用 QQ 回调产生的登录结果完成登录（token+user 注入会话）
+  Future<void> applyLoginData(Map<String, dynamic> data) async {
+    final t = (data['token'] ?? '').toString();
+    if (t.isEmpty) throw StateError('登录结果无效');
+    token = t;
+    final user = data['user'];
+    if (user is Map && user['id'] != null) {
+      myId = int.tryParse('${user['id']}');
+    }
+    await persistSession();
+  }
+
+  Future<Map<String, dynamic>> adminQqConfig() => _json('GET', '/api/admin/qq/config');
+
+  Future<Map<String, dynamic>> adminSaveQqConfig({
+    required String appid,
+    required String secret,
+    required String redirect,
+    required bool enabled,
+  }) =>
+      _json('POST', '/api/admin/qq/config', body: {
+        'appid': appid,
+        'secret': secret,
+        'redirect': redirect,
+        'enabled': enabled,
+      });
 }

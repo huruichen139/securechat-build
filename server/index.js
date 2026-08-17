@@ -1,5 +1,6 @@
 'use strict';
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -1929,6 +1930,314 @@ app.delete('/api/admin/upload/:platform', (req, res) => {
   fs.unlinkSync(filePath);
   res.json({ ok: true, file: filename });
 });
+
+// ============ QQ 互联登录（OAuth2.0） ============
+// 配置存 settings 表（key=qq_config），管理后台可修改。
+// 流程：客户端生成 state → 打开授权页 → 用户授权 → QQ 回调本服务器
+// /oauth/qq/callback → 换 token/openid → 已绑定直接生成登录会话；
+// 未绑定则回调页引导绑定(邮箱验证码)或自动注册新账号。
+// 客户端轮询 /api/oauth/qq/poll?state= 获取登录结果。
+const QQ_SESSION_TTL = 3 * 60 * 1000;
+const qqSessions = new Map(); // state -> { status, token?, user?, openid?, nickname?, avatar?, createdAt }
+
+function getSetting(key) {
+  try {
+    const row = prepare('SELECT value FROM settings WHERE key=?').get(key);
+    return row ? row.value : null;
+  } catch (e) { return null; }
+}
+function setSetting(key, value) {
+  try {
+    prepare('INSERT INTO settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at')
+      .run(key, value, Date.now());
+    persist();
+  } catch (e) { /* settings 表未建时忽略 */ }
+}
+
+function getQqConfig() {
+  const raw = getSetting('qq_config');
+  if (!raw) return null;
+  try {
+    const c = JSON.parse(raw);
+    if (!c || !c.appid) return null;
+    return {
+      appid: String(c.appid || '').trim(),
+      secret: String(c.secret || '').trim(),
+      redirect: String(c.redirect || '').trim(),
+      enabled: !!c.enabled
+    };
+  } catch (e) { return null; }
+}
+function saveQqConfig(c) {
+  setSetting('qq_config', JSON.stringify({
+    appid: String(c.appid || '').trim(),
+    secret: String(c.secret || '').trim(),
+    redirect: String(c.redirect || '').trim(),
+    enabled: !!c.enabled
+  }));
+}
+
+// 无依赖 HTTPS GET（QQ 开放平台接口）
+function httpsGetJson(url) {
+  return new Promise((resolve) => {
+    let u;
+    try { u = new URL(url); } catch (e) { return resolve({ status: 0, body: 'bad url' }); }
+    const req = https.request({
+      hostname: u.hostname,
+      path: u.pathname + u.search,
+      method: 'GET',
+      headers: { 'User-Agent': 'SecureChat/1.0' }
+    }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => resolve({ status: res.statusCode || 0, body }));
+    });
+    req.on('error', (e) => resolve({ status: 0, body: e.message }));
+    req.setTimeout(15000, () => { try { req.destroy(); } catch (e) {} resolve({ status: 0, body: 'timeout' }); });
+    req.end();
+  });
+}
+
+async function qqExchangeToken(code) {
+  const cfg = getQqConfig();
+  if (!cfg) return { error: 'QQ 互联未配置' };
+  const url = 'https://graph.qq.com/oauth2.0/token?grant_type=authorization_code' +
+    '&client_id=' + encodeURIComponent(cfg.appid) +
+    '&client_secret=' + encodeURIComponent(cfg.secret) +
+    '&code=' + encodeURIComponent(code) +
+    '&redirect_uri=' + encodeURIComponent(cfg.redirect);
+  const r = await httpsGetJson(url);
+  if (r.status !== 200) return { error: 'QQ 授权失败（' + (r.status || r.body) + '）' };
+  const params = new URLSearchParams(r.body);
+  const err = params.get('error');
+  if (err) return { error: 'QQ 授权失败：' + (params.get('error_description') || err) };
+  const accessToken = params.get('access_token');
+  if (!accessToken) return { error: 'QQ 未返回 access_token' };
+  return { accessToken };
+}
+
+async function qqGetOpenid(accessToken) {
+  const r = await httpsGetJson('https://graph.qq.com/oauth2.0/me?access_token=' + encodeURIComponent(accessToken));
+  if (r.status !== 200) return { error: '获取 QQ openid 失败' };
+  const m = r.body.match(/callback\(\s*(\{.*\})\s*\)/s) || r.body.match(/\{.*"openid".*\}/s);
+  if (!m) return { error: 'QQ openid 响应异常' };
+  try {
+    const j = JSON.parse(m[1]);
+    if (!j.openid) return { error: j.error_description || 'QQ openid 为空' };
+    return { openid: j.openid };
+  } catch (e) { return { error: 'QQ openid 解析失败' }; }
+}
+
+async function qqGetUserInfo(accessToken, openid) {
+  const cfg = getQqConfig();
+  const r = await httpsGetJson('https://graph.qq.com/user/get_user_info?access_token=' + encodeURIComponent(accessToken) +
+    '&oauth_consumer_key=' + encodeURIComponent(cfg.appid) + '&openid=' + encodeURIComponent(openid));
+  if (r.status !== 200) return { error: '获取 QQ 资料失败' };
+  try {
+    const j = JSON.parse(r.body);
+    if (j.ret !== 0) return { error: j.msg || 'QQ 资料获取失败' };
+    return {
+      nickname: j.nickname || '',
+      avatar: j.figureurl_qq_2 || j.figureurl_qq_1 || ''
+    };
+  } catch (e) { return { error: 'QQ 资料解析失败' }; }
+}
+
+function qqOrigin() {
+  return '';
+}
+
+// 管理后台：读取 QQ 互联配置
+app.get('/api/admin/qq/config', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const cfg = getQqConfig();
+  res.json({ config: cfg || { appid: '', secret: '', redirect: '', enabled: false } });
+});
+
+// 管理后台：保存 QQ 互联配置
+app.post('/api/admin/qq/config', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const b = req.body || {};
+  if (!String(b.appid || '').trim() || !String(b.secret || '').trim()) {
+    return res.status(400).json({ error: 'AppID 和 AppKey 不能为空' });
+  }
+  if (!String(b.redirect || '').trim().startsWith('https://')) {
+    return res.status(400).json({ error: '回调地址必须以 https:// 开头，且需与 QQ 互联后台填写的完全一致' });
+  }
+  saveQqConfig({ appid: b.appid, secret: b.secret, redirect: b.redirect, enabled: !!b.enabled });
+  logAudit(guard.u.id, 'qq_config', null, 'config', '更新 QQ 互联配置(appid=' + b.appid + ', enabled=' + (!!b.enabled) + ')', clientIp(req));
+  res.json({ ok: true, config: getQqConfig() });
+});
+
+// 公开：查询 QQ 登录是否可用（不含 secret）
+app.get('/api/oauth/qq/status', (req, res) => {
+  const cfg = getQqConfig();
+  res.json({ enabled: !!(cfg && cfg.enabled && cfg.appid), appid: cfg ? cfg.appid : '', redirect: cfg ? cfg.redirect : '' });
+});
+
+// 公开：生成 QQ 授权链接
+app.get('/api/oauth/qq/url', (req, res) => {
+  const cfg = getQqConfig();
+  if (!cfg || !cfg.enabled || !cfg.appid || !cfg.redirect) {
+    return res.status(503).json({ error: 'QQ 登录尚未启用' });
+  }
+  const state = String((req.query || {}).state || '').trim();
+  if (!state) return res.status(400).json({ error: '缺少 state' });
+  const url = 'https://graph.qq.com/oauth2.0/authorize?response_type=code' +
+    '&client_id=' + encodeURIComponent(cfg.appid) +
+    '&redirect_uri=' + encodeURIComponent(cfg.redirect) +
+    '&state=' + encodeURIComponent(state) +
+    '&scope=get_user_info';
+  res.json({ url });
+});
+
+// 轮询：客户端（桌面/网页）获取登录结果
+app.get('/api/oauth/qq/poll', (req, res) => {
+  const state = String((req.query || {}).state || '').trim();
+  const s = qqSessions.get(state);
+  if (!s) return res.status(404).json({ error: '登录会话不存在或已过期' });
+  if (s.status === 'ok') {
+    return res.json({ status: 'ok', token: s.token, user: s.user });
+  }
+  return res.json({ status: s.status || 'waiting' });
+});
+
+// 绑定：已有账号 + 邮箱验证码 → 绑定 QQ
+app.post('/api/oauth/qq/bind', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { state, openid, email, code } = req.body || {};
+  if (!state || !openid || !email || !code) return res.status(400).json({ error: '参数不完整' });
+  const s = qqSessions.get(state);
+  if (!s || s.openid !== openid) return res.status(400).json({ error: '登录会话无效，请重新发起 QQ 登录' });
+  const codeErr = checkCode(String(email), String(code), 'login');
+  if (codeErr) return res.status(400).json({ error: codeErr });
+  const user = prepare('SELECT * FROM users WHERE email=?').get(String(email).trim().toLowerCase());
+  if (!user) return res.status(400).json({ error: '该邮箱未注册' });
+  if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
+  const exists = prepare('SELECT id FROM users WHERE qq_openid=? AND id<>?').get(openid, user.id);
+  if (exists) return res.status(400).json({ error: '该 QQ 已绑定其他账号' });
+  prepare('UPDATE users SET qq_openid=? WHERE id=?').run(openid, user.id);
+  persist();
+  const token = signToken(user);
+  s.status = 'ok'; s.token = token; s.user = publicUser(user);
+  logAudit(user.id, 'qq_bind', user.id, 'user', 'QQ 绑定账号 ' + user.username, clientIp(req));
+  res.json({ ok: true, token, user: s.user });
+});
+
+// 自动注册：用 QQ 昵称创建新账号
+app.post('/api/oauth/qq/register', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { state, openid, nickname, avatar } = req.body || {};
+  if (!state || !openid) return res.status(400).json({ error: '参数不完整' });
+  const s = qqSessions.get(state);
+  if (!s || s.openid !== openid) return res.status(400).json({ error: '登录会话无效，请重新发起 QQ 登录' });
+  if (prepare('SELECT 1 FROM users WHERE qq_openid=?').get(openid)) {
+    return res.status(400).json({ error: '该 QQ 已注册过账号，请使用绑定方式登录' });
+  }
+  let username;
+  do { username = 'qq' + String(Math.floor(100000 + Math.random() * 900000)); }
+  while (prepare('SELECT 1 FROM users WHERE username=?').get(username));
+  let uid; do { uid = genUid(); } while (prepare('SELECT 1 FROM users WHERE uid=?').get(uid));
+  const hash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+  const nick = String(nickname || '').trim().slice(0, 20) || 'QQ用户';
+  prepare('INSERT INTO users(username,nickname,password,uid,qq_openid,created_at) VALUES(?,?,?,?,?,?)')
+    .run(username, nick, hash, uid, openid, Date.now());
+  persist();
+  const user = prepare('SELECT * FROM users WHERE username=?').get(username);
+  const token = signToken(user);
+  s.status = 'ok'; s.token = token; s.user = publicUser(user);
+  res.json({ ok: true, token, user: s.user });
+});
+
+// QQ 授权回调页（HTML）：换 token/openid/资料，返回绑定或登录页
+app.get('/oauth/qq/callback', async (req, res) => {
+  const code = String((req.query || {}).code || '');
+  const state = String((req.query || {}).state || '');
+  const error = String((req.query || {}).error || '');
+  const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const script = (v) => String(v || '').replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/"/g, '\\u0022');
+
+  if (error || !code || !state) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>QQ 登录失败</h3><p>' + esc(error || '缺少授权参数') + '</p></body>');
+  }
+  qqSessions.set(state, { status: 'waiting', openid: '', createdAt: Date.now() });
+  const tok = await qqExchangeToken(code);
+  if (tok.error) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>QQ 登录失败</h3><p>' + esc(tok.error) + '</p></body>');
+  }
+  const od = await qqGetOpenid(tok.accessToken);
+  if (od.error) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>QQ 登录失败</h3><p>' + esc(od.error) + '</p></body>');
+  }
+  const s = qqSessions.get(state);
+  if (s) { s.openid = od.openid; s.createdAt = Date.now(); }
+  const ui = await qqGetUserInfo(tok.accessToken, od.openid);
+  if (s) { s.nickname = ui.nickname || ''; s.avatar = ui.avatar || ''; }
+
+  const bound = prepare('SELECT * FROM users WHERE qq_openid=?').get(od.openid);
+  if (bound) {
+    if (bound.banned) {
+      return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#c0392b"><h3>该账号已被封禁</h3></body>');
+    }
+    const token = signToken(bound);
+    s.status = 'ok'; s.token = token; s.user = publicUser(bound);
+  }
+
+  const html = '<!doctype html><html><meta charset="utf-8"><title>QQ 登录</title>' +
+    '<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f5f6f7;margin:0;padding:0}'.replace('</style>','') +
+    '.card{max-width:400px;margin:60px auto;background:#fff;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.08);padding:36px 28px;text-align:center}' +
+    'h2{font-size:18px;margin:0 0 6px}.sub{color:#999;font-size:13px;margin-bottom:22px}' +
+    '.qq-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block}' +
+    'input{width:100%;box-sizing:border-box;padding:11px 12px;margin:6px 0;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none}' +
+    'input:focus{border-color:#12b7f5}' +
+    'button{width:100%;padding:12px;margin-top:8px;border:none;border-radius:8px;font-size:15px;cursor:pointer}' +
+    '.btn-blue{background:#12b7f5;color:#fff}.btn-green{background:#07c160;color:#fff}.btn-plain{background:#f2f3f5;color:#333}' +
+    '.err{color:#c0392b;font-size:13px;margin:8px 0;min-height:18px}.ok{color:#07c160;font-size:14px;margin:10px 0}' +
+    '.row{display:flex;gap:8px}.row input{flex:1}.row button{width:auto;padding:11px 14px;margin-top:6px;white-space:nowrap}' +
+    '</style>' +
+    '<div class="card">' +
+    '<img class="qq-avatar" src="' + esc(ui.avatar || '') + '" onerror="this.style.display=\'none\'">' +
+    '<h2>' + esc(ui.nickname || 'QQ 用户') + '</h2>' +
+    '<div class="sub">使用 QQ 登录 SecureChat</div>' +
+    '<div class="ok" id="okBox" style="display:none">登录成功，即将返回…</div>' +
+    '<div id="errBox" class="err"></div>' +
+    '<div id="bindBox" style="display:none">' +
+      '<div class="sub" style="text-align:left">该 QQ 尚未绑定账号：</div>' +
+      '<div class="row"><input id="email" placeholder="输入已注册邮箱" type="email"><button class="btn-plain" onclick="sendCode()">发验证码</button></div>' +
+      '<input id="code" placeholder="邮箱验证码" style="margin-top:4px">' +
+      '<button class="btn-blue" onclick="bind()">绑定已有账号并登录</button>' +
+      '<div class="sub" style="margin:14px 0 0">或</div>' +
+      '<button class="btn-green" onclick="reg()">用 QQ 账号直接注册新用户</button>' +
+    '</div>' +
+    '<div id="waitBox"><div class="sub">正在处理…</div></div>' +
+    '</div>' +
+    '<script>' +
+    'var STATE=' + JSON.stringify(script(state)) + ';var OPENID=' + JSON.stringify(script(od.openid)) + ';var BOUND=' + (bound ? 'true' : 'false') + ';' +
+    'var t=null;' +
+    'function toast(m){document.getElementById("errBox").textContent=m;}' +
+    'function showOk(){document.getElementById("okBox").style.display="block";document.getElementById("bindBox").style.display="none";document.getElementById("waitBox").style.display="none";}' +
+    'function sendCode(){var em=document.getElementById("email").value.trim();if(!/^[^@]+@[^@]+\\.[^@]+$/.test(em)){toast("邮箱格式不正确");return;}toast("验证码已发送，请查收邮箱");fetch("/api/email/code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em,purpose:"login"})}).then(function(r){return r.json()}).then(function(d){if(!d.ok&&d.error)toast(d.error)}).catch(function(e){toast("发送失败")});}' +
+    'function bind(){var em=document.getElementById("email").value.trim();var cd=document.getElementById("code").value.trim();if(!em||!cd){toast("请填写邮箱和验证码");return;}fetch("/api/oauth/qq/bind",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,openid:OPENID,email:em,code:cd})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
+    'function reg(){fetch("/api/oauth/qq/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,openid:OPENID})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
+    'function poll(){fetch("/api/oauth/qq/poll?state="+encodeURIComponent(STATE)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
+    'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_qq_login",state:STATE,ok:true},"*");}setTimeout(function(){location.href="/?qq_done=1";},1200);}catch(e){}}' +
+    'if(BOUND){showOk();poll();}else{document.getElementById("bindBox").style.display="block";document.getElementById("waitBox").style.display="none";}' +
+    'setTimeout(function(){try{window.opener&&window.opener.postMessage({type:"securechat_qq_ready",state:STATE},"*")}catch(e){}},300);' +
+    '</script></body></html>';
+  res.type('html').send(html);
+});
+
+// 清理过期的 QQ 登录会话
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of qqSessions) {
+    if (now - (v.createdAt || 0) > QQ_SESSION_TTL) qqSessions.delete(k);
+  }
+}, 60 * 1000);
 
 // AI 同源代理：避免浏览器直接请求供应商时被 CORS 拦截。
 // API Key 只随本次请求转发，不写入服务器数据库。

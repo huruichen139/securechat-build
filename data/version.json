@@ -1,9 +1,9 @@
 {
-  "current": "1.62.7",
-  "latest": "1.62.7",
+  "current": "1.62.8",
+  "latest": "1.62.8",
   "releaseNotes": [
     {
-      "version": "1.62.7",
+      "version": "1.62.8",
       "date": "2026-08-17",
       "notes": [
         "搜一搜可用：搜索好友/群聊，点击直达聊天",

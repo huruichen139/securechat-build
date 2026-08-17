@@ -407,6 +407,16 @@ function init() {
   try {
     db.run('ALTER TABLE users ADD COLUMN created_ip TEXT');
   } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN qq_openid TEXT');
+  } catch (e) { /* 列已存在 */ }
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_qq_openid ON users(qq_openid) WHERE qq_openid IS NOT NULL');
+  // QQ 互联等第三方配置：key 为字符串，value 存 JSON 字符串
+  db.run(`CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`);
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
   // 给缺 uid 的老数据补一个
