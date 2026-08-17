@@ -2608,6 +2608,13 @@ body.dark-mode .at-panel { background: #1a1b1e; border-color: #2a2b2f; }
 body.dark-mode .at-panel .at-item { color: #dcdcdc; }
 body.dark-mode .at-panel .at-item:hover { background: #26272b; color: #07c160; }
 
+.ann-edit-btn { display: inline-block; margin-left: 8px; border: 0; border-radius: 6px; background: #10b981; color: #fff; font-size: 11px; padding: 3px 10px; cursor: pointer; }
+.ann-edit-btn:hover { background: #059669; }
+
+/* 群公告横幅 */
+.announce-banner { display: none; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 8px 12px; background: #fef9c3; border: 1px solid #fde68a; color: #92400e; border-radius: 8px; font-size: 12px; cursor: pointer; flex-shrink: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+body.dark-mode .announce-banner { background: #422006; border-color: #78350f; color: #fde68a; }
+
 /* 图片消息与全屏预览 */
 .file-image-wrap { margin-top: 6px; }
 .file-image { max-width: 200px; max-height: 220px; border-radius: 8px; cursor: zoom-in; display: block; background: #f1f5f9; }

@@ -10,8 +10,8 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
   <link rel="stylesheet" href="styles.css?v=wechat-flat-20260816-4" />
   <style>
-    /* ============ Õæ¡¤ÑÇ¿ËÁ¦Ð§¹û (ÄÚÁª£¬UTF-8£¬ÓÅÏÈ¼¶¸ßÓÚÍâ²¿ CSS) ============ */
-    /* 1) ¸ø body / .chat-wrap / .auth-wrap ¼Ó²ÊÉ«½¥±äÁ÷¶¯±³¾°£¨ÕâÑù backdrop-filter ²ÅÓÐ¶«Î÷¿ÉÄ£ºý£© */
+    /* ============ ï¿½æ¡¤ï¿½Ç¿ï¿½ï¿½ï¿½Ð§ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½UTF-8ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â²¿ CSS) ============ */
+    /* 1) ï¿½ï¿½ body / .chat-wrap / .auth-wrap ï¿½Ó²ï¿½É«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ backdrop-filter ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½ */
     html, body {
       min-height: 100%;
       background:
@@ -39,7 +39,7 @@
       50%  { transform: translate(2%, -1%) scale(1.06); }
       100% { transform: translate(-2%, 1%) scale(.96); }
     }
-    /* 2) Õæ°ëÍ¸Ã÷Ãæ°å£ºÈÃ backdrop-filter Ä£ºýÄÜ¿´µ½µ×É« */
+    /* 2) ï¿½ï¿½ï¿½Í¸ï¿½ï¿½ï¿½ï¿½å£ºï¿½ï¿½ backdrop-filter Ä£ï¿½ï¿½ï¿½Ü¿ï¿½ï¿½ï¿½ï¿½ï¿½É« */
     .chat-wrap, .auth-wrap { background: transparent !important; }
     .sidebar {
       background: rgba(255, 255, 255, .55) !important;
@@ -66,7 +66,7 @@
       backdrop-filter: blur(30px) saturate(1.6) !important;
       -webkit-backdrop-filter: blur(30px) saturate(1.6) !important;
     }
-    /* 3) °µÉ«Ä£Ê½£ºÉîÉ«ÑÇ¿ËÁ¦ + Í¬ÑùÓÐ²ÊÉ«¹âÔÎ¿ÉÄ£ºý */
+    /* 3) ï¿½ï¿½É«Ä£Ê½ï¿½ï¿½ï¿½ï¿½É«ï¿½Ç¿ï¿½ï¿½ï¿½ + Í¬ï¿½ï¿½ï¿½Ð²ï¿½É«ï¿½ï¿½ï¿½Î¿ï¿½Ä£ï¿½ï¿½ */
     body.dark-mode, html.dark-mode, .dark-mode .chat-wrap {
       background:
         radial-gradient(1200px 800px at 8% -5%, rgba(30, 58, 138, .42), transparent 60%),
@@ -92,20 +92,20 @@
       box-shadow: 0 20px 60px rgba(0, 0, 0, .4) !important;
       border: 1px solid rgba(255, 255, 255, .08) !important;
     }
-    /* ÈÃËùÓÐÃæ°å±íÃæÄÚÎÄ×Ö±£³Ö¸ß¶Ô±È¶È */
+    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½Ö¸ß¶Ô±È¶ï¿½ */
 
-    /* 4) ¹ö¶¯Ìõ */
+    /* 4) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.35); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,.55); }
   </style>
 <script>
-  // API / WebSocket ×Ô¶¯¸úËæµ±Ç°Ò³ÃæÀ´Ô´£¨Í¬Ô´£©£¬±ÜÃâÓ²±àÂëµØÖ·Á¬²»Í¨¡£
+  // API / WebSocket ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½æµ±Ç°Ò³ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½Í¬Ô´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó²ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½
   (function () {
     var host = location.hostname || '';
     window.SERVER_HOST = location.origin;
-    // ÒÆ¶¯¶Ë¶ÀÁ¢ UI£ºm.chat.32768.top »òÕ­ÆÁ£¨<= 720px£©ÆôÓÃµ¥À¸Ä£Ê½
+    // ï¿½Æ¶ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ UIï¿½ï¿½m.chat.32768.top ï¿½ï¿½Õ­ï¿½ï¿½ï¿½ï¿½<= 720pxï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½Ä£Ê½
     window.IS_MOBILE = host.indexOf('m.') === 0 || window.matchMedia('(max-width: 720px)').matches;
     if (window.IS_MOBILE) document.documentElement.classList.add('is-mobile');
   })();
@@ -113,287 +113,288 @@
 </head>
 <body>
   <div id="toastWrap" class="toast-wrap"></div>
-  <!-- ÐÂÏûÏ¢¸¡²ãÍ¨Öª£¨ÓÒÉÏ½Ç¶Ñµþ¿¨Æ¬£© -->
+  <!-- ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½Í¨Öªï¿½ï¿½ï¿½ï¿½ï¿½Ï½Ç¶Ñµï¿½ï¿½ï¿½Æ¬ï¿½ï¿½ -->
   <div id="messageNoticeStack" class="message-notice-stack"></div>
 
-  <!-- °æ±¾¸üÐÂÌáÊ¾¸¡²ã -->
+  <!-- ï¿½æ±¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ -->
   <div id="updateMask" class="update-mask" style="display:none">
     <div class="update-dialog">
-      <h3 id="updateTitle">·¢ÏÖÐÂ°æ±¾ vX.X.X</h3>
+      <h3 id="updateTitle">ï¿½ï¿½ï¿½ï¿½ï¿½Â°æ±¾ vX.X.X</h3>
       <div id="updateNotes" class="notes"></div>
       <div class="actions">
-        <button id="updateNowBtn" class="ok">Á¢¼´ÏÂÔØ</button>
-        <button id="updateLaterBtn" class="cancel">ÉÔºó</button>
+        <button id="updateNowBtn" class="ok">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</button>
+        <button id="updateLaterBtn" class="cancel">ï¿½Ôºï¿½</button>
       </div>
     </div>
   </div>
-  <!-- µÇÂ¼/×¢²á -->
+  <!-- ï¿½ï¿½Â¼/×¢ï¿½ï¿½ -->
   <div id="authView" class="auth-wrap">
     <div class="auth-card">
       <div class="auth-logo">SecureChat</div>
-      <div class="auth-sub">¶Ëµ½¶Ë¼ÓÃÜÁÄÌì</div>
+      <div class="auth-sub">ï¿½Ëµï¿½ï¿½Ë¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</div>
       <div class="tabs">
-        <div class="tab on" data-tab="login" data-i18n="login">µÇÂ¼</div>
-        <div class="tab" data-tab="register" data-i18n="register">×¢²á</div>
+        <div class="tab on" data-tab="login" data-i18n="login">ï¿½ï¿½Â¼</div>
+        <div class="tab" data-tab="register" data-i18n="register">×¢ï¿½ï¿½</div>
       </div>
-      <input id="username" class="input" placeholder="ÓÃ»§Ãû»òÓÊÏä" autocomplete="off" data-i18n-placeholder="usernameOrEmail" />
-      <input id="password" class="input" type="password" placeholder="ÃÜÂë£¨ÖÁÉÙ6Î»£©" autocomplete="off" data-i18n-placeholder="password" />
-      <!-- µÇÂ¼·½Ê½ÇÐ»»£¨½öµÇÂ¼Ä£Ê½ÏÔÊ¾£© -->
+      <input id="username" class="input" placeholder="ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½" autocomplete="off" data-i18n-placeholder="usernameOrEmail" />
+      <input id="password" class="input" type="password" placeholder="ï¿½ï¿½ï¿½ë£¨ï¿½ï¿½ï¿½ï¿½6Î»ï¿½ï¿½" autocomplete="off" data-i18n-placeholder="password" />
+      <!-- ï¿½ï¿½Â¼ï¿½ï¿½Ê½ï¿½Ð»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼Ä£Ê½ï¿½ï¿½Ê¾ï¿½ï¿½ -->
       <div id="loginModeRow" class="login-mode-row" style="display:none">
-        <button type="button" class="login-mode-btn on" data-login-mode="password" data-i18n="passwordLogin">ÃÜÂëµÇÂ¼</button>
-        <button type="button" class="login-mode-btn" data-login-mode="code" data-i18n="codeLogin">ÑéÖ¤ÂëµÇÂ¼</button>
-        <button type="button" class="login-mode-btn" data-login-mode="qr" data-i18n="qrLogin">É¨ÂëµÇÂ¼</button>
+        <button type="button" class="login-mode-btn on" data-login-mode="password" data-i18n="passwordLogin">ï¿½ï¿½ï¿½ï¿½ï¿½Â¼</button>
+        <button type="button" class="login-mode-btn" data-login-mode="code" data-i18n="codeLogin">ï¿½ï¿½Ö¤ï¿½ï¿½ï¿½Â¼</button>
+        <button type="button" class="login-mode-btn" data-login-mode="qr" data-i18n="qrLogin">É¨ï¿½ï¿½ï¿½Â¼</button>
       </div>
-      <input id="nickname" class="input" placeholder="êÇ³Æ£¨×¢²áÊ±ÌîÐ´£©" style="display:none" data-i18n-placeholder="nickname" />
-      <input id="customUid" class="input" placeholder="×Ô¶¨ÒåID£¨4-16Î»×ÖÄ¸Êý×Ö£¬¿ÉÁô¿Õ£©" style="display:none" autocomplete="off" data-i18n-placeholder="customUid" />
-      <input id="country" class="input" placeholder="¹ú¼Ò/µØÇø£¨×ÔÓÉÌîÐ´£¬¿ÉÁô¿Õ£©" style="display:none" autocomplete="off" data-i18n-placeholder="country" />
-      <input id="province" class="input" placeholder="Ê¡/ÖÝ£¨×¢²áÊ±¿ÉÌî£¬¿ÉÁô¿Õ£©" style="display:none" autocomplete="off" data-i18n-placeholder="province" />
-      <input id="city" class="input" placeholder="³ÇÊÐ£¨×¢²áÊ±¿ÉÌî£¬¿ÉÁô¿Õ£©" style="display:none" autocomplete="off" data-i18n-placeholder="city" />
-      <!-- ×¢²á×¨ÓÃ£ºÓÊÏä + ÑéÖ¤Âë -->
-      <input id="email" class="input" type="email" placeholder="ÓÊÏä£¨×¢²áÊ±ÌîÐ´£©" style="display:none" autocomplete="off" data-i18n-placeholder="email" />
+      <input id="nickname" class="input" placeholder="ï¿½Ç³Æ£ï¿½×¢ï¿½ï¿½Ê±ï¿½ï¿½Ð´ï¿½ï¿½" style="display:none" data-i18n-placeholder="nickname" />
+      <input id="customUid" class="input" placeholder="ï¿½Ô¶ï¿½ï¿½ï¿½IDï¿½ï¿½4-16Î»ï¿½ï¿½Ä¸ï¿½ï¿½ï¿½Ö£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ£ï¿½" style="display:none" autocomplete="off" data-i18n-placeholder="customUid" />
+      <input id="country" class="input" placeholder="ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ£ï¿½" style="display:none" autocomplete="off" data-i18n-placeholder="country" />
+      <input id="province" class="input" placeholder="Ê¡/ï¿½Ý£ï¿½×¢ï¿½ï¿½Ê±ï¿½ï¿½ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½Õ£ï¿½" style="display:none" autocomplete="off" data-i18n-placeholder="province" />
+      <input id="city" class="input" placeholder="ï¿½ï¿½ï¿½Ð£ï¿½×¢ï¿½ï¿½Ê±ï¿½ï¿½ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½Õ£ï¿½" style="display:none" autocomplete="off" data-i18n-placeholder="city" />
+      <!-- ×¢ï¿½ï¿½×¨ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½Ö¤ï¿½ï¿½ -->
+      <input id="email" class="input" type="email" placeholder="ï¿½ï¿½ï¿½ä£¨×¢ï¿½ï¿½Ê±ï¿½ï¿½Ð´ï¿½ï¿½" style="display:none" autocomplete="off" data-i18n-placeholder="email" />
       <div id="codeRow" class="code-row" style="display:none">
-        <input id="code" class="input code-input" placeholder="ÓÊÏäÑéÖ¤Âë" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
-        <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">·¢ËÍÑéÖ¤Âë</button>
+        <input id="code" class="input code-input" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ï¿½" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
+        <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ï¿½</button>
       </div>
-      <button id="authBtn" class="btn" data-i18n="login">µÇÂ¼</button>
+      <button id="authBtn" class="btn" data-i18n="login">ï¿½ï¿½Â¼</button>
       <div id="qrLoginArea" style="display:none">
-        <img id="qrImage" style="display:none" alt="É¨ÂëµÇÂ¼¶þÎ¬Âë" />
-        <p id="qrTip" class="qr-login-tip">ÇëÊ¹ÓÃÊÖ»úÉ¨ÂëµÇÂ¼</p>
-        <button id="qrRegenBtn" type="button" class="btn btn-secondary">Ë¢ÐÂ¶þÎ¬Âë</button>
+        <img id="qrImage" style="display:none" alt="É¨ï¿½ï¿½ï¿½Â¼ï¿½ï¿½Î¬ï¿½ï¿½" />
+        <p id="qrTip" class="qr-login-tip">ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½Ö»ï¿½É¨ï¿½ï¿½ï¿½Â¼</p>
+        <button id="qrRegenBtn" type="button" class="btn btn-secondary">Ë¢ï¿½Â¶ï¿½Î¬ï¿½ï¿½</button>
       </div>
       <div id="authErr" class="err"></div>
     </div>
   </div>
 
-  <!-- ÁÄÌìÖ÷½çÃæ -->
+  <!-- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ -->
   <div id="chatView" class="chat-wrap" style="display:none">
-    <!-- ×ó²à -->
+    <!-- ï¿½ï¿½ï¿½ -->
     <div class="sidebar">
       <div class="sidebar-rail">
         <div class="sidebar-rail-brand">S</div>
         <div class="sidebar-rail-group">
-          <button class="side-tab on" data-side="friends" title="Î¢ÐÅ"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span data-i18n="friends">Î¢ÐÅ</span></button>
+          <button class="side-tab on" data-side="friends" title="Î¢ï¿½ï¿½"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span data-i18n="friends">Î¢ï¿½ï¿½</span></button>
           <button class="side-tab" data-side="contacts" title="Í¨Ñ¶Â¼"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M3 7h2"/><path d="M3 12h2"/><path d="M3 17h2"/><circle cx="12" cy="10" r="2.2"/><path d="M8.5 16.6a3.5 3.5 0 0 1 7 0"/></svg></span><span data-i18n="contacts">Í¨Ñ¶Â¼</span></button>
-          <button class="side-tab" data-side="ai" title="·¢ÏÖ"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/></svg></span><span>·¢ÏÖ</span></button>
-          <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="ÎÒ"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span>ÎÒ</span></button>
+          <button class="side-tab" data-side="ai" title="ï¿½ï¿½ï¿½ï¿½"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/></svg></span><span>ï¿½ï¿½ï¿½ï¿½</span></button>
+          <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="ï¿½ï¿½"><span class="rail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span>ï¿½ï¿½</span></button>
          </div>
         <div class="sidebar-rail-bottom">
-          <button id="localeToggle" class="rail-action" title="ÇÐ»»ÓïÑÔ" data-i18n="language">ÓïÑÔ</button>
-          <button id="themeToggle" class="rail-action" title="ÇÐ»»ÉîÉ«Ä£Ê½" data-i18n="dark">Ò¹</button>
+          <button id="localeToggle" class="rail-action" title="ï¿½Ð»ï¿½ï¿½ï¿½ï¿½ï¿½" data-i18n="language">ï¿½ï¿½ï¿½ï¿½</button>
+          <button id="themeToggle" class="rail-action" title="ï¿½Ð»ï¿½ï¿½ï¿½É«Ä£Ê½" data-i18n="dark">Ò¹</button>
           <span class="rail-dot"></span>
         </div>
       </div>
       <div class="sidebar-content">
         <div class="sidebar-brand">
           <div class="brand-mark">S</div>
-          <div class="brand-copy"><strong data-i18n="app">SecureChat</strong><span data-i18n="secureSpace">°²È«Í¨ÐÅ¿Õ¼ä</span></div>
-          <span class="brand-status" title="·þÎñÔÚÏß"></span>
+          <div class="brand-copy"><strong data-i18n="app">SecureChat</strong><span data-i18n="secureSpace">ï¿½ï¿½È«Í¨ï¿½Å¿Õ¼ï¿½</span></div>
+          <span class="brand-status" title="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"></span>
         </div>
-        <!-- ¡°ÎÒ¡±Ò³¸½ÊôÈë¿Ú£º±£Áô DOM ½Úµã¹© app.js °ó¶¨£¬²»¼ÆÈë×ó²àËÄ¸öµ¼º½ tab -->
+        <!-- ï¿½ï¿½ï¿½Ò¡ï¿½Ò³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú£ï¿½ï¿½ï¿½ï¿½ï¿½ DOM ï¿½Úµã¹© app.js ï¿½ó¶¨£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¸ï¿½ï¿½ï¿½ï¿½ï¿½ tab -->
         <div id="meExtraEntries" hidden>
-          <button id="featureCenterEntry" class="me-entry" data-side="more" type="button" title="¸ü¶à¹¦ÄÜ"><span data-i18n="more">¸ü¶à</span></button>
-          <button id="adminEntry" class="me-entry" data-side="admin" type="button" title="¹ÜÀíºóÌ¨" style="display:none">¹ÜÀí</button>
+          <button id="featureCenterEntry" class="me-entry" data-side="more" type="button" title="ï¿½ï¿½ï¿½à¹¦ï¿½ï¿½"><span data-i18n="more">ï¿½ï¿½ï¿½ï¿½</span></button>
+          <button id="adminEntry" class="me-entry" data-side="admin" type="button" title="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¨" style="display:none">ï¿½ï¿½ï¿½ï¿½</button>
         </div>
         <div id="friendsSide" class="sidebar-tools">
-          <div class="section-label" data-i18n="contacts">ÁªÏµÈË</div>
-           <div class="add-friend"><input id="addFriendInput" class="search" placeholder="ÊäÈë¶Ô·½ ID ¼ÓºÃÓÑ" /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">¼ÓºÃÓÑ</button></div>
-           <div class="group-actions unified-group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">´´½¨Èº</button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">¼ÓÈëÈº</button></div>
-          <div id="friendReqBar" class="friend-req-bar" style="display:none"><span id="friendReqText"></span><button id="acceptFriendBtn" class="btn-cn" data-i18n="add">½ÓÊÜ</button><button id="rejectFriendBtn" class="btn-cn gray" data-i18n="close">¾Ü¾ø</button></div>
-          <input id="search" class="search" placeholder="ËÑË÷ÁªÏµÈË" data-i18n-placeholder="searchContacts" />
+          <div class="section-label" data-i18n="contacts">ï¿½ï¿½Ïµï¿½ï¿½</div>
+           <div class="add-friend"><input id="addFriendInput" class="search" placeholder="ï¿½ï¿½ï¿½ï¿½Ô·ï¿½ ID ï¿½Óºï¿½ï¿½ï¿½" /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">ï¿½Óºï¿½ï¿½ï¿½</button></div>
+           <div class="group-actions unified-group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">ï¿½ï¿½ï¿½ï¿½Èº</button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">ï¿½ï¿½ï¿½ï¿½Èº</button></div>
+          <div id="friendReqBar" class="friend-req-bar" style="display:none"><span id="friendReqText"></span><button id="acceptFriendBtn" class="btn-cn" data-i18n="add">ï¿½ï¿½ï¿½ï¿½</button><button id="rejectFriendBtn" class="btn-cn gray" data-i18n="close">ï¿½Ü¾ï¿½</button></div>
+          <input id="search" class="search" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½" data-i18n-placeholder="searchContacts" />
         </div>
-        <div class="sidebar-mini-stats"><span><b id="friendCount">0</b> <span data-i18n="friends">ºÃÓÑ</span></span><span><b id="groupCount">0</b> <span data-i18n="groups">Èº×é</span></span><span class="online-label"><i></i><span data-i18n="online">ÔÚÏß</span></span></div>
-        <div class="list-heading"><span data-i18n="conversations">»á»°ÁÐ±í</span><span id="listCount"></span></div>
+        <div class="sidebar-mini-stats"><span><b id="friendCount">0</b> <span data-i18n="friends">ï¿½ï¿½ï¿½ï¿½</span></span><span><b id="groupCount">0</b> <span data-i18n="groups">Èºï¿½ï¿½</span></span><span class="online-label"><i></i><span data-i18n="online">ï¿½ï¿½ï¿½ï¿½</span></span></div>
+        <div class="list-heading"><span data-i18n="conversations">ï¿½á»°ï¿½Ð±ï¿½</span><span id="listCount"></span></div>
         <div class="contact-list" id="contactList"></div>
         <div class="my-info" id="myInfo"></div>
       </div>
     </div>
-    <!-- ÓÒ²à -->
+    <!-- ï¿½Ò²ï¿½ -->
     <div class="main">
-      <!-- ×ÀÃæ¶ËÁÄÌìÍ·²¿ -->
-      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">·µ»Ø</button><span id="chatHeader" data-i18n="noConversation">ÇëÑ¡ÔñÁªÏµÈË</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="ËÑË÷µ±Ç°»á»°" data-i18n="search">ËÑË÷</button><button id="pinChatBtn" class="head-tool" title="ÖÃ¶¥µ±Ç°»á»°" data-i18n="pin">ÖÃ¶¥</button><button id="muteChatBtn" class="head-tool" title="µ±Ç°»á»°Ãâ´òÈÅ" data-i18n="mute">Ãâ´òÈÅ</button><button id="clearChatBtn" class="head-tool" title="Çå¿Õµ±Ç°ÁÄÌì¼ÇÂ¼" data-i18n="clear">Çå¿Õ</button><button id="notifyBtn" class="head-tool" title="¿ªÆôä¯ÀÀÆ÷Í¨Öª" data-i18n="notify">Í¨Öª</button><button id="chatHeaderMoreBtn" class="head-tool" title="¸ü¶à">?</button></div></div>
-      <!-- Î¢ÐÅÊ½ÒÆ¶¯¶ËÁÄÌìÍ·²¿£¨Ä¬ÈÏÒþ²Ø£© -->
+      <!-- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ -->
+      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">ï¿½ï¿½ï¿½ï¿½</button><span id="chatHeader" data-i18n="noConversation">ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½á»°" data-i18n="search">ï¿½ï¿½ï¿½ï¿½</button><button id="pinChatBtn" class="head-tool" title="ï¿½Ã¶ï¿½ï¿½ï¿½Ç°ï¿½á»°" data-i18n="pin">ï¿½Ã¶ï¿½</button><button id="muteChatBtn" class="head-tool" title="ï¿½ï¿½Ç°ï¿½á»°ï¿½ï¿½ï¿½ï¿½ï¿½" data-i18n="mute">ï¿½ï¿½ï¿½ï¿½ï¿½</button><button id="clearChatBtn" class="head-tool" title="ï¿½ï¿½Õµï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½Â¼" data-i18n="clear">ï¿½ï¿½ï¿½</button><button id="notifyBtn" class="head-tool" title="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨Öª" data-i18n="notify">Í¨Öª</button><button id="chatHeaderMoreBtn" class="head-tool" title="ï¿½ï¿½ï¿½ï¿½">?</button></div></div>
+      <!-- Î¢ï¿½ï¿½Ê½ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½ -->
       <div id="chatMobileHeader" class="chat-header" style="display:none">
-        <button class="header-back" id="chatMobileBackBtn">·µ»Ø</button>
-        <span id="chatMobileTitle" class="chat-title">ÁÄÌì</span>
+        <button class="header-back" id="chatMobileBackBtn">ï¿½ï¿½ï¿½ï¿½</button>
+        <span id="chatMobileTitle" class="chat-title">ï¿½ï¿½ï¿½ï¿½</span>
         <button class="header-more" id="chatMobileMoreBtn">?</button>
       </div>
       <div id="inviteBar" class="group-actions" style="display:none;padding:6px 12px">
-        <button id="inviteGroupBtn" class="add-btn" data-i18n="add">ÑûÇë³ÉÔ±</button>
+        <button id="inviteGroupBtn" class="add-btn" data-i18n="add">ï¿½ï¿½ï¿½ï¿½ï¿½Ô±</button>
       </div>
+      <div id="groupAnnounceBanner" class="announce-banner" style="display:none"></div>
       <div class="messages" id="messages">
         <div id="callReplayList" class="call-replay-list" style="display:none"></div>
         <div id="welcomePanel" class="welcome-panel">
           <div class="welcome-orb">S</div>
           <div class="welcome-kicker">SECURE COMMUNICATION</div>
-          <h1 data-i18n="welcome">»¶Ó­Ê¹ÓÃ SecureChat</h1>
-          <p class="welcome-sub" data-i18n="welcomeSub">Ñ¡ÔñÒ»¸öÁªÏµÈË¿ªÊ¼ÁÄÌì£¬»òÕß´ÓÏÂÃæ¿ìËÙ¿ªÊ¼¡£</p>
+          <h1 data-i18n="welcome">ï¿½ï¿½Ó­Ê¹ï¿½ï¿½ SecureChat</h1>
+          <p class="welcome-sub" data-i18n="welcomeSub">Ñ¡ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ïµï¿½Ë¿ï¿½Ê¼ï¿½ï¿½ï¿½ì£¬ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¿ï¿½Ê¼ï¿½ï¿½</p>
           <div class="welcome-actions">
-            <button type="button" class="welcome-action" id="welcomeAddBtn"><span class="welcome-icon">Ìí¼Ó</span><b data-i18n="addFriend">Ìí¼ÓºÃÓÑ</b><small data-i18n="welcomeAddSub">Í¨¹ý UID ÕÒµ½ÅóÓÑ</small></button>
-            <button type="button" class="welcome-action" id="welcomeGroupBtn"><span class="welcome-icon" data-i18n="groupChat">ÈºÁÄ</span><b data-i18n="createGroup">´´½¨ÈºÁÄ</b><small data-i18n="welcomeGroupSub">ºÍ¶àÈËÒ»Æð½»Á÷</small></button>
-            <button type="button" class="welcome-action" id="welcomeAiBtn"><span class="welcome-icon" data-i18n="assistant">ÖúÊÖ</span><b data-i18n="ai">Ê¹ÓÃ AI ÖúÊÖ</b><small data-i18n="welcomeAiSub">¿ìËÙÎÊ´ðÓë´´×÷</small></button>
+            <button type="button" class="welcome-action" id="welcomeAddBtn"><span class="welcome-icon">ï¿½ï¿½ï¿½ï¿½</span><b data-i18n="addFriend">ï¿½ï¿½ï¿½Óºï¿½ï¿½ï¿½</b><small data-i18n="welcomeAddSub">Í¨ï¿½ï¿½ UID ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½</small></button>
+            <button type="button" class="welcome-action" id="welcomeGroupBtn"><span class="welcome-icon" data-i18n="groupChat">Èºï¿½ï¿½</span><b data-i18n="createGroup">ï¿½ï¿½ï¿½ï¿½Èºï¿½ï¿½</b><small data-i18n="welcomeGroupSub">ï¿½Í¶ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½</small></button>
+            <button type="button" class="welcome-action" id="welcomeAiBtn"><span class="welcome-icon" data-i18n="assistant">ï¿½ï¿½ï¿½ï¿½</span><b data-i18n="ai">Ê¹ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½</b><small data-i18n="welcomeAiSub">ï¿½ï¿½ï¿½ï¿½ï¿½Ê´ï¿½ï¿½ë´´ï¿½ï¿½</small></button>
           </div>
-          <div class="welcome-features"><span data-i18n="encrypted">¼ÓÃÜ´«Êä</span><span data-i18n="realtime">ÊµÊ±Í¬²½</span><span data-i18n="voiceVideo">ÓïÒôÊÓÆµ</span><span data-i18n="fileShare">ÎÄ¼þ·ÖÏí</span></div>
-          <div class="welcome-tip" data-i18n="welcomeTip">ÌáÊ¾£ºEnter ·¢ËÍÏûÏ¢£¬Shift + Enter »»ÐÐ</div>
+          <div class="welcome-features"><span data-i18n="encrypted">ï¿½ï¿½ï¿½Ü´ï¿½ï¿½ï¿½</span><span data-i18n="realtime">ÊµÊ±Í¬ï¿½ï¿½</span><span data-i18n="voiceVideo">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµ</span><span data-i18n="fileShare">ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½</span></div>
+          <div class="welcome-tip" data-i18n="welcomeTip">ï¿½ï¿½Ê¾ï¿½ï¿½Enter ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½Shift + Enter ï¿½ï¿½ï¿½ï¿½</div>
         </div>
       </div>
-      <div id="messageSearchBar" class="message-search-bar" style="display:none"><button id="messageSearchPrev" class="search-nav" type="button" title="ÉÏÒ»¸ö">¡ü</button><button id="messageSearchNext" class="search-nav" type="button" title="ÏÂÒ»¸ö">¡ý</button><input id="messageSearchInput" placeholder="ËÑË÷µ±Ç°ÒÑ¼ÓÔØµÄÏûÏ¢" data-i18n-placeholder="searchMessages" /><span id="messageSearchCount" class="search-count"></span><button id="messageSearchClose" type="button" data-i18n="close">¹Ø±Õ</button></div>
-      <!-- Í¨»°/ÎÄ¼þ´«Êä¸¡²ã -->
+      <div id="messageSearchBar" class="message-search-bar" style="display:none"><button id="messageSearchPrev" class="search-nav" type="button" title="ï¿½ï¿½Ò»ï¿½ï¿½">ï¿½ï¿½</button><button id="messageSearchNext" class="search-nav" type="button" title="ï¿½ï¿½Ò»ï¿½ï¿½">ï¿½ï¿½</button><input id="messageSearchInput" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½Ñ¼ï¿½ï¿½Øµï¿½ï¿½ï¿½Ï¢" data-i18n-placeholder="searchMessages" /><span id="messageSearchCount" class="search-count"></span><button id="messageSearchClose" type="button" data-i18n="close">ï¿½Ø±ï¿½</button></div>
+      <!-- Í¨ï¿½ï¿½/ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ä¸¡ï¿½ï¿½ -->
       <div id="callBar" class="call-bar" style="display:none">
         <span id="callText"></span>
         <video id="localVideo" autoplay muted playsinline></video>
         <video id="remoteVideo" autoplay playsinline></video>
         <div class="call-actions">
-          <button id="acceptCallBtn" type="button" class="btn-cn">½ÓÌý</button>
-          <button id="rejectCallBtn" type="button" class="btn-cn">¾Ü¾ø</button>
-          <button id="hangupBtn" type="button" class="btn-cn danger">¹Ò¶Ï</button>
+          <button id="acceptCallBtn" type="button" class="btn-cn">ï¿½ï¿½ï¿½ï¿½</button>
+          <button id="rejectCallBtn" type="button" class="btn-cn">ï¿½Ü¾ï¿½</button>
+          <button id="hangupBtn" type="button" class="btn-cn danger">ï¿½Ò¶ï¿½</button>
         </div>
       </div>
       <div id="fileBar" class="file-bar" style="display:none">
         <span id="fileText"></span>
         <div class="progress"><div id="fileProgress" class="progress-bar"></div></div>
       </div>
-      <!-- Î¢ÐÅÊ½ÊäÈëÀ¸£¨ÒÆ¶¯¶Ë£¬Ä¬ÈÏÒþ²Ø£© -->
+      <!-- Î¢ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½Ë£ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½ -->
       <div id="chatMobileComposer" class="chat-composer" style="display:none">
-        <button id="voiceIconBtn" class="composer-icon-btn" type="button" title="ÓïÒô"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
-        <div class="composer-input-wrap"><textarea id="input" placeholder="ÊäÈëÏûÏ¢£¬Enter ·¢ËÍ£¬Shift+Enter »»ÐÐ" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftState" class="draft-state" data-i18n="draftAuto">²Ý¸å×Ô¶¯±£´æ</span></div>
-        <button id="emojiIconBtn" class="composer-icon-btn" type="button" title="±íÇé"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></button>
-        <button id="plusIconBtn" class="composer-icon-btn" type="button" title="¸ü¶à"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
-        <button id="sendBtn" class="composer-send-btn" data-i18n="send">·¢ËÍ</button>
+        <button id="voiceIconBtn" class="composer-icon-btn" type="button" title="ï¿½ï¿½ï¿½ï¿½"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
+        <div class="composer-input-wrap"><textarea id="input" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½Enter ï¿½ï¿½ï¿½Í£ï¿½Shift+Enter ï¿½ï¿½ï¿½ï¿½" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftState" class="draft-state" data-i18n="draftAuto">ï¿½Ý¸ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½</span></div>
+        <button id="emojiIconBtn" class="composer-icon-btn" type="button" title="ï¿½ï¿½ï¿½ï¿½"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></button>
+        <button id="plusIconBtn" class="composer-icon-btn" type="button" title="ï¿½ï¿½ï¿½ï¿½"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="sendBtn" class="composer-send-btn" data-i18n="send">ï¿½ï¿½ï¿½ï¿½</button>
       </div>
-      <!-- Ô­×ÀÃæ¶ËÊäÈëÀ¸£¨±£Áô£¬PC ¶ËÊ¹ÓÃ£© -->
+      <!-- Ô­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½PC ï¿½ï¿½Ê¹ï¿½Ã£ï¿½ -->
       <div class="composer" id="chatDesktopComposer">
         <div class="composer-tools">
-          <button id="fileBtn" class="tool" title="·¢ËÍÎÄ¼þ" data-i18n="files">ÎÄ¼þ</button>
-          <button id="voiceBtn" class="tool" title="µãÒ»ÏÂ¿ªÊ¼Ëµ»°£¬ÔÙµãÒ»ÏÂ·¢ËÍ" data-i18n="voice">ÓïÒô</button>
-          <button id="speechBtn" class="tool" title="ÓïÒô×ªÎÄ×Ö" data-i18n="transcribe">×ªÎÄ×Ö</button>
-          <button id="audioBtn" class="tool" title="ÓïÒôÍ¨»°" data-i18n="audio">Í¨»°</button>
-          <button id="videoBtn" class="tool" title="ÊÓÆµÍ¨»°" data-i18n="video">ÊÓÆµ</button>
+          <button id="fileBtn" class="tool" title="ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½" data-i18n="files">ï¿½Ä¼ï¿½</button>
+          <button id="voiceBtn" class="tool" title="ï¿½ï¿½Ò»ï¿½Â¿ï¿½Ê¼Ëµï¿½ï¿½ï¿½ï¿½ï¿½Ùµï¿½Ò»ï¿½Â·ï¿½ï¿½ï¿½" data-i18n="voice">ï¿½ï¿½ï¿½ï¿½</button>
+          <button id="speechBtn" class="tool" title="ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½" data-i18n="transcribe">×ªï¿½ï¿½ï¿½ï¿½</button>
+          <button id="audioBtn" class="tool" title="ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½" data-i18n="audio">Í¨ï¿½ï¿½</button>
+          <button id="videoBtn" class="tool" title="ï¿½ï¿½ÆµÍ¨ï¿½ï¿½" data-i18n="video">ï¿½ï¿½Æµ</button>
         </div>
-        <div class="composer-input-wrap"><textarea id="desktopInput" placeholder="ÊäÈëÏûÏ¢£¬Enter ·¢ËÍ£¬Shift+Enter »»ÐÐ" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftStateDesktop" class="draft-state" data-i18n="draftAuto">²Ý¸å×Ô¶¯±£´æ</span></div>
-        <button id="desktopSendBtn" class="btn send" data-i18n="send">·¢ËÍ</button>
+        <div class="composer-input-wrap"><textarea id="desktopInput" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½Enter ï¿½ï¿½ï¿½Í£ï¿½Shift+Enter ï¿½ï¿½ï¿½ï¿½" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftStateDesktop" class="draft-state" data-i18n="draftAuto">ï¿½Ý¸ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½</span></div>
+        <button id="desktopSendBtn" class="btn send" data-i18n="send">ï¿½ï¿½ï¿½ï¿½</button>
       </div>
       <div id="voiceTip" class="voice-tip" style="display:none"></div>
       <div id="recBar" class="rec-bar" style="display:none">
         <span id="recDot" class="rec-dot"></span>
         <span id="recTime">0.0s</span>
-        <span class="rec-hint">ÉÏ»®È¡Ïû</span>
+        <span class="rec-hint">ï¿½Ï»ï¿½È¡ï¿½ï¿½</span>
       </div>
     </div>
-    <!-- ·¢ÏÖÒ³£¨ÒÆ¶¯¶ËÈ«ÆÁ£© -->
+    <!-- ï¿½ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ -->
     <div id="discoverPage" class="wechat-page">
       <div class="page-header">
-        <button class="back-btn" id="discoverBackBtn">·µ»Ø</button>
-        <h2>·¢ÏÖ</h2>
+        <button class="back-btn" id="discoverBackBtn">ï¿½ï¿½ï¿½ï¿½</button>
+        <h2>ï¿½ï¿½ï¿½ï¿½</h2>
       </div>
       <div class="page-body">
         <div class="discover-list" id="discoverList"></div>
       </div>
     </div>
-    <!-- ÎÒµÄÒ³£¨ÒÆ¶¯¶ËÈ«ÆÁ£© -->
+    <!-- ï¿½Òµï¿½Ò³ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ -->
     <div id="mePage" class="wechat-page me-page">
       <div class="page-header">
-        <button class="back-btn" id="meBackBtn">·µ»Ø</button>
-        <h2>ÎÒ</h2>
+        <button class="back-btn" id="meBackBtn">ï¿½ï¿½ï¿½ï¿½</button>
+        <h2>ï¿½ï¿½</h2>
       </div>
       <div class="page-body">
         <div class="me-header" id="meHeaderContent"></div>
         <div class="me-card" id="meServicesCard"></div>
       </div>
     </div>
-    <!-- ºÚÃûµ¥Ò³£¨È«ÆÁ£© -->
+    <!-- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò³ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ -->
     <div id="blocklistPage" class="wechat-page">
       <div class="page-header">
-        <button class="back-btn" id="blocklistBackBtn">·µ»Ø</button>
-        <h2>ºÚÃûµ¥</h2>
+        <button class="back-btn" id="blocklistBackBtn">ï¿½ï¿½ï¿½ï¿½</button>
+        <h2>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</h2>
       </div>
       <div class="page-body">
         <div id="blocklistList"></div>
       </div>
     </div>
-    <!-- Í¨Ñ¶Â¼Ò³£¨ÒÆ¶¯¶ËÈ«ÆÁ£© -->
+    <!-- Í¨Ñ¶Â¼Ò³ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ -->
     <div id="contactsPage" class="wechat-page">
       <div class="page-header">
-        <button class="back-btn" id="contactsBackBtn">·µ»Ø</button>
+        <button class="back-btn" id="contactsBackBtn">ï¿½ï¿½ï¿½ï¿½</button>
         <h2>Í¨Ñ¶Â¼</h2>
       </div>
       <div class="page-body">
-        <input id="contactsSearch" class="search" placeholder="ËÑË÷ÁªÏµÈË" data-i18n-placeholder="searchContacts" style="margin:8px 12px;width:calc(100% - 24px)" />
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">ÐÂºÃÓÑ</div>
+        <input id="contactsSearch" class="search" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½" data-i18n-placeholder="searchContacts" style="margin:8px 12px;width:calc(100% - 24px)" />
+        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">ï¿½Âºï¿½ï¿½ï¿½</div>
         <div class="contact-section" id="contactsNewFriends"></div>
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">±êÇ©</div>
-        <div class="contact-section" id="contactsLabels"><div class="contact" id="contactLabelsItem" style="padding:12px 14px;color:#888;font-size:14px">ÔÝÎÞ±êÇ©</div></div>
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">ÅóÓÑÈº</div>
+        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">ï¿½ï¿½Ç©</div>
+        <div class="contact-section" id="contactsLabels"><div class="contact" id="contactLabelsItem" style="padding:12px 14px;color:#888;font-size:14px">ï¿½ï¿½ï¿½Þ±ï¿½Ç©</div></div>
+        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">ï¿½ï¿½ï¿½ï¿½Èº</div>
         <div class="contact-section" id="contactsGroups"></div>
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">¹«ÖÚºÅ</div>
-        <div class="contact-section" id="contactsOA"><div class="contact" id="contactOAItem" style="padding:12px 14px;color:#888;font-size:14px">ÔÝÎÞ¹Ø×¢¹«ÖÚºÅ</div></div>
+        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">ï¿½ï¿½ï¿½Úºï¿½</div>
+        <div class="contact-section" id="contactsOA"><div class="contact" id="contactOAItem" style="padding:12px 14px;color:#888;font-size:14px">ï¿½ï¿½ï¿½Þ¹ï¿½×¢ï¿½ï¿½ï¿½Úºï¿½</div></div>
         <div id="contactsAlphabetSection"></div>
       </div>
     </div>
-    <!-- AI ÖúÊÖÊÓÍ¼£¨Óë .main Æ½¼¶£¬¶ÀÁ¢ÏÔÊ¾£© -->
+    <!-- AI ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ .main Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ -->
     <div id="aiView" class="ai-view" style="display:none">
       <div class="ai-header">
-        <span data-i18n="ai">AI ÖúÊÖ</span>
-        <button id="aiSettingsBtn" class="ai-btn-sm" title="ÅäÖÃ AI Ìá¹©ÉÌ" data-i18n="settings">?? ÉèÖÃ</button>
+        <span data-i18n="ai">AI ï¿½ï¿½ï¿½ï¿½</span>
+        <button id="aiSettingsBtn" class="ai-btn-sm" title="ï¿½ï¿½ï¿½ï¿½ AI ï¿½á¹©ï¿½ï¿½" data-i18n="settings">?? ï¿½ï¿½ï¿½ï¿½</button>
       </div>
-      <section class="mini-programs" aria-label="Ð¡³ÌÐò">
-        <div class="mini-programs-title">Ð¡³ÌÐò</div>
-        <div id="miniProgramList" class="mini-program-list"><span>ÕýÔÚ¼ÓÔØ...</span></div>
+      <section class="mini-programs" aria-label="Ð¡ï¿½ï¿½ï¿½ï¿½">
+        <div class="mini-programs-title">Ð¡ï¿½ï¿½ï¿½ï¿½</div>
+        <div id="miniProgramList" class="mini-program-list"><span>ï¿½ï¿½ï¿½Ú¼ï¿½ï¿½ï¿½...</span></div>
       </section>
       <div id="aiMessages" class="ai-msgs messages"></div>
       <div class="ai-composer">
-        <input id="aiInput" placeholder="Ïò AI ÌáÎÊ..." autocomplete="off" data-i18n-placeholder="aiInput" />
-        <button id="aiSendBtn" class="btn send" data-i18n="send">·¢ËÍ</button>
+        <input id="aiInput" placeholder="ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½..." autocomplete="off" data-i18n-placeholder="aiInput" />
+        <button id="aiSendBtn" class="btn send" data-i18n="send">ï¿½ï¿½ï¿½ï¿½</button>
       </div>
     </div>
-    <!-- ÏÂÔØÊÓÍ¼£¨ÓëÁÄÌì¡¢AI ÊÓÍ¼Æ½¼¶£¬Ö»ÇÐ»»ÓÒ²àÄÚÈÝ£© -->
+    <!-- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ì¡¢AI ï¿½ï¿½Í¼Æ½ï¿½ï¿½ï¿½ï¿½Ö»ï¿½Ð»ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½Ý£ï¿½ -->
      <div id="downloadView" class="download-view" style="display:none">
-       <div class="download-header"><button id="downloadBackBtn" class="back-to-list-btn" type="button" data-i18n="back">·µ»Ø</button><span>ÏÂÔØ SecureChat</span><span class="download-header-sub">¶àÆ½Ì¨¿Í»§¶Ë</span></div>
+       <div class="download-header"><button id="downloadBackBtn" class="back-to-list-btn" type="button" data-i18n="back">ï¿½ï¿½ï¿½ï¿½</button><span>ï¿½ï¿½ï¿½ï¿½ SecureChat</span><span class="download-header-sub">ï¿½ï¿½Æ½Ì¨ï¿½Í»ï¿½ï¿½ï¿½</span></div>
       <div class="download-page">
-        <div id="downloadStatus" class="download-status" role="status" aria-live="polite">ÕýÔÚ»ñÈ¡×îÐÂ°æ±¾¡­</div>
+        <div id="downloadStatus" class="download-status" role="status" aria-live="polite">ï¿½ï¿½ï¿½Ú»ï¿½È¡ï¿½ï¿½ï¿½Â°æ±¾ï¿½ï¿½</div>
         <section id="recommended" class="download-recommend" aria-labelledby="recommended-title"></section>
         <details class="download-other" open>
-          <summary>ÆäËûÆ½Ì¨</summary>
+          <summary>ï¿½ï¿½ï¿½ï¿½Æ½Ì¨</summary>
           <div id="platform-list" class="download-platform-list"></div>
         </details>
        </div>
      </div>
-    <!-- ¹ÜÀíºóÌ¨ÊÓÍ¼ -->
+    <!-- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¨ï¿½ï¿½Í¼ -->
      <div id="adminView" class="download-view" style="display:none">
        <div class="download-header">
-         <button id="adminBackBtn" class="back-to-list-btn" type="button">·µ»Ø</button>
-         <span>¹ÜÀíºóÌ¨</span>
+         <button id="adminBackBtn" class="back-to-list-btn" type="button">ï¿½ï¿½ï¿½ï¿½</button>
+         <span>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¨</span>
        </div>
        <div class="download-page">
          <section class="admin-section">
-           <h3>Éú³ÉÓà¶î¶Ò»»Âë</h3>
+           <h3>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½</h3>
            <div class="admin-form">
              <div class="admin-field">
-               <label>ÃæÖµ(Ôª)</label>
-               <input id="adminRedeemValue" type="number" step="0.01" min="0.01" value="10" placeholder="ÃæÖµ">
+               <label>ï¿½ï¿½Öµ(Ôª)</label>
+               <input id="adminRedeemValue" type="number" step="0.01" min="0.01" value="10" placeholder="ï¿½ï¿½Öµ">
              </div>
              <div class="admin-field">
-               <label>ÊýÁ¿</label>
+               <label>ï¿½ï¿½ï¿½ï¿½</label>
                <input id="adminRedeemCount" type="number" min="1" max="500" value="10" placeholder="1-500">
              </div>
-             <button id="adminIssueBtn" type="button" class="btn-cn">Éú³É¶Ò»»Âë</button>
+             <button id="adminIssueBtn" type="button" class="btn-cn">ï¿½ï¿½ï¿½É¶Ò»ï¿½ï¿½ï¿½</button>
            </div>
            <div id="adminIssueResult" class="admin-result" style="display:none">
              <div class="admin-result-header">
-               <span>ÒÑÉú³É <b id="adminIssueCount"></b> ¸ö¶Ò»»Âë</span>
-               <button id="adminCopyAllBtn" type="button" class="btn-cn small">¸´ÖÆÈ«²¿</button>
+               <span>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ <b id="adminIssueCount"></b> ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½</span>
+               <button id="adminCopyAllBtn" type="button" class="btn-cn small">ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½</button>
              </div>
              <div id="adminCodeList" class="admin-code-list"></div>
            </div>
          </section>
          <section class="admin-section">
-           <h3>¶Ò»»ÂëÁÐ±í</h3>
+           <h3>ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ð±ï¿½</h3>
            <div class="admin-tabs">
-             <button class="admin-tab on" data-claimed="">È«²¿</button>
-             <button class="admin-tab" data-claimed="0">Î´Ê¹ÓÃ</button>
-             <button class="admin-tab" data-claimed="1">ÒÑÊ¹ÓÃ</button>
+             <button class="admin-tab on" data-claimed="">È«ï¿½ï¿½</button>
+             <button class="admin-tab" data-claimed="0">Î´Ê¹ï¿½ï¿½</button>
+             <button class="admin-tab" data-claimed="1">ï¿½ï¿½Ê¹ï¿½ï¿½</button>
            </div>
            <div id="adminCodeTable" class="admin-code-table">
-             <div style="padding:20px;color:#999;text-align:center">¼ÓÔØÖÐ...</div>
+             <div style="padding:20px;color:#999;text-align:center">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...</div>
            </div>
          </section>
        </div>
@@ -447,7 +448,7 @@
 <script src="modules/games.js?v=1-54-0-4"></script>
 <script src="modules/redpacket.js?v=1-54-0-5"></script>
 <script>
-  // ²»ÔÙ×¢²áÐÂµÄ Service Worker£¬²¢×¢ÏúÈÎºÎÒÑ´æÔÚµÄ SW£¬±ÜÃâ¾É»º´æÍç¹ÌÀ¹½Ø¾²Ì¬×ÊÔ´¡£
+  // ï¿½ï¿½ï¿½ï¿½×¢ï¿½ï¿½ï¿½Âµï¿½ Service Workerï¿½ï¿½ï¿½ï¿½×¢ï¿½ï¿½ï¿½Îºï¿½ï¿½Ñ´ï¿½ï¿½Úµï¿½ SWï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½Ì¬ï¿½ï¿½Ô´ï¿½ï¿½
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.getRegistrations().then(function (list) {
