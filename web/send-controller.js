@@ -26,11 +26,12 @@
     if (enc && typeof enc.then === 'function') {
       enc.then(async (ct) => {
         const payload = { to: peerId, content: ct || text, clientMsgId: id };
+        if (typeof pendingReply !== 'undefined' && pendingReply) payload.replyTo = pendingReply;
         input.value = '';
         if (typeof saveCurrentDraft === 'function') saveCurrentDraft();
         if (state.pendingLocal) state.pendingLocal[id] = true;
         if (typeof appendMessage === 'function') {
-          appendMessage({ id: 'local-' + id, from: state.me.id, to: peerId, content: ct || text, createdAt: Date.now(), clientMsgId: id }, false);
+          appendMessage({ id: 'local-' + id, from: state.me.id, to: peerId, content: ct || text, createdAt: Date.now(), clientMsgId: id, replyTo: pendingReply || null }, false);
         }
         fetch(state.serverHost + '/api/messages', {
           method: 'POST',
@@ -40,6 +41,7 @@
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Send failed');
           if (state.pendingLocal) delete state.pendingLocal[id];
+          if (typeof clearPendingReply === 'function') clearPendingReply();
         }).catch((err) => {
           if (typeof toast === 'function') toast('Send failed: ' + err.message, 'error');
         });
@@ -48,11 +50,12 @@
     }
     // 同步降级或 SCE2EE 未就绪
     const payload = { to: peerId, content: enc || text, clientMsgId: id };
+    if (typeof pendingReply !== 'undefined' && pendingReply) payload.replyTo = pendingReply;
     input.value = '';
     if (typeof saveCurrentDraft === 'function') saveCurrentDraft();
     if (state.pendingLocal) state.pendingLocal[id] = true;
     if (typeof appendMessage === 'function') {
-      appendMessage({ id: 'local-' + id, from: state.me.id, to: peerId, content: enc || text, createdAt: Date.now(), clientMsgId: id }, false);
+      appendMessage({ id: 'local-' + id, from: state.me.id, to: peerId, content: enc || text, createdAt: Date.now(), clientMsgId: id, replyTo: pendingReply || null }, false);
     }
     fetch(state.serverHost + '/api/messages', {
       method: 'POST',
@@ -62,6 +65,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Send failed');
       if (state.pendingLocal) delete state.pendingLocal[id];
+      if (typeof clearPendingReply === 'function') clearPendingReply();
     }).catch((err) => {
       if (typeof toast === 'function') toast('Send failed: ' + err.message, 'error');
     });

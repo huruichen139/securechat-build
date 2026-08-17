@@ -121,6 +121,7 @@ function groupMsgDto(r) {
     content: r.content, createdAt: r.created_at,
     clientMsgId: r.client_msg_id || null,
     fromUser: { id: r.from_id, username: sender && sender.username, nickname: name, avatar: sender && sender.avatar, uid: sender && sender.uid },
+    replyTo: r.reply_to || null, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled,
   };
 }
 
@@ -374,7 +375,11 @@ module.exports = function registerGroups(app, db, auth) {
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const rows = p.all(
-      'SELECT * FROM group_messages WHERE group_id=? ORDER BY created_at ASC', groupId);
+      `SELECT gm.*,gmm.reply_to,pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
+       FROM group_messages gm
+       LEFT JOIN group_message_meta gmm ON gmm.message_id=gm.id
+       LEFT JOIN group_messages pm ON pm.id=gmm.reply_to
+       WHERE gm.group_id=? ORDER BY gm.created_at ASC`, groupId);
     res.json({ messages: rows.map(groupMsgDto) });
   });
 
@@ -387,6 +392,12 @@ module.exports = function registerGroups(app, db, auth) {
     const content = String((req.body || {}).content || '');
     if (!content) return fail(res, 400, '消息内容不能为空');
     const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''));
+    const replyTo = Number((req.body || {}).replyTo) || null;
+    if (replyTo) {
+      try {
+        p.run('INSERT INTO group_message_meta(message_id,reply_to,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,updated_at=excluded.updated_at', msgId.id, replyTo, Date.now());
+      } catch (e) {}
+    }
     res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt } });
   });
 

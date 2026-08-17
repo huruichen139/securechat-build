@@ -2129,6 +2129,7 @@ async function selectGroup(groupId) {
   }
   // 移动端：选中群组后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
   if (window.IS_MOBILE) showMobileChatView();
+  else { hideMobilePages(); setRailActive('friends'); setChatListVisible(true); }
 }
 
 function renderGroupMessages(msgs) {
@@ -2203,9 +2204,11 @@ function appendGroupMessage(m, prepend) {
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
+      ${quoteBlockHtml(m)}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
     </div>`;
+  bindQuoteClicks(row);
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
@@ -2237,10 +2240,12 @@ async function sendCurrentGroup() {
   const gid = state.activeGroup;
   // 群聊不能复用单聊的 peer E2EE 会话：groupId 不是用户公钥 ID。
   // 先使用群消息协议发送明文，避免把群 ID 当成用户 ID 导致发送失败。
-  const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text });
+  const reply = pendingReply || null;
+  const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text, replyTo: reply });
   if (ok) {
     input.value = '';
     saveCurrentDraft();
+    clearPendingReply();
     return true;
   }
   // WS 不可用：走 REST 兜底（服务端已支持 POST /api/groups/:id/messages）。
@@ -2248,12 +2253,13 @@ async function sendCurrentGroup() {
     const res = await fetch(state.serverHost + '/api/groups/' + gid + '/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-      body: JSON.stringify({ content: text })
+      body: JSON.stringify({ content: text, replyTo: reply })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '发送失败');
     input.value = '';
     saveCurrentDraft();
+    clearPendingReply();
     return true;
   } catch (e) {
     toast('群消息发送失败：' + ((e && e.message) || e), 'error');
@@ -2373,6 +2379,7 @@ async function selectPeer(peerId) {
   }
   // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
   if (window.IS_MOBILE) showMobileChatView();
+  else { hideMobilePages(); setRailActive('friends'); setChatListVisible(true); }
 }
 
 function renderMessages(msgs) {
@@ -2402,6 +2409,8 @@ function wireConversationTools() {
     if (cv) cv.classList.remove('mobile-chat-active');
     state.activePeer = null;
     state.activeGroup = null;
+    setRailActive('friends');
+    setChatListVisible(true);
     renderChatHeader();
     $('inviteBar').style.display = 'none';
     const welcome = $('welcomePanel'); if (welcome) welcome.style.display = '';
@@ -2519,7 +2528,8 @@ function appendMessage(m, prepend) {
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
-  row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
+  row.innerHTML = `${quoteBlockHtml(m)}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
+  bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
   }
@@ -2528,13 +2538,40 @@ function appendMessage(m, prepend) {
     catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
-    const input = $('input');
-    const quote = '> ' + String(m.content || '').replace(/\n/g, '\n> ') + '\n';
-    input.value = input.value ? quote + input.value : quote;
-    input.focus();
+    if (m.id == null) { toast('无法引用该消息', 'warn', 1200); return; }
+    setPendingReply(m.id);
+    toast('已选择引用，输入内容后发送', 'success', 1500);
   };
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
+}
+
+// ============ 消息引用（微信式） ============
+let pendingReply = null;
+function setPendingReply(id) {
+  pendingReply = id;
+  renderReplyHint();
+}
+function clearPendingReply() {
+  pendingReply = null;
+  renderReplyHint();
+}
+function renderReplyHint() {
+  const shown = !!pendingReply;
+  ['chatMobileComposer', 'chatDesktopComposer'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    let hint = c.querySelector('.reply-hint');
+    if (!shown) { if (hint) hint.remove(); return; }
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'reply-hint';
+      hint.innerHTML = '<span class="reply-hint-text">正在引用一条消息</span><button type="button" class="reply-hint-cancel">取消</button>';
+      hint.querySelector('.reply-hint-cancel').onclick = () => clearPendingReply();
+      const wrap = c.querySelector('.composer-input-wrap') || c;
+      wrap.insertBefore(hint, wrap.firstChild);
+    }
+  });
 }
 
 function fmtTime(t) {
@@ -2542,6 +2579,28 @@ function fmtTime(t) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return hh + ':' + mm;
+}
+
+// 引用块：渲染被引用消息的原文，点击滚动定位
+function quoteBlockHtml(m) {
+  if (!m.replyTo) return '';
+  let text = m.replyContent;
+  if (m.replyRecalled) text = '[消息已撤回]';
+  if (text == null) {
+    const el = document.querySelector('#messages .msg-row[data-id="' + String(m.replyTo).replace(/"/g, '\\"') + '"] .bubble');
+    if (el) text = el.textContent;
+  }
+  if (text == null) return '';
+  return '<div class="quote-block" data-reply="' + String(m.replyTo).replace(/"/g, '&quot;') + '" title="点击查看原文">' + escapeHtml(String(text).replace(/\s+/g, ' ').slice(0, 80)) + '</div>';
+}
+function bindQuoteClicks(row) {
+  row.querySelectorAll('.quote-block').forEach(qb => {
+    qb.onclick = () => {
+      const t = document.querySelector('.msg-row[data-id="' + qb.dataset.reply + '"]');
+      if (t) t.scrollIntoView({ block: 'center' });
+      else toast('原文不在当前加载范围内', 'warn', 1200);
+    };
+  });
 }
 
 // ============ 群聊 @ 成员 ============
@@ -3837,7 +3896,13 @@ function openChatMoreMenu(anchor) {
     items.push({ label: blocked ? '解除拉黑' : '拉黑该联系人', danger: !blocked, onClick: () => toggleBlock(peer.id) });
   }
   if (state.activePeer || state.activeGroup) {
+    const key = state.activePeer ? 'u:' + state.activePeer : 'g:' + state.activeGroup;
+    const prefs = chatPrefs();
+    const pinned = !!prefs.pinned[key];
+    const muted = !!prefs.muted[key];
     items.push({ label: '导出聊天记录', onClick: () => { hideChatMoreMenu(); exportChatLog(); } });
+    items.push({ label: pinned ? '取消置顶' : '置顶会话', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.pinned[key] = !p.pinned[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
+    items.push({ label: muted ? '恢复提醒' : '免打扰', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.muted[key] = !p.muted[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
   }
   items.push({ label: '黑名单管理', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
   items.push({ label: '更多功能', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });

@@ -779,11 +779,13 @@ app.get('/api/history/:peerId', (req, res) => {
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
-  const rows = prepare(`SELECT m.*,mm.reply_to,mm.forwarded_from,mm.burn_after_reading,mm.pinned
+  const rows = prepare(`SELECT m.*,mm.reply_to,mm.forwarded_from,mm.burn_after_reading,mm.pinned,
+    pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
     FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
+    LEFT JOIN messages pm ON pm.id=mm.reply_to
     WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at ASC`)
     .all(payload.id, peerId, peerId, payload.id);
-  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled }));
+  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
   res.json({ messages: msgs });
 });
 
@@ -2629,6 +2631,14 @@ wss.on('connection', (ws) => {
           .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
       }
       const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading };
+      let replyContent = null, replyFrom = null, replyRecalled = false;
+      if (msgObj.replyTo) {
+        try {
+          const pm = prepare('SELECT content,from_id,recalled FROM messages WHERE id=?').get(msgObj.replyTo);
+          if (pm) { replyContent = pm.content; replyFrom = pm.from_id; replyRecalled = !!pm.recalled; }
+        } catch (e) {}
+      }
+      msgObj.replyContent = replyContent; msgObj.replyFrom = replyFrom; msgObj.replyRecalled = replyRecalled;
       send(ws, P.S_MSG, msgObj);
       const peer = onlineAny(toId);
       if (peer) sendToUser(toId, P.S_MSG, msgObj);
@@ -2650,7 +2660,7 @@ wss.on('connection', (ws) => {
     // 群消息：C_GROUP_MSG { groupId, content }
     if (type === P.C_GROUP_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
-      const { groupId, content, clientMsgId } = payload || {};
+      const { groupId, content, clientMsgId, replyTo } = payload || {};
       const gid = Number(groupId);
       if (!Number.isInteger(gid) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
@@ -2670,7 +2680,17 @@ wss.on('connection', (ws) => {
       const now = Date.now();
       const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
         .run(gid, ws.uid, enc, clientMsgId || null, now);
-      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null };
+      const replyToId = Number(replyTo) || null;
+      let replyContent = null, replyFrom = null;
+      if (replyToId) {
+        try {
+          prepare('INSERT INTO group_message_meta(message_id,reply_to,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,updated_at=excluded.updated_at')
+            .run(info.lastInsertRowid, replyToId, now);
+          const pm = prepare('SELECT content,from_id FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid);
+          if (pm) { replyContent = pm.content; replyFrom = pm.from_id; }
+        } catch (e) {}
+      }
+      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom };
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;
