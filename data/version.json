@@ -1,7 +1,28 @@
 {
-  "current": "1.62.4",
-  "latest": "1.62.4",
+  "current": "1.62.6",
+  "latest": "1.62.6",
   "releaseNotes": [
+    {
+      "version": "1.62.6",
+      "date": "2026-08-17",
+      "notes": [
+        "视频号：视频卡片点击直接播放（系统播放器），支持按标题/描述搜索",
+        "通讯录点击联系人/群直接跳转聊天（修复桌面端被其他页面遮挡的问题）",
+        "我页：相册真实可用（上传/预览/保存/删除），我的名片点击可查看",
+        "我的状态支持自定义背景图",
+        "单聊/群聊发送附件：文件直接发送，图片可全屏预览、文件可保存",
+        "未读红点、转发消息标记、本端删除持久化、群文件下载修复"
+      ]
+    },
+    {
+      "version": "1.62.5",
+      "date": "2026-08-17",
+      "notes": [
+        "通讯录点击联系人/群直接跳转聊天（修复桌面端被其他页面遮挡的问题）",
+        "我页：相册真实可用（上传/预览/保存/删除），我的名片点击可查看",
+        "我的状态支持自定义背景图"
+      ]
+    },
     {
       "version": "1.62.4",
       "date": "2026-08-17",
@@ -59,21 +80,21 @@
       ]
     }
   ],
-  "updatedAt": 1786940939220,
+  "updatedAt": 1786945548802,
   "downloads": {
-    "windows": "/downloads/SecureChat-1.62.4-windows.exe",
-    "macos": "/downloads/SecureChat-1.62.4-macos.dmg",
-    "android": "/downloads/SecureChat-1.62.4-android.apk",
+    "windows": "/downloads/SecureChat-1.62.6-windows.exe",
+    "macos": "/downloads/SecureChat-1.62.3-macos.dmg",
+    "android": "/downloads/SecureChat-1.62.3-android.apk",
     "harmony": "/downloads/SecureChat-1.54.0-harmony.hap",
-    "ios": "/downloads/SecureChat-1.62.4-ios.ipa",
-    "windowsPortable": "/downloads/SecureChat-1.62.4-windows.zip"
+    "ios": "/downloads/SecureChat-1.62.3-ios.ipa",
+    "windowsPortable": "/downloads/SecureChat-1.62.6-windows.zip"
   },
   "downloadVersions": {
-    "windows": "1.62.4",
-    "macos": "1.62.4",
-    "android": "1.62.4",
+    "windows": "1.62.6",
+    "macos": "1.62.3",
+    "android": "1.62.3",
     "harmony": "1.54.0",
-    "ios": "1.62.4",
-    "windowsPortable": "1.62.4"
+    "ios": "1.62.3",
+    "windowsPortable": "1.62.6"
   }
 }

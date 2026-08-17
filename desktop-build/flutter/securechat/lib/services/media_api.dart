@@ -120,6 +120,21 @@ class MediaService {
     return ((d['videos'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> searchVideos(String q) async {
+    final d = await _get('/api/videos/search', {'q': q});
+    return ((d['videos'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// 带鉴权下载媒体文件字节（供本地播放/保存）
+  Future<List<int>> download(String url) async {
+    final u = Uri.parse(absolute(url));
+    final r = await http.get(u, headers: {'Authorization': 'Bearer $_token'});
+    if (r.statusCode < 200 || r.statusCode >= 300) {
+      throw StateError('下载失败 (${r.statusCode})');
+    }
+    return r.bodyBytes;
+  }
+
   Future<List<Map<String, dynamic>>> followingVideos() async {
     final d = await _get('/api/videos/following');
     return ((d['videos'] as List?) ?? const []).cast<Map<String, dynamic>>();

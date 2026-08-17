@@ -463,6 +463,17 @@ module.exports = function registerMedia(app, db, auth) {
     okay(res, { videos: rows.map(r => videoPublic(r, meId)) });
   });
 
+  // 视频搜索（标题/描述 LIKE）
+  app.get('/api/videos/search', (req, res) => {
+    const payload = authed(req);
+    const meId = payload ? payload.id : null;
+    const q = String(req.query.q || '').trim();
+    if (!q) return okay(res, { videos: [] });
+    const like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
+    const rows = prepare("SELECT * FROM videos WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT 50").all(like, like);
+    okay(res, { videos: rows.map(r => videoPublic(r, meId)) });
+  });
+
   // 关注流：好友 + 自己的视频
   app.get('/api/videos/following', (req, res) => {
     const payload = authed(req);

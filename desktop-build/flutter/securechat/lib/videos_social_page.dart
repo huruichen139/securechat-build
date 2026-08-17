@@ -20,8 +20,10 @@ class VideosSocialPage extends StatefulWidget {
 class _VideosSocialPageState extends State<VideosSocialPage> {
   late final MediaService _svc = MediaService(widget.api);
   final _tab = ValueNotifier(0); // 0=推荐 1=关注 2=收藏
+  final _searchCtrl = TextEditingController();
   List<Map<String, dynamic>> _videos = [];
   bool _loading = true;
+  bool _searching = false;
   String? _error;
 
   AppConfig get _cfg => widget.config as AppConfig;
@@ -38,6 +40,7 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
   void dispose() {
     _tab.removeListener(_load);
     _tab.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -45,6 +48,7 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _searching = false;
     });
     try {
       if (_tab.value == 0) {
@@ -58,6 +62,51 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
       _error = e.toString().replaceFirst('Bad state: ', '');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _search(String q) async {
+    q = q.trim();
+    if (q.isEmpty) {
+      _load();
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+      _searching = true;
+    });
+    try {
+      _videos = await _svc.searchVideos(q);
+    } catch (e) {
+      _error = e.toString().replaceFirst('Bad state: ', '');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _playVideo(Map<String, dynamic> v) async {
+    final src = _svc.str(v['url']);
+    if (src.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('视频地址未配置')));
+      return;
+    }
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在获取视频…'), duration: Duration(seconds: 30)));
+      final bytes = await _svc.download(src);
+      if (!mounted) return;
+      final ext = src.contains('.webm') ? 'webm' : 'mp4';
+      final tmp = File('${Directory.systemTemp.path}/securechat-video-${DateTime.now().millisecondsSinceEpoch}.$ext');
+      await tmp.writeAsBytes(bytes);
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        await Process.start(tmp.path, []);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('视频已保存到临时目录：${tmp.path}')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('视频播放失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+      }
     }
   }
 
@@ -196,6 +245,28 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
           ]),
         ),
         Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          color: t.bg,
+          child: TextField(
+            controller: _searchCtrl,
+            onSubmitted: _search,
+            style: TextStyle(color: t.text, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: '搜索视频标题/描述',
+              hintStyle: TextStyle(color: t.subText, fontSize: 13),
+              prefixIcon: Icon(Icons.search, size: 18, color: t.subText),
+              suffixIcon: _searching
+                  ? IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () { _searchCtrl.clear(); _search(''); })
+                  : null,
+              isDense: true,
+              filled: true,
+              fillColor: t.inputBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
+        ),
+        Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(color: t.bg, border: Border(bottom: BorderSide(color: t.div.withValues(alpha: 0.6)))),
           child: Row(children: [
@@ -235,9 +306,9 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
                                   Expanded(child: Text(nick, style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 13))),
                                 ]),
                                 const SizedBox(height: 10),
-                                // 无内置播放器：展示一个“视频卡片”，点按查看地址
+                                // 视频卡片：点击下载并调用系统播放器播放
                                 GestureDetector(
-                                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(src.isEmpty ? '视频地址未配置' : '视频地址：$src'))),
+                                  onTap: () => _playVideo(v),
                                   child: Container(
                                     height: 120,
                                     decoration: BoxDecoration(color: Ux.cellIconBg(t), borderRadius: BorderRadius.circular(Ux.radius)),
@@ -245,7 +316,7 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
                                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                                         Icon(Icons.play_circle_outline, size: 34, color: Ux.green),
                                         const SizedBox(height: 4),
-                                        Text('点击查看视频地址', style: TextStyle(color: t.subText, fontSize: 11)),
+                                        Text('点击播放视频', style: TextStyle(color: t.subText, fontSize: 11)),
                                       ]),
                                     ),
                                   ),
