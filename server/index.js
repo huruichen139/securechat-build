@@ -2642,6 +2642,8 @@ wss.on('connection', (ws) => {
       if (!ws.uid) return;
       const { from } = payload || {};
       prepare('UPDATE messages SET read=1 WHERE from_id=? AND to_id=?').run(Number(from), ws.uid);
+      // 通知发送方：对方已读
+      if (Number.isInteger(Number(from)) && onlineAny(Number(from))) sendToUser(Number(from), P.S_MSG_READ, { peerId: ws.uid });
       return;
     }
 

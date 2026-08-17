@@ -9,7 +9,7 @@ const P = {
   C_GROUP_MSG: 'group_msg', C_GROUP_READ: 'group_read',
   S_AUTH_OK: 'auth_ok', S_AUTH_FAIL: 'auth_fail', S_MSG: 'msg',
   S_USER_LIST: 'user_list', S_TYPING: 'typing', S_ERROR: 'error',
-  S_MSG_RECALL: 'msg_recall',
+  S_MSG_RECALL: 'msg_recall', S_MSG_READ: 'msg_read',
   S_SIGNAL: 'signal',
   S_FRIEND_REQ: 'friend_req', S_FRIEND_LIST: 'friend_list',
   S_GROUP_MSG: 'group_msg', S_GROUP_LIST: 'group_list',
@@ -1573,6 +1573,9 @@ case P.S_MSG:
     case P.S_MSG_RECALL:
       if (payload && payload.messageId) markRecalled(payload.messageId, false);
       break;
+    case P.S_MSG_READ:
+      if (payload && (state.activePeer === payload.peerId)) markConversationRead();
+      break;
     case P.S_SIGNAL: if (window.rtc) window.rtc.handleSignal(payload); break;
     case P.S_FRIEND_LIST:
       state.friends = payload.friends || [];
@@ -2048,16 +2051,58 @@ function renderChatHeader() {
     const g = state.groups.find(x => x.id === state.activeGroup);
     const name = g ? g.name : ('群 #' + state.activeGroup);
     $('chatHeader').textContent = '群聊：' + name;
+    $('chatHeader').onclick = null;
+    const mt = document.getElementById('chatMobileTitle');
+    if (mt) { mt.textContent = '群聊：' + name; mt.onclick = null; }
     $('inviteBar').style.display = '';
     return;
   }
   if (state.activePeer) {
     const peer = state.friends.find(u => u.id === state.activePeer);
-    $('chatHeader').textContent = peer ? peer.nickname : '聊天';
+    const name = peer ? peer.nickname : '聊天';
+    $('chatHeader').textContent = name;
+    $('chatHeader').onclick = () => openPeerProfile(state.activePeer);
+    const mt = document.getElementById('chatMobileTitle');
+    if (mt) { mt.textContent = name; mt.onclick = () => openPeerProfile(state.activePeer); }
   } else {
     $('chatHeader').textContent = t('noConversation', '请选择联系人');
+    $('chatHeader').onclick = null;
   }
   $('inviteBar').style.display = 'none';
+}
+
+// 好友资料卡（点击聊天头部打开）
+function openPeerProfile(peerId) {
+  const peer = state.friends.find(u => u.id === peerId);
+  if (!peer) return;
+  const blocked = blockedMap ? blockedMap.has(peer.id) : false;
+  const mask = document.createElement('div');
+  mask.className = 'profile-mask';
+  const region = [peer.country, peer.province, peer.city].filter(Boolean).join(' ');
+  mask.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-head">
+        <div class="profile-avatar">${peer.avatar ? '<img src="' + peer.avatar + '">' : avatarChar(peer.nickname)}</div>
+        <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
+        <div class="profile-id">微信号：${escapeHtml(peer.uid || '')} · ID: ${peer.id}</div>
+        <div class="profile-online">${peer.online ? '<span class="dot online"></span> 在线' : '离线'}</div>
+        ${region ? '<div class="profile-region">地区：' + escapeHtml(region) + '</div>' : ''}
+      </div>
+      <div class="profile-actions">
+        <button class="btn-cn" id="profileMsgBtn">发消息</button>
+        <button class="btn-cn gray" id="profileBlockBtn">${blocked ? '解除拉黑' : '拉黑'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.querySelector('#profileMsgBtn').onclick = () => { mask.remove(); selectPeer(peer.id); };
+  mask.querySelector('#profileBlockBtn').onclick = () => {
+    toggleBlock(peer.id, () => {
+      const bl = mask.querySelector('#profileBlockBtn');
+      const nowBlocked = blockedMap ? blockedMap.has(peer.id) : false;
+      if (bl) bl.textContent = nowBlocked ? '解除拉黑' : '拉黑';
+    });
+  };
+  mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 
 // 选择群 + 加载群历史
@@ -2474,7 +2519,7 @@ function appendMessage(m, prepend) {
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
-  row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span><div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
+  row.innerHTML = `<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>`;
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
   }
@@ -2499,6 +2544,46 @@ function fmtTime(t) {
   return hh + ':' + mm;
 }
 
+// ============ 群聊 @ 成员 ============
+let atPanel = null;
+function showAtPanel(anchorInput) {
+  if (!state.activeGroup) return;
+  const g = state.groups.find(x => x.id === state.activeGroup);
+  const members = (g && g.members) || [];
+  if (!members.length) return;
+  hideAtPanel();
+  const list = members.map(id => {
+    const u = state.friends.find(f => f.id === id);
+    return { id, name: u ? (u.nickname || u.username) : ('用户' + id) };
+  });
+  atPanel = document.createElement('div');
+  atPanel.className = 'at-panel';
+  atPanel.innerHTML = list.map(m => '<div class="at-item" data-id="' + m.id + '">' + escapeHtml(m.name) + '</div>').join('');
+  const rect = anchorInput.getBoundingClientRect();
+  atPanel.style.position = 'fixed';
+  atPanel.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+  atPanel.style.left = Math.max(8, rect.left) + 'px';
+  atPanel.style.maxHeight = '220px';
+  atPanel.style.overflowY = 'auto';
+  document.body.appendChild(atPanel);
+  atPanel.querySelectorAll('.at-item').forEach(el => {
+    el.onclick = () => {
+      const name = el.textContent;
+      const v = anchorInput.value;
+      const idx = v.lastIndexOf('@');
+      anchorInput.value = idx >= 0 ? v.slice(0, idx) + '@' + name + ' ' + v.slice(idx + 1) : v + '@' + name + ' ';
+      anchorInput.focus();
+      hideAtPanel();
+    };
+  });
+}
+function hideAtPanel() { if (atPanel) { atPanel.remove(); atPanel = null; } }
+function onAtKey(input) {
+  const v = input.value;
+  if (!state.activeGroup || atPanel && !v.includes('@')) hideAtPanel();
+  if (v.slice(-1) === '@' && state.activeGroup) showAtPanel(input);
+}
+
 // ============ 消息撤回 ============
 async function recallMessage(msgId) {
   if (!msgId) return;
@@ -2521,6 +2606,12 @@ function markRecalled(msgId, mine) {
   bubbles.forEach(b => { b.textContent = mine ? '你撤回了一条消息' : '对方撤回了一条消息'; b.classList.add('recalled'); });
   const actions = row.querySelector('.message-actions');
   if (actions) actions.style.display = 'none';
+}
+function markConversationRead() {
+  document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
+    el.textContent = '已读';
+    el.classList.add('read');
+  });
 }
 
 // 微信式日期分隔条文案
@@ -2742,12 +2833,14 @@ if (desktopInput) desktopInput.addEventListener('keydown', (e) => {
 let typingSent = 0;
 $('input').addEventListener('input', () => {
   saveCurrentDraft();
+  onAtKey($('input'));
   if (!state.activePeer) return;
   const now = Date.now();
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
 });
 if (desktopInput) desktopInput.addEventListener('input', () => {
   saveCurrentDraft();
+  onAtKey(desktopInput);
   if (!state.activePeer) return;
   const now = Date.now();
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
