@@ -4240,6 +4240,7 @@ function openChatMoreMenu(anchor) {
   items.push({ label: '黑名单管理', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
   items.push({ label: '更多功能', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });
   items.push({ label: '消息字体：' + msgFontLabel(), onClick: () => { hideChatMoreMenu(); cycleMsgFont(); } });
+  items.push({ label: '聊天背景', onClick: () => { hideChatMoreMenu(); openChatBgPicker(); } });
   if (!items.length) return;
   chatMoreMenu = document.createElement('div');
   chatMoreMenu.className = 'chat-more-menu';
@@ -4254,6 +4255,39 @@ function openChatMoreMenu(anchor) {
 function hideChatMoreMenu() {
   if (chatMoreMenu) { chatMoreMenu.remove(); chatMoreMenu = null; }
 }
+// ============ 聊天背景 ============
+const CHAT_BGS = [
+  { name: '默认', color: '' },
+  { name: '米白', color: '#f8fafc' },
+  { name: '浅灰', color: '#e8eaed' },
+  { name: '墨绿', color: '#2f4f43' },
+  { name: '藏青', color: '#2b3a55' },
+  { name: '暖橙', color: '#f5e6d3' },
+  { name: '淡蓝', color: '#dbe9f7' },
+  { name: '雾紫', color: '#e6e0f0' },
+];
+function applyChatBg(color) {
+  const key = 'chatBgColor';
+  if (color) { localStorage.setItem(key, color); document.documentElement.style.setProperty('--chat-bg', color); }
+  else { localStorage.removeItem(key); document.documentElement.style.removeProperty('--chat-bg'); }
+}
+function initChatBg() {
+  try { const c = localStorage.getItem('chatBgColor'); if (c) document.documentElement.style.setProperty('--chat-bg', c); } catch (e) {}
+}
+function openChatBgPicker() {
+  const mask = document.createElement('div');
+  mask.className = 'profile-mask';
+  mask.innerHTML = `<div class="profile-card" style="max-width:340px">
+    <div class="profile-head"><div class="profile-name" style="font-size:15px">聊天背景</div></div>
+    <div class="chat-bg-grid">${CHAT_BGS.map(b => `<div class="chat-bg-item" data-c="${escapeHtml(b.color)}" style="${b.color ? 'background:' + b.color : 'background:#f8fafc;border:1px dashed #cbd5e1'}"><span style="${b.color ? '' : 'color:#94a3b8'}">${escapeHtml(b.name)}</span></div>`).join('')}</div>
+  </div>`;
+  document.body.appendChild(mask);
+  mask.querySelectorAll('.chat-bg-item').forEach(el => {
+    el.onclick = () => { applyChatBg(el.dataset.c); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
+  });
+  mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
+}
+initChatBg();
 // ============ 导出聊天记录 + 消息字体 ============
 async function exportChatLog() {
   const peerId = state.activePeer;
