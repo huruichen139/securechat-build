@@ -2228,6 +2228,7 @@ function appendGroupMessage(m, prepend) {
       if (local) { if (m.id != null) local.setAttribute('data-id', String(m.id)); return; }
     }
   }
+  if (isMsgDeleted(m.id)) return;
   // 群聊语音：复用气泡结构，但带上发送人昵称/头像
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
     const rest = m.content.slice(VOICE_PREFIX.length);
@@ -2297,7 +2298,7 @@ function appendGroupMessage(m, prepend) {
       ${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
-      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button></div>
+      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
     </div>`;
   if (canGroupRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
@@ -2313,6 +2314,8 @@ function appendGroupMessage(m, prepend) {
   };
   const fwdBtnG = row.querySelector('[data-action="forward"]');
   if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
+  const delBtnG = row.querySelector('[data-action="del"]');
+  if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在自己手机上消失，确定删除吗？')) deleteMsgLocal(m.id); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
@@ -2615,6 +2618,7 @@ function appendMessage(m, prepend) {
       }
     }
   }
+  if (isMsgDeleted(m.id)) return;
   if (typeof m.content === 'string' && m.content.startsWith('__FILE__')) {
     try {
       const file = JSON.parse(m.content.slice(8));
@@ -2655,11 +2659,12 @@ function appendMessage(m, prepend) {
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button></div>`;
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
   }
+  row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在本端消失，确定删除吗？')) deleteMsgLocal(m.id); };
   row.querySelector('[data-action="copy"]').onclick = async () => {
     try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
     catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
@@ -2675,6 +2680,22 @@ function appendMessage(m, prepend) {
   bindMobileLongPress(row);
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
+}
+
+// ============ 消息本地删除（仅本端） ============
+function isMsgDeleted(id) {
+  if (id == null) return false;
+  try { const s = localStorage.getItem('deletedMsgIds'); if (!s) return false; return JSON.parse(s).indexOf(String(id)) !== -1; } catch (e) { return false; }
+}
+function deleteMsgLocal(id) {
+  try {
+    const s = localStorage.getItem('deletedMsgIds');
+    const arr = s ? JSON.parse(s) : [];
+    arr.push(String(id));
+    localStorage.setItem('deletedMsgIds', JSON.stringify(arr));
+  } catch (e) {}
+  document.querySelectorAll('#messages .msg-row[data-id="' + String(id).replace(/"/g, '\\"') + '"]').forEach(el => el.remove());
+  const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
 }
 
 // ============ 消息转发（微信式） ============
