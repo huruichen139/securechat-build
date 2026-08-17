@@ -14,6 +14,32 @@ const QRCode = require('qrcode');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
 
+function epaySign(params, key) {
+  const body = Object.keys(params)
+    .filter(k => k !== 'sign' && k !== 'sign_type' && params[k] !== undefined && params[k] !== null && String(params[k]) !== '')
+    .sort()
+    .map(k => `${k}=${params[k]}`)
+    .join('&');
+  return crypto.createHash('md5').update(body + key).digest('hex');
+}
+
+function epayConfig(prepare) {
+  try {
+    const row = prepare('SELECT value FROM settings WHERE key=?').get('epay_config');
+    const c = row ? JSON.parse(row.value) : {};
+    return {
+      enabled: !!c.enabled,
+      baseUrl: String(c.baseUrl || '').replace(/\/$/, ''),
+      gatewayUrl: String(c.gatewayUrl || '').trim(),
+      gatewayId: String(c.gatewayId || '').trim(),
+      merchantPid: String(c.merchantPid || '').trim(),
+      key: String(c.key || '').trim(),
+      notifyUrl: String(c.notifyUrl || '').trim(),
+      returnUrl: String(c.returnUrl || '').trim()
+    };
+  } catch (e) { return { enabled: false, baseUrl: '', gatewayUrl: '', gatewayId: '', merchantPid: '', key: '', notifyUrl: '', returnUrl: '' }; }
+}
+
 module.exports = function registerPayment(app, db, auth) {
   if (!db || typeof db.prepare !== 'function') {
     throw new Error('[payment] 需要 db.prepare（require("../db")）');
@@ -88,8 +114,42 @@ module.exports = function registerPayment(app, db, auth) {
       " amount FLOAT NOT NULL,\n" +
       " status TEXT NOT NULL DEFAULT 'paid',\n" +
       " created_at INTEGER NOT NULL\n)").run();
+
+    // 网关商户、支付订单和用户明确授权记录。
+    prepare("CREATE TABLE IF NOT EXISTS pay_merchants (\n" +
+      " id INTEGER PRIMARY KEY AUTOINCREMENT,\n" +
+      " user_id INTEGER NOT NULL, name TEXT NOT NULL, callback_url TEXT, auth_mode TEXT NOT NULL DEFAULT 'local',\n" +
+      " status TEXT NOT NULL DEFAULT 'pending', reason TEXT, created_at INTEGER NOT NULL, reviewed_at INTEGER\n" +
+      ")").run();
+    prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_pay_merchant_user ON pay_merchants(user_id)").run();
+    prepare("CREATE TABLE IF NOT EXISTS pay_orders (\n" +
+      " id INTEGER PRIMARY KEY AUTOINCREMENT, order_no TEXT UNIQUE NOT NULL, merchant_id INTEGER NOT NULL, payer_id INTEGER,\n" +
+      " amount FLOAT NOT NULL, subject TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', callback_url TEXT,\n" +
+      " created_at INTEGER NOT NULL, paid_at INTEGER, expires_at INTEGER\n" +
+      ")").run();
+    prepare("CREATE INDEX IF NOT EXISTS idx_pay_orders_merchant ON pay_orders(merchant_id, created_at)").run();
+    prepare("CREATE TABLE IF NOT EXISTS pay_authorizations (\n" +
+      " id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, merchant_id INTEGER NOT NULL,\n" +
+      " mode TEXT NOT NULL, max_amount FLOAT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created_at INTEGER NOT NULL, expires_at INTEGER\n" +
+      ")").run();
+    prepare("CREATE INDEX IF NOT EXISTS idx_pay_auth_user_merchant ON pay_authorizations(user_id, merchant_id, status)").run();
   }
   ensureTables();
+
+  function saveEpayConfig(c) {
+    const value = JSON.stringify({
+      enabled: !!c.enabled,
+      baseUrl: String(c.baseUrl || '').trim(),
+      gatewayUrl: String(c.gatewayUrl || '').trim(),
+      gatewayId: String(c.gatewayId || '').trim(),
+      merchantPid: String(c.merchantPid || '').trim(),
+      key: String(c.key || '').trim(),
+      notifyUrl: String(c.notifyUrl || '').trim(),
+      returnUrl: String(c.returnUrl || '').trim()
+    });
+    prepare('INSERT INTO settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at').run('epay_config', value, Date.now());
+    persist();
+  }
 
   // ============ 工具 ============
   function mw(req, res, next) {
@@ -516,6 +576,220 @@ module.exports = function registerPayment(app, db, auth) {
       collectPaid: collectPaid ? collectPaid.cnt : 0,
       solJoined: solJoined ? solJoined.cnt : 0,
       lifePaid: life ? life.cnt : 0
+    });
+  });
+
+  // ============ 支付网关（内置钱包沙箱） ============
+  function merchantPublic(m) {
+    return { id: m.id, userId: m.user_id, name: m.name, callbackUrl: m.callback_url || '', authMode: m.auth_mode, status: m.status, reason: m.reason || '', createdAt: m.created_at, reviewedAt: m.reviewed_at || null };
+  }
+  function orderPublic(o) {
+    return { id: o.id, orderNo: o.order_no, merchantId: o.merchant_id, amount: o.amount, subject: o.subject, status: o.status, createdAt: o.created_at, paidAt: o.paid_at || null, expiresAt: o.expires_at, qrText: 'securechat://gateway/pay?order=' + encodeURIComponent(o.order_no) };
+  }
+
+  // 商户申请：回调地址可选；网页授权和本地客户端授权二选一。
+  app.post('/api/pay/gateway/merchant/apply', mw, (req, res) => {
+    const name = String(req.body?.name || '').trim().slice(0, 80);
+    const callbackUrl = String(req.body?.callbackUrl || '').trim().slice(0, 500);
+    const authMode = ['web', 'local'].includes(req.body?.authMode) ? req.body.authMode : 'local';
+    if (!name) return res.status(400).json({ error: '商户名称不能为空' });
+    if (callbackUrl && !/^https:\/\//i.test(callbackUrl)) return res.status(400).json({ error: '回调地址必须使用 HTTPS' });
+    const old = prepare('SELECT * FROM pay_merchants WHERE user_id=?').get(req.user.id);
+    if (old) return res.status(409).json({ error: '你已经申请过商户，请等待审核', merchant: merchantPublic(old) });
+    const r = prepare('INSERT INTO pay_merchants(user_id,name,callback_url,auth_mode,status,created_at) VALUES(?,?,?,?,?,?)')
+      .run(req.user.id, name, callbackUrl, authMode, 'pending', Date.now());
+    persist();
+    res.json({ ok: true, merchant: merchantPublic(prepare('SELECT * FROM pay_merchants WHERE id=?').get(r.lastInsertRowid)) });
+  });
+
+  app.get('/api/pay/gateway/merchant/me', mw, (req, res) => {
+    const m = prepare('SELECT * FROM pay_merchants WHERE user_id=?').get(req.user.id);
+    res.json({ merchant: m ? merchantPublic(m) : null });
+  });
+
+  // 创建订单：只有审核通过的商户能创建。
+  app.post('/api/pay/gateway/order', mw, (req, res) => {
+    const merchant = prepare('SELECT * FROM pay_merchants WHERE user_id=? AND status=?').get(req.user.id, 'approved');
+    if (!merchant) return res.status(403).json({ error: '商户未审核通过' });
+    const amount = Number(req.body?.amount);
+    const subject = String(req.body?.subject || '').trim().slice(0, 120);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return res.status(400).json({ error: '金额无效' });
+    if (!subject) return res.status(400).json({ error: '商品说明不能为空' });
+    const orderNo = 'SC' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(4).toString('hex').toUpperCase();
+    const expiresAt = Date.now() + 30 * 60 * 1000;
+    prepare('INSERT INTO pay_orders(order_no,merchant_id,amount,subject,status,callback_url,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)')
+      .run(orderNo, merchant.id, amount, subject, 'pending', merchant.callback_url || '', Date.now(), expiresAt);
+    persist();
+    res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE order_no=?').get(orderNo)) });
+  });
+
+  // 订单详情：扫码前可公开查询基本信息，不返回敏感数据。
+  app.get('/api/pay/gateway/order/:orderNo', (req, res) => {
+    const o = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(req.params.orderNo);
+    if (!o) return res.status(404).json({ error: '订单不存在' });
+    if (o.status === 'pending' && o.expires_at < Date.now()) {
+      prepare('UPDATE pay_orders SET status=? WHERE id=?').run('expired', o.id);
+      o.status = 'expired';
+    }
+    res.json({ order: orderPublic(o) });
+  });
+
+  // 授权扣款：必须由客户端明确传 confirm=true，且金额不能超过本次确认金额。
+  app.post('/api/pay/gateway/order/:orderNo/confirm', mw, (req, res) => {
+    const o = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(req.params.orderNo);
+    if (!o) return res.status(404).json({ error: '订单不存在' });
+    if (o.status !== 'pending' || o.expires_at < Date.now()) return res.status(409).json({ error: '订单已失效或已处理' });
+    if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
+    const amount = Number(req.body?.amount);
+    if (amount !== o.amount) return res.status(400).json({ error: '确认金额与订单金额不一致' });
+    const auth = prepare('SELECT * FROM pay_authorizations WHERE user_id=? AND merchant_id=? AND status=? AND (expires_at IS NULL OR expires_at>?) ORDER BY id DESC LIMIT 1')
+      .get(req.user.id, o.merchant_id, 'active', Date.now());
+    if (!auth || auth.max_amount < amount) return res.status(403).json({ error: '未找到有效的支付授权或超过授权额度' });
+    const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(o.merchant_id);
+    doPay(req.user.id, merchant.user_id, amount, o.subject, 'gateway', o.id, (err, result) => {
+      if (err) return res.status(err.code || 400).json({ error: err.message });
+      prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), o.id);
+      persist();
+      res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id)), balance: result.balance, callback: o.callback_url || null });
+    });
+  });
+
+  // 用户创建授权：需明确确认，网页/本地客户端均可使用。
+  app.post('/api/pay/gateway/authorization', mw, (req, res) => {
+    const merchantId = parseInt(req.body?.merchantId, 10);
+    const maxAmount = Number(req.body?.maxAmount);
+    const mode = ['web', 'local'].includes(req.body?.mode) ? req.body.mode : 'local';
+    const confirm = req.body?.confirm === true;
+    if (!merchantId || !Number.isFinite(maxAmount) || maxAmount <= 0 || !confirm) return res.status(400).json({ error: '授权金额和明确确认必填' });
+    const m = prepare('SELECT id,status FROM pay_merchants WHERE id=?').get(merchantId);
+    if (!m || m.status !== 'approved') return res.status(404).json({ error: '商户不存在或未审核' });
+    const expiresAt = Date.now() + 90 * 24 * 3600 * 1000;
+    prepare('INSERT INTO pay_authorizations(user_id,merchant_id,mode,max_amount,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?)')
+      .run(req.user.id, merchantId, mode, maxAmount, 'active', Date.now(), expiresAt);
+    persist();
+    res.json({ ok: true, mode, maxAmount, expiresAt });
+  });
+
+  app.get('/api/pay/gateway/authorization', mw, (req, res) => {
+    const rows = prepare('SELECT * FROM pay_authorizations WHERE user_id=? ORDER BY created_at DESC').all(req.user.id);
+    res.json({ authorizations: rows.map(a => ({ id: a.id, merchantId: a.merchant_id, mode: a.mode, maxAmount: a.max_amount, status: a.status, createdAt: a.created_at, expiresAt: a.expires_at })) });
+  });
+
+  app.delete('/api/pay/gateway/authorization/:id', mw, (req, res) => {
+    prepare('UPDATE pay_authorizations SET status=? WHERE id=? AND user_id=?').run('revoked', parseInt(req.params.id, 10), req.user.id);
+    persist();
+    res.json({ ok: true });
+  });
+
+  // ============ EPay 通道 ============
+  // 配置只允许管理员设置；key 不返回给客户端。
+  app.get('/api/admin/pay/epay/config', (req, res) => {
+    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
+    return auth(req, res, () => {
+      const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
+      const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
+      if (!u || !admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '无权限' });
+      const c = epayConfig(prepare);
+      res.json({ config: { ...c, key: c.key ? '********' : '' } });
+    });
+  });
+
+  app.post('/api/admin/pay/epay/config', (req, res) => {
+    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
+    return auth(req, res, () => {
+      const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
+      const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
+      if (!u || !admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '无权限' });
+      const old = epayConfig(prepare);
+      const b = req.body || {};
+      const c = {
+        enabled: b.enabled === true,
+        baseUrl: b.baseUrl,
+        gatewayUrl: b.gatewayUrl,
+        gatewayId: b.gatewayId,
+        merchantPid: b.merchantPid,
+        key: b.key && b.key !== '********' ? b.key : old.key,
+        notifyUrl: b.notifyUrl,
+        returnUrl: b.returnUrl
+      };
+      if (c.enabled && (!c.baseUrl || !c.gatewayUrl || !c.merchantPid || !c.key || !c.notifyUrl)) return res.status(400).json({ error: '启用 EPay 前必须填写基础地址、网关地址、商户 PID、Key、异步回调地址' });
+      saveEpayConfig(c);
+      res.json({ ok: true, config: { ...c, key: c.key ? '********' : '' } });
+    });
+  });
+
+  app.get('/api/pay/gateway/epay/status', (req, res) => {
+    const c = epayConfig(prepare);
+    res.json({ enabled: c.enabled, gatewayId: c.gatewayId, merchantPid: c.merchantPid });
+  });
+
+  // 商户创建 EPay 订单，返回第三方支付跳转地址。
+  app.post('/api/pay/gateway/epay/order', mw, (req, res) => {
+    const c = epayConfig(prepare);
+    if (!c.enabled) return res.status(503).json({ error: 'EPay 通道未启用' });
+    const merchant = prepare('SELECT * FROM pay_merchants WHERE user_id=? AND status=?').get(req.user.id, 'approved');
+    if (!merchant) return res.status(403).json({ error: '商户未审核通过' });
+    const amount = Number(req.body?.amount);
+    const subject = String(req.body?.subject || '').trim().slice(0, 120);
+    const type = ['alipay', 'wxpay', 'qqpay'].includes(req.body?.type) ? req.body.type : 'wxpay';
+    if (!Number.isFinite(amount) || amount <= 0 || !subject) return res.status(400).json({ error: '金额或商品说明无效' });
+    const orderNo = 'EP' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(4).toString('hex').toUpperCase();
+    const expiresAt = Date.now() + 30 * 60 * 1000;
+    prepare('INSERT INTO pay_orders(order_no,merchant_id,amount,subject,status,callback_url,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)')
+      .run(orderNo, merchant.id, amount, subject, 'pending', merchant.callback_url || '', Date.now(), expiresAt);
+    const params = {
+      pid: c.merchantPid,
+      type,
+      out_trade_no: orderNo,
+      notify_url: c.notifyUrl,
+      return_url: c.returnUrl,
+      name: subject,
+      money: amount.toFixed(2),
+      sitename: merchant.name
+    };
+    params.sign = epaySign(params, c.key);
+    params.sign_type = 'MD5';
+    const query = Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    const gateway = c.gatewayUrl || `${c.baseUrl}/submit.php`;
+    persist();
+    res.json({ ok: true, orderNo, amount, subject, gatewayUrl: gateway + (gateway.includes('?') ? '&' : '?') + query, params: { ...params, sign: undefined }, note: '请在客户端展示订单信息并要求用户明确确认后跳转付款' });
+  });
+
+  // EPay 异步通知：验签后幂等更新订单。成功返回 success。
+  app.all('/api/pay/gateway/epay/notify', (req, res) => {
+    const c = epayConfig(prepare);
+    const p = { ...(req.query || {}), ...(req.body || {}) };
+    if (!c.enabled || !p.sign || epaySign(p, c.key) !== String(p.sign).toLowerCase()) return res.status(403).send('fail');
+    if (String(p.trade_status || '').toUpperCase() !== 'TRADE_SUCCESS' && String(p.trade_status || '') !== '1') return res.send('success');
+    const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(p.out_trade_no || ''));
+    if (!order) return res.status(404).send('fail');
+    if (Number(p.money) !== Number(order.amount)) return res.status(400).send('fail');
+    if (order.status !== 'paid') {
+      prepare('UPDATE pay_orders SET status=?,paid_at=? WHERE id=?').run('paid', Date.now(), order.id);
+      persist();
+    }
+    res.send('success');
+  });
+
+  // 管理员审核商户（调用方可接入现有 admin 页面）。
+  app.get('/api/admin/pay/merchants', (req, res) => {
+    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
+    return auth(req, res, () => {
+      const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
+      if (!u || !u.email || !String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',').includes(u.email.toLowerCase())) return res.status(403).json({ error: '无权限' });
+      res.json({ merchants: prepare('SELECT * FROM pay_merchants ORDER BY created_at DESC').all().map(merchantPublic) });
+    });
+  });
+
+  app.post('/api/admin/pay/merchants/:id/review', (req, res) => {
+    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
+    return auth(req, res, () => {
+      const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
+      if (!u || !u.email || !String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',').includes(u.email.toLowerCase())) return res.status(403).json({ error: '无权限' });
+      const status = ['approved', 'rejected', 'pending'].includes(req.body?.status) ? req.body.status : 'pending';
+      prepare('UPDATE pay_merchants SET status=?,reason=?,reviewed_at=? WHERE id=?').run(status, String(req.body?.reason || '').slice(0, 200), Date.now(), parseInt(req.params.id, 10));
+      persist();
+      res.json({ ok: true, status });
     });
   });
 

@@ -19,6 +19,7 @@ import 'chat_ext_page.dart';
 import 'feedback_page.dart';
 import 'feature_center_page.dart';
 import 'admin_page.dart';
+import 'passkey_page.dart';
 
 class MePage extends StatefulWidget {
   const MePage({super.key, this.api, required this.config});
@@ -139,6 +140,8 @@ class _MePageState extends State<MePage> {
                       margin: const EdgeInsets.symmetric(horizontal: 12),
                       children: [
                         ListCell(config: widget.config, icon: Icons.settings_outlined, title: '设置', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(config: widget.config, api: _api)))),
+                        CellDivider(config: widget.config),
+                        ListCell(config: widget.config, icon: Icons.key_rounded, title: 'Passkey', subtitle: '创建本地密钥，免密登录与支付授权', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PasskeyPage(api: _api, config: widget.config)))),
                       ],
                     ),
                   ],

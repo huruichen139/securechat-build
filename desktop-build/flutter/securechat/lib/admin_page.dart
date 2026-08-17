@@ -52,8 +52,8 @@ class _AdminPageState extends State<AdminPage> {
               Tab(text: '审计'),
               Tab(text: '兑换码'),
               Tab(text: '发版'),
-              Tab(text: 'QQ互联'),
-              Tab(text: 'GitHub'),
+              Tab(text: 'Passkey'),
+              Tab(text: 'EPay'),
             ],
           ),
           Expanded(
@@ -68,8 +68,8 @@ class _AdminPageState extends State<AdminPage> {
               _AuditTab(api: _api, config: _cfg),
               _RedeemTab(api: _api, config: _cfg),
               _DeployTab(api: _api, config: _cfg),
-              _QqConfigTab(api: _api, config: _cfg),
-              _GithubConfigTab(api: _api, config: _cfg),
+              _PasskeyAdminTab(api: _api, config: _cfg),
+              _EpayTab(api: _api, config: _cfg),
             ]),
           ),
         ]),
@@ -2041,5 +2041,172 @@ class _GithubConfigTabState extends State<_GithubConfigTab> {
         ],
       ),
     );
+  }
+}
+
+class _PasskeyAdminTab extends StatefulWidget {
+  const _PasskeyAdminTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_PasskeyAdminTab> createState() => _PasskeyAdminTabState();
+}
+
+class _PasskeyAdminTabState extends State<_PasskeyAdminTab> {
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+  AppTheme get _t => widget.config.theme;
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final rows = await widget.api.adminPasskeys();
+      if (mounted) setState(() { _items = rows; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          SectionCard(config: widget.config, padding: const EdgeInsets.all(14), children: [
+            Text('Passkey 凭据管理', style: TextStyle(color: _t.text, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text('用户创建的本地设备凭据。删除后对应设备将无法免密登录和授权扣款。', style: TextStyle(color: _t.subText, fontSize: 12)),
+          ]),
+          const SizedBox(height: 10),
+          ..._items.map((p) => Card(
+            color: _t.card,
+            child: ListTile(
+              leading: const Icon(Icons.key_rounded, color: Ux.green),
+              title: Text('${p['device_name'] ?? '设备'} · ${p['nickname'] ?? p['username'] ?? ''}', style: TextStyle(color: _t.text)),
+              subtitle: Text('${p['email'] ?? ''}\n创建：${_fmtTime(p['created_at'])} · 最近使用：${_fmtTime(p['last_used_at'])}', style: TextStyle(color: _t.subText, fontSize: 11)),
+              isThreeLine: true,
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () async {
+                  await widget.api.adminDeletePasskey('${p['credential_id']}');
+                  await _load();
+                },
+              ),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class _EpayTab extends StatefulWidget {
+  const _EpayTab({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+
+  @override
+  State<_EpayTab> createState() => _EpayTabState();
+}
+
+class _EpayTabState extends State<_EpayTab> {
+  final _base = TextEditingController();
+  final _gateway = TextEditingController();
+  final _gatewayId = TextEditingController();
+  final _pid = TextEditingController();
+  final _key = TextEditingController();
+  final _notify = TextEditingController();
+  final _return = TextEditingController();
+  bool _enabled = false;
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  AppTheme get _t => widget.config.theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await widget.api.adminEpayConfig();
+      final c = (r['config'] as Map?)?.cast<String, dynamic>() ?? {};
+      if (!mounted) return;
+      setState(() {
+        _enabled = c['enabled'] == true;
+        _base.text = '${c['baseUrl'] ?? ''}';
+        _gateway.text = '${c['gatewayUrl'] ?? ''}';
+        _gatewayId.text = '${c['gatewayId'] ?? ''}';
+        _pid.text = '${c['merchantPid'] ?? ''}';
+        _key.text = '${c['key'] ?? ''}';
+        _notify.text = '${c['notifyUrl'] ?? ''}';
+        _return.text = '${c['returnUrl'] ?? ''}';
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await widget.api.adminSaveEpayConfig({
+        'enabled': _enabled,
+        'baseUrl': _base.text.trim(),
+        'gatewayUrl': _gateway.text.trim(),
+        'gatewayId': _gatewayId.text.trim(),
+        'merchantPid': _pid.text.trim(),
+        'key': _key.text.trim(),
+        'notifyUrl': _notify.text.trim(),
+        'returnUrl': _return.text.trim(),
+      });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('EPay 配置已保存')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败：$e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in [_base, _gateway, _gatewayId, _pid, _key, _notify, _return]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return Center(child: Text(_error!, style: TextStyle(color: _t.text)));
+    Widget field(TextEditingController c, String label, {bool secret = false}) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(controller: c, obscureText: secret, style: TextStyle(color: _t.text), decoration: InputDecoration(labelText: label, labelStyle: TextStyle(color: _t.subText), filled: true, fillColor: _t.inputBg, border: const OutlineInputBorder())),
+    );
+    return ListView(padding: const EdgeInsets.all(12), children: [
+      SectionCard(config: widget.config, padding: const EdgeInsets.all(14), children: [
+        Row(children: [Expanded(child: Text('EPay 支付通道', style: TextStyle(color: _t.text, fontWeight: FontWeight.w700))), Switch(value: _enabled, onChanged: (v) => setState(() => _enabled = v))]),
+        Text('保存后由服务端生成签名并接收异步回调。Key 不会回显明文。', style: TextStyle(color: _t.subText, fontSize: 12)),
+        const SizedBox(height: 14),
+        field(_base, '基础地址，例如 https://pay.example.com'),
+        field(_gateway, '网关地址，例如 https://pay.example.com/submit.php'),
+        field(_gatewayId, '网关标识（可选）'),
+        field(_pid, '商户 PID'),
+        field(_key, '商户密钥（留 ******** 表示不修改）', secret: true),
+        field(_notify, '异步回调地址'),
+        field(_return, '同步返回地址（可选）'),
+        SizedBox(height: 44, child: FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? '保存中…' : '保存 EPay 配置'))),
+      ]),
+    ]);
   }
 }

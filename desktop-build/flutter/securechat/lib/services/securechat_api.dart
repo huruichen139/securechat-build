@@ -113,6 +113,8 @@ class SecureChatApi {
     return data;
   }
 
+  Future<Map<String, dynamic>> grabRedPacket(int id) => _json('POST', '/api/redpacket/$id/grab');
+
   Future<Map<String, dynamic>> login(String account, String password) async {
     final data = await _json('POST', '/api/login', body: {'account': account, 'password': password}, auth: false);
     _setSession(data);
@@ -635,4 +637,35 @@ class SecureChatApi {
         'redirect': redirect,
         'enabled': enabled,
       });
+
+  // ============ Passkey 本地设备凭据 ============
+  Future<Map<String, dynamic>> passkeyRegister(String deviceName) =>
+      _json('POST', '/api/passkey/register', body: {'deviceName': deviceName});
+
+  Future<List<Map<String, dynamic>>> passkeyList() async {
+    final data = await _json('GET', '/api/passkey/list');
+    return ((data['credentials'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> passkeyDelete(String credentialId) =>
+      _json('DELETE', '/api/passkey/delete', query: {'credentialId': credentialId});
+
+  Future<Map<String, dynamic>> passkeyStart(String credentialId) =>
+      _json('POST', '/api/passkey/start', body: {'credentialId': credentialId}, auth: false);
+
+  Future<Map<String, dynamic>> passkeyFinish(String credentialId, String signature) =>
+      _json('POST', '/api/passkey/finish', body: {'credentialId': credentialId, 'signature': signature}, auth: false);
+
+  Future<List<Map<String, dynamic>>> adminPasskeys() async {
+    final data = await _json('GET', '/api/admin/passkey/list');
+    return ((data['credentials'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminDeletePasskey(String credentialId) =>
+      _json('DELETE', '/api/admin/passkey/delete', query: {'credentialId': credentialId});
+
+  Future<Map<String, dynamic>> adminEpayConfig() => _json('GET', '/api/admin/pay/epay/config');
+
+  Future<Map<String, dynamic>> adminSaveEpayConfig(Map<String, dynamic> config) =>
+      _json('POST', '/api/admin/pay/epay/config', body: config);
 }

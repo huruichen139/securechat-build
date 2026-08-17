@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:record/record.dart';
+import 'package:pointycastle/export.dart' as pc;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -93,8 +95,6 @@ class _LoginPageState extends State<LoginPage> {
   int mode = 0;
   final api = SecureChatApi();
   Timer? qrTimer;
-  Timer? qqTimer;
-  Timer? githubTimer;
   Timer? codeTimer;
   int countdown = 0;
   String? qrText;
@@ -108,8 +108,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     qrTimer?.cancel();
-    qqTimer?.cancel();
-    githubTimer?.cancel();
     codeTimer?.cancel();
     account.dispose();
     password.dispose();
@@ -195,94 +193,42 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> beginQq() async {
+  Future<void> beginPasskey() async {
     if (busy) return;
-    setState(() { busy = true; error = null; });
-    try {
-      final st = await api.qqStatus();
-      if (!mounted) return;
-      if (st['enabled'] != true) {
-        setState(() { busy = false; error = 'QQ 登录尚未启用，请在管理后台配置'; });
-        return;
-      }
-      final state = '${DateTime.now().millisecondsSinceEpoch}${(DateTime.now().microsecondsSinceEpoch % 1000).toString().padLeft(3, '0')}${api.myId ?? 0}';
-      final url = await api.qqLoginUrl(state);
-      // 打开系统默认浏览器（qq 互联 OAuth2 需要浏览器完成授权）
-      try {
-        await Process.start('cmd.exe', ['/c', 'start', '', url]);
-      } catch (e) {
-        await Process.start('cmd.exe', ['/c', 'start', url]);
-      }
-      setState(() { busy = false; error = '请在浏览器中完成 QQ 授权…'; });
-      qqTimer?.cancel();
-      qqTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-        try {
-          final r = await api.qqPoll(state);
-          if (!mounted) { qqTimer?.cancel(); return; }
-          if (r['status'] == 'ok') {
-            qqTimer?.cancel();
-            setState(() => error = '登录成功，正在进入…');
-            await api.applyLoginData(r);
-            if (!mounted) return;
-            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
-          } else if (r['status'] == 'need_bind') {
-            // 绑定在浏览器回调页完成，继续等待
-          } else if (r['status'] == 'waiting') {
-            // 继续等待
-          } else {
-            qqTimer?.cancel();
-            if (mounted) setState(() => error = (r['error'] ?? 'QQ 登录失败').toString());
-          }
-        } catch (e) {
-          qqTimer?.cancel();
-          if (mounted) setState(() => error = 'QQ 登录会话已过期，请重试');
-        }
-      });
-    } catch (e) {
-      if (mounted) setState(() { busy = false; error = e.toString().replaceFirst('Bad state: ', ''); });
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString('sc_passkeys');
+    if (raw == null || raw.isEmpty) {
+      setState(() => error = '尚未创建 Passkey，请登录后在设置中创建');
+      return;
     }
-  }
-
-  Future<void> beginGithub() async {
-    if (busy) return;
-    setState(() { busy = true; error = null; });
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) { setState(() => error = '尚未创建 Passkey'); return; }
+    final selected = list.length == 1 ? list.first : await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('选择 Passkey'),
+        children: list.map((p) => SimpleDialogOption(
+          onPressed: () => Navigator.pop(ctx, p),
+          child: Text('${p['deviceName'] ?? '设备'}'),
+        )).toList(),
+      ),
+    );
+    if (selected == null) return;
+    setState(() { busy = true; error = '正在验证 Passkey…'; });
     try {
-      final st = await api.githubStatus();
+      final id = selected['credentialId'] as String;
+      final secret = selected['secret'] as String;
+      final start = await api.passkeyStart(id);
+      final mac = pc.HMac(pc.SHA256Digest(), 64)
+        ..init(pc.KeyParameter(utf8.encode(secret)))
+        ..update(utf8.encode('${start['challenge']}'), 0, '${start['challenge']}'.length);
+       final out = Uint8List(mac.macSize);
+      mac.doFinal(out, 0);
+      final signature = out.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      final result = await api.passkeyFinish(id, signature);
+      await api.applyLoginData(result);
       if (!mounted) return;
-      if (st['enabled'] != true) {
-        setState(() { busy = false; error = 'GitHub 登录尚未启用，请在管理后台配置'; });
-        return;
-      }
-      final state = '${DateTime.now().millisecondsSinceEpoch}gh${(DateTime.now().microsecondsSinceEpoch % 1000).toString().padLeft(3, '0')}';
-      final url = await api.githubLoginUrl(state);
-      try {
-        await Process.start('cmd.exe', ['/c', 'start', '', url]);
-      } catch (e) {
-        await Process.start('cmd.exe', ['/c', 'start', url]);
-      }
-      setState(() { busy = false; error = '请在浏览器中完成 GitHub 授权…'; });
-      githubTimer?.cancel();
-      githubTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-        try {
-          final r = await api.githubPoll(state);
-          if (!mounted) { githubTimer?.cancel(); return; }
-          if (r['status'] == 'ok') {
-            githubTimer?.cancel();
-            setState(() => error = '登录成功，正在进入…');
-            await api.applyLoginData(r);
-            if (!mounted) return;
-            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
-          } else if (r['status'] == 'waiting') {
-            // 继续等待
-          } else {
-            githubTimer?.cancel();
-            if (mounted) setState(() => error = (r['error'] ?? 'GitHub 登录失败').toString());
-          }
-        } catch (e) {
-          githubTimer?.cancel();
-          if (mounted) setState(() => error = 'GitHub 登录会话已过期，请重试');
-        }
-      });
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ChatShell(api: api, config: widget.config)));
     } catch (e) {
       if (mounted) setState(() { busy = false; error = e.toString().replaceFirst('Bad state: ', ''); });
     }
@@ -345,8 +291,7 @@ class _LoginPageState extends State<LoginPage> {
           _mode('密码登录', 0, t),
           _mode('邮箱验证码', 1, t),
           _mode('扫码登录', 2, t),
-          _mode('QQ登录', 3, t),
-          _mode('GitHub', 4, t),
+          _mode('Passkey', 3, t),
         ]),
       ),
       const SizedBox(height: 22),
@@ -366,25 +311,13 @@ class _LoginPageState extends State<LoginPage> {
           const SizedBox(height: 4),
           Text('手机确认后，电脑端会自动登录', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
-      ] else if (mode == 3) ...[
-        Center(child: Column(children: [
-          Container(width: 72, height: 72, decoration: const BoxDecoration(color: Color(0xff12b7f5), borderRadius: BorderRadius.all(Radius.circular(20))), child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 40)),
-          const SizedBox(height: 14),
-          Text('使用 QQ 账号快速登录', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
-          const SizedBox(height: 4),
-          Text('点击按钮后将在浏览器中完成 QQ 授权', style: TextStyle(color: t.subText, fontSize: 12)),
-        ])),
       ] else ...[
         Center(child: Column(children: [
-          Container(
-            width: 72, height: 72,
-            decoration: const BoxDecoration(color: Color(0xff24292f), borderRadius: BorderRadius.all(Radius.circular(20))),
-            child: const Icon(Icons.code_rounded, color: Colors.white, size: 40),
-          ),
+          Container(width: 72, height: 72, decoration: const BoxDecoration(color: Color(0xff2f80ed), borderRadius: BorderRadius.all(Radius.circular(20))), child: const Icon(Icons.key_rounded, color: Colors.white, size: 40)),
           const SizedBox(height: 14),
-          Text('使用 GitHub 账号快速登录', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
+          Text('使用本地 Passkey 快速登录', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
           const SizedBox(height: 4),
-          Text('无需备案，点击按钮后在浏览器中授权', style: TextStyle(color: t.subText, fontSize: 12)),
+          Text('密钥只保存在本地设备，服务器只保存验证凭据', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
       ],
       if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12))),
@@ -399,12 +332,10 @@ class _LoginPageState extends State<LoginPage> {
       ),
       const SizedBox(height: 6),
       SizedBox(width: double.infinity, height: 48, child: FilledButton(
-        onPressed: busy ? null : (mode == 2 ? beginQr : mode == 3 ? beginQq : mode == 4 ? beginGithub : login),
+        onPressed: busy ? null : (mode == 2 ? beginQr : mode == 3 ? beginPasskey : login),
         child: Text(mode == 3
-            ? (busy ? '处理中…' : 'QQ 登录')
-            : mode == 4
-                ? (busy ? '处理中…' : 'GitHub 登录')
-                : busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'),
+            ? (busy ? '验证中…' : 'Passkey 登录')
+            : busy ? '处理中…' : mode == 2 ? (qrText == null ? '生成二维码' : '等待手机确认') : '登录'),
       )),
       const SizedBox(height: 18),
       Center(child: Text('SecureChat $kAppVersion', style: TextStyle(color: t.subText, fontSize: 12))),
@@ -600,6 +531,7 @@ class _ChatViewStateState extends State<_ChatView> {
   String? replyPreview;
   final inputFocus = FocusNode();
   final searchCtrl = TextEditingController();
+  final ScrollController _msgScroll = ScrollController();
   String _search = '';
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
@@ -624,6 +556,12 @@ class _ChatViewStateState extends State<_ChatView> {
   void _appendMsg(Map<String, dynamic> m) {
     if (_isDuplicateMsg(cmid: m['cmid'] as String?, id: m['id'])) return;
     messages.add(m);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    if (!_msgScroll.hasClients) return;
+    _msgScroll.animateTo(_msgScroll.position.maxScrollExtent, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
   }
 
   @override
@@ -974,6 +912,7 @@ class _ChatViewStateState extends State<_ChatView> {
     input.dispose();
     inputFocus.dispose();
     searchCtrl.dispose();
+    _msgScroll.dispose();
     super.dispose();
   }
 
@@ -1113,8 +1052,9 @@ class _ChatViewStateState extends State<_ChatView> {
       Expanded(
         child: messages.isEmpty
             ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText)))
-            : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+             : ListView.builder(
+                 controller: _msgScroll,
+                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 itemCount: messages.length,
                 itemBuilder: (_, i) => _bubble(messages[i]),
               ),
@@ -1145,8 +1085,11 @@ class _ChatViewStateState extends State<_ChatView> {
     final replyText = (msg['replyTo'] != null && msg['replyTo'] != 0) ? '回复了一条消息' : null;
     final text = (msg['text'] ?? '').toString();
     final fileMeta = _parseFileMeta(text);
+    final redPacketId = _parseRedPacket(text);
     final content = voiceId != null
         ? _voiceBubble(mine, voiceId)
+        : redPacketId != null
+            ? _redPacketBubble(mine, redPacketId, t)
         : fileMeta != null
             ? _fileBubble(mine, fileMeta, t)
             : _textBubble(mine, msg, t);
@@ -1376,6 +1319,38 @@ class _ChatViewStateState extends State<_ChatView> {
       if (d is Map) return d.cast<String, dynamic>();
     } catch (_) {}
     return null;
+  }
+
+  static int? _parseRedPacket(String text) {
+    final match = RegExp(r'^\[红包:(\d+)\]$').firstMatch(text);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
+  Widget _redPacketBubble(bool mine, int packetId, dynamic t) {
+    return InkWell(
+      onTap: () async {
+        try {
+          final result = await widget.api.grabRedPacket(packetId);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['already'] == true ? '你已经领取过了' : '领取成功：${result['amount'] ?? ''} 元')));
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
+        }
+      },
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0xffe84c3d), borderRadius: BorderRadius.circular(8)),
+        child: Row(children: [
+          const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 32),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+            Text('微信红包', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text('点击领取红包', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          ])),
+        ]),
+      ),
+    );
   }
 
   static String _fmtSize(num bytes) {

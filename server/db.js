@@ -415,6 +415,15 @@ function init() {
   } catch (e) { /* 列已存在 */ }
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_qq_openid ON users(qq_openid) WHERE qq_openid IS NOT NULL');
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id) WHERE github_id IS NOT NULL');
+  db.run(`CREATE TABLE IF NOT EXISTS passkey_credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    credential_id TEXT UNIQUE NOT NULL,
+    secret TEXT NOT NULL,
+    device_name TEXT DEFAULT '',
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER
+  )`);
   // QQ 互联等第三方配置：key 为字符串，value 存 JSON 字符串
   db.run(`CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,

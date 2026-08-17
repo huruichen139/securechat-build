@@ -113,6 +113,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
 function publicUser(u) {
   return {
@@ -2503,6 +2504,128 @@ setInterval(() => {
   const now = Date.now();
   for (const [k, v] of githubSessions) {
     if (now - (v.createdAt || 0) > GITHUB_SESSION_TTL) githubSessions.delete(k);
+  }
+}, 60 * 1000);
+
+// ============ Passkey 本地设备凭据（免密登录） ============
+// 注册：登录态下生成 credential_id + secret，客户端本地存储。
+// 登录：客户端出示 credential_id，服务器验证 HMAC(secret, challenge)。
+
+const passkeyChallenges = new Map();
+
+// 注册凭据（需登录态）
+app.post('/api/passkey/register', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '请先登录' });
+  const deviceName = String((req.body || {}).deviceName || '').trim().slice(0, 50) || '默认设备';
+  const credentialId = crypto.randomUUID();
+  const secret = crypto.randomBytes(32).toString('hex');
+  try {
+    prepare('INSERT INTO passkey_credentials(user_id,credential_id,secret,device_name,created_at) VALUES(?,?,?,?,?)')
+      .run(payload.id, credentialId, secret, deviceName, Date.now());
+    persist();
+    res.json({ ok: true, credentialId, secret, deviceName });
+  } catch (e) {
+    res.status(500).json({ error: '注册失败: ' + e.message });
+  }
+});
+
+// 列出凭据（需登录态）
+app.get('/api/passkey/list', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '请先登录' });
+  let rows;
+  try {
+    rows = prepare('SELECT id,credential_id,device_name,created_at,last_used_at FROM passkey_credentials WHERE user_id=? ORDER BY created_at DESC').all(payload.id);
+  } catch (e) { rows = []; }
+  res.json({ credentials: rows });
+});
+
+// 删除凭据（需登录态）
+app.delete('/api/passkey/delete', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '请先登录' });
+  const credentialId = String((req.query || {}).credentialId || (req.body || {}).credentialId || '').trim();
+  if (!credentialId) return res.status(400).json({ error: '缺少 credentialId' });
+  try {
+    prepare('DELETE FROM passkey_credentials WHERE user_id=? AND credential_id=?').run(payload.id, credentialId);
+    persist();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: '删除失败: ' + e.message });
+  }
+});
+
+// 登录第一步：发起挑战（无需登录）
+app.post('/api/passkey/start', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const credentialId = String((req.body || {}).credentialId || '').trim();
+  if (!credentialId) return res.status(400).json({ error: '缺少 credentialId' });
+  const row = prepare('SELECT user_id,secret FROM passkey_credentials WHERE credential_id=?').get(credentialId);
+  if (!row) return res.status(404).json({ error: '凭据不存在' });
+  const challenge = crypto.randomBytes(32).toString('hex');
+  passkeyChallenges.set(credentialId, { uid: row.user_id, secret: row.secret, challenge, createdAt: Date.now() });
+  res.json({ challenge, credentialId });
+});
+
+// 登录第二步：验证签名（HMAC-SHA256）
+app.post('/api/passkey/finish', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { credentialId, signature } = req.body || {};
+  if (!credentialId || !signature) return res.status(400).json({ error: '参数不完整' });
+  const session = passkeyChallenges.get(credentialId);
+  if (!session) return res.status(400).json({ error: '挑战已过期，请重新发起登录' });
+  passkeyChallenges.delete(credentialId);
+  const expected = crypto.createHmac('sha256', session.secret).update(session.challenge).digest('hex');
+  if (signature !== expected) return res.status(401).json({ error: '凭据验证失败' });
+  const user = prepare('SELECT * FROM users WHERE id=?').get(session.uid);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
+  prepare('UPDATE passkey_credentials SET last_used_at=? WHERE credential_id=?').run(Date.now(), credentialId);
+  persist();
+  const token = signToken(user);
+  res.json({ ok: true, token, user: publicUser(user) });
+});
+
+// 管理员：查看所有凭据
+app.get('/api/admin/passkey/list', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  let rows;
+  try {
+    rows = prepare(
+      `SELECT p.id,p.user_id,p.credential_id,p.device_name,p.created_at,p.last_used_at,u.username,u.nickname,u.email
+       FROM passkey_credentials p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC`
+    ).all();
+  } catch (e) { rows = []; }
+  res.json({ credentials: rows });
+});
+
+// 管理员：删除凭据
+app.delete('/api/admin/passkey/delete', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const credentialId = String((req.query || {}).credentialId || (req.body || {}).credentialId || '').trim();
+  if (!credentialId) return res.status(400).json({ error: '缺少 credentialId' });
+  try {
+    prepare('DELETE FROM passkey_credentials WHERE credential_id=?').run(credentialId);
+    persist();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: '删除失败: ' + e.message });
+  }
+});
+
+// 清理过期挑战
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of passkeyChallenges) {
+    if (now - (v.createdAt || 0) > 120000) passkeyChallenges.delete(k);
   }
 }, 60 * 1000);
 

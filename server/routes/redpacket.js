@@ -147,6 +147,11 @@ module.exports = function registerRedpacket(app, db, auth) {
     const pkt = prepare('SELECT * FROM red_packets WHERE id=?').get(id);
     if (!pkt) return res.status(404).json({ error: '红包不存在' });
 
+    // 自己不能领自己的红包
+    if (pkt.sender_id === me.id) {
+      return res.status(400).json({ error: '不能领取自己的红包' });
+    }
+
     // 权限校验
     if (pkt.target_type === 'dm' && pkt.target_id !== me.id && pkt.sender_id !== me.id) {
       return res.status(403).json({ error: '这不是发给你的红包' });
