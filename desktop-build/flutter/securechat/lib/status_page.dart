@@ -1,7 +1,12 @@
 // module: status_page (worker batch7) —— Flutter 状态页：设文字+图标状态、查看好友状态、留言互动
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'services/app_config.dart';
+import 'services/media_api.dart';
 import 'services/moment_collar_service.dart';
 import 'services/securechat_api.dart';
 import 'widgets/ux.dart';
@@ -225,8 +230,44 @@ class _StatusPageState extends State<StatusPage> {
   }
 
   Future<void> _pickBg() async {
-    // 说明：Flutter 端背景图上传可复用 /api/media；此处保留占位，
-    // 若已集成 file_picker 则可开放。完整可运行不依赖上传。
+    final FilePickerResult? res;
+    try {
+      res = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('打开图片选择器失败：$e')));
+      return;
+    }
+    if (res == null || res.files.isEmpty) return;
+    final f = res.files.first;
+    Uint8List? bytes = f.bytes;
+    if (bytes == null && f.path != null) {
+      try {
+        bytes = await File(f.path!).readAsBytes();
+      } catch (_) {
+        return;
+      }
+    }
+    if (bytes == null || bytes.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('读取图片失败，请换一张试试')));
+      return;
+    }
+    try {
+      final up = await MediaService(widget.api).upload(bytes, f.name, mime: _mimeOf(f.name));
+      if (!mounted) return;
+      setState(() => _bgUrl = (up['url'] ?? '').toString());
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('背景图已上传，点击「设为状态」生效')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('背景图上传失败：$e')));
+    }
+  }
+
+  static String _mimeOf(String name) {
+    final n = name.toLowerCase();
+    if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
+    if (n.endsWith('.gif')) return 'image/gif';
+    if (n.endsWith('.webp')) return 'image/webp';
+    if (n.endsWith('.bmp')) return 'image/bmp';
+    return 'image/png';
   }
 }
 

@@ -68,6 +68,24 @@ class _SettingsPageState extends State<SettingsPage> {
     await sp.setBool(key, value);
   }
 
+  /// 隐私开关：保存到本机偏好并给出明确提示（服务端暂不支持这些设置）
+  void _togglePrivacy(String label, String key, bool value) {
+    setState(() {
+      switch (key) {
+        case _kPrivacyStealth:
+          _demoStealth = value;
+        case _kPrivacyAutoClear:
+          _demoAutoClear = value;
+        case _kPrivacyReadReceipt:
+          _demoReadReceipt = value;
+        case _kPrivacyDeviceLock:
+          _demoDeviceLock = value;
+      }
+    });
+    _savePrivacy(key, value);
+    _toast(context, '$label已${value ? '开启' : '关闭'}（本机偏好，服务端暂不支持同步）');
+  }
+
   Future<void> _scanCache() async {
     int total = 0;
     int count = 0;
@@ -568,18 +586,19 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 8),
               Text('· 每条消息独立会话密钥\n· 不使用端到端加密即拒绝发送\n· 加密状态可在会话中随时查看', style: TextStyle(color: t.subText, fontSize: 13)),
               const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                child: Text('以下为本地偏好：仅保存于本设备，服务端暂不支持同步。', style: TextStyle(color: t.subText, fontSize: 12)),
+              ),
               ListCell(
                 config: config,
                 icon: Icons.visibility_off_outlined,
                 title: '隐身模式',
-                subtitle: '隐藏在线状态与已读回执',
+                subtitle: '本机偏好，仅本设备生效',
                 showArrow: false,
                 trailing: Switch(
                   value: _demoStealth,
-                  onChanged: (v) {
-                    setState(() => _demoStealth = v);
-                    _savePrivacy(_kPrivacyStealth, v);
-                  },
+                  onChanged: (v) => _togglePrivacy('隐身模式', _kPrivacyStealth, v),
                   activeThumbColor: config.primary,
                 ),
               ),
@@ -587,14 +606,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 config: config,
                 icon: Icons.delete_sweep_outlined,
                 title: '自动清除消息',
-                subtitle: '离开会话后自动删除本地副本',
+                subtitle: '本机偏好，仅本设备生效',
                 showArrow: false,
                 trailing: Switch(
                   value: _demoAutoClear,
-                  onChanged: (v) {
-                    setState(() => _demoAutoClear = v);
-                    _savePrivacy(_kPrivacyAutoClear, v);
-                  },
+                  onChanged: (v) => _togglePrivacy('自动清除消息', _kPrivacyAutoClear, v),
                   activeThumbColor: config.primary,
                 ),
               ),
@@ -610,14 +626,11 @@ class _SettingsPageState extends State<SettingsPage> {
             config: config,
             icon: Icons.done_all_outlined,
             title: '已读回执',
-            subtitle: '展示消息已被对方读取',
+            subtitle: '本机偏好，仅本设备生效',
             showArrow: false,
             trailing: Switch(
               value: _demoReadReceipt,
-              onChanged: (v) {
-                setState(() => _demoReadReceipt = v);
-                _savePrivacy(_kPrivacyReadReceipt, v);
-              },
+              onChanged: (v) => _togglePrivacy('已读回执', _kPrivacyReadReceipt, v),
               activeThumbColor: config.primary,
             ),
           ),
@@ -626,14 +639,11 @@ class _SettingsPageState extends State<SettingsPage> {
             config: config,
             icon: Icons.phonelink_lock_outlined,
             title: '登录设备锁定',
-            subtitle: '新设备登录需再次验证',
+            subtitle: '本机偏好，仅本设备生效',
             showArrow: false,
             trailing: Switch(
               value: _demoDeviceLock,
-              onChanged: (v) {
-                setState(() => _demoDeviceLock = v);
-                _savePrivacy(_kPrivacyDeviceLock, v);
-              },
+              onChanged: (v) => _togglePrivacy('登录设备锁定', _kPrivacyDeviceLock, v),
               activeThumbColor: config.primary,
             ),
           ),

@@ -1673,6 +1673,9 @@ async function loadFriends() {
     const data = await res.json();
     state.friends = data.friends || [];
     renderContacts();
+    // 通讯录页若正显示，同步刷新（避免打开时好友尚未加载导致列表为空）
+    const cp = document.getElementById('contactsPage');
+    if (cp && cp.classList.contains('active')) renderContactsPage();
   } catch (e) {}
 }
 
@@ -2231,7 +2234,12 @@ async function selectGroup(groupId) {
   }
   // 移动端：选中群组后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
   if (window.IS_MOBILE) showMobileChatView();
-  else { hideMobilePages(); setRailActive('friends'); setChatListVisible(true); }
+  else {
+    hideMobilePages(); setRailActive('friends'); setChatListVisible(true);
+    const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
+    const aiV = $('aiView'); if (aiV) aiV.style.display = 'none';
+    const dv = $('downloadView'); if (dv) dv.style.display = 'none';
+  }
 }
 
 // 群公告横幅（进入群聊时显示，可关闭，本地记录已读）
@@ -2558,7 +2566,12 @@ async function selectPeer(peerId) {
   }
   // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
   if (window.IS_MOBILE) showMobileChatView();
-  else { hideMobilePages(); setRailActive('friends'); setChatListVisible(true); }
+  else {
+    hideMobilePages(); setRailActive('friends'); setChatListVisible(true);
+    const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
+    const aiV = $('aiView'); if (aiV) aiV.style.display = 'none';
+    const dv = $('downloadView'); if (dv) dv.style.display = 'none';
+  }
 }
 
 function renderMessages(msgs) {
@@ -3975,7 +3988,7 @@ function renderMePage() {
   if (!header) return;
   const hasImg = state.me.avatar;
   const avHtml = hasImg ? `<img src="${state.me.avatar}">` : avatarChar(state.me.nickname);
-  const qrHtml = window.IS_MOBILE ? '<span class="me-qr" id="meQrBtn"><span class="wx-ico-sm">扫</span></span>' : '';
+  const qrHtml = '<span class="me-qr" id="meQrBtn" title="扫一扫"><span class="wx-ico-sm">扫</span></span>';
   header.innerHTML = `
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
@@ -3984,7 +3997,11 @@ function renderMePage() {
     </div>
     ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
-  if (qrBtn) qrBtn.onclick = () => openQrScanner();
+  if (qrBtn) qrBtn.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); openQrScanner(); };
+  // 头部（我的名片）点击 → 展示名片二维码
+  header.onclick = () => showMyCard();
+  header.style.cursor = 'pointer';
+  header.title = '我的名片';
 
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
@@ -4037,7 +4054,8 @@ function renderContactsPage() {
     </div>`;
   }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无新好友请求</div>';
   newFEl.querySelectorAll('[data-accept]').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
       const uid = btn.dataset.accept;
       state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
       renderContactsPage();
@@ -4045,11 +4063,16 @@ function renderContactsPage() {
     };
   });
   newFEl.querySelectorAll('[data-reject]').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
       const uid = btn.dataset.reject;
       state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
       renderContactsPage();
     };
+  });
+  // 新好友行整行点击 → 打开与该用户的聊天
+  newFEl.querySelectorAll('[data-uid]').forEach(el => {
+    el.onclick = () => selectPeer(parseInt(el.dataset.uid));
   });
 
   // 朋友群
@@ -4112,6 +4135,14 @@ function renderContactsPage() {
       };
     });
   }
+  // 标签 / 公众号占位行：点击给出明确提示，不做死按钮
+  const lbl = document.getElementById('contactLabelsItem');
+  if (lbl) lbl.onclick = () => toast('标签功能开发中', 'info');
+  const oa = document.getElementById('contactOAItem');
+  if (oa) oa.onclick = () => toast('公众号功能开发中', 'info');
+  // 搜索框输入 → 实时过滤重渲染
+  const sInput = document.getElementById('contactsSearch');
+  if (sInput) sInput.oninput = () => renderContactsPage();
 }
 
 // 侧边栏 Tab 高亮：rail 按钮 + 移动端底部导航同步

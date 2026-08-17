@@ -354,6 +354,14 @@ class _ChatShellState extends State<ChatShell> {
   int _tab = 0;
   final _chatViewState = GlobalKey<_ChatViewStateState>();
   final _contactsViewState = GlobalKey<_ContactsViewStateState>();
+  ({int id, bool isGroup, String name})? _pendingOpen;
+
+  void _openChatFromContacts(int id, bool isGroup, String name) {
+    setState(() {
+      _tab = 0;
+      _pendingOpen = (id: id, isGroup: isGroup, name: name);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -374,8 +382,8 @@ class _ChatShellState extends State<ChatShell> {
                       VerticalDivider(width: 1, thickness: 1, color: config.theme.div),
                       Expanded(
                         child: <Widget>[
-                          _ChatView(key: _chatViewState, api: widget.api, config: config),
-                          ContactsView(key: _contactsViewState, api: widget.api, config: config),
+                          _ChatView(key: _chatViewState, api: widget.api, config: config, initialOpen: _pendingOpen, onOpenConsumed: () => _pendingOpen = null),
+                          ContactsView(key: _contactsViewState, api: widget.api, config: config, onOpenChat: _openChatFromContacts),
                           DiscoverPage(api: widget.api, config: config),
                           MePage(api: widget.api, config: config),
                         ][_tab],
@@ -436,9 +444,11 @@ class _ChatShellState extends State<ChatShell> {
 // ─── 微信 Tab：会话列表 + 聊天窗口 ───────────────────────────────────────────
 
 class _ChatView extends StatefulWidget {
-  const _ChatView({super.key, required this.api, required this.config});
+  const _ChatView({super.key, required this.api, required this.config, this.initialOpen, this.onOpenConsumed});
   final SecureChatApi api;
   final AppConfig config;
+  final ({int id, bool isGroup, String name})? initialOpen;
+  final VoidCallback? onOpenConsumed;
   @override
   State<_ChatView> createState() => _ChatViewStateState();
 }
@@ -493,10 +503,14 @@ class _ChatViewStateState extends State<_ChatView> {
   @override
   void initState() {
     super.initState();
+    _pendingOpen = widget.initialOpen;
+    if (_pendingOpen != null) widget.onOpenConsumed?.call();
     _connect();
     _loadData();
     _checkUpdate();
   }
+
+  ({int id, bool isGroup, String name})? _pendingOpen;
 
   bool _updatePrompted = false;
   Future<void> _checkUpdate() async {
@@ -537,10 +551,52 @@ class _ChatViewStateState extends State<_ChatView> {
         conversations.sort((a, b) => ((b['pinned'] == true) ? 1 : 0) - ((a['pinned'] == true) ? 1 : 0));
         messages.clear();
       });
+      final pending = _pendingOpen;
+      if (pending != null) {
+        _pendingOpen = null;
+        await _openConversationById(pending.id, isGroup: pending.isGroup, name: pending.name);
+        return;
+      }
       if (conversations.isNotEmpty) await _openConversation(0);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('加载会话失败：$e')));
     }
+  }
+
+  int _findConversation(int id, {required bool isGroup}) {
+    for (var i = 0; i < conversations.length; i++) {
+      final c = conversations[i];
+      if (c['kind'] == (isGroup ? 'group' : 'friend') && c['id'] == id) return i;
+    }
+    return -1;
+  }
+
+  /// 从通讯录跳转：按 id 打开好友/群会话；会话列表里没有则临时加入一条再打开
+  /// （历史消息由 _openConversation 按 id 拉取，不受会话列表影响）。
+  Future<void> _openConversationById(int id, {required bool isGroup, String name = ''}) async {
+    if (mounted && (_search.isNotEmpty || searchCtrl.text.isNotEmpty)) {
+      setState(() {
+        _search = '';
+        searchCtrl.clear();
+      });
+    }
+    var idx = _findConversation(id, isGroup: isGroup);
+    if (idx < 0) {
+      if (!mounted) return;
+      setState(() {
+        conversations.add({
+          'kind': isGroup ? 'group' : 'friend',
+          'id': id,
+          'name': name,
+          'icon': isGroup ? Icons.groups_rounded : Icons.person,
+          'online': false,
+          'pinned': false,
+          'muted': false,
+        });
+      });
+      idx = conversations.length - 1;
+    }
+    await _openConversation(idx);
   }
 
   Future<void> _openConversation(int index) async {
@@ -1521,9 +1577,10 @@ class _ChatViewStateState extends State<_ChatView> {
 // ─── 通讯录 Tab ──────────────────────────────────────────────────────────────
 
 class ContactsView extends StatefulWidget {
-  const ContactsView({super.key, required this.api, required this.config});
+  const ContactsView({super.key, required this.api, required this.config, this.onOpenChat});
   final SecureChatApi api;
   final AppConfig config;
+  final void Function(int id, bool isGroup, String name)? onOpenChat;
   @override
   State<ContactsView> createState() => _ContactsViewStateState();
 }
@@ -1549,6 +1606,8 @@ class _ContactsViewStateState extends State<ContactsView> {
         groups.clear();
         for (final f in friends) {
           contacts.add({
+            'id': f['id'],
+            'kind': 'friend',
             'name': (f['nickname'] ?? f['username'] ?? '').toString(),
             'online': f['online'] == true,
             'icon': Icons.person,
@@ -1556,6 +1615,8 @@ class _ContactsViewStateState extends State<ContactsView> {
         }
         for (final g in grp) {
           groups.add({
+            'id': g['id'],
+            'kind': 'group',
             'name': (g['name'] ?? '群聊').toString(),
             'icon': Icons.groups_rounded,
           });
@@ -1601,7 +1662,12 @@ class _ContactsViewStateState extends State<ContactsView> {
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {},
+            onTap: () {
+              final cb = widget.onOpenChat;
+              if (cb == null) return;
+              final id = item['id'];
+              if (id is int) cb(id, item['kind'] == 'group', item['name'] as String);
+            },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(children: [
