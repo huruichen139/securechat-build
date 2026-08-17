@@ -2707,6 +2707,37 @@ function fmtTime(t) {
   return hh + ':' + mm;
 }
 
+// ============ 表情选择器 ============
+const EMOJI_SET = ['😀','😁','😂','🤣','😊','😍','😘','😜','🤔','😴','🥳','😎','🤩','😭','😡','🥶','🤯','😇','🙃','😉','😺','👍','👎','👏','🙏','💪','🤝','✌️','👌','❤️','💔','💖','✨','🎉','🔥','🌈','🍀','🎂','🍺','☕','🐶','🐱','🐼','🦊','🌹','🍎','⚽','🚗','✈️','🌙','⭐','💤','💰','📱','💬','🔒','✅','❌','❓','❗'];
+function toggleEmojiPanel() {
+  const existing = document.getElementById('emojiPanel');
+  if (existing) { existing.remove(); return; }
+  const host = document.getElementById('chatMobileComposer') || document.getElementById('chatDesktopComposer');
+  if (!host) return;
+  const panel = document.createElement('div');
+  panel.id = 'emojiPanel';
+  panel.className = 'emoji-panel';
+  panel.innerHTML = EMOJI_SET.map(e => '<span class="emoji-item">' + e + '</span>').join('');
+  host.appendChild(panel);
+  panel.querySelectorAll('.emoji-item').forEach(el => {
+    el.onclick = () => {
+      const cv = document.getElementById('chatView');
+      const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
+      const input = isMobileChat ? document.getElementById('input') : (document.getElementById('desktopInput') || document.getElementById('input'));
+      if (input) { input.value += el.textContent; input.focus(); }
+      panel.remove();
+    };
+  });
+  const close = (e) => { if (!panel.contains(e.target) && !e.target.closest('#emojiIconBtn')) panel.remove(); };
+  setTimeout(() => document.addEventListener('click', close, { once: true }), 0);
+}
+(function () {
+  const emojiBtn = document.getElementById('emojiIconBtn');
+  if (emojiBtn) emojiBtn.onclick = toggleEmojiPanel;
+})();
+
+// ============ 表情选择器 END ============
+
 // 引用块：渲染被引用消息的原文，点击滚动定位
 function quoteBlockHtml(m) {
   if (!m.replyTo) return '';

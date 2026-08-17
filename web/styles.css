@@ -1895,6 +1895,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
   background: #f7f7f7;
   border-top: 1px solid #e0e0e0;
   flex-shrink: 0;
+  position: relative;
 }
 .chat-composer textarea {
   flex: 1; height: 40px; resize: none;
@@ -2601,6 +2602,13 @@ html.chat-list-hidden:not(.is-mobile) .wechat-page { left: 72px !important; }
 body.dark-mode .at-panel { background: #1a1b1e; border-color: #2a2b2f; }
 body.dark-mode .at-panel .at-item { color: #dcdcdc; }
 body.dark-mode .at-panel .at-item:hover { background: #26272b; color: #07c160; }
+
+/* 表情选择器 */
+.emoji-panel { position: absolute; bottom: calc(100% + 8px); left: 8px; right: 8px; z-index: 60; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.16); max-height: 220px; overflow-y: auto; }
+.emoji-item { font-size: 22px; text-align: center; padding: 5px 0; border-radius: 8px; cursor: pointer; line-height: 1.2; }
+.emoji-item:hover { background: #f0f0f0; }
+body.dark-mode .emoji-panel { background: #1e293b; border-color: #334155; }
+body.dark-mode .emoji-item:hover { background: #334155; }
 
 /* 侧边栏未读角标 */
 .rail-badge { position: absolute; top: 6px; right: 8px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #fa5151; color: #fff; font-size: 10px; line-height: 16px; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
