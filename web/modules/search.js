@@ -158,10 +158,17 @@
     el.querySelectorAll('.search-item').forEach(function (item) {
       item.onclick = function () {
         var type = item.dataset.type;
-        if (type === 'friend' || type === 'group') {
-          toastMsg('点击聊天列表进入对话');
-          var mask = el.closest('.modal-mask');
+        var mask = el.closest('.modal-mask');
+        var jump = function (fn) {
           if (mask) mask.remove();
+          if (typeof fn === 'function') fn();
+        };
+        if (type === 'friend') {
+          jump(function () { if (window.selectPeer) window.selectPeer(parseInt(item.dataset.id, 10)); });
+        } else if (type === 'group') {
+          jump(function () { if (window.selectGroup) window.selectGroup(parseInt(item.dataset.id, 10)); });
+        } else if (type === 'message') {
+          jump(function () { if (window.selectPeer) window.selectPeer(parseInt(item.dataset.peer, 10)); });
         } else if (type === 'file') {
           window.open(_baseUrl() + '/api/files/' + item.dataset.id, '_blank');
         }
