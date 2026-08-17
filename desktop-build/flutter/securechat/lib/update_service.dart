@@ -1,4 +1,4 @@
-import 'dart:io';
+ï»¿import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -25,7 +25,7 @@ class UpdateService {
 
   bool isNewer(String latest, String current) => _cmpVersion(latest, current) > 0;
 
-  /// ·µ»ØĞèÒª¸üĞÂµÄĞÅÏ¢£»ÎŞ¸üĞÂ»òÎŞ·¨»ñÈ¡·µ»Ø null¡£
+  /// è¿”å›éœ€è¦æ›´æ–°çš„ä¿¡æ¯ï¼›æ— æ›´æ–°æˆ–æ— æ³•è·å–è¿”å› nullã€‚
   Future<Map<String, dynamic>?> check() async {
     try {
       final data = await api.checkVersion();
@@ -42,7 +42,7 @@ class UpdateService {
     }
   }
 
-  /// ÏÂÔØ°²×°°ü/±ãĞ¯°ü£¬·µ»Ø±£´æÂ·¾¶£»404 ·µ»Ø null¡£
+  /// ä¸‹è½½å®‰è£…åŒ…/ä¾¿æºåŒ…ï¼Œè¿”å›ä¿å­˜è·¯å¾„ï¼›404 è¿”å› nullã€‚
   Future<String?> download(String relativePath, {void Function(int, int)? onProgress}) async {
     final uri = api.downloadUri(relativePath);
     final client = http.Client();
@@ -69,7 +69,7 @@ class UpdateService {
     }
   }
 
-  /// ´ò¿ª/Æô¶¯ÏÂÔØµ½µÄ°²×°°ü¡£
+  /// æ‰“å¼€/å¯åŠ¨ä¸‹è½½åˆ°çš„å®‰è£…åŒ…ã€‚
   Future<bool> launchInstaller(String path) async {
     try {
       if (Platform.isWindows) {
