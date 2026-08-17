@@ -109,7 +109,8 @@ function init() {
       from_id INTEGER NOT NULL,
       content TEXT NOT NULL,
       client_msg_id TEXT,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      recalled INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_gm_group ON group_messages(group_id, created_at);
     CREATE TABLE IF NOT EXISTS feedbacks (
@@ -378,6 +379,9 @@ function init() {
   try {
     // 群消息也需要 clientMsgId：重试/多端回显时按此去重，避免"发一条出现两条"
     db.run('ALTER TABLE group_messages ADD COLUMN client_msg_id TEXT');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE group_messages ADD COLUMN recalled INTEGER DEFAULT 0');
   } catch (e) { /* 列已存在 */ }
   try {
     db.run('ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0');

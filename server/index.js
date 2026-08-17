@@ -2791,6 +2791,16 @@ function mountFeatureRoutes(app, db) {
       } catch (e) {}
     });
   } catch (e) { console.error('[groups] attach broadcast failed: ' + (e && e.message || e)); }
+  try {
+    require('./routes/groups').attachGroupRecall(({ id, groupId, from }) => {
+      try {
+        const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
+        for (const m of members) {
+          if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { id, groupId, from, content: '', createdAt: Date.now(), recalled: true });
+        }
+      } catch (e) {}
+    });
+  } catch (e) { console.error('[groups] attach recall failed: ' + (e && e.message || e)); }
   rx('./chat-ext', [app, db, { sendToUser, onlineAny: onlineAny, P }]);
   rx('./routes/rtc', [app, db, apiUser]);
   rx('./routes/media', [app, db, apiUser]);

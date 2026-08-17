@@ -122,6 +122,7 @@ function groupMsgDto(r) {
     clientMsgId: r.client_msg_id || null,
     fromUser: { id: r.from_id, username: sender && sender.username, nickname: name, avatar: sender && sender.avatar, uid: sender && sender.uid },
     replyTo: r.reply_to || null, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled,
+    recalled: !!r.recalled,
   };
 }
 
@@ -151,6 +152,8 @@ function insertGroupMessage(groupId, fromId, content, clientMsgId) {
 
 let broadcastHook = null;
 function setBroadcastHook(fn) { broadcastHook = fn || null; }
+let recallHook = null;
+function setRecallHook(fn) { recallHook = fn || null; }
 
 module.exports = function registerGroups(app, db, auth) {
   // 构造 prepare：优先用 db.js 的（自带落盘）；否则退回纯 sql.js
@@ -589,5 +592,25 @@ module.exports = function registerGroups(app, db, auth) {
     } catch (e) {}
     res.json({ ok: true, replyTo });
   });
+
+  // 群消息撤回：POST /api/groups/:id/messages/:msgId/recall（发送者 5 分钟内）
+  app.post('/api/groups/:id/messages/:msgId/recall', mw, (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    const msgId = parseInt(req.params.msgId, 10);
+    if (!Number.isInteger(groupId) || !Number.isInteger(msgId)) return fail(res, 400, '参数错误');
+    const msg = p.get('SELECT id,from_id,content,created_at FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
+    if (!msg) return fail(res, 404, '消息不存在');
+    if (msg.from_id !== req.user.id) return fail(res, 403, '只能撤回自己发送的消息');
+    if (Date.now() - msg.created_at > 5 * 60 * 1000) return fail(res, 400, '超过 5 分钟不可撤回');
+    try {
+      p.run('UPDATE group_messages SET recalled=1 WHERE id=?', msgId);
+      recallHook && recallHook({ id: msgId, groupId, from: msg.from_id });
+    } catch (e) {
+      return fail(res, 500, '撤回失败：' + ((e && e.message) || e));
+    }
+    res.json({ ok: true });
+  });
+  module.exports.attachGroupBroadcast = setBroadcastHook;
+  module.exports.attachGroupRecall = setRecallHook;
   return { ok: true, routes: ['/api/groups/*'] };
 };

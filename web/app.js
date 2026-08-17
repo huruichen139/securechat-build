@@ -2201,19 +2201,65 @@ function appendGroupMessage(m, prepend) {
   const nameLine = mine ? '' : '<div class="name">' + escapeHtml(fromName) + '</div>';
   if (m.id != null) row.setAttribute('data-id', String(m.id));
   if (m.clientMsgId) row.setAttribute('data-cmid', String(m.clientMsgId));
+  if (m.recalled) {
+    row.innerHTML = `<div class="avatar">${avHtml}</div>
+      <div class="bubble-wrap">
+        ${nameLine}
+        <div class="bubble recalled">${escapeHtml(fromName)}撤回了一条消息</div>
+      </div>`;
+    box.appendChild(row);
+    if (!prepend) box.scrollTop = box.scrollHeight;
+    return;
+  }
+  const canGroupRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000;
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
       ${quoteBlockHtml(m)}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
+      <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button></div>
     </div>`;
+  if (canGroupRecall) {
+    row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
+  }
+  row.querySelector('[data-action="copy"]').onclick = async () => {
+    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
+    catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
+  };
+  row.querySelector('[data-action="quote"]').onclick = () => {
+    if (m.id == null) { toast('无法引用该消息', 'warn', 1200); return; }
+    setPendingReply(m.id);
+    toast('已选择引用，输入内容后发送', 'success', 1500);
+  };
   bindQuoteClicks(row);
+  bindMobileLongPress(row);
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
-// 收到群消息推送
+async function recallGroupMessage(id) {
+  if (!state.activeGroup || !confirm('确定撤回这条消息吗？')) return;
+  try {
+    const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/messages/' + id + '/recall', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '撤回失败');
+    markGroupRecalled(id);
+  } catch (e) {
+    toast('撤回失败：' + e.message, 'error');
+  }
+}
+function markGroupRecalled(id) {
+  const row = document.querySelector('#messages .msg-row[data-id="' + String(id).replace(/"/g, '\\"') + '"]');
+  if (!row) return;
+  const mine = row.classList.contains('me');
+  const name = row.querySelector('.name');
+  const fromName = name ? name.textContent : (mine ? '你' : '对方');
+  row.innerHTML = '<div class="bubble recalled">' + escapeHtml(fromName) + '撤回了一条消息</div>';
+  const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
+}
 function onIncomingGroupMsg(payload) {
   state.groupLastMsg[payload.groupId] = payload.content || '[消息]';
   state.groupLastMsgTime[payload.groupId] = payload.createdAt || Date.now();
@@ -2542,6 +2588,8 @@ function appendMessage(m, prepend) {
     setPendingReply(m.id);
     toast('已选择引用，输入内容后发送', 'success', 1500);
   };
+  bindQuoteClicks(row);
+  bindMobileLongPress(row);
   box.appendChild(row);
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
@@ -2601,6 +2649,23 @@ function bindQuoteClicks(row) {
       else toast('原文不在当前加载范围内', 'warn', 1200);
     };
   });
+}
+// 移动端长按消息显示操作条（无 hover 的替代交互）
+function bindMobileLongPress(row) {
+  if (!window.IS_MOBILE) return;
+  let timer = null;
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  row.addEventListener('touchstart', () => { clear(); timer = setTimeout(() => { row.classList.add('show-actions'); }, 450); }, { passive: true });
+  row.addEventListener('touchend', clear, { passive: true });
+  row.addEventListener('touchmove', clear, { passive: true });
+  row.addEventListener('touchcancel', clear, { passive: true });
+}
+if (window.IS_MOBILE) {
+  document.addEventListener('touchstart', (e) => {
+    if (e.target && e.target.closest && !e.target.closest('.msg-row')) {
+      document.querySelectorAll('.msg-row.show-actions').forEach(r => r.classList.remove('show-actions'));
+    }
+  }, { passive: true });
 }
 
 // ============ 群聊 @ 成员 ============

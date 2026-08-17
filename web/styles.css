@@ -983,6 +983,7 @@ body.dark-mode .my-name { color: #f8fafc; }
 .msg-row { position: relative; }
 .message-actions { display: flex; gap: 4px; margin: 0 6px; opacity: 0; transition: opacity .15s ease; align-self: center; }
 .msg-row:hover .message-actions, .msg-row:focus-within .message-actions { opacity: 1; }
+html.is-mobile .msg-row.show-actions .message-actions { opacity: 1; }
 .message-actions button { border: 1px solid #dbe3ea; border-radius: 6px; background: #fff; color: #64748b; padding: 3px 6px; cursor: pointer; font-size: 11px; white-space: nowrap; }
 .message-actions button:hover { color: var(--primary); border-color: var(--primary); }
 body.dark-mode .message-actions button { background: #1e293b; border-color: #334155; color: #cbd5e1; }
