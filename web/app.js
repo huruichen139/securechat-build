@@ -1672,6 +1672,7 @@ async function loadFriends() {
 }
 
 function renderContacts() {
+  updateUnreadBadge();
   const kw = $('search').value.trim().toLowerCase();
   const list = $('contactList');
   list.innerHTML = '';
@@ -2051,9 +2052,9 @@ function renderChatHeader() {
     const g = state.groups.find(x => x.id === state.activeGroup);
     const name = g ? g.name : ('群 #' + state.activeGroup);
     $('chatHeader').textContent = '群聊：' + name;
-    $('chatHeader').onclick = null;
+    $('chatHeader').onclick = () => openGroupProfile(state.activeGroup);
     const mt = document.getElementById('chatMobileTitle');
-    if (mt) { mt.textContent = '群聊：' + name; mt.onclick = null; }
+    if (mt) { mt.textContent = '群聊：' + name; mt.onclick = () => openGroupProfile(state.activeGroup); }
     $('inviteBar').style.display = '';
     return;
   }
@@ -2101,6 +2102,83 @@ function openPeerProfile(peerId) {
       const nowBlocked = blockedMap ? blockedMap.has(peer.id) : false;
       if (bl) bl.textContent = nowBlocked ? '解除拉黑' : '拉黑';
     });
+  };
+  mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
+}
+
+// 群资料卡（点击群名打开：公告/成员/退出）
+async function openGroupProfile(groupId) {
+  const g = state.groups.find(x => x.id === groupId);
+  if (!g) return;
+  let members = [];
+  let announcement = null;
+  let isOwner = false;
+  try {
+    const res = await fetch(state.serverHost + '/api/groups/' + groupId, { headers: { 'Authorization': 'Bearer ' + state.token } });
+    const data = await res.json();
+    if (res.ok && data.group) {
+      members = data.group.members || [];
+      announcement = data.group.announcement || null;
+      isOwner = !!data.group.isOwner;
+    }
+  } catch (e) {}
+  const mask = document.createElement('div');
+  mask.className = 'profile-mask';
+  mask.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-head">
+        <div class="profile-avatar">${escapeHtml((g.name || '群').charAt(0))}</div>
+        <div class="profile-name">${escapeHtml(g.name)}</div>
+        <div class="profile-id">${members.length} 名成员</div>
+        ${announcement && announcement.content ? '<div class="profile-region" style="margin-top:6px;word-break:break-all">公告：' + escapeHtml(String(announcement.content).slice(0, 60)) + '</div>' : ''}
+      </div>
+      <div class="profile-members">
+        ${members.length ? members.map(m => `<div class="profile-member" data-mid="${m.id}">
+          <div class="avatar" style="width:34px;height:34px;border-radius:6px">${m.avatar ? '<img src="' + m.avatar + '">' : avatarChar(m.myNickname || m.nickname)}</div>
+          <span>${escapeHtml(m.myNickname || m.nickname)}</span>${m.id === (g.ownerId) ? '<em style="color:#fa5151;font-style:normal;font-size:11px">群主</em>' : ''}
+        </div>`).join('') : '<div style="padding:12px;color:#aaa;font-size:13px">暂无成员</div>'}
+      </div>
+      <div class="profile-actions">
+        <button class="btn-cn" id="groupInviteBtn">邀请成员</button>
+        ${isOwner ? '<button class="btn-cn gray" id="groupDissolveBtn">解散群聊</button>' : '<button class="btn-cn gray" id="groupLeaveBtn">退出群聊</button>'}
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.querySelectorAll('.profile-member').forEach(el => {
+    el.onclick = () => { mask.remove(); const mid = parseInt(el.dataset.mid); if (mid && state.friends.some(f => f.id === mid)) selectPeer(mid); };
+  });
+  mask.querySelector('#groupInviteBtn').onclick = () => { mask.remove(); const btn = $('inviteBtn'); if (btn) btn.click(); };
+  const leaveBtn = mask.querySelector('#groupLeaveBtn');
+  if (leaveBtn) leaveBtn.onclick = async () => {
+    if (!confirm('确定退出该群聊？')) return;
+    try {
+      const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/leave', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '操作失败');
+      mask.remove();
+      toast('已退出群聊', 'success', 1200);
+      state.groups = state.groups.filter(x => x.id !== groupId);
+      const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
+      state.activeGroup = null;
+      renderChatHeader();
+      renderContacts();
+    } catch (e) { toast('退出失败：' + e.message, 'error'); }
+  };
+  const dissolveBtn = mask.querySelector('#groupDissolveBtn');
+  if (dissolveBtn) dissolveBtn.onclick = async () => {
+    if (!confirm('确定解散该群？所有成员将被移出，不可恢复。')) return;
+    try {
+      const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/dissolve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '操作失败');
+      mask.remove();
+      toast('群聊已解散', 'success', 1200);
+      state.groups = state.groups.filter(x => x.id !== groupId);
+      const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
+      state.activeGroup = null;
+      renderChatHeader();
+      renderContacts();
+    } catch (e) { toast('解散失败：' + e.message, 'error'); }
   };
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
@@ -3775,6 +3853,21 @@ function renderContactsPage() {
 function setRailActive(side) {
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === side));
   if (typeof syncMobileNav === 'function') syncMobileNav(side);
+}
+// 侧边栏"微信"tab 未读总数角标
+function updateUnreadBadge() {
+  const total = Object.values(state.unread || {}).reduce((a, b) => a + (b || 0), 0)
+    + Object.values(state.groupUnread || {}).reduce((a, b) => a + (b || 0), 0);
+  const tab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
+  if (!tab) return;
+  let badge = tab.querySelector('.rail-badge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'rail-badge';
+    tab.appendChild(badge);
+  }
+  badge.style.display = total > 0 ? 'flex' : 'none';
+  badge.textContent = total > 99 ? '99+' : String(total);
 }
 // 桌面端：聊天人列表只在点击"微信"时显示
 function setChatListVisible(show) {
