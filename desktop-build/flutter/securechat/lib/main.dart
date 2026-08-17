@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -446,6 +448,9 @@ class _ChatViewStateState extends State<_ChatView> {
   final input = TextEditingController();
   final messages = <Map<String, dynamic>>[];
   final conversations = <Map<String, dynamic>>[];
+  final _deletedIds = <String>{};
+  final _unread = <String, int>{};
+  bool _deletedLoaded = false;
   WebSocketChannel? socket;
   CallService? calls;
   final recorder = AudioRecorder();
@@ -541,7 +546,7 @@ class _ChatViewStateState extends State<_ChatView> {
   Future<void> _openConversation(int index) async {
     final conv = conversations[index];
     final seq = ++_openSeq;
-    setState(() { selected = index; });
+    setState(() { selected = index; _unread.remove(_convKey(conv)); });
     messages.clear();
     if (conv['kind'] == 'group') {
       if (mounted) setState(() => selName = conv['name'].toString());
@@ -562,7 +567,7 @@ class _ChatViewStateState extends State<_ChatView> {
               : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender});
         }
         if (!mounted || seq != _openSeq) return;
-        setState(() { messages..clear()..addAll(_dedupById(msgs)); });
+        setState(() { messages..clear()..addAll(_dedupById(msgs))..removeWhere((m) => _isDeleted(m['id'])); });
       } catch (_) {}
       return;
     }
@@ -582,7 +587,7 @@ class _ChatViewStateState extends State<_ChatView> {
             : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']});
       }
       if (!mounted || seq != _openSeq) return;
-      setState(() { messages..clear()..addAll(_dedupById(msgs)); });
+      setState(() { messages..clear()..addAll(_dedupById(msgs))..removeWhere((m) => _isDeleted(m['id'])); });
     } catch (_) {}
   }
 
@@ -616,6 +621,7 @@ class _ChatViewStateState extends State<_ChatView> {
       socket = widget.api.connect();
       myId = widget.api.myId;
       x3dhApi = widget.api;
+      _ensureDeletedLoaded();
       uploadMyPrekeys(widget.api);
       socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
@@ -635,6 +641,7 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           }
           if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
+          if (_isDeleted(p['id'])) return;
           final conv = selConv;
           final from = p['from'];
           final to = p['to'];
@@ -642,6 +649,11 @@ class _ChatViewStateState extends State<_ChatView> {
           final content = (p['content'] ?? '').toString();
           final text = await e2eeDecrypt('$from', content);
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          if (conv != null && !talkingToPeer) {
+            final key = 'f${from == myId ? to : from}';
+            setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
+            return;
+          }
           setState(() {
             if (conv == null || talkingToPeer) {
               _appendMsg(voice != null
@@ -662,6 +674,7 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           }
           if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
+          if (_isDeleted(p['id'])) return;
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
@@ -671,12 +684,14 @@ class _ChatViewStateState extends State<_ChatView> {
           final sender = (fromUser is Map) ? (((fromUser)['nickname'] ?? fromUser['username']) ?? '').toString() : null;
           final mine = from == myId;
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          if (conv == null || conv['kind'] != 'group' || conv['id'] != gid) {
+            if (!mine) setState(() => _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1);
+            return;
+          }
           setState(() {
-            if (conv != null && conv['kind'] == 'group' && conv['id'] == gid) {
-              _appendMsg(voice != null
-                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender}
-                  : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender});
-            }
+            _appendMsg(voice != null
+                ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']}
+                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']});
           });
         } else if (type == 'signal') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
@@ -780,6 +795,19 @@ class _ChatViewStateState extends State<_ChatView> {
     super.dispose();
   }
 
+  static String _convKey(Map<String, dynamic> conv) => '${conv['kind'] == 'group' ? 'g' : 'f'}${conv['id']}';
+
+  Future<void> _ensureDeletedLoaded() async {
+    if (_deletedLoaded) return;
+    _deletedLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _deletedIds.addAll(prefs.getStringList('deletedMsgIds') ?? const []);
+    } catch (_) {}
+  }
+
+  bool _isDeleted(dynamic id) => _deletedIds.contains('$id');
+
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
@@ -848,6 +876,15 @@ class _ChatViewStateState extends State<_ChatView> {
                       ]),
                       const SizedBox(height: 3),
                       Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), style: TextStyle(color: theme.subText, fontSize: 12)),
+                      if ((_unread[_convKey(conv)] ?? 0) > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(9)),
+                            child: Text('${_unread[_convKey(conv)]}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          ),
+                        ),
                     ])),
                   ]),
                 ),
@@ -924,9 +961,13 @@ class _ChatViewStateState extends State<_ChatView> {
     final voiceId = msg['voiceId'] as String?;
     final t = widget.config.theme;
     final replyText = (msg['replyTo'] != null && msg['replyTo'] != 0) ? '回复了一条消息' : null;
+    final text = (msg['text'] ?? '').toString();
+    final fileMeta = _parseFileMeta(text);
     final content = voiceId != null
         ? _voiceBubble(mine, voiceId)
-        : _textBubble(mine, msg, t);
+        : fileMeta != null
+            ? _fileBubble(mine, fileMeta, t)
+            : _textBubble(mine, msg, t);
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
@@ -944,6 +985,11 @@ class _ChatViewStateState extends State<_ChatView> {
               Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                 if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group')
                   Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: t.subText, fontSize: 11))),
+                if (msg['forwardedFrom'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 3),
+                    child: Text('转发的消息', style: TextStyle(color: mine ? const Color(0xff4a4a4a) : t.subText, fontSize: 11)),
+                  ),
                 if (replyText != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 3),
@@ -986,12 +1032,43 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
+  Widget _fileBubble(bool mine, Map<String, dynamic> meta, dynamic t) {
+    final name = (meta['name'] ?? '文件').toString();
+    final mime = (meta['mime'] ?? '').toString();
+    final isImage = mime.startsWith('image/');
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: mine ? _wechatBubbleMine : Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(4),
+          topRight: const Radius.circular(4),
+          bottomLeft: Radius.circular(mine ? 4 : 14),
+          bottomRight: Radius.circular(mine ? 14 : 4),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(isImage ? Icons.image_outlined : Icons.insert_drive_file_outlined, size: 28, color: isImage ? _wechatGreen : t.subText),
+        const SizedBox(width: 8),
+        Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: mine ? const Color(0xff1a1a1a) : t.text)),
+          Text(_fmtSize((meta['size'] is num) ? meta['size'] as num : (num.tryParse('${meta['size']}') ?? 0)), style: TextStyle(fontSize: 11, color: t.subText)),
+        ])),
+        const SizedBox(width: 8),
+        InkWell(onTap: () => _openFile(meta), child: Icon(isImage ? Icons.zoom_in_rounded : Icons.download_rounded, size: 20, color: _wechatGreen)),
+      ]),
+    );
+  }
+
   String replyPreviewText(Map<String, dynamic> msg) {
     final id = msg['replyTo'];
     if (id == null || id == 0) return '';
     for (final m in messages) {
       if (m['id'] == id) {
         final s = (m['text'] ?? '').toString();
+        if (s.startsWith('__FILE__')) return '文件';
         return s.isEmpty ? '语音消息' : (s.length > 30 ? s.substring(0, 30) + '…' : s);
       }
     }
@@ -1057,7 +1134,7 @@ class _ChatViewStateState extends State<_ChatView> {
       decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
-        IconButton(tooltip: '附件', onPressed: () {}, icon: Icon(Icons.add_circle_outline, color: t.text)),
+        IconButton(tooltip: '附件', onPressed: _pickAndSendFile, icon: Icon(Icons.add_circle_outline, color: t.text)),
         Expanded(child: TextField(
           controller: input,
           focusNode: inputFocus,
@@ -1074,6 +1151,80 @@ class _ChatViewStateState extends State<_ChatView> {
         )),
       ]),
     );
+  }
+
+  Future<void> _pickAndSendFile() async {
+    final conv = selConv;
+    if (conv == null) return;
+    FilePickerResult? res;
+    try {
+      res = await FilePicker.platform.pickFiles(withData: true);
+    } catch (_) {}
+    if (res == null || res.files.isEmpty || res.files.single.bytes == null || !mounted) return;
+    final f = res.files.single;
+    final name = f.name;
+    final mime = (f.extension != null && f.extension!.isNotEmpty) ? 'application/${f.extension!.toLowerCase()}' : 'application/octet-stream';
+    try {
+      final Map<String, dynamic> raw = conv['kind'] == 'group'
+          ? await widget.api.uploadGroupFile(conv['id'] as int, f.bytes!, name, mime)
+          : await widget.api.uploadAttachment(conv['id'] as int, f.bytes!, name, mime);
+      final file = (raw['file'] is Map) ? (raw['file'] as Map).cast<String, dynamic>() : raw;
+      final content = '__FILE__' + jsonEncode({'id': file['id'], 'name': file['name'] ?? name, 'size': file['size'] ?? f.bytes!.length, 'mime': file['mime'] ?? mime});
+      if (conv['kind'] == 'group') {
+        final gcmid = 'ga${DateTime.now().microsecondsSinceEpoch}';
+        _sentIds.add(gcmid);
+        socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': gcmid}}));
+        if (mounted) setState(() => messages.add({'cmid': gcmid, 'text': content, 'mine': true, 'time': '现在'}));
+      } else {
+        final cmid = 'fa${DateTime.now().microsecondsSinceEpoch}';
+        _sentIds.add(cmid);
+        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': cmid}}));
+        if (mounted) setState(() => messages.add({'cmid': cmid, 'text': content, 'mine': true, 'time': '现在'}));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('发送文件失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
+  }
+
+  static Map<String, dynamic>? _parseFileMeta(String text) {
+    if (!text.startsWith('__FILE__')) return null;
+    try {
+      final d = jsonDecode(text.substring('__FILE__'.length));
+      if (d is Map) return d.cast<String, dynamic>();
+    } catch (_) {}
+    return null;
+  }
+
+  static String _fmtSize(num bytes) {
+    if (bytes >= 1048576) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
+    if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '$bytes B';
+  }
+
+  Future<void> _openFile(Map<String, dynamic> meta) async {
+    final id = (meta['id'] ?? '').toString();
+    if (id.isEmpty) return;
+    final isGroup = selConv != null && selConv!['kind'] == 'group';
+    try {
+      final bytes = isGroup ? await widget.api.fetchGroupFile(id) : await widget.api.fetchFile(id);
+      if (!mounted) return;
+      final mime = (meta['mime'] ?? '').toString();
+      if (mime.startsWith('image/')) {
+        await showDialog(context: context, builder: (_) => Dialog(child: InteractiveViewer(child: Image.memory(bytes))));
+      } else {
+        final out = await FilePicker.platform.saveFile(fileName: (meta['name'] ?? 'file').toString());
+        if (out != null) {
+          await File(out).writeAsBytes(bytes);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存'), duration: Duration(seconds: 1)));
+          }
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('文件获取失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
   }
 
   Future<void> _sendText() async {
@@ -1114,14 +1265,16 @@ class _ChatViewStateState extends State<_ChatView> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    if (conv['kind'] == 'friend') {
-      try {
-        await widget.api.deleteHistory(conv['id'] as int);
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除失败：$e')));
-        return;
-      }
+    if (conv['kind'] != 'friend') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('群聊暂不支持清空记录')));
+      return;
+    }
+    try {
+      await widget.api.deleteHistory(conv['id'] as int);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除失败：$e')));
+      return;
     }
     if (!mounted) return;
     setState(() => messages.clear());
@@ -1132,7 +1285,7 @@ class _ChatViewStateState extends State<_ChatView> {
     final text = (msg['text'] ?? '').toString();
     setState(() {
       replyingTo = msg['id'] as int?;
-      replyPreview = text.isEmpty ? '语音消息' : text;
+      replyPreview = text.startsWith('__FILE__') ? '文件' : (text.isEmpty ? '语音消息' : text);
     });
     inputFocus.requestFocus();
   }
@@ -1180,6 +1333,11 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   void _deleteLocalMessage(Map<String, dynamic> msg) {
+    final id = msg['id'];
+    if (id != null) {
+      _deletedIds.add('$id');
+      SharedPreferences.getInstance().then((prefs) => prefs.setStringList('deletedMsgIds', _deletedIds.toList())).catchError((_) => false);
+    }
     setState(() => messages.remove(msg));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除（仅本端）')));
   }
@@ -1211,11 +1369,11 @@ class _ChatViewStateState extends State<_ChatView> {
     if (conv['kind'] == 'group') {
       final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': gcmid}}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
     } else {
       final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(cmid);
-      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': cmid}}));
+      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': cmid, 'forwardedFrom': msg['id']}}));
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已转发')));

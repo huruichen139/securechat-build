@@ -139,7 +139,7 @@ class GroupService {
     return ((d['files'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
-  Uri fileUri(String fileId) => _uri('/api/groups/files/$fileId');
+  Uri fileUri(String fileId) => _uri('/api/group-files/$fileId');
 
   Future<Map<String, dynamic>> uploadFile(int groupId, List<int> bytes, String name, {String mime = 'application/octet-stream', String? path}) async {
     final uri = _uri('/api/groups/$groupId/files', {
@@ -156,7 +156,7 @@ class GroupService {
   }
 
   Future<List<int>> fetchFile(String fileId) async {
-    final uri = _uri('/api/groups/files/$fileId');
+    final uri = _uri('/api/group-files/$fileId');
     final resp = await http.get(uri, headers: _octetHeaders);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw StateError('文件获取失败 (${resp.statusCode})');

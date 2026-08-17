@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
@@ -185,8 +186,33 @@ class SecureChatApi {
     return data;
   }
 
-  Future<List<int>> fetchFile(String id) async {
+  Future<Uint8List> fetchFile(String id) async {
     final uri = _uri('/api/files/$id');
+    final response = await http.get(uri, headers: {if (token != null) 'Authorization': 'Bearer $token'});
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('文件获取失败 (${response.statusCode})');
+    }
+    return response.bodyBytes;
+  }
+
+  Future<Map<String, dynamic>> uploadAttachment(int to, List<int> bytes, String name, String mime) async {
+    final uri = _uri('/api/files', {'to': '$to', 'name': name, 'mime': mime});
+    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) throw StateError(data['error']?.toString() ?? '文件上传失败');
+    return data;
+  }
+
+  Future<Map<String, dynamic>> uploadGroupFile(int groupId, List<int> bytes, String name, String mime) async {
+    final uri = _uri('/api/groups/$groupId/files', {'name': name, 'mime': mime});
+    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) throw StateError(data['error']?.toString() ?? '群文件上传失败');
+    return data;
+  }
+
+  Future<Uint8List> fetchGroupFile(String fileId) async {
+    final uri = _uri('/api/group-files/$fileId');
     final response = await http.get(uri, headers: {if (token != null) 'Authorization': 'Bearer $token'});
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError('文件获取失败 (${response.statusCode})');
@@ -264,12 +290,12 @@ class SecureChatApi {
   }
 
   Future<List<Map<String, dynamic>>> groupMembers(int groupId) async {
-    final data = await _json('GET', '/api/group/$groupId/members');
+    final data = await _json('GET', '/api/groups/$groupId/members');
     return ((data['members'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
   Future<List<Map<String, dynamic>>> groupHistory(int groupId) async {
-    final data = await _json('GET', '/api/group/$groupId/messages');
+    final data = await _json('GET', '/api/groups/$groupId/messages');
     return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
