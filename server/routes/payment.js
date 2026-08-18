@@ -645,9 +645,9 @@ module.exports = function registerPayment(app, db, auth) {
     if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
     const amount = Number(req.body?.amount);
     if (amount !== o.amount) return res.status(400).json({ error: '确认金额与订单金额不一致' });
-    const auth = prepare('SELECT * FROM pay_authorizations WHERE user_id=? AND merchant_id=? AND status=? AND (expires_at IS NULL OR expires_at>?) ORDER BY id DESC LIMIT 1')
-      .get(req.user.id, o.merchant_id, 'active', Date.now());
-    if (!auth || auth.max_amount < amount) return res.status(403).json({ error: '未找到有效的支付授权或超过授权额度' });
+    const auth = prepare('SELECT * FROM pay_authorizations WHERE user_id=? AND merchant_id=? AND status=? AND max_amount>=? AND (expires_at IS NULL OR expires_at>?) ORDER BY id DESC LIMIT 1')
+      .get(req.user.id, o.merchant_id, 'active', amount, Date.now());
+    if (!auth) return res.status(403).json({ error: '未找到有效的支付授权或超过授权额度' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(o.merchant_id);
     doPay(req.user.id, merchant.user_id, amount, o.subject, 'gateway', o.id, (err, result) => {
       if (err) return res.status(err.code || 400).json({ error: err.message });
@@ -771,6 +771,7 @@ module.exports = function registerPayment(app, db, auth) {
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(orderNo);
     if (!order) return res.status(404).send('订单不存在');
     const merchant = prepare('SELECT id,name,user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
+    res.set('Cache-Control', 'no-store');
     res.type('text/html; charset=utf-8').send('<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SecureChat 网页授权扣款</title></head>' +
       '<body style="font-family:system-ui,sans-serif;background:#f2f3f5;margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100vh">' +
       '<div style="background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:28px;max-width:400px;width:100%;box-sizing:border-box">' +
@@ -789,7 +790,7 @@ module.exports = function registerPayment(app, db, auth) {
       'function api(m,u,b){return fetch((window.SERVER_HOST||"")+u,{method:m,headers:{"Content-Type":"application/json","Authorization":"Bearer "+token()},body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||("HTTP "+r.status));return d;});});}' +
       'var authBox=document.getElementById("authBox");var payBtn=document.getElementById("payBtn");var msg=document.getElementById("msgBox");' +
       'function show(t){msg.innerHTML=t;}' +
-      'function esc(s){return String(s==null?"":s).replace(/[&<>"\']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\u0027":"&#39;"}[c];});}' +
+      'function esc(s){return String(s==null?"":s).replace(/[&<>"\']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","\u0027":"&#39;"}[c];});}' +
       'function renderLogin(){' +
       'authBox.innerHTML="登录 SecureChat 后确认支付。<br>账号：<input id=\\"lgAcc\\" type=\\"text\\" value=\\"\\" style=\\"width:160px;padding:4px;margin:4px 0\\"><br>密码：<input id=\\"lgPwd\\" type=\\"password\\" style=\\"width:160px;padding:4px;margin:4px 0\\"><br><button id=\\"lgBtn\\" style=\\"padding:4px 20px;border-radius:6px;border:1px solid #1989fa;background:#1989fa;color:#fff;cursor:pointer;margin-top:4px\\">登录</button>";' +
       'document.getElementById("lgBtn").onclick=function(){var a=document.getElementById("lgAcc").value.trim();var pw=document.getElementById("lgPwd").value;if(!a||!pw){show("请输入账号和密码");return;}api("POST","/api/login",{account:a,password:pw}).then(function(d){try{localStorage.setItem("sc_token",d.token);var m=JSON.parse(localStorage.getItem("sc_me")||"null")||{};m.token=d.token;m.user=d.user;localStorage.setItem("sc_me",JSON.stringify(m));}catch(e){}show("✅ 登录成功：@"+d.user.username);init();}).catch(function(e){show("登录失败："+esc(e.message));});};' +
@@ -799,7 +800,7 @@ module.exports = function registerPayment(app, db, auth) {
       'document.getElementById("authBtn").onclick=function(){var amt=parseFloat(document.getElementById("authAmt").value||"0");if(!(amt>0)){show("请输入授权额度");return;}if(!confirm("确认给商户授权 ¥"+amt.toFixed(2)+"？（仅本订单扣款需用）"))return;api("POST","/api/pay/gateway/authorization",{merchantId:ORD.merchantId,maxAmount:amt,mode:"web",confirm:true}).then(function(){show("授权成功，可确认支付");init();}).catch(function(e){show("授权失败："+esc(e.message));});};' +
       '}}' +
       'function init(){if(!token()){renderLogin();payBtn.disabled=true;return;}api("GET","/api/pay/gateway/authorization").then(function(d){var a=null;for(var i=0;i<d.authorizations.length;i++){if(d.authorizations[i].merchantId===ORD.merchantId&&d.authorizations[i].status==="active"&&d.authorizations[i].maxAmount>=ORD.amount){a=d.authorizations[i];break;}}renderAuth(a);}).catch(function(e){authBox.innerHTML="获取授权失败："+esc(e.message);});}' +
-      'payBtn.onclick=function(){if(!token()){show("未登录");return;}if(!confirm("确认从 SecureChat 钱包扣款 ¥"+ORD.amount.toFixed(2)+" 支付本订单？"))return;api("POST","/api/pay/gateway/order/"+encodeURIComponent(ORD.orderNo)+"/confirm",{confirm:true,amount:ORD.amount}).then(function(d){show("✅ 支付成功！钱包余额 ¥"+Number(d.balance).toFixed(2));payBtn.disabled=true;setTimeout(function(){window.close();},1500);}).catch(function(e){show("❌ 支付失败："+esc(e.message));});};' +
+      'payBtn.onclick=function(){if(!token()){show("未登录");return;}if(!confirm("确认从 SecureChat 钱包扣款 ¥"+ORD.amount.toFixed(2)+" 支付本订单？"))return;api("POST","/api/pay/gateway/order/"+encodeURIComponent(ORD.orderNo)+"/confirm",{confirm:true,amount:ORD.amount}).then(function(d){show("✅ 支付成功！钱包余额 ¥"+Number(d.balance).toFixed(2));payBtn.disabled=true;setTimeout(function(){window.close();},1500);}).catch(function(e){show("❌ 支付失败："+esc(e.message));if((e.message||"").indexOf("自己")>-1){show("❌ 支付失败："+esc(e.message)+"<br><span style=\\"color:#999\\">该订单的商户属于你当前账号，请换一个 SecureChat 账号登录后再支付</span>");}});};' +
       'init();</script></div></body></html>');
   });
 
