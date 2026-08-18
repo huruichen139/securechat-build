@@ -11,6 +11,7 @@ import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
 import 'services/securechat_api.dart';
 import 'widgets/ux.dart';
+import 'gateway_pay_page.dart';
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key, required this.api, required this.config});
@@ -79,6 +80,18 @@ class _ScanPageState extends State<ScanPage> {
       } finally {
         if (mounted) setState(() => _busy = false);
       }
+      return;
+    }
+
+    // securechat://gateway/pay?order=xxx → 网关支付确认
+    if (text.startsWith('securechat://gateway')) {
+      final order = _queryParam(text, 'order');
+      if (order == null || order.isEmpty) { _status = '网关支付二维码无效'; return; }
+      setState(() { _busy = true; _status = '打开网关支付确认…'; });
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => GatewayPayPage(api: widget.api, config: widget.config, orderNo: order),
+      )).then((_) { if (mounted) setState(() { _busy = false; _status = null; }); });
       return;
     }
 

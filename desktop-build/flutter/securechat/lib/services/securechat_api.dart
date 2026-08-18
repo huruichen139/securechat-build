@@ -115,6 +115,16 @@ class SecureChatApi {
 
   Future<Map<String, dynamic>> grabRedPacket(int id) => _json('POST', '/api/redpacket/$id/grab');
 
+  Future<Map<String, dynamic>> gatewayOrder(String orderNo) => _json('GET', '/api/pay/gateway/order/${Uri.encodeComponent(orderNo)}');
+
+  Future<Map<String, dynamic>> gatewayAuthorizations() => _json('GET', '/api/pay/gateway/authorization');
+
+  Future<Map<String, dynamic>> gatewayCreateAuthorization(int merchantId, double maxAmount, String mode) =>
+      _json('POST', '/api/pay/gateway/authorization', body: {'merchantId': merchantId, 'maxAmount': maxAmount, 'mode': mode, 'confirm': true});
+
+  Future<Map<String, dynamic>> gatewayConfirm(String orderNo, double amount) =>
+      _json('POST', '/api/pay/gateway/order/${Uri.encodeComponent(orderNo)}/confirm', body: {'confirm': true, 'amount': amount});
+
   Future<Map<String, dynamic>> login(String account, String password) async {
     final data = await _json('POST', '/api/login', body: {'account': account, 'password': password}, auth: false);
     _setSession(data);

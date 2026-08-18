@@ -3239,6 +3239,13 @@ if (process.env.USE_HTTPS === '1' && fs.existsSync(CERT_PATH) && fs.existsSync(K
   server = http.createServer(app);
 }
 
+try {
+  const epayHttpPort = Number(process.env.EPAY_HTTP_PORT || 8889);
+  http.createServer(app).listen(epayHttpPort, '127.0.0.1', () => {
+    console.log('[epaygw] http 监听 127.0.0.1:' + epayHttpPort);
+  });
+} catch (e) { console.error('[epaygw] http 监听失败: ' + (e && e.message || e)); }
+
 // ---------- WebSocket ----------
 // 跨源放行（前端 cloudflared 域名 与 API 域名不同源时需要）
 const wss = new WebSocketServer({
@@ -3522,6 +3529,7 @@ function mountFeatureRoutes(app, db) {
   rx('./routes/media', [app, db, apiUser]);
   rx('./routes/lifestyle', [app, db, apiUser]);
   rx('./routes/payment', [app, db, null]);
+  rx('./epaygw', [app, db, null]);
   rx('./routes/status-collar', [app, db, apiUser]);
   rx('./routes/lifestyle-msg', [app, db, apiUser]);
   global.__scSendToUser = sendToUser;
