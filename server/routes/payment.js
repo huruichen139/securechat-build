@@ -8,8 +8,9 @@
 // 导出：module.exports = function registerPayment(app, db, auth)
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
+const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 
@@ -651,6 +652,14 @@ module.exports = function registerPayment(app, db, auth) {
       if (err) return res.status(err.code || 400).json({ error: err.message });
       prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), o.id);
       persist();
+      // 触发 epaygw 懒同步：置网关订单 TRADE_SUCCESS 并通知商户（NewAPI 等）
+      try {
+        const c = epayConfig(prepare);
+        const q = { act: 'order', pid: c.pid || '1000', out_trade_no: o.order_no };
+        const qs = Object.keys(q).sort().map((k) => k + '=' + encodeURIComponent(q[k])).join('&');
+        const sg = crypto.createHash('md5').update(qs + c.key).digest('hex').toUpperCase();
+        http.get('http://127.0.0.1:' + (process.env.EPAY_HTTP_PORT || 8889) + '/epaygw/api.php?' + qs + '&sign=' + sg, (r) => { r.resume(); }).on('error', () => {});
+      } catch (e) { console.error('[pay] trigger epaygw sync failed: ' + (e && e.message || e)); }
       res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id)), balance: result.balance, callback: o.callback_url || null });
     }, true);
   });

@@ -99,7 +99,11 @@ function notifyMerchant(o) {
     money: o.money,
     trade_status: 'TRADE_SUCCESS'
   };
-  const body = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&') + '&sign=' + signOf(params, GATEWAY_KEY)[0] + '&sign_type=MD5';
+  const keys = Object.keys(params).sort();
+  const qs = keys.map(k => k + '=' + params[k]).join('&');
+  // go-epay 等客户端严格比较小写 hex，标准易支付实现亦兼容小写
+  const sign = crypto.createHash('md5').update(qs + GATEWAY_KEY).digest('hex');
+  const body = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&') + '&sign=' + sign + '&sign_type=MD5';
   const lib = /^https:/i.test(o.notify_url) ? https : http;
   const req = lib.request(o.notify_url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } }, (res) => {
     let data = '';
