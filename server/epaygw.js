@@ -70,6 +70,7 @@ function createOrder(p) {
     created_at: now,
     paid_at: 0
   };
+  if (p.cloudreve) order.cloudreve = true;
   orders.set(outTradeNo, order);
   saveOrders();
   return order;
@@ -90,6 +91,28 @@ function orderResult(o) {
 
 function notifyMerchant(o) {
   if (!o || !o.notify_url) return;
+  if (o.cloudreve) {
+    const lib = /^https:/i.test(o.notify_url) ? https : http;
+    const doGet = (attempt) => {
+      const req = lib.get(o.notify_url, (res) => {
+        let data = '';
+        res.on('data', c => { data += c; });
+        res.on('end', () => {
+          const ok = res.statusCode >= 200 && res.statusCode < 300 && /"code"\s*:\s*0/.test(String(data));
+          console.log('[epaygw] cloudreve notify ' + o.out_trade_no + ' -> ' + (res.statusCode || 0) + ' ' + String(data).slice(0, 80) + (ok ? '' : ' (retry)'));
+          if (!ok && attempt < 3) setTimeout(() => doGet(attempt + 1), 3000 * Math.pow(2, attempt));
+        });
+      });
+      req.on('error', e => {
+        console.error('[epaygw] cloudreve notify failed: ' + (e && e.message || e) + ' (retry)');
+        if (attempt < 3) setTimeout(() => doGet(attempt + 1), 3000 * Math.pow(2, attempt));
+      });
+      req.setTimeout(10000, () => { try { req.destroy(); } catch (e) {} });
+      req.end();
+    };
+    doGet(0);
+    return;
+  }
   const params = {
     pid: o.pid,
     trade_no: o.trade_no,
@@ -184,6 +207,26 @@ function payerConfig(db) {
 module.exports = function (app, db, authMw) {
   loadOrders();
 
+  const querystring = require('querystring');
+  app.use('/epaygw', (req, res, next) => {
+    if (req.method !== 'POST' || Object.keys(req.body || {}).length > 0) return next();
+    let raw = '';
+    req.on('data', c => raw += c);
+    req.on('end', () => {
+      const body = {};
+      let parsed = false;
+      try {
+        const j = JSON.parse(raw || '{}');
+        if (j && typeof j === 'object') { Object.assign(body, j); parsed = true; }
+      } catch (e) {}
+      if (!parsed) {
+        try { Object.assign(body, querystring.parse(raw)); } catch (e) {}
+      }
+      if (Object.keys(body).length) req.body = Object.assign({}, req.body, body);
+      next();
+    });
+  });
+
   function ensureGatewayMerchant() {
     try {
       const owner = db.prepare("SELECT id FROM users WHERE username='andy'").get();
@@ -274,6 +317,37 @@ module.exports = function (app, db, authMw) {
 
   app.all('/epaygw/submit.php', (req, res) => {
     const p = Object.assign({}, req.query || {}, req.body || {});
+    const ct = String(req.headers['content-type'] || '');
+    const auth = String(req.headers['authorization'] || '');
+    const isCloudreve = req.method === 'POST' || auth.startsWith('Bearer Cr') || String(req.headers['x-cr-version'] || '') !== '';
+    console.log('[epaygw] submit.php', req.method, 'ct:', ct, 'auth:', auth.slice(0, 40), 'params:', JSON.stringify(p).slice(0, 500));
+    if (isCloudreve && req.method === 'GET' && p.order_no) {
+      const o = orders.get(String(p.order_no));
+      console.log('[epaygw] Cloudreve order query', String(p.order_no), '->', o ? o.status : 'MISSING');
+      return res.json({ code: 0, data: o && o.status === 'TRADE_SUCCESS' ? 'PAID' : 'UNPAID' });
+    }
+    if (isCloudreve) {
+      const ap = Object.assign({}, p);
+      ap.cloudreve = true;
+      if (ap.order_no && !ap.out_trade_no) ap.out_trade_no = ap.order_no;
+      if (ap.amount !== undefined && ap.amount !== '' && !ap.money) ap.money = String(Number(ap.amount) / 100);
+      if (!ap.pid) ap.pid = '1000';
+      if (!ap.type) ap.type = 'wxpay';
+      const o = createOrder(ap);
+      const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+      const base = proto + '://' + req.get('host');
+      const cashierUrl = base + '/api/pay/gateway/epay/cashier?order=' + encodeURIComponent(o.out_trade_no) + '&v=2';
+      try {
+        const sc = db.prepare('SELECT id FROM pay_orders WHERE order_no=?').get(o.out_trade_no);
+        if (!sc && GATEWAY_MERCHANT_ID) {
+          db.prepare('INSERT INTO pay_orders(order_no,merchant_id,amount,subject,status,callback_url,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)')
+            .run(o.out_trade_no, GATEWAY_MERCHANT_ID, Number(o.money), o.name, 'pending', o.notify_url, Date.now(), Date.now() + 30 * 60 * 1000);
+          if (typeof db.persist === 'function') db.persist();
+        }
+      } catch (e) { console.error('[epaygw] insert sc order failed: ' + (e && e.message || e)); }
+      console.log('[epaygw] -> Cloudreve JSON response url:', cashierUrl);
+      return res.json({ code: 0, data: cashierUrl });
+    }
     if (!verifySign(p, p.sign)) {
       return res.status(400).type('text/html; charset=utf-8').send('<html><body>签名校验失败</body></html>');
     }
