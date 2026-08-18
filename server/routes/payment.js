@@ -9,6 +9,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const https = require('https');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 
@@ -844,6 +845,19 @@ module.exports = function registerPayment(app, db, auth) {
       persist();
     }
     res.send('success');
+  });
+
+  // NewAPI 回调兜底：当商户把"回调地址"误配为本机时，把通知原样转发到真实 NewAPI 站点。
+  app.all('/api/user/epay/*', (req, res) => {
+    const targetHost = 'ai.32768.top';
+    const path = req.originalUrl;
+    const body = Object.keys(req.body || {}).map((k) => encodeURIComponent(k) + '=' + encodeURIComponent(req.body[k])).join('&');
+    const u = new URL('https://' + targetHost + path);
+    const r = https.request({ hostname: u.hostname, port: 443, path: u.pathname + u.search, method: req.method, rejectUnauthorized: false, headers: { 'Content-Type': req.get('content-type') || 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } }, (rr) => {
+      let b = ''; rr.on('data', (c) => b += c); rr.on('end', () => res.status(rr.statusCode).send(b));
+    });
+    r.on('error', (e) => res.status(502).send('forward failed: ' + (e && e.message || e)));
+    r.write(body); r.end();
   });
 
   // 管理员审核商户（调用方可接入现有 admin 页面）。
