@@ -101,7 +101,7 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         await Process.start(tmp.path, []);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('视频已保存到临时目录：${tmp.path}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('视频已保存到临时目录：${tmp.path}')));
       }
     } catch (e) {
       if (mounted) {
