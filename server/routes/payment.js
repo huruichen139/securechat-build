@@ -745,7 +745,7 @@ module.exports = function registerPayment(app, db, auth) {
       // 模拟模式：不跳真实网关，返回模拟收银台地址，由 /mock/pay 完成钱包扣款流程。
       const payUrl = '/api/pay/gateway/epay/mock/cashier?orderNo=' + encodeURIComponent(orderNo);
       persist();
-      return res.json({ ok: true, sandbox: true, orderNo, amount, subject, payUrl, mock: true, note: '模拟模式：请在客户端展示订单信息并要求用户明确确认后调用模拟支付' });
+      return res.json({ ok: true, sandbox: true, orderNo, amount, subject, payUrl, mock: true, note: '请在客户端展示订单信息并要求用户明确确认后调用支付接口' });
     }
     const params = {
       pid: c.merchantPid,
@@ -790,11 +790,15 @@ module.exports = function registerPayment(app, db, auth) {
       'var authBox=document.getElementById("authBox");var payBtn=document.getElementById("payBtn");var msg=document.getElementById("msgBox");' +
       'function show(t){msg.innerHTML=t;}' +
       'function esc(s){return String(s==null?"":s).replace(/[&<>"\']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\u0027":"&#39;"}[c];});}' +
+      'function renderLogin(){' +
+      'authBox.innerHTML="登录 SecureChat 后确认支付。<br>账号：<input id=\\"lgAcc\\" type=\\"text\\" value=\\"\\" style=\\"width:160px;padding:4px;margin:4px 0\\"><br>密码：<input id=\\"lgPwd\\" type=\\"password\\" style=\\"width:160px;padding:4px;margin:4px 0\\"><br><button id=\\"lgBtn\\" style=\\"padding:4px 20px;border-radius:6px;border:1px solid #1989fa;background:#1989fa;color:#fff;cursor:pointer;margin-top:4px\\">登录</button>";' +
+      'document.getElementById("lgBtn").onclick=function(){var a=document.getElementById("lgAcc").value.trim();var pw=document.getElementById("lgPwd").value;if(!a||!pw){show("请输入账号和密码");return;}api("POST","/api/login",{account:a,password:pw}).then(function(d){try{localStorage.setItem("sc_token",d.token);var m=JSON.parse(localStorage.getItem("sc_me")||"null")||{};m.token=d.token;m.user=d.user;localStorage.setItem("sc_me",JSON.stringify(m));}catch(e){}show("✅ 登录成功：@"+d.user.username);init();}).catch(function(e){show("登录失败："+esc(e.message));});};' +
+      '}' +
       'function renderAuth(a){if(a){authBox.innerHTML="已授权该商户，授权额度 ¥"+Number(a.max_amount).toFixed(2)+"（"+esc(a.mode)+"）";}else{' +
       'authBox.innerHTML="尚未给该商户授权。<br>授权额度（¥）：<input id=\\"authAmt\\" type=\\"number\\" min=\\"0.01\\" step=\\"0.01\\" value=\\"' + Number(order.amount).toFixed(2) + '\\" style=\\"width:90px;padding:4px\\"> <button id=\\"authBtn\\" style=\\"padding:4px 14px;border-radius:6px;border:1px solid #1989fa;background:#1989fa;color:#fff;cursor:pointer\\">创建授权</button><br><span style=\\"color:#999;font-size:12px\\">授权后商户可在额度内发起扣款，每次扣款仍需你确认</span>";' +
       'document.getElementById("authBtn").onclick=function(){var amt=parseFloat(document.getElementById("authAmt").value||"0");if(!(amt>0)){show("请输入授权额度");return;}if(!confirm("确认给商户授权 ¥"+amt.toFixed(2)+"？（仅本订单扣款需用）"))return;api("POST","/api/pay/gateway/authorization",{merchantId:ORD.merchantId,maxAmount:amt,mode:"web",confirm:true}).then(function(){show("授权成功，可确认支付");init();}).catch(function(e){show("授权失败："+esc(e.message));});};' +
       '}}' +
-      'function init(){if(!token()){authBox.innerHTML="未登录 SecureChat，请先登录网页版后重试。";payBtn.disabled=true;return;}api("GET","/api/pay/gateway/authorization").then(function(d){var a=null;for(var i=0;i<d.authorizations.length;i++){if(d.authorizations[i].merchantId===ORD.merchantId&&d.authorizations[i].status==="active"&&d.authorizations[i].maxAmount>=ORD.amount){a=d.authorizations[i];break;}}renderAuth(a);}).catch(function(e){authBox.innerHTML="获取授权失败："+esc(e.message);});}' +
+      'function init(){if(!token()){renderLogin();payBtn.disabled=true;return;}api("GET","/api/pay/gateway/authorization").then(function(d){var a=null;for(var i=0;i<d.authorizations.length;i++){if(d.authorizations[i].merchantId===ORD.merchantId&&d.authorizations[i].status==="active"&&d.authorizations[i].maxAmount>=ORD.amount){a=d.authorizations[i];break;}}renderAuth(a);}).catch(function(e){authBox.innerHTML="获取授权失败："+esc(e.message);});}' +
       'payBtn.onclick=function(){if(!token()){show("未登录");return;}if(!confirm("确认从 SecureChat 钱包扣款 ¥"+ORD.amount.toFixed(2)+" 支付本订单？"))return;api("POST","/api/pay/gateway/order/"+encodeURIComponent(ORD.orderNo)+"/confirm",{confirm:true,amount:ORD.amount}).then(function(d){show("✅ 支付成功！钱包余额 ¥"+Number(d.balance).toFixed(2));payBtn.disabled=true;setTimeout(function(){window.close();},1500);}).catch(function(e){show("❌ 支付失败："+esc(e.message));});};' +
       'init();</script></div></body></html>');
   });
@@ -806,11 +810,11 @@ module.exports = function registerPayment(app, db, auth) {
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(req.query.orderNo || ''));
     if (!order) return res.status(404).send('订单不存在');
     if (order.status !== 'pending') return res.send('订单已处理');
-    res.type('html').send(`<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>模拟收银台</title></head>
+    res.type('html').send(`<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>收银台</title></head>
 <body style="font-family:sans-serif;max-width:420px;margin:40px auto;text-align:center">
-<h2>模拟收银台（沙箱）</h2><p>订单：${order.order_no}</p><p>金额：<b>¥${Number(order.amount).toFixed(2)}</b></p><p>说明：${order.subject}</p>
-<form method="post" action="/api/pay/gateway/epay/mock/pay"><input type="hidden" name="orderNo" value="${order.order_no}"><button style="font-size:18px;padding:12px 40px">确认模拟支付</button></form>
-<p style="color:#999;font-size:12px">模拟模式仅扣减钱包余额，不产生真实资金往来</p></body></html>`);
+<h2>收银台</h2><p>订单：${order.order_no}</p><p>金额：<b>¥${Number(order.amount).toFixed(2)}</b></p><p>说明：${order.subject}</p>
+<form method="post" action="/api/pay/gateway/epay/mock/pay"><input type="hidden" name="orderNo" value="${order.order_no}"><button style="font-size:18px;padding:12px 40px">确认支付</button></form>
+<p style="color:#999;font-size:12px">支付将从 SecureChat 钱包扣款</p></body></html>`);
   });
 
   // 模拟支付：钱包扣款 -> 商户入账 -> 标记订单已支付（幂等）。
@@ -823,11 +827,11 @@ module.exports = function registerPayment(app, db, auth) {
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
     if (!merchant) return res.status(404).json({ error: '商户不存在' });
     if (req.user.id === merchant.user_id) return res.status(400).json({ error: '不能支付自己的订单' });
-    doPay(req.user.id, merchant.user_id, Number(order.amount), '模拟支付 ' + order.subject, 'epay', order.id, (err, result) => {
+    doPay(req.user.id, merchant.user_id, Number(order.amount), '支付 ' + order.subject, 'epay', order.id, (err, result) => {
       if (err) return res.status(err.code || 400).json({ error: err.message });
       prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), order.id);
       persist();
-      res.json({ ok: true, sandbox: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id)), balance: result.balance, note: '模拟支付成功（钱包沙箱）' });
+      res.json({ ok: true, sandbox: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id)), balance: result.balance, note: '支付成功（钱包扣款）' });
     });
   });
 

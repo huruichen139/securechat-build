@@ -184,10 +184,10 @@ module.exports = function (app, db, authMw) {
     try {
       const owner = db.prepare("SELECT id FROM users WHERE username='andy'").get();
       if (!owner) return null;
-      const m = db.prepare("SELECT id FROM pay_merchants WHERE name='SecureChat 模拟网关'").get();
+      const m = db.prepare("SELECT id FROM pay_merchants WHERE name='SecureChat 模拟网关' OR name='SecureChat 支付网关'").get();
       if (m) return m.id;
       const r = db.prepare('INSERT INTO pay_merchants(user_id,name,callback_url,auth_mode,status,created_at) VALUES(?,?,?,?,?,?)')
-        .run(owner.id, 'SecureChat 模拟网关', '', 'local', 'approved', Date.now());
+        .run(owner.id, 'SecureChat 支付网关', '', 'local', 'approved', Date.now());
       return r.lastInsertRowid;
     } catch (e) { console.error('[epaygw] ensure merchant failed: ' + (e && e.message || e)); return null; }
   }
