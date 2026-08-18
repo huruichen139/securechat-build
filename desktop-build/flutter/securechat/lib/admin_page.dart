@@ -2123,6 +2123,7 @@ class _EpayTabState extends State<_EpayTab> {
   final _notify = TextEditingController();
   final _return = TextEditingController();
   bool _enabled = false;
+  bool _sandbox = false;
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -2142,6 +2143,7 @@ class _EpayTabState extends State<_EpayTab> {
       if (!mounted) return;
       setState(() {
         _enabled = c['enabled'] == true;
+        _sandbox = c['sandbox'] == true;
         _base.text = '${c['baseUrl'] ?? ''}';
         _gateway.text = '${c['gatewayUrl'] ?? ''}';
         _gatewayId.text = '${c['gatewayId'] ?? ''}';
@@ -2161,6 +2163,7 @@ class _EpayTabState extends State<_EpayTab> {
     try {
       await widget.api.adminSaveEpayConfig({
         'enabled': _enabled,
+        'sandbox': _sandbox,
         'baseUrl': _base.text.trim(),
         'gatewayUrl': _gateway.text.trim(),
         'gatewayId': _gatewayId.text.trim(),
@@ -2196,6 +2199,7 @@ class _EpayTabState extends State<_EpayTab> {
     return ListView(padding: const EdgeInsets.all(12), children: [
       SectionCard(config: widget.config, padding: const EdgeInsets.all(14), children: [
         Row(children: [Expanded(child: Text('EPay 支付通道', style: TextStyle(color: _t.text, fontWeight: FontWeight.w700))), Switch(value: _enabled, onChanged: (v) => setState(() => _enabled = v))]),
+        Row(children: [Expanded(child: Text('模拟模式（沙箱，无需真实商户参数）', style: TextStyle(color: _t.text, fontSize: 13))), Switch(value: _sandbox, onChanged: (v) => setState(() => _sandbox = v))]),
         Text('保存后由服务端生成签名并接收异步回调。Key 不会回显明文。', style: TextStyle(color: _t.subText, fontSize: 12)),
         const SizedBox(height: 14),
         field(_base, '基础地址，例如 https://pay.example.com'),

@@ -29,6 +29,7 @@ function epayConfig(prepare) {
     const c = row ? JSON.parse(row.value) : {};
     return {
       enabled: !!c.enabled,
+      sandbox: !!c.sandbox,
       baseUrl: String(c.baseUrl || '').replace(/\/$/, ''),
       gatewayUrl: String(c.gatewayUrl || '').trim(),
       gatewayId: String(c.gatewayId || '').trim(),
@@ -37,7 +38,7 @@ function epayConfig(prepare) {
       notifyUrl: String(c.notifyUrl || '').trim(),
       returnUrl: String(c.returnUrl || '').trim()
     };
-  } catch (e) { return { enabled: false, baseUrl: '', gatewayUrl: '', gatewayId: '', merchantPid: '', key: '', notifyUrl: '', returnUrl: '' }; }
+  } catch (e) { return { enabled: false, sandbox: false, baseUrl: '', gatewayUrl: '', gatewayId: '', merchantPid: '', key: '', notifyUrl: '', returnUrl: '' }; }
 }
 
 module.exports = function registerPayment(app, db, auth) {
@@ -704,6 +705,7 @@ module.exports = function registerPayment(app, db, auth) {
       const b = req.body || {};
       const c = {
         enabled: b.enabled === true,
+        sandbox: b.sandbox === true,
         baseUrl: b.baseUrl,
         gatewayUrl: b.gatewayUrl,
         gatewayId: b.gatewayId,
@@ -712,7 +714,7 @@ module.exports = function registerPayment(app, db, auth) {
         notifyUrl: b.notifyUrl,
         returnUrl: b.returnUrl
       };
-      if (c.enabled && (!c.baseUrl || !c.gatewayUrl || !c.merchantPid || !c.key || !c.notifyUrl)) return res.status(400).json({ error: '启用 EPay 前必须填写基础地址、网关地址、商户 PID、Key、异步回调地址' });
+      if (c.enabled && !c.sandbox && (!c.baseUrl || !c.gatewayUrl || !c.merchantPid || !c.key || !c.notifyUrl)) return res.status(400).json({ error: '启用 EPay 前必须填写基础地址、网关地址、商户 PID、Key、异步回调地址（或开启模拟模式）' });
       saveEpayConfig(c);
       res.json({ ok: true, config: { ...c, key: c.key ? '********' : '' } });
     });
@@ -720,10 +722,10 @@ module.exports = function registerPayment(app, db, auth) {
 
   app.get('/api/pay/gateway/epay/status', (req, res) => {
     const c = epayConfig(prepare);
-    res.json({ enabled: c.enabled, gatewayId: c.gatewayId, merchantPid: c.merchantPid });
+    res.json({ enabled: c.enabled, sandbox: c.sandbox, gatewayId: c.gatewayId, merchantPid: c.merchantPid });
   });
 
-  // 商户创建 EPay 订单，返回第三方支付跳转地址。
+  // 商户创建 EPay 订单，返回第三方支付跳转地址；模拟模式下返回本服务模拟收银台。
   app.post('/api/pay/gateway/epay/order', mw, (req, res) => {
     const c = epayConfig(prepare);
     if (!c.enabled) return res.status(503).json({ error: 'EPay 通道未启用' });
@@ -737,6 +739,12 @@ module.exports = function registerPayment(app, db, auth) {
     const expiresAt = Date.now() + 30 * 60 * 1000;
     prepare('INSERT INTO pay_orders(order_no,merchant_id,amount,subject,status,callback_url,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)')
       .run(orderNo, merchant.id, amount, subject, 'pending', merchant.callback_url || '', Date.now(), expiresAt);
+    if (c.sandbox) {
+      // 模拟模式：不跳真实网关，返回模拟收银台地址，由 /mock/pay 完成钱包扣款流程。
+      const payUrl = '/api/pay/gateway/epay/mock/cashier?orderNo=' + encodeURIComponent(orderNo);
+      persist();
+      return res.json({ ok: true, sandbox: true, orderNo, amount, subject, payUrl, mock: true, note: '模拟模式：请在客户端展示订单信息并要求用户明确确认后调用模拟支付' });
+    }
     const params = {
       pid: c.merchantPid,
       type,
@@ -753,6 +761,38 @@ module.exports = function registerPayment(app, db, auth) {
     const gateway = c.gatewayUrl || `${c.baseUrl}/submit.php`;
     persist();
     res.json({ ok: true, orderNo, amount, subject, gatewayUrl: gateway + (gateway.includes('?') ? '&' : '?') + query, params: { ...params, sign: undefined }, note: '请在客户端展示订单信息并要求用户明确确认后跳转付款' });
+  });
+
+  // 模拟收银台：返回模拟支付确认页（HTML，可直接在浏览器打开）。
+  app.get('/api/pay/gateway/epay/mock/cashier', (req, res) => {
+    const c = epayConfig(prepare);
+    if (!c.enabled || !c.sandbox) return res.status(503).json({ error: '模拟模式未启用' });
+    const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(req.query.orderNo || ''));
+    if (!order) return res.status(404).send('订单不存在');
+    if (order.status !== 'pending') return res.send('订单已处理');
+    res.type('html').send(`<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>模拟收银台</title></head>
+<body style="font-family:sans-serif;max-width:420px;margin:40px auto;text-align:center">
+<h2>模拟收银台（沙箱）</h2><p>订单：${order.order_no}</p><p>金额：<b>¥${Number(order.amount).toFixed(2)}</b></p><p>说明：${order.subject}</p>
+<form method="post" action="/api/pay/gateway/epay/mock/pay"><input type="hidden" name="orderNo" value="${order.order_no}"><button style="font-size:18px;padding:12px 40px">确认模拟支付</button></form>
+<p style="color:#999;font-size:12px">模拟模式仅扣减钱包余额，不产生真实资金往来</p></body></html>`);
+  });
+
+  // 模拟支付：钱包扣款 -> 商户入账 -> 标记订单已支付（幂等）。
+  app.post('/api/pay/gateway/epay/mock/pay', mw, (req, res) => {
+    const c = epayConfig(prepare);
+    if (!c.enabled || !c.sandbox) return res.status(503).json({ error: '模拟模式未启用' });
+    const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String((req.body && req.body.orderNo) || ''));
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    if (order.status !== 'pending' || order.expires_at < Date.now()) return res.status(409).json({ error: '订单已失效或已处理' });
+    if (req.user.id === order.merchant_id) return res.status(400).json({ error: '不能支付自己的订单' });
+    const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
+    if (!merchant) return res.status(404).json({ error: '商户不存在' });
+    doPay(req.user.id, merchant.user_id, Number(order.amount), '模拟支付 ' + order.subject, 'epay', order.id, (err, result) => {
+      if (err) return res.status(err.code || 400).json({ error: err.message });
+      prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), order.id);
+      persist();
+      res.json({ ok: true, sandbox: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id)), balance: result.balance, note: '模拟支付成功（钱包沙箱）' });
+    });
   });
 
   // EPay 异步通知：验签后幂等更新订单。成功返回 success。
