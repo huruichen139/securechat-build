@@ -319,7 +319,10 @@ module.exports = function (app, db, authMw) {
     const p = Object.assign({}, req.query || {}, req.body || {});
     const ct = String(req.headers['content-type'] || '');
     const auth = String(req.headers['authorization'] || '');
-    const isCloudreve = req.method === 'POST' || auth.startsWith('Bearer Cr') || String(req.headers['x-cr-version'] || '') !== '';
+    const hasEpay = !!(p.pid || p.out_trade_no || p.money || p.sign_type);
+    const isCloudreve = auth.startsWith('Bearer Cr') || String(req.headers['x-cr-version'] || '') !== ''
+      || (req.method === 'POST' && p.order_no && !hasEpay)
+      || (req.method === 'GET' && p.order_no && p.sign && String(p.sign).includes(':') && !hasEpay);
     console.log('[epaygw] submit.php', req.method, 'ct:', ct, 'auth:', auth.slice(0, 40), 'params:', JSON.stringify(p).slice(0, 500));
     if (isCloudreve && req.method === 'GET' && p.order_no) {
       const o = orders.get(String(p.order_no));
