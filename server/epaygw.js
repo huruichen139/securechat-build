@@ -114,7 +114,7 @@ function notifyMerchant(o) {
 
 function cashierHtml(o, baseUrl) {
   const qrSrc = baseUrl + '/epaygw/qrcode/' + encodeURIComponent(o.out_trade_no);
-  const webCashier = baseUrl + '/api/pay/gateway/epay/cashier?order=' + encodeURIComponent(o.out_trade_no);
+  const webCashier = baseUrl + '/api/pay/gateway/epay/cashier?order=' + encodeURIComponent(o.out_trade_no) + '&v=2';
   const deepLink = 'securechat://gateway/pay?order=' + encodeURIComponent(o.out_trade_no);
   return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SecureChat 收银台</title></head>' +
     '<body style="font-family:system-ui,sans-serif;background:#f2f3f5;margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100vh">' +

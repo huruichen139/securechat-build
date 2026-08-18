@@ -782,6 +782,7 @@ module.exports = function registerPayment(app, db, auth) {
       '<div id="authBox" style="border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:#666"></div>' +
       '<button id="payBtn" style="width:100%;background:#07c160;color:#fff;border:0;border-radius:10px;padding:13px 0;font-size:15px;cursor:pointer">确认支付 ¥' + Number(order.amount).toFixed(2) + '</button>' +
       '<div id="msgBox" style="font-size:13px;margin-top:12px;text-align:center"></div>' +
+      '<a href="javascript:history.back()" style="display:block;text-align:center;margin-top:10px;font-size:13px;color:#1989fa;text-decoration:none">← 返回</a>' +
       '<script>var ORD=' + JSON.stringify({ orderNo: order.order_no, amount: Number(order.amount), merchantId: order.merchant_id }) + ';' +
       'function token(){try{var u=JSON.parse(localStorage.getItem("sc_me")||"null");if(u&&u.token)return u.token;}catch(e){}return localStorage.getItem("sc_token")||"";}' +
       'function api(m,u,b){return fetch((window.SERVER_HOST||"")+u,{method:m,headers:{"Content-Type":"application/json","Authorization":"Bearer "+token()},body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||("HTTP "+r.status));return d;});});}' +
