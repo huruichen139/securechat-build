@@ -33,6 +33,11 @@ class _CallPageState extends State<CallPage> {
         setState(() => _elapsed = DateTime.now().difference(at));
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_focusNode.hasFocus) {
+        FocusScope.of(context).requestFocus(_focusNode);
+      }
+    });
   }
 
   void _onChange() {
@@ -86,6 +91,10 @@ class _CallPageState extends State<CallPage> {
       }
     }
     return KeyEventResult.ignored;
+  }
+
+  void _handleTap(VoidCallback action) {
+    action();
   }
 
   String _statusText() {
@@ -150,16 +159,16 @@ class _CallPageState extends State<CallPage> {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 if (service.status == CallStatus.ringing) ...[
-                  _button(Icons.call_rounded, primary, '接听', () => service.accept()),
+                  _button(Icons.call_rounded, primary, '接听', () => _handleTap(service.accept)),
                   const SizedBox(width: 26),
-                  _button(Icons.call_end_rounded, const Color(0xffe74c3c), '拒绝', () => service.decline()),
+                  _button(Icons.call_end_rounded, const Color(0xffe74c3c), '拒绝', () => _handleTap(service.decline)),
                 ] else ...[
-                  _button(service.muted ? Icons.mic_off_rounded : Icons.mic_rounded, const Color(0xff2b3b47), service.muted ? '已静音' : '静音', () => service.toggleMute()),
+                  _button(service.muted ? Icons.mic_off_rounded : Icons.mic_rounded, const Color(0xff2b3b47), service.muted ? '已静音' : '静音', () => _handleTap(service.toggleMute)),
                   const SizedBox(width: 26),
-                  _button(Icons.call_end_rounded, const Color(0xffe74c3c), '挂断', () => service.hangup()),
+                  _button(Icons.call_end_rounded, const Color(0xffe74c3c), '挂断', () => _handleTap(service.hangup)),
                   if (service.video) ...[
                     const SizedBox(width: 26),
-                    _button(service.cameraOn ? Icons.videocam_off_rounded : Icons.videocam_rounded, const Color(0xff2b3b47), service.cameraOn ? '关闭摄像头' : '开启摄像头', () => service.toggleCamera()),
+                    _button(service.cameraOn ? Icons.videocam_off_rounded : Icons.videocam_rounded, const Color(0xff2b3b47), service.cameraOn ? '关闭摄像头' : '开启摄像头', () => _handleTap(service.toggleCamera)),
                   ],
                 ],
               ]),
@@ -182,7 +191,11 @@ class _CallPageState extends State<CallPage> {
       Material(
         color: color,
         shape: const CircleBorder(),
-        child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: SizedBox(width: 58, height: 58, child: Icon(icon, color: Colors.white, size: 26))),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(width: 64, height: 64, child: Icon(icon, color: Colors.white, size: 28)),
+        ),
       ),
       const SizedBox(height: 8),
       Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
