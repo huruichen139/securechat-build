@@ -214,9 +214,9 @@ module.exports = function registerPayment(app, db, auth) {
   }
 
   // 统一扣款+入账（冲钱包，写流水与账单），err 通过 cb({code,message}) callback 返回
-  function doPay(fromId, toId, amount, remark, category, refId, cb) {
+  function doPay(fromId, toId, amount, remark, category, refId, cb, allowSelf) {
     if (!Number.isFinite(amount) || amount <= 0) return cb({ code: 400, message: '金额无效' });
-    if (fromId === toId) return cb({ code: 400, message: '不能转给自己' });
+    if (fromId === toId && !allowSelf) return cb({ code: 400, message: '不能转给自己' });
     const my = ensureWallet(fromId);
     if ((my.balance || 0) < amount) return cb({ code: 400, message: '余额不足' });
     // 出账方
@@ -637,7 +637,7 @@ module.exports = function registerPayment(app, db, auth) {
     res.json({ order: orderPublic(o) });
   });
 
-  // 授权扣款：必须由客户端明确传 confirm=true，且金额不能超过本次确认金额。
+  // 确认支付：直接扣款，无需预授权；允许转给自己（网关商户与付款人可为同一账号）。
   app.post('/api/pay/gateway/order/:orderNo/confirm', mw, (req, res) => {
     const o = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(req.params.orderNo);
     if (!o) return res.status(404).json({ error: '订单不存在' });
@@ -645,16 +645,13 @@ module.exports = function registerPayment(app, db, auth) {
     if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
     const amount = Number(req.body?.amount);
     if (amount !== o.amount) return res.status(400).json({ error: '确认金额与订单金额不一致' });
-    const auth = prepare('SELECT * FROM pay_authorizations WHERE user_id=? AND merchant_id=? AND status=? AND max_amount>=? AND (expires_at IS NULL OR expires_at>?) ORDER BY id DESC LIMIT 1')
-      .get(req.user.id, o.merchant_id, 'active', amount, Date.now());
-    if (!auth) return res.status(403).json({ error: '未找到有效的支付授权或超过授权额度' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(o.merchant_id);
     doPay(req.user.id, merchant.user_id, amount, o.subject, 'gateway', o.id, (err, result) => {
       if (err) return res.status(err.code || 400).json({ error: err.message });
       prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), o.id);
       persist();
       res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id)), balance: result.balance, callback: o.callback_url || null });
-    });
+    }, true);
   });
 
   // 用户创建授权：需明确确认，网页/本地客户端均可使用。
@@ -795,12 +792,9 @@ module.exports = function registerPayment(app, db, auth) {
       'authBox.innerHTML="登录 SecureChat 后确认支付。<br>账号：<input id=\\"lgAcc\\" type=\\"text\\" value=\\"\\" style=\\"width:160px;padding:4px;margin:4px 0\\"><br>密码：<input id=\\"lgPwd\\" type=\\"password\\" style=\\"width:160px;padding:4px;margin:4px 0\\"><br><button id=\\"lgBtn\\" style=\\"padding:4px 20px;border-radius:6px;border:1px solid #1989fa;background:#1989fa;color:#fff;cursor:pointer;margin-top:4px\\">登录</button>";' +
       'document.getElementById("lgBtn").onclick=function(){var a=document.getElementById("lgAcc").value.trim();var pw=document.getElementById("lgPwd").value;if(!a||!pw){show("请输入账号和密码");return;}api("POST","/api/login",{account:a,password:pw}).then(function(d){try{localStorage.setItem("sc_token",d.token);var m=JSON.parse(localStorage.getItem("sc_me")||"null")||{};m.token=d.token;m.user=d.user;localStorage.setItem("sc_me",JSON.stringify(m));}catch(e){}show("✅ 登录成功：@"+d.user.username);init();}).catch(function(e){show("登录失败："+esc(e.message));});};' +
       '}' +
-      'function renderAuth(a){if(a){authBox.innerHTML="已授权该商户，授权额度 ¥"+Number(a.max_amount).toFixed(2)+"（"+esc(a.mode)+"）";}else{' +
-      'authBox.innerHTML="尚未给该商户授权。<br>授权额度（¥）：<input id=\\"authAmt\\" type=\\"number\\" min=\\"0.01\\" step=\\"0.01\\" value=\\"' + Number(order.amount).toFixed(2) + '\\" style=\\"width:90px;padding:4px\\"> <button id=\\"authBtn\\" style=\\"padding:4px 14px;border-radius:6px;border:1px solid #1989fa;background:#1989fa;color:#fff;cursor:pointer\\">创建授权</button><br><span style=\\"color:#999;font-size:12px\\">授权后商户可在额度内发起扣款，每次扣款仍需你确认</span>";' +
-      'document.getElementById("authBtn").onclick=function(){var amt=parseFloat(document.getElementById("authAmt").value||"0");if(!(amt>0)){show("请输入授权额度");return;}if(!confirm("确认给商户授权 ¥"+amt.toFixed(2)+"？（仅本订单扣款需用）"))return;api("POST","/api/pay/gateway/authorization",{merchantId:ORD.merchantId,maxAmount:amt,mode:"web",confirm:true}).then(function(){show("授权成功，可确认支付");init();}).catch(function(e){show("授权失败："+esc(e.message));});};' +
-      '}}' +
-      'function init(){if(!token()){renderLogin();payBtn.disabled=true;return;}api("GET","/api/pay/gateway/authorization").then(function(d){var a=null;for(var i=0;i<d.authorizations.length;i++){if(d.authorizations[i].merchantId===ORD.merchantId&&d.authorizations[i].status==="active"&&d.authorizations[i].maxAmount>=ORD.amount){a=d.authorizations[i];break;}}renderAuth(a);}).catch(function(e){authBox.innerHTML="获取授权失败："+esc(e.message);});}' +
-      'payBtn.onclick=function(){if(!token()){show("未登录");return;}if(!confirm("确认从 SecureChat 钱包扣款 ¥"+ORD.amount.toFixed(2)+" 支付本订单？"))return;api("POST","/api/pay/gateway/order/"+encodeURIComponent(ORD.orderNo)+"/confirm",{confirm:true,amount:ORD.amount}).then(function(d){show("✅ 支付成功！钱包余额 ¥"+Number(d.balance).toFixed(2));payBtn.disabled=true;setTimeout(function(){window.close();},1500);}).catch(function(e){show("❌ 支付失败："+esc(e.message));if((e.message||"").indexOf("自己")>-1){show("❌ 支付失败："+esc(e.message)+"<br><span style=\\"color:#999\\">该订单的商户属于你当前账号，请换一个 SecureChat 账号登录后再支付</span>");}});};' +
+      'function renderReady(u){authBox.innerHTML="已登录：@"+esc(u)+"。点击下方按钮直接确认支付，无需预授权。";}' +
+      'function init(){if(!token()){renderLogin();payBtn.disabled=true;return;}try{var u=JSON.parse(localStorage.getItem("sc_me")||"null");renderReady(u&&u.user?u.user.username:"");}catch(e){renderReady("");}}' +
+      'payBtn.onclick=function(){if(!token()){show("未登录");return;}if(!confirm("确认从 SecureChat 钱包扣款 ¥"+ORD.amount.toFixed(2)+" 支付本订单？"))return;api("POST","/api/pay/gateway/order/"+encodeURIComponent(ORD.orderNo)+"/confirm",{confirm:true,amount:ORD.amount}).then(function(d){show("✅ 支付成功！钱包余额 ¥"+Number(d.balance).toFixed(2));payBtn.disabled=true;setTimeout(function(){window.close();},1500);}).catch(function(e){show("❌ 支付失败："+esc(e.message));});};' +
       'init();</script></div></body></html>');
   });
 
@@ -827,7 +821,6 @@ module.exports = function registerPayment(app, db, auth) {
     if (order.status !== 'pending' || order.expires_at < Date.now()) return res.status(409).json({ error: '订单已失效或已处理' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
     if (!merchant) return res.status(404).json({ error: '商户不存在' });
-    if (req.user.id === merchant.user_id) return res.status(400).json({ error: '不能支付自己的订单' });
     doPay(req.user.id, merchant.user_id, Number(order.amount), '支付 ' + order.subject, 'epay', order.id, (err, result) => {
       if (err) return res.status(err.code || 400).json({ error: err.message });
       prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), order.id);
