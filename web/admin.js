@@ -1018,6 +1018,55 @@
       loadMerchants();
     } catch (e) { toast('请求失败：' + e.message, 'error'); }
   }
+
+  // ============ EPay 通道配置 ============
+  async function loadEpayConfig() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/pay/epay/config', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { el('epaySaveTip').textContent = '加载失败：' + (data.error || resp.status); return; }
+      const c = data.config || {};
+      el('epayEnabled').checked = !!c.enabled;
+      el('epaySandbox').checked = !!c.sandbox;
+      el('epayBase').value = c.baseUrl || '';
+      el('epayGateway').value = c.gatewayUrl || '';
+      el('epayGatewayId').value = c.gatewayId || '';
+      el('epayPid').value = c.merchantPid || '';
+      el('epayKey').value = (c.key && c.key !== '********') ? c.key : '';
+      el('epayNotify').value = c.notifyUrl || '';
+      el('epayReturn').value = c.returnUrl || '';
+      el('epaySaveTip').textContent = '已加载（Key 已隐藏，留空保存则不改动）';
+    } catch (e) { el('epaySaveTip').textContent = '加载失败：' + e.message; }
+  }
+
+  async function saveEpayConfig() {
+    const token = getToken();
+    if (!token) return;
+    const body = {
+      enabled: el('epayEnabled').checked,
+      sandbox: el('epaySandbox').checked,
+      baseUrl: el('epayBase').value.trim(),
+      gatewayUrl: el('epayGateway').value.trim(),
+      gatewayId: el('epayGatewayId').value.trim(),
+      merchantPid: el('epayPid').value.trim(),
+      key: el('epayKey').value.trim(),
+      notifyUrl: el('epayNotify').value.trim(),
+      returnUrl: el('epayReturn').value.trim()
+    };
+    try {
+      const resp = await fetch(API + '/api/admin/pay/epay/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '保存失败', 'error'); return; }
+      toast('EPay 配置已保存', 'success');
+      loadEpayConfig();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
   document.addEventListener('DOMContentLoaded', () => {
     // 左侧后台分区导航：只切换内容面板，不刷新页面、不丢失滚动位置
     document.querySelectorAll('.admin-nav-item').forEach(btn => {
@@ -1036,6 +1085,7 @@
         if (target === 'sensitive') loadSensitiveWords();
         if (target === 'audit') loadAuditLogs();
         if (target === 'merchants') loadMerchants();
+        if (target === 'epay') loadEpayConfig();
       });
     });
     el('refreshBtn').addEventListener('click', refresh);
@@ -1061,6 +1111,7 @@
     // 审计日志
     if (el('auditRefreshBtn')) el('auditRefreshBtn').addEventListener('click', loadAuditLogs);
     if (el('merchantRefreshBtn')) el('merchantRefreshBtn').addEventListener('click', loadMerchants);
+    if (el('epaySaveBtn')) el('epaySaveBtn').addEventListener('click', saveEpayConfig);
     // 群组
     if (el('groupSearchBtn')) el('groupSearchBtn').addEventListener('click', () => loadAllGroups(el('groupSearch').value.trim()));
     if (el('groupLoadBtn')) el('groupLoadBtn').addEventListener('click', () => loadAllGroups());

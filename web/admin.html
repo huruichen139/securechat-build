@@ -78,6 +78,7 @@
       <button class="admin-nav-item" data-admin-section="sensitive"><span>敏感词</span><small>内容过滤</small></button>
       <button class="admin-nav-item" data-admin-section="audit"><span>审计日志</span><small>操作记录</small></button>
       <button class="admin-nav-item" data-admin-section="merchants"><span>商户</span><small>EPay 审核</small></button>
+      <button class="admin-nav-item" data-admin-section="epay"><span>EPay</span><small>支付通道配置</small></button>
     </nav>
     <div class="admin-side-bottom"><span class="admin-live-dot"></span><span data-i18n="serviceOnline">服务在线</span></div>
   </aside>
@@ -375,6 +376,25 @@
         <thead><tr><th>ID</th><th>商户名</th><th>申请人</th><th>回调地址</th><th>认证</th><th>状态</th><th>申请时间</th><th>操作</th></tr></thead>
         <tbody id="merchantTbody"></tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- EPay 支付通道配置 -->
+  <section id="adminSectionEpay" class="admin-section" data-admin-panel="epay">
+    <h3>EPay 支付通道配置</h3>
+    <div class="admin-panel">
+      <div class="admin-panel-row">
+        <label><input type="checkbox" id="epayEnabled"> 启用 EPay 通道</label>
+        <label><input type="checkbox" id="epaySandbox"> 模拟模式（沙箱，无需真实商户参数，钱包模拟扣款）</label>
+      </div>
+      <div class="admin-panel-row"><label>基础地址 <input type="text" id="epayBase" placeholder="https://pay.example.com" /></label></div>
+      <div class="admin-panel-row"><label>网关地址 <input type="text" id="epayGateway" placeholder="https://pay.example.com/submit.php" /></label></div>
+      <div class="admin-panel-row"><label>网关标识 <input type="text" id="epayGatewayId" placeholder="可选" /></label></div>
+      <div class="admin-panel-row"><label>商户 PID <input type="text" id="epayPid" placeholder="商户 PID" /></label></div>
+      <div class="admin-panel-row"><label>商户密钥 <input type="password" id="epayKey" placeholder="留空表示不修改" /></label></div>
+      <div class="admin-panel-row"><label>异步回调地址 <input type="text" id="epayNotify" placeholder="https://mc.32768.top:8888/api/pay/gateway/epay/notify" /></label></div>
+      <div class="admin-panel-row"><label>同步返回地址 <input type="text" id="epayReturn" placeholder="可选" /></label></div>
+      <div class="admin-panel-row"><button id="epaySaveBtn" class="admin-btn">保存配置</button><span id="epaySaveTip" style="font-size:12px;color:#94a3b8;margin-left:10px"></span></div>
     </div>
   </section>
 
