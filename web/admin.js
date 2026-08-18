@@ -968,7 +968,56 @@
     } catch {}
   }
 
-  // 启动
+  // ============ EPay 商户审核 ============
+  async function loadMerchants() {
+    const token = getToken();
+    if (!token) return;
+    const tb = el('merchantTbody');
+    if (!tb) return;
+    try {
+      const resp = await fetch(API + '/api/admin/pay/merchants', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const list = data.merchants || [];
+      if (!list.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">暂无商户申请</td></tr>'; return; }
+      tb.innerHTML = list.map(m => `
+        <tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.name || '-')}</td>
+          <td>${m.userId || '-'}</td>
+          <td>${escapeHtml(m.callbackUrl || '-')}</td>
+          <td>${escapeHtml(m.authMode || 'local')}</td>
+          <td>${m.status === 'approved' ? '<span class="admin-badge online">已通过</span>' : (m.status === 'pending' ? '<span class="admin-badge">审核中</span>' : '<span class="admin-badge banned">已拒绝</span>')}</td>
+          <td>${fmtTime(m.createdAt)}</td>
+          <td>
+            ${m.status !== 'approved' ? `<button class="admin-action-btn" data-merchant-review="${m.id}" data-status="approved">通过</button>` : ''}
+            ${m.status !== 'rejected' ? `<button class="admin-action-btn danger" data-merchant-review="${m.id}" data-status="rejected">拒绝</button>` : ''}
+          </td>
+        </tr>`).join('');
+      document.querySelectorAll('[data-merchant-review]').forEach(btn => {
+        btn.addEventListener('click', () => reviewMerchant(Number(btn.dataset.merchantReview), btn.dataset.status));
+      });
+    } catch { tb.innerHTML = '<tr><td colspan="8" class="empty">加载失败</td></tr>'; }
+  }
+
+  async function reviewMerchant(id, status) {
+    const token = getToken();
+    if (!token) return;
+    let reason = '';
+    if (status === 'rejected') {
+      reason = prompt('拒绝原因：') || '';
+    }
+    try {
+      const resp = await fetch(API + '/api/admin/pay/merchants/' + id + '/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ status, reason })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '操作失败', 'error'); return; }
+      toast(status === 'approved' ? '已通过审核' : '已拒绝', 'success');
+      loadMerchants();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
   document.addEventListener('DOMContentLoaded', () => {
     // 左侧后台分区导航：只切换内容面板，不刷新页面、不丢失滚动位置
     document.querySelectorAll('.admin-nav-item').forEach(btn => {
@@ -986,6 +1035,7 @@
         if (target === 'ips') loadBannedIps();
         if (target === 'sensitive') loadSensitiveWords();
         if (target === 'audit') loadAuditLogs();
+        if (target === 'merchants') loadMerchants();
       });
     });
     el('refreshBtn').addEventListener('click', refresh);
@@ -1010,6 +1060,7 @@
     if (el('sensitiveAddBtn')) el('sensitiveAddBtn').addEventListener('click', addSensitiveWord);
     // 审计日志
     if (el('auditRefreshBtn')) el('auditRefreshBtn').addEventListener('click', loadAuditLogs);
+    if (el('merchantRefreshBtn')) el('merchantRefreshBtn').addEventListener('click', loadMerchants);
     // 群组
     if (el('groupSearchBtn')) el('groupSearchBtn').addEventListener('click', () => loadAllGroups(el('groupSearch').value.trim()));
     if (el('groupLoadBtn')) el('groupLoadBtn').addEventListener('click', () => loadAllGroups());

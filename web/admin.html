@@ -77,6 +77,7 @@
       <button class="admin-nav-item" data-admin-section="ips"><span>封禁IP</span><small>IP管控</small></button>
       <button class="admin-nav-item" data-admin-section="sensitive"><span>敏感词</span><small>内容过滤</small></button>
       <button class="admin-nav-item" data-admin-section="audit"><span>审计日志</span><small>操作记录</small></button>
+      <button class="admin-nav-item" data-admin-section="merchants"><span>商户</span><small>EPay 审核</small></button>
     </nav>
     <div class="admin-side-bottom"><span class="admin-live-dot"></span><span data-i18n="serviceOnline">服务在线</span></div>
   </aside>
@@ -359,6 +360,20 @@
       <table class="admin-table">
         <thead><tr><th>时间</th><th>管理员ID</th><th>操作</th><th>目标</th><th>详情</th><th>IP</th></tr></thead>
         <tbody id="auditTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- EPay 商户审核 -->
+  <section id="adminSectionMerchants" class="admin-section" data-admin-panel="merchants">
+    <h3>EPay 商户审核</h3>
+    <div class="admin-inline-tools">
+      <button id="merchantRefreshBtn" class="admin-btn">刷新</button>
+    </div>
+    <div id="merchantList" class="admin-tablewrap">
+      <table class="admin-table">
+        <thead><tr><th>ID</th><th>商户名</th><th>申请人</th><th>回调地址</th><th>认证</th><th>状态</th><th>申请时间</th><th>操作</th></tr></thead>
+        <tbody id="merchantTbody"></tbody>
       </table>
     </div>
   </section>

@@ -578,6 +578,7 @@
       { label: '群接龙', icon: '接', fn: () => openGroupSolection() },
       { label: '充值', icon: '充', fn: () => redeemFlow() },
       { label: '缴费', icon: '缴', fn: () => openLifePay() },
+      { label: 'EPay商户', icon: '商', fn: () => epayCenter() },
     ];
     items.forEach((it) => {
       const cell = document.createElement('button');
@@ -627,6 +628,154 @@
       });
   }
 
+  // ---------- EPay 商户中心（网关收单/模拟模式） ----------
+  function epayStatus() {
+    return _req('GET', '/api/pay/gateway/epay/status');
+  }
+  function merchantMe() {
+    return _req('GET', '/api/pay/gateway/merchant/me');
+  }
+  function merchantApply(name, callbackUrl, authMode) {
+    return _req('POST', '/api/pay/gateway/merchant/apply', { name, callbackUrl, authMode });
+  }
+  function epayOrder(amount, subject, type) {
+    return _req('POST', '/api/pay/gateway/epay/order', { amount, subject, type: type || 'wxpay' });
+  }
+  function mockPay(orderNo) {
+    return _req('POST', '/api/pay/gateway/epay/mock/pay', { orderNo });
+  }
+
+  function epayCenter() {
+    modal('EPay 商户中心', (body) => {
+      const box = document.createElement('div');
+      box.style.cssText = 'display:flex;flex-direction:column;gap:10px';
+      body.appendChild(box);
+
+      const statusEl = document.createElement('div');
+      statusEl.style.cssText = 'font-size:13px;color:#888';
+      statusEl.textContent = '加载中…';
+      box.appendChild(statusEl);
+
+      const merchantEl = document.createElement('div');
+      box.appendChild(merchantEl);
+
+      const formBox = document.createElement('div');
+      formBox.style.display = 'none';
+      const nameInp = field('商户名称', '', { placeholder: '如：我的小店' });
+      const cbInp = field('回调地址', '', { placeholder: 'https://你的站点/api/callback（可选）' });
+      formBox.appendChild(nameInp.w); formBox.appendChild(cbInp.w);
+      const modeRow = document.createElement('div');
+      modeRow.style.cssText = 'font-size:13px;color:#333;display:flex;gap:12px;margin-bottom:8px';
+      const modeLocal = document.createElement('label');
+      modeLocal.innerHTML = '<input type="radio" name="epay-mode" value="local" checked> 本地回调';
+      const modeWeb = document.createElement('label');
+      modeWeb.innerHTML = '<input type="radio" name="epay-mode" value="web"> Web 签名';
+      modeRow.appendChild(modeLocal); modeRow.appendChild(modeWeb);
+      formBox.appendChild(modeRow);
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'btn-primary'; applyBtn.textContent = '提交申请';
+      applyBtn.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;width:100%';
+      formBox.appendChild(applyBtn);
+      box.appendChild(formBox);
+
+      const orderBox = document.createElement('div');
+      orderBox.style.display = 'none';
+      const amtInp = field('订单金额（元）', '', { placeholder: '0.01 ~ 1000000' });
+      const subInp = field('商品说明', '', { placeholder: '如：会员充值' });
+      orderBox.appendChild(amtInp.w); orderBox.appendChild(subInp.w);
+      const createBtn = document.createElement('button');
+      createBtn.className = 'btn-primary'; createBtn.textContent = '创建订单';
+      createBtn.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;width:100%';
+      orderBox.appendChild(createBtn);
+      box.appendChild(orderBox);
+
+      const resultBox = document.createElement('div');
+      resultBox.style.cssText = 'font-size:13px;color:#333;background:#f7f7f7;border-radius:8px;padding:10px;display:none;white-space:pre-wrap;word-break:break-all';
+      box.appendChild(resultBox);
+
+      const refresh = async () => {
+        try {
+          const st = await epayStatus();
+          statusEl.textContent = '通道状态：' + (st.enabled ? (st.sandbox ? '已启用（模拟模式）' : '已启用（正式网关）') : '未启用');
+          if (st.sandbox) statusEl.textContent += ' · 无需真实商户参数，钱包沙箱模拟';
+        } catch (e) { statusEl.textContent = '通道状态获取失败'; }
+        try {
+          const r = await merchantMe();
+          const m = r.merchant;
+          if (m) {
+            const stTxt = m.status === 'approved' ? '已通过 ✅' : (m.status === 'pending' ? '审核中…' : '已拒绝（' + esc(m.reason || '') + '）');
+            merchantEl.innerHTML = '<div style="background:#e6f7ee;border-radius:8px;padding:10px;font-size:13px;color:#333"><b>' + esc(m.name) + '</b> · ' + stTxt + '<br>商户号 #' + m.id + ' · 认证：' + esc(m.auth_mode || 'local') + '</div>';
+            if (m.status === 'approved') { orderBox.style.display = 'block'; formBox.style.display = 'none'; }
+            else { orderBox.style.display = 'none'; formBox.style.display = 'block'; }
+          } else {
+            merchantEl.innerHTML = '<div style="background:#fff7e6;border-radius:8px;padding:10px;font-size:13px;color:#333">尚未申请商户，申请后即可创建订单收款</div>';
+            formBox.style.display = 'block'; orderBox.style.display = 'none';
+          }
+        } catch (e) { merchantEl.innerHTML = '<div style="color:#e64340;font-size:13px">商户状态获取失败：' + esc(e.message) + '</div>'; }
+      };
+      refresh();
+
+      applyBtn.onclick = async () => {
+        const name = nameInp.inp.value.trim();
+        if (!name) { showToast('请填写商户名称', 'warn'); return; }
+        applyBtn.disabled = true;
+        try {
+          const r = await merchantApply(name, cbInp.inp.value.trim(), (modeWeb.querySelector('input').checked ? 'web' : 'local'));
+          showToast('申请已提交，等待管理员审核', 'success');
+          closeModal();
+        } catch (e) { showToast('申请失败：' + e.message, 'error'); }
+        applyBtn.disabled = false;
+      };
+
+      createBtn.onclick = async () => {
+        const amount = parseFloat(amtInp.inp.value);
+        const subject = subInp.inp.value.trim();
+        if (!Number.isFinite(amount) || amount <= 0) { showToast('请输入有效金额', 'warn'); return; }
+        if (!subject) { showToast('请填写商品说明', 'warn'); return; }
+        createBtn.disabled = true;
+        try {
+          const r = await epayOrder(amount, subject, 'wxpay');
+          resultBox.style.display = 'block';
+          if (r.sandbox || r.mock) {
+            resultBox.innerHTML = '<b>模拟订单已创建</b>\n订单号：' + esc(r.orderNo) + '\n金额：¥' + Number(r.amount).toFixed(2) + '\n' + esc(r.note || '') +
+              '\n\n模拟收银台已打开新窗口，确认后完成支付。';
+            resultBox.appendChild(renderMockPayBtn(r.orderNo));
+          } else {
+            resultBox.innerHTML = '<b>订单已创建</b>\n订单号：' + esc(r.orderNo) + '\n金额：¥' + Number(r.amount).toFixed(2) + '\n请在新窗口完成支付：' + esc(r.gatewayUrl || '');
+            const a = document.createElement('a');
+            a.href = r.gatewayUrl; a.target = '_blank'; a.rel = 'noopener';
+            a.className = 'btn-primary'; a.textContent = '前往支付';
+            a.style.cssText = 'display:inline-block;background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;margin-top:8px;text-decoration:none';
+            resultBox.appendChild(a);
+          }
+        } catch (e) { resultBox.style.display = 'block'; resultBox.innerHTML = '<span style="color:#e64340">创建订单失败：' + esc(e.message) + '</span>'; }
+        createBtn.disabled = false;
+      };
+    });
+
+    function renderMockPayBtn(orderNo) {
+      const w = document.createElement('div');
+      w.style.cssText = 'margin-top:10px';
+      const b = document.createElement('button');
+      b.className = 'btn-primary'; b.textContent = '打开模拟收银台';
+      b.style.cssText = 'background:#ff9a2e;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+      b.onclick = () => {
+        window.open(HOST + '/api/pay/gateway/epay/mock/cashier?orderNo=' + encodeURIComponent(orderNo), '_blank', 'noopener');
+        setTimeout(async () => {
+          try {
+            const o = await _req('GET', '/api/pay/gateway/order/' + encodeURIComponent(orderNo));
+            if (o.order && o.order.status === 'paid') { showToast('支付成功 ✅', 'success'); refreshAfterPay(); }
+            else showToast('尚未支付，收银台确认后自动到账', 'info');
+          } catch (e) {}
+        }, 3000);
+      };
+      w.appendChild(b);
+      return w;
+    }
+    function closeModal() { document.querySelectorAll('.modal-mask').forEach((m) => m.remove()); }
+    function refreshAfterPay() {}
+  }
+
   // ---------- 导出 & 注册 ----------
   const api = {
     // data
@@ -642,6 +791,9 @@
     catalog: Pay.catalog, lifePay: Pay.lifePay, lifeHistory: Pay.lifeHistory,
     // 账单
     bills: Pay.bills, summary: Pay.summary,
+    // EPay 商户中心
+    epayCenter: epayCenter, epayStatus: epayStatus, merchantMe: merchantMe, merchantApply: merchantApply,
+    epayOrder: epayOrder, mockPay: mockPay,
     // UI
     homePanel: homePanel, renderBills: renderBills,
     openTransfer: openTransfer, showReceiveCodeFlow: showReceiveCodeFlow, scanFlow: scanFlow,
