@@ -509,6 +509,45 @@
 
   let pkgLatestVersion = '1.0.0';
 
+  // releaseNotes 数组 -> 可编辑文本（每版本一块：vX.Y.Z（日期）+ 缩进条目）
+  function notesToEditText(releaseNotes) {
+    if (!releaseNotes) return '';
+    if (Array.isArray(releaseNotes)) {
+      return releaseNotes.map(e => {
+        const lines = ['v' + (e.version || '') + (e.date ? '（' + e.date + '）' : '')];
+        (Array.isArray(e.notes) ? e.notes : []).forEach(n => lines.push('  - ' + n));
+        return lines.join('\n');
+      }).join('\n');
+    }
+    return String(releaseNotes);
+  }
+
+  // 编辑文本 -> 数组（解析失败按字符串保存）
+  function notesFromEditText(text) {
+    text = String(text || '').trim();
+    if (!text) return '';
+    if (text.charAt(0) === '[') {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) { /* 走块格式解析 */ }
+    }
+    const entries = [];
+    let cur = null;
+    text.split(/\r?\n/).forEach(line => {
+      const m = line.trim().match(/^v?(\d+\.\d+\.\d+)(?:\s*[（(]\s*(\d{4}-\d{2}-\d{2})\s*[）)])?\s*$/);
+      if (m) {
+        cur = { version: m[1], date: m[2] || '', notes: [] };
+        entries.push(cur);
+        return;
+      }
+      const note = line.replace(/^[\s]*[-•*]\s*/, '').trim();
+      if (cur && note) cur.notes.push(note);
+    });
+    if (entries.length) return entries;
+    return text;
+  }
+
   async function loadVersionPanel() {
     const token = getToken();
     if (!token) return;
@@ -526,7 +565,7 @@
       ]);
 
       el('verLatest').value = v.latest || '1.0.0';
-      el('verNotes').value = v.releaseNotes || '';
+      el('verNotes').value = notesToEditText(v.releaseNotes || '');
       el('verSavedAt').textContent = v.updatedAt ? '上次更新 ' + fmtTime(v.updatedAt) : '尚未发布更新';
 
       // 安装包状态
@@ -553,7 +592,7 @@
 
   async function saveVersion() {
     const latest = el('verLatest').value.trim();
-    const notes = el('verNotes').value.trim();
+    const notes = notesFromEditText(el('verNotes').value);
     if (!/^\d+\.\d+\.\d+$/.test(latest)) { toast('版本号格式错误：应为 x.y.z', 'error'); return; }
     const token = getToken();
     try {

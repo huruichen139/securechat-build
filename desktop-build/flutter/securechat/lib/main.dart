@@ -22,6 +22,7 @@ import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
 import 'call_page.dart';
+import 'deeplink.dart';
 import 'qr_confirm_page.dart';
 import 'update_service.dart';
 import 'discover_page.dart';
@@ -46,7 +47,19 @@ Future<void> main() async {
       );
     } catch (_) {}
   }
+  DeepLink.init(api: api, config: config);
   runApp(SecureChatApp(config: config, api: api));
+  // 冷启动深链：securechat:// 协议唤起时，URL 作为命令行参数传入，
+  // 等首帧渲染完成后再打开对应页面。
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!Platform.isWindows) return;
+    for (final arg in Platform.executableArguments) {
+      if (arg.startsWith('securechat://')) {
+        DeepLink.handle(arg);
+        break;
+      }
+    }
+  });
 }
 
 class SecureChatApp extends StatefulWidget {
@@ -68,6 +81,7 @@ class _SecureChatAppState extends State<SecureChatApp> {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SecureChat',
+          navigatorKey: appNavigatorKey,
           theme: t.theme(),
           darkTheme: config.dark.theme(),
           themeMode: config.mode == ThemeModeEx.dark ? ThemeMode.dark : ThemeMode.light,
@@ -1322,20 +1336,13 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   static int? _parseRedPacket(String text) {
-    final match = RegExp(r'^\[红包:(\d+)\]$').firstMatch(text);
+    final match = RegExp(r'^\[红包:(\d+)\]$').firstMatch(text.trim());
     return match == null ? null : int.tryParse(match.group(1)!);
   }
 
   Widget _redPacketBubble(bool mine, int packetId, dynamic t) {
     return InkWell(
-      onTap: () async {
-        try {
-          final result = await widget.api.grabRedPacket(packetId);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['already'] == true ? '你已经领取过了' : '领取成功：${result['amount'] ?? ''} 元')));
-        } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
-        }
-      },
+      onTap: () => mine ? _showRedPacketDetail(packetId) : _grabRedPacket(packetId),
       child: Container(
         width: 220,
         padding: const EdgeInsets.all(14),
@@ -1343,14 +1350,108 @@ class _ChatViewStateState extends State<_ChatView> {
         child: Row(children: [
           const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 32),
           const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-            Text('微信红包', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-            SizedBox(height: 4),
-            Text('点击领取红包', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('微信红包', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(mine ? '查看领取详情' : '点击领取红包', style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ])),
         ]),
       ),
     );
+  }
+
+  Future<void> _grabRedPacket(int packetId) async {
+    try {
+      final result = await widget.api.grabRedPacket(packetId);
+      if (!mounted) return;
+      if (result['already'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('你已经领取过了（${result['amount'] ?? ''} 元）')));
+        _showRedPacketDetail(packetId);
+        return;
+      }
+      final balance = result['balance'];
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(balance != null ? '领取成功：${result['amount'] ?? ''} 元，当前余额 $balance 元' : '领取成功：${result['amount'] ?? ''} 元'),
+        duration: const Duration(seconds: 3),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      _showRedPacketDetail(packetId, fallbackError: e.toString().replaceFirst('Bad state: ', ''));
+    }
+  }
+
+  Future<void> _showRedPacketDetail(int packetId, {String? fallbackError}) async {
+    try {
+      final d = await widget.api.redPacketDetail(packetId);
+      if (!mounted) return;
+      final sender = (d['sender'] is Map) ? ((d['sender'] as Map)['nickname'] ?? '好友').toString() : '好友';
+      final greeting = (d['greeting'] ?? '恭喜发财，大吉大利！').toString();
+      final count = (d['count'] as num?)?.toInt() ?? 0;
+      final total = (d['totalAmount'] as num?)?.toDouble() ?? 0;
+      final remaining = (d['remainingAmount'] as num?)?.toDouble() ?? 0;
+      final grabbedByMe = d['grabbedByMe'] == true;
+      final myAmount = grabbedByMe ? d['myAmount'] : null;
+      final canView = d['canViewAmount'] == true;
+      final status = (d['status'] ?? 'active').toString();
+      final statusText = switch (status) {
+        'finished' => '已被抢完',
+        'expired' => '已过期',
+        'refunded' => '已退回',
+        _ => '进行中',
+      };
+      final grabUsers = (d['grabs'] is Map) ? (d['grabs'] as Map).values.toList() : const [];
+      final grabbedCount = grabUsers.length;
+      final myIdLocal = widget.api.myId;
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(children: [
+            const Icon(Icons.card_giftcard_rounded, color: Color(0xffe84c3d)),
+            const SizedBox(width: 8),
+            Flexible(child: Text('$sender 的红包', maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ]),
+          content: SizedBox(
+            width: 340,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (fallbackError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(fallbackError, style: TextStyle(color: Theme.of(ctx).colorScheme.error, fontSize: 12)),
+                ),
+              Text(greeting, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text(myAmount != null
+                  ? '你抢到了 $myAmount 元'
+                  : '已抢 $grabbedCount/$count · 已领 ${(total - remaining).toStringAsFixed(2)}/$total 元 · $statusText'),
+              if (grabUsers.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView(shrinkWrap: true, children: [
+                    for (final u in grabUsers)
+                      if (u is Map)
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.person, size: 20),
+                          title: Text((u['nickname'] ?? '用户').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: Text(canView && myIdLocal != null && u['id'] == myIdLocal
+                              ? '${myAmount ?? '抢到了'}'
+                              : '抢到了'),
+                        ),
+                  ]),
+                ),
+              ],
+            ]),
+          ),
+          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('开心收下'))],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = fallbackError ?? e.toString().replaceFirst('Bad state: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('红包操作失败：$msg')));
+    }
   }
 
   static String _fmtSize(num bytes) {

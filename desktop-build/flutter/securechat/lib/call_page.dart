@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'services/app_config.dart';
@@ -20,6 +21,7 @@ class CallPage extends StatefulWidget {
 class _CallPageState extends State<CallPage> {
   Timer? _ticker;
   Duration _elapsed = Duration.zero;
+  final _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -51,7 +53,39 @@ class _CallPageState extends State<CallPage> {
   void dispose() {
     widget.service.removeListener(_onChange);
     _ticker?.cancel();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  KeyEventResult _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final service = widget.service;
+    if (service.status == CallStatus.ringing) {
+      if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+        service.accept();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.escape) {
+        service.decline();
+        return KeyEventResult.handled;
+      }
+    } else {
+      // M = 静音（toggleMute），ESC = 挂断（hangup），V = 摄像头开关
+      if (key == LogicalKeyboardKey.keyM) {
+        service.toggleMute();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.escape) {
+        service.hangup();
+        return KeyEventResult.handled;
+      }
+      if (service.video && key == LogicalKeyboardKey.keyV) {
+        service.toggleCamera();
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   String _statusText() {
@@ -80,7 +114,11 @@ class _CallPageState extends State<CallPage> {
     final service = widget.service;
     final videoOn = service.video && service.remoteStream != null;
     final primary = widget.config.primary;
-    return Scaffold(
+    return KeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: Scaffold(
       backgroundColor: const Color(0xff0f1b24),
       body: SafeArea(
         child: Stack(children: [
@@ -109,23 +147,32 @@ class _CallPageState extends State<CallPage> {
             left: 0,
             right: 0,
             bottom: 34,
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              if (service.status == CallStatus.ringing) ...[
-                _button(Icons.call_rounded, primary, '接听', () => service.accept()),
-                const SizedBox(width: 26),
-                _button(Icons.call_end_rounded, const Color(0xffe74c3c), '拒绝', () => service.decline()),
-              ] else ...[
-                _button(service.muted ? Icons.mic_off_rounded : Icons.mic_rounded, const Color(0xff2b3b47), service.muted ? '已静音' : '静音', () => service.toggleMute()),
-                const SizedBox(width: 26),
-                _button(Icons.call_end_rounded, const Color(0xffe74c3c), '挂断', () => service.hangup()),
-                if (service.video) ...[
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                if (service.status == CallStatus.ringing) ...[
+                  _button(Icons.call_rounded, primary, '接听', () => service.accept()),
                   const SizedBox(width: 26),
-                  _button(service.cameraOn ? Icons.videocam_off_rounded : Icons.videocam_rounded, const Color(0xff2b3b47), service.cameraOn ? '关闭摄像头' : '开启摄像头', () => service.toggleCamera()),
+                  _button(Icons.call_end_rounded, const Color(0xffe74c3c), '拒绝', () => service.decline()),
+                ] else ...[
+                  _button(service.muted ? Icons.mic_off_rounded : Icons.mic_rounded, const Color(0xff2b3b47), service.muted ? '已静音' : '静音', () => service.toggleMute()),
+                  const SizedBox(width: 26),
+                  _button(Icons.call_end_rounded, const Color(0xffe74c3c), '挂断', () => service.hangup()),
+                  if (service.video) ...[
+                    const SizedBox(width: 26),
+                    _button(service.cameraOn ? Icons.videocam_off_rounded : Icons.videocam_rounded, const Color(0xff2b3b47), service.cameraOn ? '关闭摄像头' : '开启摄像头', () => service.toggleCamera()),
+                  ],
                 ],
-              ],
+              ]),
+              const SizedBox(height: 10),
+              Text(
+                service.status == CallStatus.ringing ? 'Enter 接听 · ESC 拒绝'
+                  : (service.video ? 'M 静音 · ESC 挂断 · V 摄像头' : 'M 静音 · ESC 挂断'),
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
+              ),
             ]),
           ),
         ]),
+      ),
       ),
     );
   }

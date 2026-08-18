@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
@@ -14,6 +15,7 @@ class VideosPage extends StatefulWidget {
 
 class _VideosPageState extends State<VideosPage> {
   final _videos = <Map<String, dynamic>>[];
+  final _hot = <Map<String, dynamic>>[];
   bool _loading = true;
   String? _error;
   final _titleCtrl = TextEditingController();
@@ -26,6 +28,25 @@ class _VideosPageState extends State<VideosPage> {
   void initState() {
     super.initState();
     _reload();
+    _loadHot();
+  }
+
+  Future<void> _loadHot() async {
+    try {
+      _hot.clear();
+      _hot.addAll(await widget.api.feedsVideos());
+    } catch (_) {} finally {
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _openUrl(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   Future<void> _reload() async {
@@ -181,7 +202,56 @@ class _VideosPageState extends State<VideosPage> {
                                 Row(children: [
                                   CircleAvatar(radius: 16, backgroundColor: Ux.cellIconBg(t), child: Text(nick.isNotEmpty ? nick[0] : '?', style: TextStyle(color: t.text, fontSize: 12))),
                                   const SizedBox(width: 8),
-                                  Expanded(
+        if (_hot.isNotEmpty)
+          Container(
+            height: 168,
+            margin: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(children: [
+                  Icon(Icons.local_fire_department_outlined, color: const Color(0xFFE4393C), size: 16),
+                  const SizedBox(width: 4),
+                  Text('全网热门（B站）', style: TextStyle(color: _t.text, fontSize: 13, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: _hot.length > 20 ? 20 : _hot.length,
+                  itemBuilder: (_, i) {
+                    final v = _hot[i];
+                    return GestureDetector(
+                      onTap: () => _openUrl((v['url'] ?? '').toString()),
+                      child: Container(
+                        width: 150,
+                        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(color: _t.card, borderRadius: BorderRadius.circular(8), border: Border.all(color: _t.div.withValues(alpha: 0.6))),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                            child: Image.network((v['pic'] ?? '').toString(), height: 84, width: 150, fit: BoxFit.cover,
+                              errorBuilder: (_, e, __) => Container(height: 84, color: _t.inputBg, child: Icon(Icons.play_circle_outline, color: _t.subText, size: 28)),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text((v['title'] ?? '').toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: _t.text, fontSize: 11, height: 1.3)),
+                              const SizedBox(height: 4),
+                              Text('${v['owner'] ?? ''} · ${v['view'] ?? ''}播放', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _t.subText, fontSize: 10)),
+                            ]),
+                          ),
+                        ]),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ]),
+          ),
+        Expanded(
                                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                       Text(nick, style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 13)),
                                       Text(_fmt(v['createdAt']), style: TextStyle(color: t.subText, fontSize: 11)),

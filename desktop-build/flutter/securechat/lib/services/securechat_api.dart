@@ -114,6 +114,17 @@ class SecureChatApi {
   }
 
   Future<Map<String, dynamic>> grabRedPacket(int id) => _json('POST', '/api/redpacket/$id/grab');
+  Future<Map<String, dynamic>> redPacketDetail(int id) => _json('GET', '/api/redpacket/$id');
+
+  Future<List<Map<String, dynamic>>> feedsNews() async {
+    final r = await _json('GET', '/api/feeds/news');
+    return (r['list'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> feedsVideos() async {
+    final r = await _json('GET', '/api/feeds/videos');
+    return (r['list'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+  }
 
   Future<Map<String, dynamic>> gatewayOrder(String orderNo) => _json('GET', '/api/pay/gateway/order/${Uri.encodeComponent(orderNo)}');
 

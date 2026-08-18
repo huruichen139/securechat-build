@@ -1854,7 +1854,9 @@ app.post('/api/admin/version', (req, res) => {
   const guard = adminGuard(req, res);
   if (guard.sent) return;
   const latest = String((req.body || {}).latest || '').trim();
-  const releaseNotes = String((req.body || {}).releaseNotes || '').trim();
+  // releaseNotes 允许数组（多版本日志），旧字符串格式仍兼容
+  const rawNotes = (req.body || {}).releaseNotes;
+  const releaseNotes = Array.isArray(rawNotes) ? rawNotes : String(rawNotes || '').trim();
   if (!/^\d+\.\d+\.\d+$/.test(latest)) {
     return res.status(400).json({ error: '版本号必须为 x.y.z 格式' });
   }
@@ -3534,6 +3536,7 @@ function mountFeatureRoutes(app, db) {
   rx('./routes/lifestyle-msg', [app, db, apiUser]);
   global.__scSendToUser = sendToUser;
   rx('./routes/redpacket', [app, db, apiUser]);
+  rx('./routes/feeds', [app, db, apiUser]);
 }
 
 // 启动：先初始化数据库

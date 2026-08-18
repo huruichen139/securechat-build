@@ -792,6 +792,8 @@ module.exports = function registerPayment(app, db, auth) {
       '<div id="authBox" style="border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:#666"></div>' +
       '<button id="payBtn" style="width:100%;background:#07c160;color:#fff;border:0;border-radius:10px;padding:13px 0;font-size:15px;cursor:pointer">确认支付 ¥' + Number(order.amount).toFixed(2) + '</button>' +
       '<div id="msgBox" style="font-size:13px;margin-top:12px;text-align:center"></div>' +
+      '<a href="securechat://gateway/pay?order=' + encodeURIComponent(order.order_no) + '" style="display:block;text-align:center;margin-top:12px;font-size:13px;color:#07c160;text-decoration:none;font-weight:600">在客户端中打开并扣款</a>' +
+      '<div style="text-align:center;margin-top:4px;font-size:12px;color:#999">已安装 SecureChat 桌面客户端时，点击后会唤起客户端确认扣款</div>' +
       '<a href="javascript:history.back()" style="display:block;text-align:center;margin-top:10px;font-size:13px;color:#1989fa;text-decoration:none">← 返回</a>' +
       '<script>var ORD=' + JSON.stringify({ orderNo: order.order_no, amount: Number(order.amount), merchantId: order.merchant_id }) + ';' +
       'function token(){try{var u=JSON.parse(localStorage.getItem("sc_me")||"null");if(u&&u.token)return u.token;}catch(e){}return localStorage.getItem("sc_token")||"";}' +

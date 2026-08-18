@@ -36,7 +36,7 @@ class DiscoverPage extends StatelessWidget {
           ]),
           _group(cfg, [
             ListCell(config: cfg, icon: Icons.search_outlined, title: '搜一搜', onTap: () => _open(context, SearchPage(api: api ?? SecureChatApi(), config: cfg, onOpenChat: onOpenChat))),
-            ListCell(config: cfg, icon: Icons.visibility_outlined, title: '看一看', onTap: () => _open(context, ReadPage(config: cfg))),
+            ListCell(config: cfg, icon: Icons.visibility_outlined, title: '看一看', onTap: () => _open(context, ReadPage(config: cfg, api: api ?? SecureChatApi()))),
           ]),
           _group(cfg, [
             ListCell(config: cfg, icon: Icons.location_on_outlined, title: '附近的人', onTap: () => _open(context, NearbyPage(api: api ?? SecureChatApi(), config: cfg))),

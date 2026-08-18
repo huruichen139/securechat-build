@@ -1,8 +1,12 @@
 #include "flutter_window.h"
 
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
+
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "utils.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -65,6 +69,25 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case WM_COPYDATA: {
+      // 第二实例转发来的 securechat:// 深链：交给 Dart 侧处理（打开支付确认页）。
+      auto* cds = reinterpret_cast<COPYDATASTRUCT*>(lparam);
+      if (cds != nullptr && cds->dwData == kDeeplinkCopyDataId &&
+          cds->lpData != nullptr && cds->cbData > 0) {
+        std::wstring url(static_cast<const wchar_t*>(cds->lpData),
+                         cds->cbData / sizeof(wchar_t));
+        auto* engine = flutter_controller_->engine();
+        if (engine != nullptr) {
+          flutter::MethodChannel<flutter::EncodableValue> channel(
+              engine->messenger(), "securechat/deeplink",
+              &flutter::StandardMethodCodec::GetInstance());
+          channel.InvokeMethod(
+              "open", std::make_unique<flutter::EncodableValue>(
+                          Utf8FromUtf16(url.c_str())));
+        }
+      }
+      return 0;
+    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

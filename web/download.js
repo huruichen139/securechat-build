@@ -102,22 +102,49 @@
     var version = String(data.latest || data.current || '1.0.0');
     var downloads = data.downloads || {};
     var downloadVersions = data.downloadVersions || {};
-    // 更新日志：每次打开都显示
+    // 更新日志：每次打开都显示。releaseNotes 支持数组 [{version,date,notes}]，兼容旧字符串格式
     var notesEl = root.querySelector('#changelog');
     if (notesEl) {
-      var notes = String(data.releaseNotes || '').trim();
       notesEl.innerHTML = '';
-      if (notes) {
+      var releaseNotes = data.releaseNotes;
+      if (typeof releaseNotes === 'string') {
+        var notesText = String(releaseNotes).trim();
+        if (notesText.charAt(0) === '[') {
+          try {
+            var parsed = JSON.parse(notesText);
+            if (Array.isArray(parsed)) releaseNotes = parsed;
+          } catch (ignore) {}
+        }
+      }
+      var entries = [];
+      if (Array.isArray(releaseNotes)) {
+        entries = releaseNotes.filter(function (e) { return e && e.notes; });
+      } else if (releaseNotes) {
+        entries = [{ version: version, date: '', notes: String(releaseNotes) }];
+      }
+      if (entries.length) {
         var head = document.createElement('h3');
-        head.textContent = _t('changelog', '更新日志') + ' · v' + version;
+        head.textContent = _t('changelog', '更新日志');
         notesEl.appendChild(head);
-        String(notes).split(/\r?\n|;/).map(function (s) { return s.trim(); }).filter(Boolean)
-          .forEach(function (line) {
+        entries.forEach(function (entry) {
+          var block = document.createElement('div');
+          block.className = 'log-version';
+          var vhead = document.createElement('div');
+          vhead.className = 'log-version-title';
+          var vtext = 'v' + String(entry.version || '');
+          if (entry.date) vtext += '（' + String(entry.date) + '）';
+          vhead.textContent = vtext;
+          block.appendChild(vhead);
+          var lines = Array.isArray(entry.notes) ? entry.notes
+            : String(entry.notes).split(/\r?\n|;|；/).map(function (s) { return s.trim(); }).filter(Boolean);
+          lines.forEach(function (line) {
             var div = document.createElement('div');
             div.className = 'log-item';
             div.textContent = '• ' + line;
-            notesEl.appendChild(div);
+            block.appendChild(div);
           });
+          notesEl.appendChild(block);
+        });
       } else {
         notesEl.textContent = _t('noChangelog', '暂无更新日志');
       }
@@ -154,7 +181,7 @@
       list.appendChild(card(p, downloadVersions[p.key] || version, absoluteDownload(downloads[p.key], apiUrl)));
     });
     var status = root.querySelector('#status') || root.querySelector('#downloadStatus');
-    if (status) status.textContent = data.releaseNotes ? _t('latestVersion', '最新版本') + ': v' + version + ' · ' + data.releaseNotes : _t('latestVersion', '最新版本') + ': v' + version;
+    if (status) status.textContent = _t('latestVersion', '最新版本') + ': v' + version;
   }
 
   var apiUrl = apiHost() + '/api/version';
