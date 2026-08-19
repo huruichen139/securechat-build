@@ -188,12 +188,13 @@
   // ============================================================
   async function initAsSender(sk, peerIdentitySpkiB64) {
     const identity = await getOrCreateIdentity();
-    const dh = await genEcKeyPair();
-    const dhOut = await ecdhShare(dh.privJwk, peerIdentitySpkiB64);
+    // 使用身份密钥对作为 DH 密钥对，与 Flutter 端的 identity-only 模式对齐：
+    // Flutter x3dhInitReceiver 用 web 的身份私钥作为 dhSelf，web 也必须用身份私钥才能解密。
+    const dhOut = await ecdhShare(identity.privJwk, peerIdentitySpkiB64);
     const parts = await kdfRk(sk, dhOut);
     return {
       rk: parts[0],
-      dhS_priv: dh.privJwk, dhS_pub: dh.pubSpki,
+      dhS_priv: identity.privJwk, dhS_pub: identity.pubB64,
       dhR: b64ToArr(peerIdentitySpkiB64),
       ckS: parts[1],
       ckR: null,
@@ -235,15 +236,13 @@
   // ============================================================
   async function encryptMessage(state, plain) {
     if (!state.dhR) throw new Error('RatchetState.dhRemote 为空');
+    // DH-step：用身份私钥与远端身份公钥做 ECDH（与 initAsSender 保持一致）
     if (!state.ckS) {
-      // 需要 DH-step：pn = sendN，新 dh，与 dhRemote 做 ECDH
       state.pn = state.nS;
-      const dh = await genEcKeyPair();
-      const dhOut = await ecdhShare(dh.privJwk, arrB64(state.dhR));
+      const dhOut = await ecdhShare(state.dhS_priv, arrB64(state.dhR));
       const parts = await kdfRk(state.rk, dhOut);
       state.rk = parts[0];
       state.ckS = parts[1];
-      state.dhS_priv = dh.privJwk; state.dhS_pub = dh.pubSpki;
       state.nS = 0; state.nR = 0;
     }
     const ck = await kdfChain(state.ckS);

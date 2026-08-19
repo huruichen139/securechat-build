@@ -115,6 +115,7 @@ int? _peerIdFromKey(String peerKey) => int.tryParse(peerKey);
 
 /// 发起方首次与 peer 通信：identity-only X3DH 协商出 sk，初始化双棘轮 sender 态
 /// 返回初始化后的 RatchetState；条件不足（无 api / 拿不到对方身份公钥）返回 null
+/// 使用身份密钥对作为 dhSelf（identity-only 模式），与 web 端 e2ee.js 对齐。
 Future<RatchetState?> x3dhInitSender(int peerId, String peerKey) async {
   final peerPubB64 = await getPeerIdentityPub(peerId);
   if (peerPubB64 == null) return null;
@@ -122,7 +123,7 @@ Future<RatchetState?> x3dhInitSender(int peerId, String peerKey) async {
   final peerPub = base64ToPub(peerPubB64);
   final sk = deriveSk(my.toPair().priv, peerPub);
   await PeerSessionStore.saveSk(peerKey, sk);
-  final state = initAsSender(sk, peerPub);
+  final state = initAsSenderIdentity(sk, my.toPair(), peerPub);
   await PeerSessionStore.save(peerKey, state);
   return state;
 }

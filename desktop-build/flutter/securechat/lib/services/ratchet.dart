@@ -194,7 +194,8 @@ List<Uint8List> _kdfChain(Uint8List chainKey) {
 // 初始化
 // ============================================================
 
-// 发起方 A：用 sk 作 rootKey，生成首个 DH 棘轮密钥并派生 sendChain
+// 发起方 A：用 sk 作 rootKey，使用身份密钥对作为 DH 密钥对（identity-only 模式）
+// 与 web 端 e2ee.js initAsSender 对齐，确保双方能互解互发。
 RatchetState initAsSender(Uint8List sk, ECPublicKey remoteIdentityPub) {
   final dh = genEcKeyPair();
   // 首次 DH-step：用 A 的新 dh 私钥与 B 的身份公钥做 ECDH
@@ -202,6 +203,16 @@ RatchetState initAsSender(Uint8List sk, ECPublicKey remoteIdentityPub) {
   final parts = _kdfRk(sk, dhOut);
   return RatchetState(parts[0])
     ..dhSelf = dh
+    ..dhRemote = remoteIdentityPub
+    ..sendChainKey = parts[1];
+}
+
+// identity-only 发送者初始化：使用身份密钥对作为 dhSelf，与 web 端对齐。
+RatchetState initAsSenderIdentity(Uint8List sk, EcKeyPair identity, ECPublicKey remoteIdentityPub) {
+  final dhOut = _ecdh(identity.priv, remoteIdentityPub);
+  final parts = _kdfRk(sk, dhOut);
+  return RatchetState(parts[0])
+    ..dhSelf = identity
     ..dhRemote = remoteIdentityPub
     ..sendChainKey = parts[1];
 }
