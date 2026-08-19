@@ -20,15 +20,17 @@ module.exports = function register(app, db, auth) {
   // ========== 消息翻译 ==========
   app.post('/api/message/translate', requireAuth, (req, res) => {
     const { messageId, sourceLang, targetLang, text } = req.body || {};
-    if (!messageId || !text) return res.status(400).json({ error: '参数缺失' });
+    if (!text) return res.status(400).json({ error: '参数缺失' });
     const target = targetLang || 'zh';
     try {
       // 调用翻译 API（这里用 mock，实际可接入 DeepL/Google/百度翻译）
       const translated = mockTranslate(text, sourceLang, target);
-      db.run(
-        'INSERT OR REPLACE INTO message_translations(message_id, source_lang, target_lang, translated, translated_by, created_at) VALUES(?,?,?,?,?,?)',
-        [messageId, sourceLang || 'auto', target, translated, req.user.id, Date.now()]
-      );
+      if (messageId) {
+        db.run(
+          'INSERT OR REPLACE INTO message_translations(message_id, source_lang, target_lang, translated, translated_by, created_at) VALUES(?,?,?,?,?,?)',
+          [messageId, sourceLang || 'auto', target, translated, req.user.id, Date.now()]
+        );
+      }
       res.json({ success: true, translated });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -313,20 +315,35 @@ module.exports = function register(app, db, auth) {
   }
 
   function broadcastRecall(messageId, fromId, toId, reason) {
-    // 广播撤回消息
-    const ws = online.get(toId);
-    if (ws) {
-      send(ws, P.S_MSG_RECALL, { messageId, from: fromId, to: toId, reason: reason || '已撤回' });
-    }
+    const sendToUser = global.__scSendToUser;
+    if (!sendToUser) return;
+    sendToUser(toId, P.S_MSG_RECALL, { messageId, from: fromId, to: toId, reason: reason || '已撤回' });
   }
 
   function broadcastGroupRecall(messageId, groupId, fromId, reason) {
+    const sendToUser = global.__scSendToUser;
+    if (!sendToUser) return;
     const members = db.prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
     for (const m of members) {
-      const ws = online.get(m.user_id);
-      if (ws) {
-        send(ws, P.S_GROUP_MSG, { id: messageId, groupId, from: fromId, content: '', createdAt: Date.now(), recalled: true, reason: reason || '已撤回' });
-      }
+      sendToUser(m.user_id, P.S_GROUP_MSG, { id: messageId, groupId, from: fromId, content: '', createdAt: Date.now(), recalled: true, reason: reason || '已撤回' });
     }
   }
+
+  // 3. 定时发送调度器：每 5 秒扫描到期任务并投递（通过 WS 发送消息）
+  setInterval(() => {
+    try {
+      const due = db.prepare("SELECT * FROM scheduled_messages WHERE cancelled=0 AND sent_at IS NULL AND scheduled_at <= ?").all(Date.now());
+      for (const m of due) {
+        const sendToUser = global.__scSendToUser;
+        if (!sendToUser) continue;
+        if (m.is_group) {
+          sendToUser(m.user_id, P.S_GROUP_MSG, { groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: Date.now(), scheduled: true });
+        } else {
+          sendToUser(m.user_id, P.S_MSG, { from: m.user_id, to: m.peer_id, content: m.content, createdAt: Date.now(), scheduled: true });
+        }
+        db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [Date.now(), m.id]);
+      }
+      if (due.length) db.persist && db.persist();
+    } catch (e) { console.error('[scheduled] tick failed:', e && e.message || e); }
+  }, 5000);
 };
