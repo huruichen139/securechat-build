@@ -70,9 +70,10 @@
     const newCk = await hkdf(chainKey, salt, Uint8Array.from([0x02]), 32);
     return [newCk, mk];
   }
-  // x3dhKdf: sk = HKDF(dh, salt=[0x00], info=kosong, len=64)[0:32]
+  // x3dhKdf: sk = HKDF(dh, salt=32零字节, info=[0x00], len=64)[0:32]
+  // 与 Flutter x3dhKdf 对齐：null salt 在 pointycastle 中为 32 字节全 0
   async function x3dhKdf(dhBytes) {
-    const out = await hkdf(dhBytes, Uint8Array.from([0x00]), new Uint8Array(0), 64);
+    const out = await hkdf(dhBytes, new Uint8Array(32), Uint8Array.from([0x00]), 64);
     return out.slice(0, 32);
   }
 
