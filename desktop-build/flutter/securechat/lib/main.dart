@@ -712,7 +712,7 @@ class _ChatViewStateState extends State<_ChatView> {
         setState(() { messages..clear()..addAll(dedup); });
         _markIncomingRead();
         socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
-        _scrollToUnread();
+        _scrollToLatest();
       } catch (_) {}
       return;
     }
@@ -738,7 +738,7 @@ class _ChatViewStateState extends State<_ChatView> {
       setState(() { messages..clear()..addAll(dedup); });
       _markIncomingRead();
       socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': peerId}}));
-      _scrollToUnread();
+      _scrollToLatest();
     } catch (_) {}
   }
 
@@ -767,16 +767,8 @@ class _ChatViewStateState extends State<_ChatView> {
     });
   }
 
-  void _scrollToUnread() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final ctx = _unreadDividerKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), curve: Curves.easeOut, alignment: 0.25);
-      } else {
-        _scrollToBottom();
-      }
-    });
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
   /// 历史列表按服务端 id 去重（服务端重复行/多次拉取时兜底）
