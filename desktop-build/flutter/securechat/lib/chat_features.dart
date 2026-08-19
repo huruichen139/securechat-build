@@ -2,6 +2,7 @@
 library chat_features;
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -232,16 +233,119 @@ Future<void> showBurnDialog(BuildContext ctx, Map<String, dynamic> msg, SecureCh
 
 /// 6. 语音转文字
 Future<void> showTranscribeDialog(BuildContext ctx, SecureChatApi api, Map<String, dynamic> msg) async {
-  // 获取音频文件路径
   final voiceId = msg['voiceId'];
-  if (voiceId == null) return;
-  
-  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('语音转文字功能开发中，请等待后续版本')));
+  if (voiceId == null) {
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('不是语音消息')));
+    return;
+  }
+  if (ctx.mounted) {
+    showDialog(context: ctx, builder: (_) => const AlertDialog(
+      content: Row(children: [const CircularProgressIndicator(), SizedBox(width: 16), Text('正在转写语音…')]),
+    ));
+  }
+  try {
+    final text = await api.transcribe(voiceId);
+    if (ctx.mounted) {
+      Navigator.pop(ctx);
+      await showDialog(context: ctx, builder: (_) => AlertDialog(
+        title: const Text('语音转文字'),
+        content: Text(text.isEmpty ? '未能识别出文字' : text),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('确定'))],
+      ));
+    }
+  } catch (e) {
+    if (ctx.mounted) {
+      Navigator.pop(ctx);
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('转写失败：$e')));
+    }
+  }
 }
 
 /// 7. 图片 OCR
 Future<void> showOCRDialog(BuildContext ctx, SecureChatApi api, Map<String, dynamic> msg) async {
-  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('OCR功能开发中，请等待后续版本')));
+  final text = (msg['text'] ?? '').toString();
+  // 尝试从消息文本中提取文件 ID（__FILE__ 格式）
+  if (!text.startsWith('__FILE__')) {
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('此消息不是图片，无法 OCR')));
+    return;
+  }
+  try {
+    final fileMeta = json.decode(text.substring('__FILE__'.length)) as Map<String, dynamic>;
+    final fileId = fileMeta['id'] as String?;
+    if (fileId == null) return;
+    if (ctx.mounted) {
+      showDialog(context: ctx, builder: (_) => const AlertDialog(
+        content: Row(children: [const CircularProgressIndicator(), SizedBox(width: 16), Text('正在识别图片文字…')]),
+      ));
+    }
+    final bytes = await api.fetchFile(fileId);
+    final tmpPath = '${Directory.systemTemp.path}/ocr-${fileId}.jpg';
+    await File(tmpPath).writeAsBytes(bytes);
+    // 调用服务端 OCR API
+    final resp = await http.post(
+      Uri.parse('${api.baseUrl}/api/image/ocr'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'imagePath': tmpPath}),
+    );
+    if (ctx.mounted) Navigator.pop(ctx);
+    if (resp.statusCode == 200) {
+      final data = json.decode(resp.body);
+      final result = data['text'] ?? '';
+      if (ctx.mounted) {
+        await showDialog(context: ctx, builder: (_) => AlertDialog(
+          title: const Text('OCR 识别结果'),
+          content: Text(result.isEmpty ? '未能识别出文字' : result),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('确定'))],
+        ));
+      }
+    } else {
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('OCR 失败')));
+    }
+  } catch (e) {
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('OCR 失败：$e')));
+  }
+}
+
+/// 8. 消息撤回（带原因）
+Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, SecureChatApi api, int peerId, bool isGroup) async {
+  final msgId = msg['id'];
+  if (msgId == null) return;
+  final reasonCtrl = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: ctx,
+    builder: (_) => AlertDialog(
+      title: const Text('撤回消息'),
+      content: TextField(
+        controller: reasonCtrl,
+        decoration: const InputDecoration(hintText: '备注原因（可选）'),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('撤回')),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    final reason = reasonCtrl.text.trim();
+    if (isGroup) {
+      await http.post(
+        Uri.parse('${api.baseUrl}/api/group-message/recall'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'messageId': msgId, 'groupId': peerId, 'reason': reason}),
+      );
+    } else {
+      await http.post(
+        Uri.parse('${api.baseUrl}/api/message/recall'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'messageId': msgId, 'reason': reason}),
+      );
+    }
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('已撤回')));
+  } catch (e) {
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('撤回失败：$e')));
+  }
 }
 
 /// 8. 快捷回复按钮 (在 composer 中使用)

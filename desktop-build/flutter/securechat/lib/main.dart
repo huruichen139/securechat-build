@@ -28,6 +28,7 @@ import 'qr_confirm_page.dart';
 import 'update_service.dart';
 import 'discover_page.dart';
 import 'me_page.dart';
+import 'community_tools_page.dart';
 
 const Color _wechatGreen = Color(0xff07c160);
 const Color _wechatBubbleMine = Color(0xff95EC69);
@@ -1188,7 +1189,8 @@ class _ChatViewStateState extends State<_ChatView> {
           IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
           IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
           if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
-          IconButton(tooltip: '清空聊天', onPressed: () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
+           IconButton(tooltip: '清空聊天', onPressed: () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
+           if (selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
           PopupMenuButton<int>(
             icon: const Icon(Icons.more_horiz),
             onSelected: (v) => _onContextMenu(v, context),
@@ -1842,10 +1844,11 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
           ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('置顶消息'), onTap: () { Navigator.pop(sheetCtx); _pinMessage(msg); }),
-            ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { Navigator.pop(sheetCtx); showTranslateDialog(sheetCtx, widget.api, msg['text'] ?? ''); }),
+           ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { Navigator.pop(sheetCtx); showTranslateDialog(sheetCtx, widget.api, msg['text'] ?? ''); }),
           ListTile(leading: const Icon(Icons.mic), title: const Text('语音转文字'), onTap: () { Navigator.pop(sheetCtx); _showTranscribeDialog(sheetCtx, msg); }),
           ListTile(leading: const Icon(Icons.image_search), title: const Text('提取文字'), onTap: () { Navigator.pop(sheetCtx); _showOCRDialog(sheetCtx, msg); }),
           ListTile(leading: const Icon(Icons.remove), title: const Text('阅后即焚'), onTap: () { Navigator.pop(sheetCtx); _showBurnDialog(sheetCtx, msg); }),
+          ListTile(leading: const Icon(Icons.backspace), title: const Text('撤回'), onTap: () { Navigator.pop(sheetCtx); _showRecallDialog(sheetCtx, msg); }),
           ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
         ]),
       ),
@@ -1874,6 +1877,12 @@ class _ChatViewStateState extends State<_ChatView> {
     final conv = selConv;
     if (conv == null) return;
     showBurnDialog(ctx, msg, widget.api, conv['id'] as int, conv['kind'] == 'group');
+  }
+
+  void _showRecallDialog(BuildContext ctx, Map<String, dynamic> msg) {
+    final conv = selConv;
+    if (conv == null) return;
+    showRecallDialog(ctx, msg, widget.api, conv['id'] as int, conv['kind'] == 'group');
   }
 
   void _onContextMenu(int v, BuildContext ctx) {
