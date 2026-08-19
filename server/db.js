@@ -448,6 +448,85 @@ function init() {
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid ON users(uid) WHERE uid IS NOT NULL');
   // 注：feedbacks 表由 worker D 负责正式建表，此处不重复创建。
   // /api/admin/overview 查询 feedbacks 时会做 try/catch 兜底，未建表则返回 []。
+
+  // ============ 新功能: 翻译/投票/快捷回复/待办/定时发送 ============
+  CREATE TABLE IF NOT EXISTS message_translations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    source_lang TEXT,
+    target_lang TEXT NOT NULL,
+    translated TEXT NOT NULL,
+    translated_by INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE(message_id, target_lang)
+  );
+  CREATE TABLE IF NOT EXISTS quick_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_quick_replies_user ON quick_replies(user_id, created_at);
+  CREATE TABLE IF NOT EXISTS group_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT,
+    created_by INTEGER NOT NULL,
+    is_anonymous INTEGER NOT NULL DEFAULT 0,
+    allow_change INTEGER NOT NULL DEFAULT 0,
+    ended INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    ended_at INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS vote_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vote_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS vote_votes (
+    vote_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    option_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(vote_id, user_id)
+  );
+  CREATE TABLE IF NOT EXISTS group_todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    created_by INTEGER NOT NULL,
+    assigned_to INTEGER,
+    status TEXT NOT NULL DEFAULT 'open',
+    due_at INTEGER,
+    completed_at INTEGER,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_group_todos_group ON group_todos(group_id, status, created_at);
+  CREATE TABLE IF NOT EXISTS scheduled_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    peer_id INTEGER NOT NULL,
+    is_group INTEGER NOT NULL DEFAULT 0,
+    content TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'text',
+    scheduled_at INTEGER NOT NULL,
+    sent_at INTEGER,
+    cancelled INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_scheduled_msg ON scheduled_messages(scheduled_at, cancelled, user_id);
+  CREATE TABLE IF NOT EXISTS message_timers (
+    message_id INTEGER PRIMARY KEY,
+    duration INTEGER NOT NULL,
+    started_at INTEGER NOT NULL
+  );
+
   persistNow();
 }
 
