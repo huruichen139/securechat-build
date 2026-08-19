@@ -19,7 +19,9 @@
   `git -c "http.extraheader=AUTHORIZATION: basic $basic" push "https://gh-proxy.com/https://github.com/huruichen139/securechat-build.git" main`
   `$basic=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))`
 - tag 更新用：先删远程 tag 再推新引用（仅 force-push 不重新触发 CI）。
-- GitHub artifacts 下载：资产必须 api.github.com 直连，`curl.exe -L -C - ... --retry 3 --retry-delay 2` 断点续传；多次 `Start-Process` 后台 curl 会挂起无增长，前台续传是最可靠方式。
+- **GitHub 文件下载一律走 gh-proxy.com 代理**（用户多次强调，直连会慢/断/损坏）：URL 前缀 `https://gh-proxy.com/`，例如 `https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/<tag>/<file>`。
+- GitHub artifacts 下载：优先用 gh-proxy 代理 release 资产；`curl.exe -L -C - --retry 3 --retry-delay 2` 断点续传；多次 `Start-Process` 后台 curl 会挂起无增长，前台续传是最可靠方式。
+- 服务器下载中心分发的文件若损坏（如 Inno Setup 报 "setup files are corrupted"），先对比 SHA256 确认服务器文件完好，多为用户端下载中断，引导用 curl/代理重新完整下载。
 - 触发新 CI 后轮询 `api.github.com/repos/huruichen139/securechat-build/actions/runs` 的 head_sha。
 
 ## 本地构建（GitHub Actions 不可用 / 余额不足时）

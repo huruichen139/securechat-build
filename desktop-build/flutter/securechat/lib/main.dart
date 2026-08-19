@@ -767,8 +767,17 @@ class _ChatViewStateState extends State<_ChatView> {
     });
   }
 
+  /// Scroll to newest messages after opening a conversation.
+  /// lazy ListView.builder's maxScrollExtent is an estimate on the first frame,
+  /// so jump repeatedly over frames until the real bottom is reached.
   void _scrollToLatest() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    for (var i = 0; i < 4; i++) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_msgScroll.hasClients) return;
+        final pos = _msgScroll.position;
+        if (pos.maxScrollExtent > pos.pixels) pos.jumpTo(pos.maxScrollExtent);
+      });
+    }
   }
 
   /// 历史列表按服务端 id 去重（服务端重复行/多次拉取时兜底）
