@@ -3559,6 +3559,7 @@ function mountFeatureRoutes(app, db) {
   global.__scSendToUser = sendToUser;
   rx('./routes/redpacket', [app, db, apiUser]);
   rx('./routes/feeds', [app, db, apiUser]);
+  rx('./routes/new-features', [app, db, apiUser]);
 }
 
 // 启动：先初始化数据库

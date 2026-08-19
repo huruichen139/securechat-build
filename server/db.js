@@ -450,7 +450,9 @@ function init() {
   // /api/admin/overview 查询 feedbacks 时会做 try/catch 兜底，未建表则返回 []。
 
   // ============ 新功能: 翻译/投票/快捷回复/待办/定时发送 ============
-  CREATE TABLE IF NOT EXISTS message_translations (
+// ============ 新功能: 翻译/投票/快捷回复/待办/定时发送 ============
+  db.run(`
+    CREATE TABLE IF NOT EXISTS message_translations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id INTEGER NOT NULL,
     source_lang TEXT,
@@ -460,7 +462,7 @@ function init() {
     created_at INTEGER NOT NULL,
     UNIQUE(message_id, target_lang)
   );
-  CREATE TABLE IF NOT EXISTS quick_replies (
+    CREATE TABLE IF NOT EXISTS quick_replies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     title TEXT NOT NULL,
@@ -468,8 +470,8 @@ function init() {
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS idx_quick_replies_user ON quick_replies(user_id, created_at);
-  CREATE TABLE IF NOT EXISTS group_votes (
+    CREATE INDEX IF NOT EXISTS idx_quick_replies_user ON quick_replies(user_id, created_at);
+    CREATE TABLE IF NOT EXISTS group_votes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     title TEXT NOT NULL,
@@ -481,21 +483,21 @@ function init() {
     created_at INTEGER NOT NULL,
     ended_at INTEGER
   );
-  CREATE TABLE IF NOT EXISTS vote_options (
+    CREATE TABLE IF NOT EXISTS vote_options (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     vote_id INTEGER NOT NULL,
     text TEXT NOT NULL,
     order_index INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   );
-  CREATE TABLE IF NOT EXISTS vote_votes (
+    CREATE TABLE IF NOT EXISTS vote_votes (
     vote_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     option_id INTEGER NOT NULL,
     created_at INTEGER NOT NULL,
     PRIMARY KEY(vote_id, user_id)
   );
-  CREATE TABLE IF NOT EXISTS group_todos (
+    CREATE TABLE IF NOT EXISTS group_todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     title TEXT NOT NULL,
@@ -507,8 +509,8 @@ function init() {
     completed_at INTEGER,
     created_at INTEGER NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS idx_group_todos_group ON group_todos(group_id, status, created_at);
-  CREATE TABLE IF NOT EXISTS scheduled_messages (
+    CREATE INDEX IF NOT EXISTS idx_group_todos_group ON group_todos(group_id, status, created_at);
+    CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     peer_id INTEGER NOT NULL,
@@ -520,13 +522,13 @@ function init() {
     cancelled INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS idx_scheduled_msg ON scheduled_messages(scheduled_at, cancelled, user_id);
-  CREATE TABLE IF NOT EXISTS message_timers (
+    CREATE INDEX IF NOT EXISTS idx_scheduled_msg ON scheduled_messages(scheduled_at, cancelled, user_id);
+    CREATE TABLE IF NOT EXISTS message_timers (
     message_id INTEGER PRIMARY KEY,
     duration INTEGER NOT NULL,
     started_at INTEGER NOT NULL
   );
-
+  `);
   persistNow();
 }
 
