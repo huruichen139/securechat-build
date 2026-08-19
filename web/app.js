@@ -2075,7 +2075,7 @@ function renderChatHeader() {
   if (state.activePeer) {
     const peer = state.friends.find(u => u.id === state.activePeer);
     const name = peer ? peer.nickname : '聊天';
-    $('chatHeader').textContent = name;
+    $('chatHeader').innerHTML = escapeHtml(name) + (peer ? '<span class="chat-status">' + escapeHtml(peerStatusLabel(peer)) + '</span>' : '');
     $('chatHeader').onclick = () => openPeerProfile(state.activePeer);
     const mt = document.getElementById('chatMobileTitle');
     if (mt) { mt.textContent = name; mt.onclick = () => openPeerProfile(state.activePeer); }
@@ -2084,6 +2084,21 @@ function renderChatHeader() {
     $('chatHeader').onclick = null;
   }
   $('inviteBar').style.display = 'none';
+}
+
+// 好友状态行：在线 或「上次在线 xxx前」
+function peerStatusLabel(peer) {
+  if (!peer) return '离线';
+  if (peer.online) return '在线';
+  const ts = peer.lastSeen;
+  if (!ts) return '离线';
+  const diff = Date.now() - ts;
+  if (diff < 60000) return '刚刚在线';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前在线';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前在线';
+  if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + ' 天前在线';
+  const d = new Date(ts);
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 在线';
 }
 
 // 好友资料卡（点击聊天头部打开）
@@ -2100,7 +2115,7 @@ function openPeerProfile(peerId) {
         <div class="profile-avatar">${peer.avatar ? '<img src="' + peer.avatar + '">' : avatarChar(peer.nickname)}</div>
         <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
         <div class="profile-id">微信号：${escapeHtml(peer.uid || '')} · ID: ${peer.id}</div>
-        <div class="profile-online">${peer.online ? '<span class="dot online"></span> 在线' : '离线'}</div>
+        <div class="profile-online">${peer.online ? '<span class="dot online"></span> 在线' : escapeHtml(peerStatusLabel(peer))}</div>
         ${region ? '<div class="profile-region">地区：' + escapeHtml(region) + '</div>' : ''}
       </div>
       <div class="profile-actions">

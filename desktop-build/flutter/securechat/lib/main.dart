@@ -623,7 +623,7 @@ class _ChatViewStateState extends State<_ChatView> {
           final fId = f['id'];
           final fPub = (f['pubkey'] ?? f['publicKey'] ?? f['identityKey'] ?? '').toString();
           if (fId is int && fPub.isNotEmpty) cacheIdentityPub(fId, fPub);
-          conversations.add({'kind': 'friend', 'id': f['id'], 'name': (f['nickname'] ?? f['username'] ?? '').toString(), 'icon': Icons.person, 'online': f['online'] == true, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
+          conversations.add({'kind': 'friend', 'id': f['id'], 'name': (f['nickname'] ?? f['username'] ?? '').toString(), 'icon': Icons.person, 'online': f['online'] == true, 'lastSeen': f['lastSeen'], 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
         for (final g in groups) {
           final settings = csMap[g['id']];
@@ -927,6 +927,21 @@ class _ChatViewStateState extends State<_ChatView> {
                 : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '鐜板湪', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
             _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true};
           });
+        } else if (type == 'user_list') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          final users = (p['users'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          setState(() {
+            for (final u in users) {
+              final uid = u['id'];
+              for (final c in conversations) {
+                if (c['kind'] == 'friend' && c['id'] == uid) {
+                  c['online'] = u['online'] == true;
+                  if (u['lastSeen'] != null) c['lastSeen'] = u['lastSeen'];
+                }
+              }
+            }
+          });
         } else if (type == 'signal') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           final service = calls;
@@ -1157,7 +1172,7 @@ class _ChatViewStateState extends State<_ChatView> {
         const SizedBox(width: 10),
         Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.text)),
-          Text(selConv != null ? (selConv!['kind'] == 'group' ? '群聊' : '在线') : '', style: TextStyle(color: t.subText, fontSize: 11)),
+          Text(selConv != null ? _convStatusLine(selConv!) : '', style: TextStyle(color: t.subText, fontSize: 11)),
         ]),
         const Spacer(),
         if (selConv != null) ...[
@@ -1206,6 +1221,24 @@ class _ChatViewStateState extends State<_ChatView> {
         IconButton(icon: const Icon(Icons.close, size: 16), onPressed: _cancelReply, color: t.subText),
       ]),
     );
+  }
+
+  /// 聊天顶栏/资料卡状态行：在线 或「上次在线 xxx前」
+  String _convStatusLine(Map<String, dynamic> conv) {
+    if (conv['kind'] == 'group') return '群聊';
+    if (conv['online'] == true) return '在线';
+    return _lastSeenLabel(conv['lastSeen'] as int?);
+  }
+
+  String _lastSeenLabel(int? ts) {
+    if (ts == null || ts <= 0) return '离线';
+    final diff = DateTime.now().millisecondsSinceEpoch - ts;
+    if (diff < 60000) return '刚刚在线';
+    if (diff < 3600000) return '${(diff / 60000).floor()} 分钟前在线';
+    if (diff < 86400000) return '${(diff / 3600000).floor()} 小时前在线';
+    if (diff < 7 * 86400000) return '${(diff / 86400000).floor()} 天前在线';
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    return '${d.year}/${d.month}/${d.day} 在线';
   }
 
   String _readLabel(Map<String, dynamic> msg) {
@@ -1883,7 +1916,7 @@ class _ChatViewStateState extends State<_ChatView> {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(conv['name'].toString(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          Text(conv['online'] == true ? '在线' : '离线', style: TextStyle(color: theme.subText, fontSize: 12)),
+          Text(_convStatusLine(conv), style: TextStyle(color: theme.subText, fontSize: 12)),
         ])),
         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
       ]),

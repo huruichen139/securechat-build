@@ -121,7 +121,8 @@ function publicUser(u) {
     uid: u.uid, email: u.email || '',
     country: u.country || '', province: u.province || '', city: u.city || '',
     extra: parseExtra(u.extra),
-    pubkey: u.pubkey || ''
+    pubkey: u.pubkey || '',
+    lastSeen: u.last_seen || null
   };
 }
 
@@ -509,11 +510,11 @@ app.get('/api/friends', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const rows = prepare(
-     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey
+     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey,u.last_seen
      FROM friends f JOIN users u ON u.id = f.friend_id
      WHERE f.user_id=? AND f.status=1 ORDER BY u.nickname`
   ).all(payload.id);
-  res.json({ friends: rows });
+  res.json({ friends: rows.map(r => ({ ...publicUser(r), online: onlineHas(r.id) })) });
 });
 
 // 待处理好友请求列表：GET /api/friend/requests
@@ -523,7 +524,7 @@ app.get('/api/friend/requests', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const rows = prepare(
-     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey
+     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey,u.last_seen
      FROM friends f JOIN users u ON u.id = f.user_id
      WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
   ).all(payload.id);
@@ -533,7 +534,7 @@ app.get('/api/friend/requests', (req, res) => {
 function pushFriendList(uid) {
   if (!onlineAny(uid)) return;
   const rows = prepare(
-     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey
+     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey,u.last_seen
      FROM friends f JOIN users u ON u.id = f.friend_id
      WHERE f.user_id=? AND f.status=1 ORDER BY u.nickname`
   ).all(uid);
@@ -3312,13 +3313,13 @@ wss.on('connection', (ws) => {
       broadcastGroups();
       // 推送待处理好友请求数（供 UI 提示）
       const reqs = prepare(
-         `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey
+         `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey,u.last_seen
          FROM friends f JOIN users u ON u.id = f.user_id
          WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
       ).all(dbUser.id);
       for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
       // 记录最后登录时间与 IP
-      try { prepare('UPDATE users SET last_login_at=?, last_ip=? WHERE id=?').run(Date.now(), ws._ip || '', dbUser.id); } catch (e) {}
+      try { prepare('UPDATE users SET last_login_at=?, last_ip=?, last_seen=? WHERE id=?').run(Date.now(), ws._ip || '', Date.now(), dbUser.id); } catch (e) {}
       return;
     }
 
@@ -3483,6 +3484,8 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     if (ws.uid) {
+      // 记录最后在线时间（先更新再广播，让 S_USER_LIST 带上最新 lastSeen）
+      try { prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), ws.uid); } catch (e) {}
       removeWs(ws.uid, ws);
       broadcastUserList();
       broadcastGroups();
@@ -3491,7 +3494,7 @@ wss.on('connection', (ws) => {
 });
 
 function broadcastUserList() {
-  const users = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey FROM users').all();
+  const users = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey,last_seen FROM users').all();
   const list = users.map(u => ({ ...publicUser(u), online: onlineHas(u.id) }));
   for (const uid of online.keys()) sendToUser(uid, P.S_USER_LIST, { users: list });
   // 用户在线状态变化也会影响群成员在线展示，同步推送群列表

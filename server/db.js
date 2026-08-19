@@ -49,6 +49,7 @@ function init() {
       city TEXT,
       extra TEXT,
       pubkey TEXT,
+      last_seen INTEGER,
       created_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS messages (
@@ -403,6 +404,9 @@ function init() {
   } catch (e) { /* 列已存在 */ }
   try {
     db.run('ALTER TABLE users ADD COLUMN last_ip TEXT');
+  } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN last_seen INTEGER');
   } catch (e) { /* 列已存在 */ }
   try {
     db.run('ALTER TABLE users ADD COLUMN created_ip TEXT');

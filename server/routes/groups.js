@@ -50,7 +50,7 @@ function publicUser(u) {
     id: u.id, username: u.username, nickname: u.nickname, avatar: u.avatar,
     uid: u.uid, email: u.email || '',
     country: u.country || '', province: u.province || '', city: u.city || '',
-    extra: extra, pubkey: u.pubkey || ''
+    extra: extra, pubkey: u.pubkey || '', lastSeen: u.last_seen || null
   };
 }
 
@@ -92,7 +92,7 @@ function myGroups(userId) {
        FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
        WHERE gm.group_id=? ORDER BY gm.created_at DESC LIMIT 1`, g.id);
     const members = p.all(
-      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid, gms.my_nickname FROM group_members m
+      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.last_seen, gms.my_nickname FROM group_members m
        JOIN users u ON u.id = m.user_id
        LEFT JOIN group_member_settings gms ON gms.group_id=m.group_id AND gms.user_id=m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at ASC`, g.id);
@@ -112,7 +112,7 @@ function myGroups(userId) {
 // 群消息返回体补全 sender 昵称（考虑「本群昵称」覆盖）+ 已读信息
 function groupMsgDto(r, viewerId) {
   const sender = p.get(
-    `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname
+    `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.last_seen,gms.my_nickname
      FROM users u LEFT JOIN group_member_settings gms ON gms.group_id=? AND gms.user_id=u.id
      WHERE u.id=?`, r.group_id, r.from_id);
   const name = (sender && (sender.my_nickname || sender.nickname)) || ('用户' + r.from_id);
@@ -270,7 +270,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const ann = p.get('SELECT content, publisher_id AS publisherId, pinned, created_at AS createdAt, updated_at AS updatedAt FROM group_announcements WHERE group_id=?', groupId) || null;
     const members = p.all(
-      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname,gms.muted
+      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.last_seen,gms.my_nickname,gms.muted
        FROM group_members m JOIN users u ON u.id=m.user_id
        LEFT JOIN group_member_settings gms ON gms.group_id=m.group_id AND gms.user_id=m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at ASC`, groupId);
@@ -497,7 +497,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!g) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const members = p.all(
-      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname,gms.muted
+      `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.last_seen,gms.my_nickname,gms.muted
        FROM group_members m JOIN users u ON u.id=m.user_id
        LEFT JOIN group_member_settings gms ON gms.group_id=m.group_id AND gms.user_id=m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at ASC`, groupId);
