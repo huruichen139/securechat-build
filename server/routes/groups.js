@@ -109,13 +109,22 @@ function myGroups(userId) {
   });
 }
 
-// 群消息返回体补全 sender 昵称（考虑「本群昵称」覆盖）
-function groupMsgDto(r) {
+// 群消息返回体补全 sender 昵称（考虑「本群昵称」覆盖）+ 已读信息
+function groupMsgDto(r, viewerId) {
   const sender = p.get(
     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,gms.my_nickname
      FROM users u LEFT JOIN group_member_settings gms ON gms.group_id=? AND gms.user_id=u.id
      WHERE u.id=?`, r.group_id, r.from_id);
   const name = (sender && (sender.my_nickname || sender.nickname)) || ('用户' + r.from_id);
+  let read = false, readCount = 0;
+  try {
+    const rc = p.get('SELECT COUNT(*) AS c FROM message_reads WHERE message_id=?', r.id);
+    readCount = rc ? Number(rc.c) || 0 : 0;
+    if (viewerId != null) {
+      const mine = p.get('SELECT 1 FROM message_reads WHERE message_id=? AND user_id=?', r.id, viewerId);
+      read = !!mine;
+    }
+  } catch (e) { /* message_reads 表缺失时忽略 */ }
   return {
     id: r.id, groupId: r.group_id, from: r.from_id,
     content: r.content, createdAt: r.created_at,
@@ -124,6 +133,7 @@ function groupMsgDto(r) {
     replyTo: r.reply_to || null, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled,
     forwardedFrom: r.forwarded_from || null,
     recalled: !!r.recalled,
+    read, readCount,
   };
 }
 
@@ -385,7 +395,7 @@ module.exports = function registerGroups(app, db, auth) {
        LEFT JOIN group_message_meta gmm ON gmm.message_id=gm.id
        LEFT JOIN group_messages pm ON pm.id=gmm.reply_to
        WHERE gm.group_id=? ORDER BY gm.created_at ASC`, groupId);
-    res.json({ messages: rows.map(groupMsgDto) });
+    res.json({ messages: rows.map(r => groupMsgDto(r, req.user.id)) });
   });
 
   // ---------- 发群消息：POST /api/groups/:id/messages { content } ----------
@@ -404,7 +414,7 @@ module.exports = function registerGroups(app, db, auth) {
         p.run('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at', msgId.id, replyTo, forwardedFrom, Date.now());
       } catch (e) {}
     }
-    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt } });
+    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, read: true, readCount: 1 } });
   });
 
   // ---------- 群公告：POST /api/groups/:id/announcement { content } ----------

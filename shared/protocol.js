@@ -17,6 +17,7 @@ module.exports = {
   S_MSG: 'msg',            // 推送新消息
   S_MSG_RECALL: 'msg_recall', // 推送消息撤回通知 payload {messageId, from, to}
   S_MSG_READ: 'msg_read', // 推送对方已读 payload {peerId}
+  S_GROUP_MSG_READ: 'group_msg_read', // 推送群已读 payload {groupId, userId}
   S_PRESENCE: 'presence',  // 在线状态
   S_TYPING: 'typing',
   S_ERROR: 'error',

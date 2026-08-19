@@ -10,6 +10,7 @@ const P = {
   S_AUTH_OK: 'auth_ok', S_AUTH_FAIL: 'auth_fail', S_MSG: 'msg',
   S_USER_LIST: 'user_list', S_TYPING: 'typing', S_ERROR: 'error',
   S_MSG_RECALL: 'msg_recall', S_MSG_READ: 'msg_read',
+  S_GROUP_MSG_READ: 'group_msg_read',
   S_SIGNAL: 'signal',
   S_FRIEND_REQ: 'friend_req', S_FRIEND_LIST: 'friend_list',
   S_GROUP_MSG: 'group_msg', S_GROUP_LIST: 'group_list',
@@ -1581,6 +1582,11 @@ case P.S_MSG:
     case P.S_MSG_READ:
       if (payload && (state.activePeer === payload.peerId)) markConversationRead();
       break;
+    case P.S_GROUP_MSG_READ:
+      if (payload && payload.userId !== state.me.id && state.activeGroup === payload.groupId) {
+        markGroupConversationRead(payload.userId);
+      }
+      break;
     case P.S_SIGNAL: if (window.rtc) window.rtc.handleSignal(payload); break;
     case P.S_FRIEND_LIST:
       state.friends = payload.friends || [];
@@ -2298,6 +2304,7 @@ function appendGroupMessage(m, prepend) {
         ${nameLine}
         <div class="bubble"><div class="voice-bubble">\u25B6${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
         <span class="time">${fmtTime(m.createdAt)}</span>
+        ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       </div>`;
     if (b64) {
       const vb = row.querySelector('.voice-bubble');
@@ -2354,6 +2361,7 @@ function appendGroupMessage(m, prepend) {
       ${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
+      ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
     </div>`;
   if (canGroupRecall) {
@@ -2746,7 +2754,12 @@ function appendMessage(m, prepend) {
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${mine ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + (m.read ? '已读' : '未读') + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>`;
+  let readLabel = '';
+  if (mine) {
+    if (m.groupId) readLabel = (m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读';
+    else readLabel = m.read ? '已读' : '未读';
+  }
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + readLabel + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
@@ -3012,6 +3025,15 @@ function markConversationRead() {
   document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
     el.textContent = '已读';
     el.classList.add('read');
+  });
+}
+function markGroupConversationRead(userId) {
+  if (userId == null) return;
+  document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
+    const cur = el.textContent;
+    const m = /^已读 (\d+)人$/.exec(cur);
+    if (m) el.textContent = '已读 ' + (Number(m[1]) + 1) + '人';
+    else if (cur === '已读') el.textContent = '已读 2人';
   });
 }
 

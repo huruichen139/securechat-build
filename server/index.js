@@ -893,7 +893,7 @@ app.post('/api/messages', (req, res) => {
     prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
       .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
   }
-  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading };
+  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0 };
   const peer = onlineAny(toId);
   if (peer) sendToUser(toId, P.S_MSG, message);
   sentMsgsThisMinCounter += 1;
@@ -3349,7 +3349,7 @@ wss.on('connection', (ws) => {
         prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
           .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
       }
-      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading };
+      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0 };
       let replyContent = null, replyFrom = null, replyRecalled = false;
       if (msgObj.replyTo) {
         try {
@@ -3415,7 +3415,7 @@ wss.on('connection', (ws) => {
             .run(info.lastInsertRowid, null, forwardedFromId, now);
         } catch (e) {}
       }
-      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom, forwardedFrom: forwardedFromId || null };
+      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom, forwardedFrom: forwardedFromId || null, read: true, readCount: 1 };
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;
@@ -3428,10 +3428,29 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // 群已读：C_GROUP_READ { groupId } —— 暂时 noop，直接响应 ok
+    // 群已读：C_GROUP_READ { groupId } —— 落库 message_reads 并广播群已读
     if (type === P.C_GROUP_READ) {
       if (!ws.uid) return;
-      // 未持久化已读状态；每次推送时客户端可清本地 unread
+      const { groupId } = payload || {};
+      const gid = Number(groupId);
+      if (!Number.isInteger(gid)) return;
+      try {
+        const unread = prepare('SELECT id FROM group_messages WHERE group_id=? AND from_id<>?').all(gid, ws.uid);
+        if (unread.length > 0) {
+          const now = Date.now();
+          for (const m of unread) {
+            prepare('INSERT OR IGNORE INTO message_reads(message_id,user_id,read_at) VALUES(?,?,?)').run(m.id, ws.uid, now);
+          }
+          persist();
+          // 广播给群内其他在线成员：userId 已读该群，客户端据此刷新已读人数
+          const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
+          for (const mm of members) {
+            if (mm.user_id !== ws.uid && onlineAny(mm.user_id)) {
+              sendToUser(mm.user_id, P.S_GROUP_MSG_READ, { groupId: gid, userId: ws.uid });
+            }
+          }
+        }
+      } catch (e) { /* 忽略 */ }
       return;
     }
 

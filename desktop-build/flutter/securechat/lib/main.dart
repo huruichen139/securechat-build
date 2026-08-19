@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -531,6 +531,9 @@ class _ChatViewStateState extends State<_ChatView> {
   final conversations = <Map<String, dynamic>>[];
   final _deletedIds = <String>{};
   final _unread = <String, int>{};
+  final _lastMsg = <String, Map<String, dynamic>>{};
+  final _groupReadUsers = <String, Set<int>>{};
+  final _unreadDividerKey = GlobalKey();
   bool _deletedLoaded = false;
   WebSocketChannel? socket;
   CallService? calls;
@@ -685,6 +688,7 @@ class _ChatViewStateState extends State<_ChatView> {
     if (conv['kind'] == 'group') {
       if (mounted) setState(() => selName = conv['name'].toString());
       final gid = conv['id'] as int;
+      _groupReadUsers['g$gid'] = <int>{};
       try {
         final ghis = await widget.api.groupHistory(gid);
         if (!mounted) return;
@@ -696,12 +700,19 @@ class _ChatViewStateState extends State<_ChatView> {
           final mine = from == myId;
           final sender = (m['fromUser'] is Map) ? (((m['fromUser'] as Map)['nickname'] ?? (m['fromUser'] as Map)['username']) ?? '').toString() : null;
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          final read = mine || m['read'] == true;
+          final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
           msgs.add(voice != null
-              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender}
-              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender});
+              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount}
+              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount});
         }
+        final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
+        _insertUnreadDivider(dedup);
         if (!mounted || seq != _openSeq) return;
-        setState(() { messages..clear()..addAll(_dedupById(msgs))..removeWhere((m) => _isDeleted(m['id'])); });
+        setState(() { messages..clear()..addAll(dedup); });
+        _markIncomingRead();
+        socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
+        _scrollToUnread();
       } catch (_) {}
       return;
     }
@@ -716,13 +727,56 @@ class _ChatViewStateState extends State<_ChatView> {
         final text = await e2eeDecrypt('$peerId', content);
         final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+        final read = m['read'] == true;
         msgs.add(voice != null
-            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']}
-            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom']});
+            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
+            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
       }
+      final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
+      _insertUnreadDivider(dedup);
       if (!mounted || seq != _openSeq) return;
-      setState(() { messages..clear()..addAll(_dedupById(msgs))..removeWhere((m) => _isDeleted(m['id'])); });
+      setState(() { messages..clear()..addAll(dedup); });
+      _markIncomingRead();
+      socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': peerId}}));
+      _scrollToUnread();
     } catch (_) {}
+  }
+
+  /// 在第一条未读消息上方插入「N 条未读消息」分割条（仅聊天类消息，不含分割条自身）
+  void _insertUnreadDivider(List<Map<String, dynamic>> msgs) {
+    var unreadCount = 0;
+    var firstIdx = -1;
+    for (var i = 0; i < msgs.length; i++) {
+      final m = msgs[i];
+      if (m['mine'] != true && m['read'] != true) {
+        unreadCount++;
+        if (firstIdx < 0) firstIdx = i;
+      }
+    }
+    if (unreadCount > 0 && firstIdx >= 0) {
+      msgs.insert(firstIdx, {'divider': true, 'unreadCount': unreadCount});
+    }
+  }
+
+  /// 打开会话后：本地把对方发来的消息标记为已读（视觉不再显示"未读"）
+  void _markIncomingRead() {
+    setState(() {
+      for (final m in messages) {
+        if (m['mine'] != true) m['read'] = true;
+      }
+    });
+  }
+
+  void _scrollToUnread() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _unreadDividerKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), curve: Curves.easeOut, alignment: 0.25);
+      } else {
+        _scrollToBottom();
+      }
+    });
   }
 
   /// 历史列表按服务端 id 去重（服务端重复行/多次拉取时兜底）
@@ -786,15 +840,57 @@ class _ChatViewStateState extends State<_ChatView> {
           if (conv != null && !talkingToPeer) {
             final key = 'f${from == myId ? to : from}';
             setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
+            _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false};
             return;
           }
           setState(() {
             if (conv == null || talkingToPeer) {
+              final mine = p['from'] == myId;
+              final inView = conv != null && talkingToPeer;
+              if (!mine && inView) {
+                socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': from}}));
+              }
               _appendMsg(voice != null
-                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']}
-                  : {'cmid': cmid, 'text': text, 'mine': p['from'] == myId, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']});
+                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
+                  : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView});
+              _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView};
             }
           });
+        } else if (type == 'msg_read') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          final conv = selConv;
+          final peerId = p['peerId'];
+          if (conv != null && conv['kind'] == 'friend' && conv['id'] == peerId) {
+            setState(() {
+              for (final m in messages) {
+                if (m['mine'] == true) m['read'] = true;
+              }
+            });
+          }
+          final last = _lastMsg['f$peerId'];
+          if (last != null && last['mine'] == true) last['read'] = true;
+          setState(() {});
+        } else if (type == 'group_msg_read') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          final conv = selConv;
+          final gid = p['groupId'];
+          final uid = p['userId'];
+          if (conv != null && conv['kind'] == 'group' && conv['id'] == gid && uid != myId) {
+            final users = _groupReadUsers.putIfAbsent('g$gid', () => <int>{});
+            if (users.add(uid as int)) {
+              setState(() {
+                for (final m in messages) {
+                  if (m['mine'] == true) {
+                    m['readCount'] = ((m['readCount'] as num?)?.toInt() ?? 1) + 1;
+                  }
+                }
+              });
+              final last = _lastMsg['g$gid'];
+              if (last != null && last['mine'] == true) last['read'] = true;
+            }
+          }
         } else if (type == 'group_msg') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
@@ -823,9 +919,13 @@ class _ChatViewStateState extends State<_ChatView> {
             return;
           }
           setState(() {
+            if (!mine) {
+              socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
+            }
             _appendMsg(voice != null
-                ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']}
-                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom']});
+                ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '鐜板湪', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
+                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '鐜板湪', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
+            _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true};
           });
         } else if (type == 'signal') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
@@ -892,7 +992,8 @@ class _ChatViewStateState extends State<_ChatView> {
         final vcmid = 'v${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(vcmid);
         socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id]', 'clientMsgId': vcmid}}));
-        setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'mine': true, 'time': '现在'}));
+        setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'mine': true, 'time': '现在', 'read': false}));
+        _lastMsg['f$to'] = {'text': '[语音消息]', 'mine': true, 'read': false};
         try {
           final transcript = await widget.api.transcribe(id);
           if (transcript.isNotEmpty) {
@@ -931,6 +1032,21 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   static String _convKey(Map<String, dynamic> conv) => '${conv['kind'] == 'group' ? 'g' : 'f'}${conv['id']}';
+
+  /// 会话列表副标题：优先显示最后一条消息摘要；自己发的消息附加「已读/未读」
+  String _convSubtitle(Map<String, dynamic> conv, dynamic theme) {
+    final last = _lastMsg[_convKey(conv)];
+    if (last == null) {
+      return conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线');
+    }
+    final txt = (last['text'] ?? '').toString();
+    final preview = txt.length > 14 ? '${txt.substring(0, 14)}…' : txt;
+    if (last['mine'] == true) {
+      final read = last['read'] == true ? '已读' : '未读';
+      return '$preview · $read';
+    }
+    return preview;
+  }
 
   Future<void> _ensureDeletedLoaded() async {
     if (_deletedLoaded) return;
@@ -1010,7 +1126,7 @@ class _ChatViewStateState extends State<_ChatView> {
                         Expanded(child: Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontWeight: FontWeight.w600, fontSize: 14))),
                       ]),
                       const SizedBox(height: 3),
-                      Text(conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线'), style: TextStyle(color: theme.subText, fontSize: 12)),
+                      Text(_convSubtitle(conv, theme), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.subText, fontSize: 12)),
                       if ((_unread[_convKey(conv)] ?? 0) > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 3),
@@ -1092,7 +1208,34 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
+  String _readLabel(Map<String, dynamic> msg) {
+    if (selConv != null && selConv!['kind'] == 'group') {
+      final rc = (msg['readCount'] as num?)?.toInt() ?? 0;
+      return rc > 1 ? '已读 $rc人' : '已读';
+    }
+    return msg['read'] == true ? '已读' : '未读';
+  }
+
+  Color _readLabelColor(Map<String, dynamic> msg, dynamic t) {
+    if (selConv != null && selConv!['kind'] == 'group') return t.subText;
+    return msg['read'] == true ? t.subText : const Color(0xfffa5151);
+  }
+
   Widget _bubble(Map<String, dynamic> msg) {
+    if (msg['divider'] == true) {
+      return Center(
+        key: _unreadDividerKey,
+        child: GestureDetector(
+          onTap: _scrollToBottom,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(color: widget.config.theme.div.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(10)),
+            child: Text('${msg['unreadCount']} 条未读消息', style: TextStyle(color: widget.config.theme.subText, fontSize: 11)),
+          ),
+        ),
+      );
+    }
     final mine = msg['mine'] as bool;
     final voiceId = msg['voiceId'] as String?;
     final t = widget.config.theme;
@@ -1143,7 +1286,13 @@ class _ChatViewStateState extends State<_ChatView> {
                 const SizedBox(height: 3),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 16),
-                  child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
+                    if (mine) ...[
+                      const SizedBox(width: 4),
+                      Text(_readLabel(msg), style: TextStyle(color: _readLabelColor(msg, t), fontSize: 10)),
+                    ],
+                  ]),
                 ),
               ]),
             ],
@@ -1497,14 +1646,16 @@ class _ChatViewStateState extends State<_ChatView> {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
       socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', text), 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
-      setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}));
+      setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1}));
+      _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true};
       return;
     }
     final to = conv['id'] as int;
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
-    setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg}); });
+    setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false}); });
+    _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false};
   }
 
   Future<void> _clearConversation() async {
