@@ -163,21 +163,21 @@
       ]
     }
   ],
-  "updatedAt": 1787135731461,
+  "updatedAt": 1787135854846,
   "downloads": {
-    "windows": "/downloads/SecureChat-1.63.1-windows.exe",
-    "macos": "/downloads/SecureChat-1.62.3-macos.dmg",
-    "android": "/downloads/SecureChat-1.62.3-android.apk",
+    "windows": "/downloads/SecureChat-1.63.6-windows.exe",
+    "macos": "/downloads/SecureChat-1.63.6-macos.dmg",
+    "android": "/downloads/SecureChat-1.63.6-android.apk",
     "harmony": "/downloads/SecureChat-1.54.0-harmony.hap",
-    "ios": "/downloads/SecureChat-1.62.3-ios.ipa",
-    "windowsPortable": "/downloads/SecureChat-1.63.1-windows.zip"
+    "ios": "/downloads/SecureChat-1.63.6-ios.ipa",
+    "windowsPortable": "/downloads/SecureChat-1.63.6-windows.zip"
   },
   "downloadVersions": {
-    "windows": "1.63.1",
-    "macos": "1.62.3",
-    "android": "1.62.3",
+    "windows": "1.63.6",
+    "macos": "1.63.6",
+    "android": "1.63.6",
     "harmony": "1.54.0",
-    "ios": "1.62.3",
-    "windowsPortable": "1.63.1"
+    "ios": "1.63.6",
+    "windowsPortable": "1.63.6"
   }
 }
