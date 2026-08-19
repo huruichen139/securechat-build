@@ -12,6 +12,7 @@ import 'package:record/record.dart';
 import 'package:pointycastle/export.dart' as pc;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
+import 'chat_features.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'services/securechat_api.dart';
@@ -1379,7 +1380,7 @@ class _ChatViewStateState extends State<_ChatView> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(isImage ? Icons.image_outlined : Icons.insert_drive_file_outlined, size: 28, color: isImage ? _wechatGreen : t.subText),
+        Icon(isImage ? Icons.image_search_outlined : Icons.insert_drive_file_outlined, size: 28, color: isImage ? _wechatGreen : t.subText),
         const SizedBox(width: 8),
         Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: mine ? const Color(0xff1a1a1a) : t.text)),
@@ -1473,7 +1474,9 @@ class _ChatViewStateState extends State<_ChatView> {
           decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
         )),
         const SizedBox(width: 8),
-        SizedBox(height: 42, child: FilledButton(
+        IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
+          IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
+          SizedBox(height: 42, child: FilledButton(
           onPressed: canSend ? () => _sendText() : null,
           style: FilledButton.styleFrom(backgroundColor: _wechatGreen, foregroundColor: Colors.white),
           child: const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('发送')),
@@ -1839,10 +1842,38 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
           ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('置顶消息'), onTap: () { Navigator.pop(sheetCtx); _pinMessage(msg); }),
-            ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
+            ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { Navigator.pop(sheetCtx); showTranslateDialog(sheetCtx, widget.api, msg['text'] ?? ''); }),
+          ListTile(leading: const Icon(Icons.mic), title: const Text('语音转文字'), onTap: () { Navigator.pop(sheetCtx); _showTranscribeDialog(sheetCtx, msg); }),
+          ListTile(leading: const Icon(Icons.image_search), title: const Text('提取文字'), onTap: () { Navigator.pop(sheetCtx); _showOCRDialog(sheetCtx, msg); }),
+          ListTile(leading: const Icon(Icons.remove), title: const Text('阅后即焚'), onTap: () { Navigator.pop(sheetCtx); _showBurnDialog(sheetCtx, msg); }),
+          ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
         ]),
       ),
     );
+  }
+
+  void _showQuickReplies() {
+    showQuickRepliesSheet(context, widget.api);
+  }
+
+  void _showScheduleDialog() {
+    final conv = selConv;
+    if (conv == null) return;
+    showScheduleDialog(context, widget.api, conv['id'] as int, conv['kind'] == 'group');
+  }
+
+  void _showTranscribeDialog(BuildContext ctx, Map<String, dynamic> msg) {
+    showTranscribeDialog(ctx, widget.api, msg);
+  }
+
+  void _showOCRDialog(BuildContext ctx, Map<String, dynamic> msg) {
+    showOCRDialog(ctx, widget.api, msg);
+  }
+
+  void _showBurnDialog(BuildContext ctx, Map<String, dynamic> msg) {
+    final conv = selConv;
+    if (conv == null) return;
+    showBurnDialog(ctx, msg, widget.api, conv['id'] as int, conv['kind'] == 'group');
   }
 
   void _onContextMenu(int v, BuildContext ctx) {
