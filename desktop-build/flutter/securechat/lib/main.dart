@@ -771,13 +771,20 @@ class _ChatViewStateState extends State<_ChatView> {
   /// lazy ListView.builder's maxScrollExtent is an estimate on the first frame,
   /// so jump repeatedly over frames until the real bottom is reached.
   void _scrollToLatest() {
-    for (var i = 0; i < 4; i++) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_msgScroll.hasClients) return;
-        final pos = _msgScroll.position;
-        if (pos.maxScrollExtent > pos.pixels) pos.jumpTo(pos.maxScrollExtent);
-      });
-    }
+    _snapToBottom();
+  }
+
+  /// Lazily-built ListView reports maxScrollExtent incrementally;
+  /// keep jumping one frame at a time until the real bottom is reached.
+  void _snapToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_msgScroll.hasClients) return;
+      final pos = _msgScroll.position;
+      if (pos.maxScrollExtent > pos.pixels) {
+        pos.jumpTo(pos.maxScrollExtent);
+        _snapToBottom();
+      }
+    });
   }
 
   /// 历史列表按服务端 id 去重（服务端重复行/多次拉取时兜底）
