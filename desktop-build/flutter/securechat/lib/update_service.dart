@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.63.6';
+const kAppVersion = '1.63.7';
 
 class UpdateService {
   UpdateService({required this.api});

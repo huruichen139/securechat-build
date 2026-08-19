@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.63.0';
+const PACKAGE_VERSION = '1.63.7';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -1682,6 +1682,12 @@ async function loadFriends() {
     // 通讯录页若正显示，同步刷新（避免打开时好友尚未加载导致列表为空）
     const cp = document.getElementById('contactsPage');
     if (cp && cp.classList.contains('active')) renderContactsPage();
+    // E2EE：为所有好友预热接收会话，确保收到消息时能立即解密
+    if (window.SCE2EE && state.friends.length > 0) {
+      state.friends.forEach(f => {
+        window.SCE2EE.primeReceiver(f.id).catch(e => console.warn('[E2EE] primeReceiver failed for', f.id, e));
+      });
+    }
   } catch (e) {}
 }
 
@@ -2568,6 +2574,10 @@ async function selectPeer(peerId) {
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.unread[peerId] = 0;
   loadCallReplays(peerId);
+  // E2EE：先初始化接收会话，确保后续消息能解密
+  if (window.SCE2EE) {
+    try { await window.SCE2EE.primeReceiver(peerId); } catch (e) { console.warn('[E2EE] primeReceiver failed', e); }
+  }
   const peer = state.friends.find(u => u.id === peerId);
   $('chatHeader').textContent = peer ? peer.nickname : '聊天';
   $('inviteBar').style.display = 'none';

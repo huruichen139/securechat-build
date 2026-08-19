@@ -153,6 +153,15 @@
       html = '<div class="search-empty">没有找到"' + esc(kw) + '"相关结果</div>';
     }
 
+    html += '<div class="search-bing">' +
+      '<div class="search-bing-title">百度搜索</div>' +
+      '<a class="search-bing-link" href="https://www.baidu.com/s?wd=' + encodeURIComponent(kw) + '" target="_blank" rel="noopener">' +
+      '在百度中搜索「' + esc(kw) + '」</a></div>' +
+      '<div class="search-bing">' +
+      '<div class="search-bing-title">Bing 搜索</div>' +
+      '<a class="search-bing-link" href="https://www.bing.com/search?q=' + encodeURIComponent(kw) + '" target="_blank" rel="noopener">' +
+      '在 Bing 中搜索「' + esc(kw) + '」</a></div>';
+
     el.innerHTML = html;
 
     el.querySelectorAll('.search-item').forEach(function (item) {
