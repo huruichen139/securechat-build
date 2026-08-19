@@ -1,7 +1,10 @@
 // module: gateway pay —— 本地客户端直接扣款确认页：
 // 扫码（securechat://gateway/pay?order=xxx）或收银台深链进入，
 // 展示订单，检查/创建对该商户的授权（mode=local），用户明确确认后扣款。
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
@@ -29,13 +32,33 @@ class _GatewayPayPageState extends State<GatewayPayPage> {
   void initState() {
     super.initState();
     _authAmt.text = '';
+    _pinToFront();
     _load();
+  }
+
+  /// 本地扣款确认场景：把窗口置顶并带到前台，避免被商户应用遮挡。
+  Future<void> _pinToFront() async {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      try {
+        await windowManager.setAlwaysOnTop(true);
+        await windowManager.focus();
+      } catch (_) {}
+    }
   }
 
   @override
   void dispose() {
+    _unpinWindow();
     _authAmt.dispose();
     super.dispose();
+  }
+
+  Future<void> _unpinWindow() async {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      try {
+        await windowManager.setAlwaysOnTop(false);
+      } catch (_) {}
+    }
   }
 
   Future<void> _load() async {
@@ -116,19 +139,9 @@ class _GatewayPayPageState extends State<GatewayPayPage> {
     if (ok != true || !mounted) return;
     setState(() { _busy = true; _status = null; });
     try {
-      final r = await widget.api.gatewayConfirm(widget.orderNo, amount);
+      await widget.api.gatewayConfirm(widget.orderNo, amount);
       if (!mounted) return;
-      setState(() { _busy = false; });
-      await showDialog<void>(
-        context: context,
-        builder: (c) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Color(0xFF07C160), size: 48),
-          title: const Text('支付成功'),
-          content: Text('钱包余额：¥${((r['balance'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}'),
-          actions: [FilledButton(onPressed: () => Navigator.pop(c), child: const Text('完成'))],
-        ),
-      );
-      if (mounted) Navigator.pop(context);
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) setState(() { _busy = false; _status = '支付失败：${e.toString().replaceFirst('Bad state: ', '')}'; });
     }
