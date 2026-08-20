@@ -1,7 +1,15 @@
 {
-  "current": "1.63.7",
-  "latest": "1.63.7",
+  "current": "1.63.8",
+  "latest": "1.63.8",
   "releaseNotes": [
+    {
+      "version": "1.63.8",
+      "date": "2026-08-20",
+      "notes": [
+        "修复 Web 端 E2EE 与客户端互通：客户端发往网页端的消息不再乱码（双棘轮 DH-step 密钥对对齐）",
+        "客户端更新提示只显示本次更新的内容，不再堆叠历史版本"
+      ]
+    },
     {
       "version": "1.63.7",
       "date": "2026-08-19",
@@ -179,19 +187,19 @@
   ],
   "updatedAt": 1787143268223,
   "downloads": {
-    "windows": "/downloads/SecureChat-1.63.7-windows.exe",
-    "macos": "/downloads/SecureChat-1.63.7-macos.dmg",
-    "android": "/downloads/SecureChat-1.63.7-android.apk",
+    "windows": "/downloads/SecureChat-1.63.8-windows.exe",
+    "macos": "/downloads/SecureChat-1.63.8-macos.dmg",
+    "android": "/downloads/SecureChat-1.63.8-android.apk",
     "harmony": "/downloads/SecureChat-1.54.0-harmony.hap",
-    "ios": "/downloads/SecureChat-1.63.7-ios.ipa",
-    "windowsPortable": "/downloads/SecureChat-1.63.7-windows.zip"
+    "ios": "/downloads/SecureChat-1.63.8-ios.ipa",
+    "windowsPortable": "/downloads/SecureChat-1.63.8-windows.zip"
   },
   "downloadVersions": {
-    "windows": "1.63.7",
-    "macos": "1.63.7",
-    "android": "1.63.7",
+    "windows": "1.63.8",
+    "macos": "1.63.8",
+    "android": "1.63.8",
     "harmony": "1.54.0",
-    "ios": "1.63.7",
-    "windowsPortable": "1.63.7"
+    "ios": "1.63.8",
+    "windowsPortable": "1.63.8"
   }
 }

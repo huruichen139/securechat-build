@@ -237,13 +237,16 @@
   // ============================================================
   async function encryptMessage(state, plain) {
     if (!state.dhR) throw new Error('RatchetState.dhRemote 为空');
-    // DH-step：用身份私钥与远端身份公钥做 ECDH（与 initAsSender 保持一致）
+    // DH-step：生成新的 DH 密钥对与远端身份公钥做 ECDH（与 Flutter encryptMessage 对齐）
     if (!state.ckS) {
       state.pn = state.nS;
-      const dhOut = await ecdhShare(state.dhS_priv, arrB64(state.dhR));
+      const dh = await genEcKeyPair();
+      const dhOut = await ecdhShare(dh.privJwk, arrB64(state.dhR));
       const parts = await kdfRk(state.rk, dhOut);
       state.rk = parts[0];
       state.ckS = parts[1];
+      state.dhS_priv = dh.privJwk;
+      state.dhS_pub = dh.pubSpki;
       state.nS = 0; state.nR = 0;
     }
     const ck = await kdfChain(state.ckS);
@@ -340,13 +343,16 @@
           saveSession(k, s);
           return plain;
         } catch (e) {
-          // 已有会话解密失败：很可能是旧/坏会话或密钥被更换，丢弃后重建一次
+          console.warn('[E2EE] 复用会话解密失败, 重建: peer=' + k, e && e.message);
+          // 丢弃坏会话，强制重建并重新获取对方公钥
+          clearSession(k);
         }
       }
       try {
         s = await x3dhInitReceiver(k);
         if (!s) return b64;
       } catch (e) {
+        console.warn('[E2EE] x3dhInitReceiver 失败: peer=' + k, e && e.message);
         return b64;
       }
       try {
@@ -354,6 +360,7 @@
         saveSession(k, s);
         return plain;
       } catch (e) {
+        console.warn('[E2EE] 重建会话解密仍失败: peer=' + k, e && e.message);
         return b64;
       }
     },
@@ -363,8 +370,10 @@
       if (!loadSession(k)) { await x3dhInitReceiver(k); }
     },
     clearSession: function (peerId) {
-      localStorage.removeItem(sessionKey(String(peerId)));
-      localStorage.removeItem(skKey(String(peerId)));
+      const k = String(peerId);
+      localStorage.removeItem(sessionKey(k));
+      localStorage.removeItem(skKey(k));
+      pubCache.delete(k);
     },
     isRatchetCipher
   };
