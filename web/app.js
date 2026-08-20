@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.63.8';
+const PACKAGE_VERSION = '1.63.9';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -1558,12 +1558,8 @@ function handleServer(data) {
       renderContacts();
       break;
 case P.S_MSG:
-      // 解密完成后再渲染，否则实时消息会先显示密文且不会自动刷新。
-      // 解密加 3s 超时：网络挂起时不能卡死消息渲染；整条链兜底避免 Unhandled Rejection。
-      Promise.race([
-        maybeDecryptLive(payload),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('decrypt timeout')), 3000))
-      ]).catch(() => {})
+      // 同一 peer 的棘轮操作在 e2ee.js 内串行；不可用 Promise.race，否则超时任务仍会后台覆盖状态。
+      maybeDecryptLive(payload).catch(() => {})
         .then(() => onIncomingMsg(payload))
         .catch((e) => console.warn('msg render failed', e));
       break;
@@ -2591,8 +2587,11 @@ async function selectPeer(peerId) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const msgs = data.messages || [];
-    // 历史消息逐条尝试 E2EE 解密（若为 0x02 密文且会话可建立）
-    for (const m of msgs) { try { await maybeDecryptLive(m); } catch (e) {} }
+    // 历史密文不能用当前实时棘轮回放，否则会回滚会话状态；旧密文只显示安全占位。
+    for (const m of msgs) {
+      if (window.SCE2EE && SCE2EE.isRatchetCipher(m.content)) m.content = '[加密消息，历史内容不可在此会话恢复]';
+    }
+    if (state.activePeer !== peerId) return;
     renderMessages(msgs);
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';

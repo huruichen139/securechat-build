@@ -697,7 +697,9 @@ class _ChatViewStateState extends State<_ChatView> {
         final msgs = <Map<String, dynamic>>[];
         for (final m in ghis) {
           final content = (m['content'] ?? '').toString();
-          final text = await e2eeDecrypt('$gid', content);
+          final text = looksLikeRatchetCipher(content)
+              ? '[加密消息，历史内容不可在此会话恢复]'
+              : await e2eeDecrypt('$gid', content);
           final from = m['from'];
           final mine = from == myId;
           final sender = (m['fromUser'] is Map) ? (((m['fromUser'] as Map)['nickname'] ?? (m['fromUser'] as Map)['username']) ?? '').toString() : null;
@@ -726,7 +728,9 @@ class _ChatViewStateState extends State<_ChatView> {
       final msgs = <Map<String, dynamic>>[];
       for (final m in history) {
         final content = (m['content'] ?? '').toString();
-        final text = await e2eeDecrypt('$peerId', content);
+        final text = looksLikeRatchetCipher(content)
+            ? '[加密消息，历史内容不可在此会话恢复]'
+            : await e2eeDecrypt('$peerId', content);
         final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
         final read = m['read'] == true;
@@ -814,13 +818,16 @@ class _ChatViewStateState extends State<_ChatView> {
     return '$hh:$mm';
   }
 
-  void _connect() {
+  Future<void> _connect() async {
     try {
-      socket = widget.api.connect();
       myId = widget.api.myId;
       x3dhApi = widget.api;
       _ensureDeletedLoaded();
-      uploadMyPrekeys(widget.api);
+      if (myId != null) {
+        await ensureE2eeProtocolState(myId!);
+        uploadMyPrekeys(widget.api);
+      }
+      socket = widget.api.connect();
       socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
@@ -845,7 +852,9 @@ class _ChatViewStateState extends State<_ChatView> {
           final to = p['to'];
           final talkingToPeer = conv != null && conv['kind'] == 'friend' && (from == conv['id'] || to == conv['id']);
           final content = (p['content'] ?? '').toString();
-          final text = await e2eeDecrypt('$from', content);
+          final text = from == myId
+              ? (looksLikeRatchetCipher(content) ? '[已发送加密消息]' : content)
+              : await e2eeDecrypt('$from', content);
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
           if (conv != null && !talkingToPeer) {
             final key = 'f${from == myId ? to : from}';
@@ -918,7 +927,9 @@ class _ChatViewStateState extends State<_ChatView> {
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
-          final text = await e2eeDecrypt('$gid', content);
+          final text = looksLikeRatchetCipher(content)
+              ? '[加密消息]'
+              : await e2eeDecrypt('$gid', content);
           final from = p['from'];
           final fromUser = p['fromUser'];
           final sender = (fromUser is Map) ? (((fromUser)['nickname'] ?? fromUser['username']) ?? '').toString() : null;
@@ -1507,7 +1518,7 @@ class _ChatViewStateState extends State<_ChatView> {
       if (conv['kind'] == 'group') {
         final gcmid = 'ga${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(gcmid);
-        socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': gcmid}}));
+        socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid}}));
         if (mounted) setState(() => messages.add({'cmid': gcmid, 'text': content, 'mine': true, 'time': '现在'}));
       } else {
         final cmid = 'fa${DateTime.now().microsecondsSinceEpoch}';
@@ -1691,7 +1702,7 @@ class _ChatViewStateState extends State<_ChatView> {
     if (conv['kind'] == 'group') {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', text), 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text, 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
       setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1}));
       _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true};
       return;
@@ -1824,7 +1835,7 @@ class _ChatViewStateState extends State<_ChatView> {
     if (conv['kind'] == 'group') {
       final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
     } else {
       final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(cmid);

@@ -15,6 +15,8 @@
   const STORE_PUB = 'sc_e2ee_pub';     // 身份公钥 SPKI base64
   const SESSION_PREFIX = 'sc_ratchet_'; // 每 peer 会话状态
   const SK_PREFIX = 'sc_ratchet_sk_';   // 每 peer E2E sk (hex)
+  const PROTOCOL_STAMP = 'sc_ratchet_protocol_stamp';
+  const PROTOCOL_VERSION = '3';
 
   // ---------- base64 / buffer 工具 ----------
   function bufToB64(buf) {
@@ -156,6 +158,17 @@
       nS: s.nS, nR: s.nR, pn: s.pn
     }));
   }
+  function cloneSession(s) {
+    return {
+      rk: s.rk.slice(),
+      dhS_priv: s.dhS_priv ? JSON.parse(JSON.stringify(s.dhS_priv)) : null,
+      dhS_pub: s.dhS_pub,
+      dhR: s.dhR ? s.dhR.slice() : null,
+      ckS: s.ckS ? s.ckS.slice() : null,
+      ckR: s.ckR ? s.ckR.slice() : null,
+      nS: s.nS, nR: s.nR, pn: s.pn
+    };
+  }
   function loadSk(peerId) {
     const h = localStorage.getItem(skKey(peerId));
     if (!h || h.length !== 64) return null;
@@ -164,6 +177,36 @@
     return out;
   }
   function saveSk(peerId, sk) { localStorage.setItem(skKey(peerId), hex(sk)); }
+
+  function clearPeerSession(peerId) {
+    const k = String(peerId);
+    localStorage.removeItem(sessionKey(k));
+    localStorage.removeItem(skKey(k));
+    pubCache.delete(k);
+  }
+
+  function resetLegacySessions() {
+    const userId = state.me && state.me.id != null ? String(state.me.id) : '';
+    const stamp = PROTOCOL_VERSION + ':' + userId;
+    if (localStorage.getItem(PROTOCOL_STAMP) === stamp) return;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i) || '';
+      if (key.startsWith(SESSION_PREFIX) || key.startsWith(SK_PREFIX)) localStorage.removeItem(key);
+    }
+    pubCache.clear();
+    localStorage.setItem(PROTOCOL_STAMP, stamp);
+  }
+
+  const peerQueues = new Map();
+  function withPeerQueue(peerId, task) {
+    const k = String(peerId);
+    const previous = peerQueues.get(k) || Promise.resolve();
+    const current = previous.catch(() => {}).then(task);
+    peerQueues.set(k, current);
+    return current.finally(() => {
+      if (peerQueues.get(k) === current) peerQueues.delete(k);
+    });
+  }
 
   // 服务器身份公钥缓存：peerId -> SPKI base64
   let pubCache = new Map();
@@ -285,6 +328,8 @@
       state.ckS = null; // 下次我方发送会触发新的 DH-step
     }
     if (!state.ckR) throw new Error('接收链未初始化');
+    if (n < state.nR) throw new Error('消息已处理或序号过旧');
+    if (n - state.nR > 1000) throw new Error('消息序号跳跃过大');
     while (state.nR < n) {
       const k = await kdfChain(state.ckR);
       state.ckR = k[0];
@@ -302,6 +347,7 @@
   window.SCE2EE = {
     // 保证当前账号有身份密钥对，并上传到服务器（幂等）。
     ensureKeyPair: async function () {
+      resetLegacySessions();
       const id = await getOrCreateIdentity();
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -322,58 +368,71 @@
     // 先建立/复用会话，再加密。会话建立失败返回 null（调用方回退明文，与 Flutter e2eeEncrypt 一致）。
     async encryptFor(peerId, plain) {
       const k = String(peerId);
-      let s = loadSession(k);
-      if (!s) {
-        s = await x3dhInitSender(k);
-        if (!s) return null;
-      }
-      const ct = await encryptMessage(s, plain);
-      saveSession(k, s);
-      return ct;
+      return withPeerQueue(k, async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          let s = loadSession(k);
+          if (!s) {
+            s = await x3dhInitSender(k);
+            if (!s) return null;
+          }
+          try {
+            const ct = await encryptMessage(s, plain);
+            saveSession(k, s);
+            return ct;
+          } catch (e) {
+            console.warn('[E2EE] 加密失败, 重建会话重试: peer=' + k, e && e.message);
+            clearPeerSession(k);
+          }
+        }
+        return null;
+      });
     },
     // 若是 0x02 密文则解密；否则（明文/媒体占位）原样返回。
     async decryptFrom(peerId, b64) {
       if (!isRatchetCipher(b64)) return b64;
       const k = String(peerId);
-      // 优先复用已有会话
-      let s = loadSession(k);
-      if (s) {
+      return withPeerQueue(k, async () => {
+        let s = loadSession(k);
+        if (s) {
+          try {
+            const candidate = cloneSession(s);
+            const plain = await decryptMessage(candidate, b64ToArr(b64));
+            saveSession(k, candidate);
+            return plain;
+          } catch (e) {
+            // 重复、乱序、认证失败等坏包不能摧毁现有有效会话。
+            console.warn('[E2EE] 消息解密失败, 保留当前会话: peer=' + k, e && e.message);
+            return b64;
+          }
+        }
         try {
-          const plain = await decryptMessage(s, b64ToArr(b64));
-          saveSession(k, s);
+          s = await x3dhInitReceiver(k);
+          if (!s) return b64;
+        } catch (e) {
+          console.warn('[E2EE] x3dhInitReceiver 失败: peer=' + k, e && e.message);
+          return b64;
+        }
+        try {
+          const candidate = cloneSession(s);
+          const plain = await decryptMessage(candidate, b64ToArr(b64));
+          saveSession(k, candidate);
           return plain;
         } catch (e) {
-          console.warn('[E2EE] 复用会话解密失败, 重建: peer=' + k, e && e.message);
-          // 丢弃坏会话，强制重建并重新获取对方公钥
-          clearSession(k);
+          console.warn('[E2EE] 首条消息解密失败: peer=' + k, e && e.message);
+          clearPeerSession(k);
+          return b64;
         }
-      }
-      try {
-        s = await x3dhInitReceiver(k);
-        if (!s) return b64;
-      } catch (e) {
-        console.warn('[E2EE] x3dhInitReceiver 失败: peer=' + k, e && e.message);
-        return b64;
-      }
-      try {
-        const plain = await decryptMessage(s, b64ToArr(b64));
-        saveSession(k, s);
-        return plain;
-      } catch (e) {
-        console.warn('[E2EE] 重建会话解密仍失败: peer=' + k, e && e.message);
-        return b64;
-      }
+      });
     },
     // 显式初始化接收会话（在渲染前先建会话，避免乱序）。
     async primeReceiver(peerId) {
       const k = String(peerId);
-      if (!loadSession(k)) { await x3dhInitReceiver(k); }
+      return withPeerQueue(k, async () => {
+        if (!loadSession(k)) await x3dhInitReceiver(k);
+      });
     },
     clearSession: function (peerId) {
-      const k = String(peerId);
-      localStorage.removeItem(sessionKey(k));
-      localStorage.removeItem(skKey(k));
-      pubCache.delete(k);
+      clearPeerSession(peerId);
     },
     isRatchetCipher
   };

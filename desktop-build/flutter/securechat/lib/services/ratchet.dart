@@ -56,14 +56,32 @@ class _GcmOut {
   _GcmOut(this.iv, this.ctWithTag);
 }
 
-_GcmOut _aesGcmEncrypt(Uint8List key, Uint8List plain, Uint8List iv, [Uint8List? aad]) {
-  final cipher = GCMBlockCipher(AESEngine())..init(true, AEADParameters(KeyParameter(key), 128, iv, aad ?? Uint8List(0)));
+_GcmOut _aesGcmEncrypt(
+  Uint8List key,
+  Uint8List plain,
+  Uint8List iv, [
+  Uint8List? aad,
+]) {
+  final cipher = GCMBlockCipher(AESEngine())
+    ..init(
+      true,
+      AEADParameters(KeyParameter(key), 128, iv, aad ?? Uint8List(0)),
+    );
   final out = cipher.process(plain); // 返回已含 16 字节 tag
   return _GcmOut(iv, out);
 }
 
-Uint8List _aesGcmDecrypt(Uint8List key, Uint8List iv, Uint8List ctWithTag, [Uint8List? aad]) {
-  final cipher = GCMBlockCipher(AESEngine())..init(false, AEADParameters(KeyParameter(key), 128, iv, aad ?? Uint8List(0)));
+Uint8List _aesGcmDecrypt(
+  Uint8List key,
+  Uint8List iv,
+  Uint8List ctWithTag, [
+  Uint8List? aad,
+]) {
+  final cipher = GCMBlockCipher(AESEngine())
+    ..init(
+      false,
+      AEADParameters(KeyParameter(key), 128, iv, aad ?? Uint8List(0)),
+    );
   return cipher.process(ctWithTag);
 }
 
@@ -90,8 +108,32 @@ EcKeyPair genEcKeyPair() {
 // SPKI 头（固定的 prime256v1 OID + uncompressed point）
 // 0x30 0x59 0x30 0x13 06 07 2A 86 48 CE 3D 02 01 06 08 2A 86 48 CE 3D 03 01 07 03 42 00 [65 bytes point]
 final _spkiHead = Uint8List.fromList([
-  0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-  0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00,
+  0x30,
+  0x59,
+  0x30,
+  0x13,
+  0x06,
+  0x07,
+  0x2a,
+  0x86,
+  0x48,
+  0xce,
+  0x3d,
+  0x02,
+  0x01,
+  0x06,
+  0x08,
+  0x2a,
+  0x86,
+  0x48,
+  0xce,
+  0x3d,
+  0x03,
+  0x01,
+  0x07,
+  0x03,
+  0x42,
+  0x00,
 ]);
 
 Uint8List _pubToSpki(ECPublicKey pub) {
@@ -148,7 +190,9 @@ class RatchetState {
 
   Map<String, dynamic> toJson() => {
     'rk': _b64(rootKey),
-    'dhS_priv_d': dhSelf == null ? null : (dhSelf!.priv.d as BigInt).toRadixString(16).padLeft(64, '0'),
+    'dhS_priv_d': dhSelf == null
+        ? null
+        : (dhSelf!.priv.d as BigInt).toRadixString(16).padLeft(64, '0'),
     'dhS_pub': dhSelf == null ? null : _b64(_pubToSpki(dhSelf!.pub)),
     'dhR': dhRemote == null ? null : _b64(_pubToSpki(dhRemote!)),
     'ckS': sendChainKey == null ? null : _b64(sendChainKey!),
@@ -180,7 +224,10 @@ class RatchetState {
 // HKDF 派生 DH 棘轮一步：rootKey + dhOut → (newRoot, chainKey)
 List<Uint8List> _kdfRk(Uint8List rootKey, Uint8List dhOut) {
   final out = _hkdf(dhOut, rootKey, Uint8List.fromList([0x01]), 64);
-  return [Uint8List.sublistView(out, 0, 32), Uint8List.sublistView(out, 32, 64)];
+  return [
+    Uint8List.sublistView(out, 0, 32),
+    Uint8List.sublistView(out, 32, 64),
+  ];
 }
 
 // 对称棘轮：chainKey → (newChainKey, messageKey)
@@ -208,7 +255,11 @@ RatchetState initAsSender(Uint8List sk, ECPublicKey remoteIdentityPub) {
 }
 
 // identity-only 发送者初始化：使用身份密钥对作为 dhSelf，与 web 端对齐。
-RatchetState initAsSenderIdentity(Uint8List sk, EcKeyPair identity, ECPublicKey remoteIdentityPub) {
+RatchetState initAsSenderIdentity(
+  Uint8List sk,
+  EcKeyPair identity,
+  ECPublicKey remoteIdentityPub,
+) {
   final dhOut = _ecdh(identity.priv, remoteIdentityPub);
   final parts = _kdfRk(sk, dhOut);
   return RatchetState(parts[0])
@@ -259,8 +310,14 @@ String encryptMessage(RatchetState state, String plain) {
   return _b64(pkt.toBytes());
 }
 
-Uint8List _uint32BE(int v) => Uint8List.fromList([(v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]);
-int _readUint32BE(Uint8List b, int off) => (b[off] << 24) | (b[off + 1] << 16) | (b[off + 2] << 8) | b[off + 3];
+Uint8List _uint32BE(int v) => Uint8List.fromList([
+  (v >> 24) & 0xff,
+  (v >> 16) & 0xff,
+  (v >> 8) & 0xff,
+  v & 0xff,
+]);
+int _readUint32BE(Uint8List b, int off) =>
+    (b[off] << 24) | (b[off + 1] << 16) | (b[off + 2] << 8) | b[off + 3];
 
 // ============================================================
 // 解密 ← 密文封包
@@ -277,7 +334,9 @@ String decryptMessage(RatchetState state, String b64) {
   final ctWithTag = Uint8List.sublistView(pkt, 112);
   final dhPub = _spkiToPub(dhPubSpki);
   // DH-step 判断
-  final sameRemote = state.dhRemote != null && _bytesEqual(_pubToSpki(dhPub), _pubToSpki(state.dhRemote!));
+  final sameRemote =
+      state.dhRemote != null &&
+      _bytesEqual(_pubToSpki(dhPub), _pubToSpki(state.dhRemote!));
   if (!sameRemote) {
     // 简化：不维护 skipped-key；假设消息严格按序到达
     // 用当前 dhSelf 的私钥跟新的 dhPub 做 ECDH（接收方首次 dhSelf = 身份密钥对）
@@ -293,6 +352,8 @@ String decryptMessage(RatchetState state, String b64) {
     state.sendChainKey = null; // 下次我发送时会用新 dh 做 DH-step
   }
   if (state.recvChainKey == null) throw StateError('接收链未初始化');
+  if (n < state.recvN) throw StateError('消息已处理或序号过旧');
+  if (n - state.recvN > 1000) throw StateError('消息序号跳跃过大');
   while (state.recvN < n) {
     final k = _kdfChain(state.recvChainKey!);
     state.recvChainKey = k[0];

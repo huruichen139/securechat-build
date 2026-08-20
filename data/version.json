@@ -1,7 +1,15 @@
 {
-  "current": "1.63.8",
-  "latest": "1.63.8",
+  "current": "1.63.9",
+  "latest": "1.63.9",
   "releaseNotes": [
+    {
+      "version": "1.63.9",
+      "date": "2026-08-20",
+      "notes": [
+        "彻底修复 Web 端与客户端 E2EE 互通乱码：会话失步时自动重置并重新协商，客户端与网页端双向加解密恢复正常",
+        "客户端加密/解密失败时自动清除坏会话并重试（自愈）"
+      ]
+    },
     {
       "version": "1.63.8",
       "date": "2026-08-20",
@@ -187,19 +195,19 @@
   ],
   "updatedAt": 1787143268223,
   "downloads": {
-    "windows": "/downloads/SecureChat-1.63.8-windows.exe",
-    "macos": "/downloads/SecureChat-1.63.8-macos.dmg",
-    "android": "/downloads/SecureChat-1.63.8-android.apk",
+    "windows": "/downloads/SecureChat-1.63.9-windows.exe",
+    "macos": "/downloads/SecureChat-1.63.9-macos.dmg",
+    "android": "/downloads/SecureChat-1.63.9-android.apk",
     "harmony": "/downloads/SecureChat-1.54.0-harmony.hap",
-    "ios": "/downloads/SecureChat-1.63.8-ios.ipa",
-    "windowsPortable": "/downloads/SecureChat-1.63.8-windows.zip"
+    "ios": "/downloads/SecureChat-1.63.9-ios.ipa",
+    "windowsPortable": "/downloads/SecureChat-1.63.9-windows.zip"
   },
   "downloadVersions": {
-    "windows": "1.63.8",
-    "macos": "1.63.8",
-    "android": "1.63.8",
+    "windows": "1.63.9",
+    "macos": "1.63.9",
+    "android": "1.63.9",
     "harmony": "1.54.0",
-    "ios": "1.63.8",
-    "windowsPortable": "1.63.8"
+    "ios": "1.63.9",
+    "windowsPortable": "1.63.9"
   }
 }

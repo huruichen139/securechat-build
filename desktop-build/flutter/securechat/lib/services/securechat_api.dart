@@ -393,6 +393,10 @@ class SecureChatApi {
   Future<void> poke(int to) => _json('POST', '/api/poke', body: {'to': to});
 
   // ============ X3DH 预钥 ============
+  /// 上传我方身份公钥 (identity pubkey)，覆盖服务器 users.pubkey
+  Future<Map<String, dynamic>> updatePubkey(String pubKey) =>
+      _json('POST', '/api/keys', body: {'pubkey': pubKey});
+
   /// 上传签名预钥 (signed prekey)
   Future<Map<String, dynamic>> uploadSignedPreKey(String keyId, String pubKey, String signature) =>
       _json('POST', '/api/keys/signed-prekey', body: {'keyId': keyId, 'pubKey': pubKey, 'signature': signature});
