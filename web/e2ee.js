@@ -16,7 +16,7 @@
   const SESSION_PREFIX = 'sc_ratchet_'; // 每 peer 会话状态
   const SK_PREFIX = 'sc_ratchet_sk_';   // 每 peer E2E sk (hex)
   const PROTOCOL_STAMP = 'sc_ratchet_protocol_stamp';
-  const PROTOCOL_VERSION = '3';
+  const PROTOCOL_VERSION = '4';
 
   // ---------- base64 / buffer 工具 ----------
   function bufToB64(buf) {
@@ -52,13 +52,34 @@
     return true;
   }
 
-  // ---------- HKDF-SHA256 (WebCrypto deriveBits) ----------
-  // pointycastle 的 HKDF：salt == null 时内部用 32 字节全 0；传入短盐（如 x3dh 的 [0x00]）按原样使用。
+  // ---------- HKDF-SHA256（对齐 pointycastle 的 HKDFKeyDerivator）----------
+  // pointycastle 的 HKDFKeyDerivator.deriveKey(ikm) 会把 ikm 追加到 info（expand 阶段用 info||ikm），
+  // 与标准 RFC5869（WebCrypto）不同。Web 端必须复刻 pointycastle 行为，否则与 Flutter 端密钥不一致。
+  //   extract: PRK = HMAC-SHA256(salt, ikm)；salt 为空/null 时用 32 字节全 0。
+  //   expand : T(i) = HMAC-SHA256(PRK, T(i-1) || info || ikm || i)
   async function hkdf(ikm, salt, info, len) {
-    const key = await crypto.subtle.importKey('raw', ikm, { name: 'HKDF' }, false, ['deriveBits']);
-    const bits = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt, info }, key, len * 8);
-    return new Uint8Array(bits);
+    const ikmU = ikm instanceof Uint8Array ? ikm : new Uint8Array(ikm);
+    const saltU = (salt instanceof Uint8Array && salt.length > 0) ? salt : new Uint8Array(32);
+    const infoU = info instanceof Uint8Array ? info : new Uint8Array(info || []);
+    // extract
+    const skKey = await crypto.subtle.importKey('raw', saltU, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const prk = new Uint8Array(await crypto.subtle.sign('HMAC', skKey, ikmU));
+    // expand（pointycastle 风格：info || ikm）
+    const expandInfo = concatA(infoU, ikmU);
+    const ek = await crypto.subtle.importKey('raw', prk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const out = [];
+    let t = new Uint8Array(0);
+    let n = 0;
+    let total = 0;
+    while (total < len) {
+      n++;
+      const data = concatA(t, expandInfo, Uint8Array.from([n]));
+      t = new Uint8Array(await crypto.subtle.sign('HMAC', ek, data));
+      out.push(t);
+      total += t.length;
+    }
+    const res = concatA(...out);
+    return res.slice(0, len);
   }
   // _kdfRk: (newRK 32B, CK 32B)
   async function kdfRk(rootKey, dhOut) {
@@ -217,14 +238,15 @@
     try {
       const res = await fetch(state.serverHost + '/api/keys/bundle/' + encodeURIComponent(k),
         { headers: { 'Authorization': 'Bearer ' + state.token } });
-      if (!res.ok) return null;
+      if (!res.ok) { console.warn('[E2EE] getPeerIdentityPub bundle HTTP ' + res.status + ' for peer=' + k + ' serverHost=' + state.serverHost + ' hasToken=' + !!state.token); return null; }
       const b = await res.json();
       const idKey = b.identityKey;
-      if (typeof idKey === 'string' && idKey.length > 0) return idKey;
+      if (typeof idKey === 'string' && idKey.length > 0) { console.log('[E2EE] getPeerIdentityPub(' + k + ') identityKey len=' + idKey.length); return idKey; }
       const spk = b.signedPreKey;
       if (spk && typeof spk.pubKey === 'string' && spk.pubKey.length > 0) return spk.pubKey;
+      console.warn('[E2EE] getPeerIdentityPub(' + k + ') no identityKey, response=' + JSON.stringify(b));
       return null;
-    } catch { return null; }
+    } catch (e) { console.warn('[E2EE] getPeerIdentityPub(' + k + ') fetch error: ' + (e && e.message)); return null; }
   }
 
   // ============================================================
@@ -256,6 +278,7 @@
     const peerPub = await getPeerIdentityPub(peerId);
     if (!peerPub) return null;
     const identity = await getOrCreateIdentity();
+    console.log('[E2EE] x3dhInitSender(' + peerId + ') myPubPrefix=' + identity.pubB64.slice(0, 20) + ' peerPubPrefix=' + peerPub.slice(0, 20));
     const dhOut = await ecdhShare(identity.privJwk, peerPub);
     const sk = await x3dhKdf(dhOut);
     saveSk(peerId, sk);
@@ -373,11 +396,12 @@
           let s = loadSession(k);
           if (!s) {
             s = await x3dhInitSender(k);
-            if (!s) return null;
+            if (!s) { console.warn('[E2EE] encryptFor(' + k + ') x3dhInitSender 返回 null，降级明文'); return null; }
           }
           try {
             const ct = await encryptMessage(s, plain);
             saveSession(k, s);
+            console.log('[E2EE] encryptFor(' + k + ') OK ctLen=' + ct.length);
             return ct;
           } catch (e) {
             console.warn('[E2EE] 加密失败, 重建会话重试: peer=' + k, e && e.message);
@@ -393,21 +417,24 @@
       const k = String(peerId);
       return withPeerQueue(k, async () => {
         let s = loadSession(k);
+        const hadSession = !!s;
         if (s) {
           try {
             const candidate = cloneSession(s);
             const plain = await decryptMessage(candidate, b64ToArr(b64));
             saveSession(k, candidate);
+            console.log('[E2EE] decryptFrom(' + k + ') OK plain=' + plain.slice(0, 20));
             return plain;
           } catch (e) {
-            // 重复、乱序、认证失败等坏包不能摧毁现有有效会话。
-            console.warn('[E2EE] 消息解密失败, 保留当前会话: peer=' + k, e && e.message);
+            // 坏包不能清除已验证的会话；仅移除首条消息建立但认证失败的新会话（与客户端一致）。
+            console.warn('[E2EE] 消息解密失败: peer=' + k, e && e.message);
+            if (!hadSession) clearPeerSession(k);
             return b64;
           }
         }
         try {
           s = await x3dhInitReceiver(k);
-          if (!s) return b64;
+          if (!s) { console.warn('[E2EE] decryptFrom(' + k + ') x3dhInitReceiver 返回 null'); return b64; }
         } catch (e) {
           console.warn('[E2EE] x3dhInitReceiver 失败: peer=' + k, e && e.message);
           return b64;
@@ -416,6 +443,7 @@
           const candidate = cloneSession(s);
           const plain = await decryptMessage(candidate, b64ToArr(b64));
           saveSession(k, candidate);
+          console.log('[E2EE] decryptFrom(' + k + ') OK(新会话) plain=' + plain.slice(0, 20));
           return plain;
         } catch (e) {
           console.warn('[E2EE] 首条消息解密失败: peer=' + k, e && e.message);

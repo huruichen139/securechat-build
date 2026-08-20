@@ -76,6 +76,35 @@ function activeConversationKey() {
   if (state.activePeer) return 'u:' + state.activePeer;
   return '';
 }
+function peerIdFromConvKey(key) {
+  if (typeof key === 'string' && key.startsWith('u:')) { const n = Number(key.slice(2)); return Number.isInteger(n) ? n : null; }
+  return null;
+}
+async function syncChatSetting(peerId, field, value) {
+  if (!peerId || !state.token) return;
+  try {
+    await fetch(state.serverHost + '/api/chats/' + peerId + '/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify({ [field]: !!value })
+    });
+  } catch {}
+}
+async function loadChatSettingsFromServer() {
+  if (!state.token) return;
+  try {
+    const res = await fetch(state.serverHost + '/api/chats/settings', { headers: { 'Authorization': 'Bearer ' + state.token } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const prefs = chatPrefs();
+    (data.settings || []).forEach(s => {
+      const k = 'u:' + s.peerId;
+      if (s.pinned) prefs.pinned[k] = true; else delete prefs.pinned[k];
+      if (s.muted) prefs.muted[k] = true; else delete prefs.muted[k];
+    });
+    saveChatPrefs(prefs);
+  } catch {}
+}
 function draftStorageKey() {
   return 'sc_drafts_' + ((state.me && state.me.id) || 'guest');
 }
@@ -548,6 +577,7 @@ function enterChat() {
   connectWS();
   loadFriends();
   loadGroups();
+  loadChatSettingsFromServer();
   // E2EE 已停用：消息以明文发送，不再生成/上传密钥。
   // 移动端：登录后默认显示联系人列表（不自动进入聊天态）
   if (window.IS_MOBILE) {
@@ -2660,10 +2690,12 @@ function wireConversationTools() {
   if (pin) pin.onclick = () => {
     const key = activeConversationKey(); if (!key) return toast('请先选择会话', 'warn', 1200);
     const prefs = chatPrefs(); prefs.pinned[key] = !prefs.pinned[key]; saveChatPrefs(prefs); refreshConversationButtons(); renderContacts();
+    const pid = peerIdFromConvKey(key); if (pid) syncChatSetting(pid, 'pinned', prefs.pinned[key]);
   };
   if (mute) mute.onclick = () => {
     const key = activeConversationKey(); if (!key) return toast('请先选择会话', 'warn', 1200);
     const prefs = chatPrefs(); prefs.muted[key] = !prefs.muted[key]; saveChatPrefs(prefs); refreshConversationButtons(); renderContacts();
+    const pid = peerIdFromConvKey(key); if (pid) syncChatSetting(pid, 'muted', prefs.muted[key]);
   };
   if (notify) notify.onclick = async () => {
     if (!('Notification' in window)) return toast('当前浏览器不支持系统通知', 'warn', 1500);
@@ -3902,6 +3934,32 @@ function appendVoiceMsg(mine, durationSec, b64) {
       audio.onended = () => { btn.textContent = orig; };
       audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = orig; };
     };
+    const ts = document.createElement('span');
+    ts.textContent = '转文字';
+    ts.style.cssText = 'margin-left:10px;font-size:12px;color:var(--accent,#07c160);cursor:pointer;user-select:none;';
+    ts.onclick = async function () {
+      if (ts._loading) return;
+      ts._loading = true; const origTxt = ts.textContent; ts.textContent = '转写中…';
+      try {
+        const r = await fetch(state.serverHost + '/api/stt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+          body: JSON.stringify({ audioB64: b64 })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || '转写失败');
+        const text = (d.text || '').trim();
+        ts.textContent = '转文字';
+        ts._loading = false;
+        let out = row.querySelector('.voice-transcript');
+        if (!out) { out = document.createElement('div'); out.className = 'voice-transcript'; out.style.cssText = 'margin-top:6px;padding:8px 10px;background:var(--bg,#f5f5f5);border-radius:8px;font-size:13px;white-space:pre-wrap;word-break:break-word;color:var(--text,#222);'; row.querySelector('.bubble').appendChild(out); }
+        out.textContent = text;
+      } catch (e) {
+        ts.textContent = '转文字'; ts._loading = false;
+        toast('转文字失败：' + e.message, 'error', 2000);
+      }
+    };
+    row.querySelector('.voice-bubble').appendChild(ts);
   }
 }
 
@@ -4185,7 +4243,7 @@ function renderContactsPage() {
   const lbl = document.getElementById('contactLabelsItem');
   if (lbl) lbl.onclick = () => toast('标签功能开发中', 'info');
   const oa = document.getElementById('contactOAItem');
-  if (oa) oa.onclick = () => toast('公众号功能开发中', 'info');
+  if (oa) oa.onclick = () => { if (window.SecureChatOa && window.SecureChatOa.open) window.SecureChatOa.open(); else toast('公众号功能开发中', 'info'); };
   // 搜索框输入 → 实时过滤重渲染
   const sInput = document.getElementById('contactsSearch');
   if (sInput) sInput.oninput = () => renderContactsPage();

@@ -34,11 +34,14 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
         TextButton(
           onPressed: () async {
-            final uri = Uri.parse('${api.baseUrl}/api/message/translate');
+            final uri = Uri.parse('${api.baseUrl}/api/translate');
             final resp = await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
-              body: json.encode({'text': text, 'targetLang': 'zh'}),
+              headers: {
+                'Content-Type': 'application/json',
+                if (api.token != null) 'Authorization': 'Bearer ${api.token}',
+              },
+              body: json.encode({'text': text, 'target': 'zh'}),
             );
             if (resp.statusCode == 200) {
               final data = json.decode(resp.body);

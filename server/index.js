@@ -1005,12 +1005,27 @@ app.post('/api/stt', (req, res) => {
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const id = String((req.body && req.body.id) || '');
-  if (!/^[0-9a-f-]{8,}$/.test(id)) return res.status(400).json({ error: '文件 id 无效' });
-  const file = prepare('SELECT * FROM file_transfers WHERE id=? AND from_id=?').get(id, payload.id);
-  if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '语音文件不存在' });
-  runStt(file.path)
+  const audioB64 = req.body && req.body.audioB64;
+  let filePath = null;
+  let tmpFile = null;
+  if (audioB64 && typeof audioB64 === 'string') {
+    try {
+      const buf = Buffer.from(audioB64, 'base64');
+      if (!buf.length) return res.status(400).json({ error: '音频数据为空' });
+      tmpFile = path.join(require('os').tmpdir(), 'scstt-' + crypto.randomUUID() + '.webm');
+      fs.writeFileSync(tmpFile, buf);
+      filePath = tmpFile;
+    } catch (e) { return res.status(400).json({ error: '音频数据无效' }); }
+  } else {
+    if (!/^[0-9a-f-]{8,}$/.test(id)) return res.status(400).json({ error: '文件 id 无效' });
+    const file = prepare('SELECT * FROM file_transfers WHERE id=?').get(id);
+    if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '语音文件不存在' });
+    filePath = file.path;
+  }
+  runStt(filePath)
     .then(text => res.json({ ok: true, text }))
-    .catch(e => res.status(501).json({ error: '语音转文字服务未启用：' + e.message }));
+    .catch(e => res.status(501).json({ error: '语音转文字服务未启用：' + e.message }))
+    .finally(() => { if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch {} } });
 });
 
 app.get('/api/call-recordings', (req, res) => {
