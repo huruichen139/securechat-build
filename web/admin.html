@@ -76,6 +76,7 @@
       <button class="admin-nav-item" data-admin-section="announce"><span>公告</span><small>系统广播</small></button>
       <button class="admin-nav-item" data-admin-section="ips"><span>封禁IP</span><small>IP管控</small></button>
       <button class="admin-nav-item" data-admin-section="sensitive"><span>敏感词</span><small>内容过滤</small></button>
+      <button class="admin-nav-item" data-admin-section="replay"><span>聊天回放</span><small>会话审计</small></button>
       <button class="admin-nav-item" data-admin-section="audit"><span>审计日志</span><small>操作记录</small></button>
       <button class="admin-nav-item" data-admin-section="merchants"><span>商户</span><small>EPay 审核</small></button>
       <button class="admin-nav-item" data-admin-section="epay"><span>EPay</span><small>支付通道配置</small></button>
@@ -336,6 +337,33 @@
   </section>
 
   <!-- 审计日志 -->
+  <!-- 聊天回放（明文存储后可审计） -->
+  <section id="adminSectionReplay" class="admin-section" data-admin-panel="replay">
+    <h3>聊天回放</h3>
+    <div class="admin-panel">
+      <div class="admin-panel-row">
+        <button id="replayRefreshBtn" class="admin-btn">加载会话</button>
+        <label>关键词过滤
+          <input id="replayFilter" type="text" placeholder="按会话名筛选" />
+        </label>
+        <span id="replayHint" style="color:#888;font-size:12px">选择左侧会话查看完整聊天记录</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div id="replayConvList" class="admin-tablewrap" style="flex:0 0 320px;max-height:520px;overflow:auto"></div>
+      <div style="flex:1;min-width:320px">
+        <div class="admin-panel-row" style="justify-content:space-between">
+          <b id="replayTitle">未选择会话</b>
+          <span>
+            <button id="replayPlayBtn" class="admin-btn" disabled>▶ 回放</button>
+            <button id="replayExportBtn" class="admin-btn" disabled>导出 txt</button>
+          </span>
+        </div>
+        <div id="replayStream" style="max-height:520px;overflow:auto;background:#ededed;border-radius:8px;padding:12px;min-height:200px"></div>
+      </div>
+    </div>
+  </section>
+
   <section id="adminSectionAudit" class="admin-section" data-admin-panel="audit">
     <h3>审计日志</h3>
     <div class="admin-panel">

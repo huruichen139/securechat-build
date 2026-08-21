@@ -216,29 +216,10 @@ Future<void> uploadMyPrekeys(SecureChatApi api) async {
   }
 }
 
-/// 加密入口：无会话时若能从 peerKey 解析出 peerId 且有全局 api，则自动 X3DH。
-/// 会话失步/坏会话导致加密失败时自动清除并重试一次（自愈）。
+/// 明文模式：不再做端到端加密，消息原文入库，以支持历史检索与聊天回放。
+/// 保留函数签名，避免改动所有调用点。解密侧仍保留，用于读取历史密文。
 Future<String> e2eeEncrypt(String peerKey, String plain) async {
-  return _withPeerOperation(peerKey, () async {
-    for (var attempt = 0; attempt < 2; attempt++) {
-      var state = await PeerSessionStore.load(peerKey);
-      if (state == null) {
-        final peerId = _peerIdFromKey(peerKey);
-        if (peerId != null && x3dhApi != null) {
-          state = await x3dhInitSender(peerId, peerKey);
-        }
-      }
-      if (state == null) return plain;
-      try {
-        final ct = encryptMessage(state, plain);
-        await PeerSessionStore.save(peerKey, state);
-        return ct;
-      } catch (_) {
-        await PeerSessionStore.clearPeer(peerKey);
-      }
-    }
-    return plain;
-  });
+  return plain;
 }
 
 // 对 peerKey 解密一条消息（用该会话的 ratchet 状态）。解密失败清除会话并重试一次。

@@ -3246,12 +3246,9 @@ async function onIncomingMsg(m) {
 }
 
 // ============ 发送 ============
-// E2E 加密辅助：若 SCE2EE 就绪则加密，失败降级明文
+// 明文模式：不再做端到端加密，消息原文入库，以支持历史检索与聊天回放。
+// 保留函数签名，避免改动所有调用点。
 async function _e2eeSendContent(peerId, text) {
-  if (!peerId || !text) return text;
-  if (window.SCE2EE) {
-    try { const e = window.SCE2EE.encryptFor(peerId, text); if (e && typeof e.then === 'function') return await e; return e || text; } catch {}
-  }
   return text;
 }
 function sendCurrent() {

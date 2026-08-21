@@ -265,7 +265,7 @@ class _GroupRoomState extends State<_GroupRoom> {
     await showDialog(context: context, builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => AlertDialog(
         title: const Text('邀请成员入群'),
-        content: SizedBox(width: 320, child: Flexible(child: SizedBox(height: 260, child: ListView(shrinkWrap: true, children: [
+        content: SizedBox(width: 320, height: 260, child: ListView(shrinkWrap: true, children: [
           for (final u in list)
             CheckboxListTile(
               dense: true, contentPadding: EdgeInsets.zero,
@@ -273,7 +273,7 @@ class _GroupRoomState extends State<_GroupRoom> {
               value: selected.contains(u['uid']),
               onChanged: (v) => setState(() { if (v == true) selected.add(u['uid'].toString()); else selected.remove(u['uid'].toString()); }),
             ),
-        ])))),
+        ])),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(onPressed: () async {

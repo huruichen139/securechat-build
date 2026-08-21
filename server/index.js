@@ -1808,7 +1808,8 @@ app.post('/api/admin/update-package/apply', async (req, res) => {
 
 function getVersionConfig() {
   try {
-    const cfg = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
+    // 去掉可能的 UTF-8 BOM：带 BOM 时 JSON.parse 会抛错，导致静默回退到 1.0.0 默认值
+    const cfg = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8').replace(/^\uFEFF/, ''));
     if (!cfg || typeof cfg !== 'object') throw new Error('invalid version.json');
     return {
       current: String(cfg.current || DEFAULT_VERSION_CONFIG.current),
@@ -1816,7 +1817,9 @@ function getVersionConfig() {
       releaseNotes: cfg.releaseNotes || DEFAULT_VERSION_CONFIG.releaseNotes,
       updatedAt: Number(cfg.updatedAt) || DEFAULT_VERSION_CONFIG.updatedAt
     };
-  } catch {
+  } catch (e) {
+    // 不再静默：读不到/解析失败会让 /api/version 退回 1.0.0，客户端永远收不到更新提示
+    console.error('[version] 读取 ' + VERSION_FILE + ' 失败，回退默认版本:', e.message);
     return { ...DEFAULT_VERSION_CONFIG };
   }
 }
@@ -2933,6 +2936,125 @@ app.get('/api/admin/audit', (req, res) => {
       : prepare('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ?').all(limit);
   } catch (e) { return res.json({ logs: [] }); }
   res.json({ logs: rows.map(r => ({ id: r.id, adminId: r.admin_id, action: r.action, targetId: r.target_id, targetType: r.target_type, detail: r.detail, ip: r.ip, createdAt: r.created_at })) });
+});
+
+// ============ 聊天回放（管理员审计）============
+// 明文存储后服务端可读消息原文，这里提供按会话回放的只读接口。
+// 高敏感能力：一律走 adminGuard，且每次调用写审计日志。
+
+// GET /api/admin/replay/conversations —— 会话清单（单聊 + 群聊），按最后消息时间倒序
+app.get('/api/admin/replay/conversations', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const limit = Math.min(parseInt((req.query || {}).limit || '200', 10) || 200, 1000);
+  const out = [];
+  try {
+    // 单聊：按 (min(from,to), max(from,to)) 归一化成一个会话
+    const direct = prepare(`SELECT
+        MIN(from_id, to_id) AS a, MAX(from_id, to_id) AS b,
+        COUNT(*) AS cnt, MAX(created_at) AS lastAt
+      FROM messages
+      GROUP BY MIN(from_id, to_id), MAX(from_id, to_id)
+      ORDER BY lastAt DESC LIMIT ?`).all(limit);
+    for (const r of direct) {
+      const ua = prepare('SELECT id,username,nickname FROM users WHERE id=?').get(r.a);
+      const ub = prepare('SELECT id,username,nickname FROM users WHERE id=?').get(r.b);
+      out.push({
+        kind: 'direct',
+        key: 'd:' + r.a + ':' + r.b,
+        peerA: ua ? { id: ua.id, name: ua.nickname || ua.username } : { id: r.a, name: '#' + r.a },
+        peerB: ub ? { id: ub.id, name: ub.nickname || ub.username } : { id: r.b, name: '#' + r.b },
+        title: (ua ? (ua.nickname || ua.username) : '#' + r.a) + ' ↔ ' + (ub ? (ub.nickname || ub.username) : '#' + r.b),
+        messageCount: r.cnt,
+        lastAt: r.lastAt
+      });
+    }
+    // 群聊
+    const groups = prepare(`SELECT gm.group_id AS gid, COUNT(*) AS cnt, MAX(gm.created_at) AS lastAt
+      FROM group_messages gm GROUP BY gm.group_id ORDER BY lastAt DESC LIMIT ?`).all(limit);
+    for (const r of groups) {
+      const g = prepare('SELECT id,name FROM groups WHERE id=?').get(r.gid);
+      out.push({
+        kind: 'group',
+        key: 'g:' + r.gid,
+        groupId: r.gid,
+        title: (g ? g.name : '群#' + r.gid),
+        messageCount: r.cnt,
+        lastAt: r.lastAt
+      });
+    }
+  } catch (e) {
+    return res.status(500).json({ error: '读取会话失败: ' + e.message });
+  }
+  out.sort((x, y) => (y.lastAt || 0) - (x.lastAt || 0));
+  logAudit(guard.u.id, 'replay_list', null, 'conversation', '查看会话清单', clientIp(req));
+  res.json({ conversations: out.slice(0, limit) });
+});
+
+// GET /api/admin/replay/messages —— 某会话的完整消息流（按时间正序，供回放）
+//   单聊: ?kind=direct&a=<uid>&b=<uid>
+//   群聊: ?kind=group&groupId=<gid>
+//   可选: &limit=&before=&after=
+app.get('/api/admin/replay/messages', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const q = req.query || {};
+  const kind = String(q.kind || 'direct');
+  const limit = Math.min(parseInt(q.limit || '500', 10) || 500, 5000);
+  const after = Number(q.after) || 0;
+  const before = Number(q.before) || Number.MAX_SAFE_INTEGER;
+  const nameCache = new Map();
+  const nameOf = (uid) => {
+    if (nameCache.has(uid)) return nameCache.get(uid);
+    const u = prepare('SELECT id,username,nickname FROM users WHERE id=?').get(uid);
+    const n = u ? (u.nickname || u.username) : '#' + uid;
+    nameCache.set(uid, n);
+    return n;
+  };
+  try {
+    if (kind === 'group') {
+      const gid = Number(q.groupId);
+      if (!Number.isInteger(gid) || gid <= 0) return res.status(400).json({ error: '缺少 groupId' });
+      const g = prepare('SELECT id,name FROM groups WHERE id=?').get(gid);
+      const rows = prepare(`SELECT id,group_id,from_id,content,created_at,recalled
+        FROM group_messages WHERE group_id=? AND created_at>? AND created_at<?
+        ORDER BY created_at ASC, id ASC LIMIT ?`).all(gid, after, before, limit);
+      logAudit(guard.u.id, 'replay_view', gid, 'group', '回放群聊 ' + (g ? g.name : gid) + '（' + rows.length + ' 条）', clientIp(req));
+      return res.json({
+        kind: 'group',
+        title: g ? g.name : '群#' + gid,
+        groupId: gid,
+        messages: rows.map(r => ({
+          id: r.id, from: r.from_id, fromName: nameOf(r.from_id),
+          content: r.content, createdAt: r.created_at, recalled: !!r.recalled
+        }))
+      });
+    }
+    const a = Number(q.a), b = Number(q.b);
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a <= 0 || b <= 0) {
+      return res.status(400).json({ error: '缺少会话双方 id' });
+    }
+    const rows = prepare(`SELECT m.id,m.from_id,m.to_id,m.content,m.created_at,m.read,m.recalled
+      FROM messages m
+      WHERE ((m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?))
+        AND m.created_at>? AND m.created_at<?
+      ORDER BY m.created_at ASC, m.id ASC LIMIT ?`).all(a, b, b, a, after, before, limit);
+    logAudit(guard.u.id, 'replay_view', a, 'user', '回放单聊 ' + nameOf(a) + ' ↔ ' + nameOf(b) + '（' + rows.length + ' 条）', clientIp(req));
+    res.json({
+      kind: 'direct',
+      title: nameOf(a) + ' ↔ ' + nameOf(b),
+      peerA: { id: a, name: nameOf(a) },
+      peerB: { id: b, name: nameOf(b) },
+      messages: rows.map(r => ({
+        id: r.id, from: r.from_id, fromName: nameOf(r.from_id), to: r.to_id,
+        content: r.content, createdAt: r.created_at, read: !!r.read, recalled: !!r.recalled
+      }))
+    });
+  } catch (e) {
+    res.status(500).json({ error: '读取消息失败: ' + e.message });
+  }
 });
 
 // POST /api/admin/kick —— 强制下线（不封禁）

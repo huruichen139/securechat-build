@@ -944,8 +944,8 @@ class _ChatViewStateState extends State<_ChatView> {
               socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
             }
             _appendMsg(voice != null
-                ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '鐜板湪', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
-                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '鐜板湪', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
+                ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
+                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
             _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true};
           });
         } else if (type == 'user_list') {
@@ -1335,7 +1335,7 @@ class _ChatViewStateState extends State<_ChatView> {
                       color: mine ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 11, fontStyle: FontStyle.italic)),
+                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12, fontStyle: FontStyle.italic)),
                   ),
                 content,
                 const SizedBox(height: 3),
@@ -1359,10 +1359,10 @@ class _ChatViewStateState extends State<_ChatView> {
 
   Widget _textBubble(bool mine, Map<String, dynamic> msg, dynamic t) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 480),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
-        color: mine ? _wechatBubbleMine : Colors.white,
+        color: mine ? _wechatBubbleMine : t.bubbleOther,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(4),
           topRight: const Radius.circular(4),
@@ -1371,7 +1371,7 @@ class _ChatViewStateState extends State<_ChatView> {
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
-      child: SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff1a1a1a) : t.text, fontSize: 14, height: 1.4)),
+      child: SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: 16, height: 1.4)),
     );
   }
 
@@ -1380,10 +1380,10 @@ class _ChatViewStateState extends State<_ChatView> {
     final mime = (meta['mime'] ?? '').toString();
     final isImage = mime.startsWith('image/');
     return Container(
-      constraints: const BoxConstraints(maxWidth: 300),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: mine ? _wechatBubbleMine : Colors.white,
+        color: mine ? _wechatBubbleMine : t.bubbleOther,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(4),
           topRight: const Radius.circular(4),
@@ -1424,7 +1424,7 @@ class _ChatViewStateState extends State<_ChatView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: mine ? _wechatBubbleMine : Colors.white,
+        color: mine ? _wechatBubbleMine : t.bubbleOther,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(4),
           topRight: const Radius.circular(4),
@@ -1434,13 +1434,13 @@ class _ChatViewStateState extends State<_ChatView> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(icon: Icon(playing ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 22), color: _wechatGreen, onPressed: () => _toggleVoice(id)),
-        Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: List.generate(12, (i) {
+        Icon(mine ? Icons.play_arrow_rounded : Icons.play_arrow_rounded, size: 20, color: _wechatGreen),
+        ...List.generate(12, (i) {
           final h = 6.0 + ((i * 7 + (playing ? 3 : 0)) % 16);
           return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? _wechatGreen : t.subText, borderRadius: BorderRadius.circular(2)));
-        })),
+        }),
         const SizedBox(width: 8),
-        Text('语音', style: TextStyle(fontSize: 12, color: mine ? const Color(0xff1a1a1a) : t.subText)),
+        Text('语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)),
       ]),
     );
   }
@@ -2005,7 +2005,7 @@ class _ChatViewStateState extends State<_ChatView> {
       showDialog(context: context, builder: (_) => Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('我的名片', style: TextStyle(fontWeight: FontWeight.w700, color: widget.config.theme.text)),
         const SizedBox(height: 14),
-        Text(name.isNotEmpty ? name : uid, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        Text(name.isNotEmpty ? name : uid, style: TextStyle(fontSize: 14, color: widget.config.theme.subText)),
         const SizedBox(height: 16),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: widget.config.theme.div), borderRadius: BorderRadius.circular(16)), child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200)),
         const SizedBox(height: 12),
@@ -2100,6 +2100,7 @@ class _ContactsViewStateState extends State<ContactsView> {
             child: Text(title, style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
           );
         }
+        if (index >= list.length + 1) return null;
         final item = list[index - 1];
         final name = item['name'] as String;
         final icon = item['icon'] as IconData;

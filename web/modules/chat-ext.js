@@ -102,16 +102,12 @@
     return ids;
   }
 
-  // ============ 发送增强消息（E2E 加密）============
+  // ============ 发送增强消息（明文）============
   function sendContent(content, opts) {
     const target = activeTarget();
     if (!target) { toast('请先选择会话', 'warn'); return Promise.reject(new Error('no target')); }
-    // E2EE 加密辅助：异步加密，失败降级明文
+    // 明文模式：不再加密，原文直发，以支持历史检索与聊天回放。
     function encryptIfReady(peerId, text) {
-      if (!peerId || !text) return Promise.resolve(text);
-      if (window.SCE2EE) {
-        try { const e = window.SCE2EE.encryptFor(peerId, text); if (e && typeof e.then === 'function') return e; return Promise.resolve(e || text); } catch {}
-      }
       return Promise.resolve(text);
     }
     if (target.kind === 'group') {

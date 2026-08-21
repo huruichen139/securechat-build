@@ -15,8 +15,9 @@
 
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
+    // 映射值必须是 HTML 实体；之前这里写成了字符本身，等于没转义（XSS）
     return String(s).replace(/[&<>"']/g, c => ({
-      '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
   }
   function fmtTime(ts) {
@@ -983,6 +984,128 @@
   }
 
   // ============ 审计日志 ============
+  // ============ 聊天回放 ============
+  // 明文存储后服务端可读消息原文，这里做只读审计视图。
+  let replayConvs = [];
+  let replayCur = null;      // 当前会话的消息数组
+  let replayTimer = null;    // 逐条回放定时器
+
+  async function loadReplayConversations() {
+    const token = getToken();
+    if (!token) return;
+    const box = el('replayConvList');
+    if (!box) return;
+    box.innerHTML = '<div class="empty" style="padding:12px">加载中…</div>';
+    try {
+      const resp = await fetch(API + '/api/admin/replay/conversations?limit=300', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { box.innerHTML = '<div class="empty" style="padding:12px">' + escapeHtml(data.error || '加载失败') + '</div>'; return; }
+      replayConvs = data.conversations || [];
+      renderReplayConvs();
+    } catch (e) {
+      box.innerHTML = '<div class="empty" style="padding:12px">网络错误</div>';
+    }
+  }
+
+  function renderReplayConvs() {
+    const box = el('replayConvList');
+    if (!box) return;
+    const kw = ((el('replayFilter') || {}).value || '').trim().toLowerCase();
+    const list = kw ? replayConvs.filter(c => (c.title || '').toLowerCase().includes(kw)) : replayConvs;
+    if (!list.length) { box.innerHTML = '<div class="empty" style="padding:12px">无会话</div>'; return; }
+    box.innerHTML = list.map(c => {
+      const badge = c.kind === 'group' ? '群' : '单';
+      return '<div class="replay-conv" data-key="' + escapeHtml(c.key) + '"'
+        + ' style="padding:10px 12px;border-bottom:1px solid #e5e5e5;cursor:pointer">'
+        + '<div style="font-size:14px;color:#191919">[' + badge + '] ' + escapeHtml(c.title) + '</div>'
+        + '<div style="font-size:12px;color:#999">' + c.messageCount + ' 条 · ' + fmtTime(c.lastAt) + '</div>'
+        + '</div>';
+    }).join('');
+    box.querySelectorAll('.replay-conv').forEach(node => {
+      node.addEventListener('click', () => openReplay(node.dataset.key));
+    });
+  }
+
+  async function openReplay(key) {
+    const token = getToken();
+    if (!token || !key) return;
+    const conv = replayConvs.find(c => c.key === key);
+    if (!conv) return;
+    stopReplay();
+    const stream = el('replayStream');
+    if (stream) stream.innerHTML = '<div class="empty" style="padding:12px">加载中…</div>';
+    let url;
+    if (conv.kind === 'group') {
+      url = API + '/api/admin/replay/messages?kind=group&groupId=' + encodeURIComponent(conv.groupId) + '&limit=2000';
+    } else {
+      url = API + '/api/admin/replay/messages?kind=direct&a=' + encodeURIComponent(conv.peerA.id)
+        + '&b=' + encodeURIComponent(conv.peerB.id) + '&limit=2000';
+    }
+    try {
+      const resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { if (stream) stream.innerHTML = '<div class="empty" style="padding:12px">' + escapeHtml(data.error || '加载失败') + '</div>'; return; }
+      replayCur = data.messages || [];
+      if (el('replayTitle')) el('replayTitle').textContent = data.title || '会话';
+      if (el('replayPlayBtn')) el('replayPlayBtn').disabled = !replayCur.length;
+      if (el('replayExportBtn')) el('replayExportBtn').disabled = !replayCur.length;
+      renderReplayStream(replayCur.length);
+    } catch (e) {
+      if (stream) stream.innerHTML = '<div class="empty" style="padding:12px">网络错误</div>';
+    }
+  }
+
+  // 渲染前 n 条（回放时逐条递增）
+  function renderReplayStream(n) {
+    const stream = el('replayStream');
+    if (!stream || !replayCur) return;
+    const items = replayCur.slice(0, n);
+    if (!items.length) { stream.innerHTML = '<div class="empty" style="padding:12px">无消息</div>'; return; }
+    stream.innerHTML = items.map(m => {
+      const recalled = m.recalled ? ' <span style="color:#c00">[已撤回]</span>' : '';
+      return '<div style="margin-bottom:10px">'
+        + '<div style="font-size:12px;color:#999">' + escapeHtml(m.fromName || ('#' + m.from)) + ' · ' + fmtTime(m.createdAt) + recalled + '</div>'
+        + '<div style="display:inline-block;background:#fff;border-radius:6px;padding:8px 12px;font-size:15px;color:#191919;max-width:75%;word-break:break-word;white-space:pre-wrap">'
+        + escapeHtml(m.content || '') + '</div></div>';
+    }).join('');
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  function stopReplay() {
+    if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
+    const btn = el('replayPlayBtn');
+    if (btn) btn.textContent = '▶ 回放';
+  }
+
+  // 逐条播放，再点一次停止
+  function toggleReplay() {
+    if (replayTimer) { stopReplay(); renderReplayStream(replayCur ? replayCur.length : 0); return; }
+    if (!replayCur || !replayCur.length) return;
+    let i = 0;
+    const btn = el('replayPlayBtn');
+    if (btn) btn.textContent = '⏸ 停止';
+    renderReplayStream(0);
+    replayTimer = setInterval(() => {
+      i++;
+      renderReplayStream(i);
+      if (i >= replayCur.length) stopReplay();
+    }, 600);
+  }
+
+  function exportReplay() {
+    if (!replayCur || !replayCur.length) return;
+    const title = (el('replayTitle') || {}).textContent || '会话';
+    const lines = replayCur.map(m => '[' + fmtTime(m.createdAt) + '] ' + (m.fromName || ('#' + m.from))
+      + (m.recalled ? '（已撤回）' : '') + ': ' + (m.content || ''));
+    const blob = new Blob([title + '\r\n\r\n' + lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '聊天记录-' + title.replace(/[\\/:*?"<>|]/g, '_') + '.txt';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);  // 及时释放，避免泄漏
+  }
+
   async function loadAuditLogs() {
     const token = getToken();
     if (!token) return;
@@ -1123,6 +1246,8 @@
         if (target === 'ips') loadBannedIps();
         if (target === 'sensitive') loadSensitiveWords();
         if (target === 'audit') loadAuditLogs();
+        if (target === 'replay') loadReplayConversations();
+        if (target !== 'replay') stopReplay();   // 离开分区就停掉回放定时器
         if (target === 'merchants') loadMerchants();
         if (target === 'epay') loadEpayConfig();
       });
@@ -1149,6 +1274,11 @@
     if (el('sensitiveAddBtn')) el('sensitiveAddBtn').addEventListener('click', addSensitiveWord);
     // 审计日志
     if (el('auditRefreshBtn')) el('auditRefreshBtn').addEventListener('click', loadAuditLogs);
+    // 聊天回放
+    if (el('replayRefreshBtn')) el('replayRefreshBtn').addEventListener('click', loadReplayConversations);
+    if (el('replayFilter')) el('replayFilter').addEventListener('input', renderReplayConvs);
+    if (el('replayPlayBtn')) el('replayPlayBtn').addEventListener('click', toggleReplay);
+    if (el('replayExportBtn')) el('replayExportBtn').addEventListener('click', exportReplay);
     if (el('merchantRefreshBtn')) el('merchantRefreshBtn').addEventListener('click', loadMerchants);
     if (el('epaySaveBtn')) el('epaySaveBtn').addEventListener('click', saveEpayConfig);
     // 群组
