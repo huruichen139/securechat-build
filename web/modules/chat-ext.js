@@ -184,11 +184,13 @@
       if (composer) composer.parentNode.appendChild(panel);
       else document.body.appendChild(panel);
       const panelRef = panel;
-      document.addEventListener('click', function (ev) {
+      function onDocClick(ev) {
         if (!panelRef.classList.contains('open')) return;
         if (panelRef.contains(ev.target) || (ev.target && ev.target.closest && ev.target.closest('#ceEmojiBtn'))) return;
         panelRef.classList.remove('open');
-      });
+        document.removeEventListener('click', onDocClick);
+      }
+      document.addEventListener('click', onDocClick);
     }
     panel.classList.toggle('open');
   }
@@ -377,7 +379,7 @@
     const msgs = $('messages');
     if (!msgs) return;
     if (bg && bg.kind === 'image' && bg.value) {
-      msgs.style.backgroundImage = "url('" + bg.value.replace(/'/g, "%27") + "')";
+      msgs.style.backgroundImage = "url('" + CSS.escape(bg.value) + "')";
       msgs.style.backgroundSize = 'cover';
       msgs.style.backgroundPosition = 'center';
       msgs.style.backgroundColor = 'transparent';

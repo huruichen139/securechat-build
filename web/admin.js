@@ -364,7 +364,7 @@
       const card = document.querySelector('#sysGrid .stat-card .stat-value');
       // 第一个卡片就是运行时长
       if (card) card.textContent = humanMsLocal(cur - (serverStartedAt || cur));
-    }, 1); // 每 1ms 跳
+    }, 100); // 每100ms跳
   }
   function humanMsLocal(ms) {
     if (ms < 0) ms = 0;

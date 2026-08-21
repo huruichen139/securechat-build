@@ -694,10 +694,10 @@ function showMyCard() {
   ok.className = 'ok'; ok.textContent = t('close', '关闭');
   acts.appendChild(ok); box.appendChild(acts);
   mask.appendChild(box); document.body.appendChild(mask);
-  const close = () => mask.remove();
+  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
   ok.onclick = close; xBtn.onclick = close;
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-  const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
 }
 
@@ -935,7 +935,7 @@ function openModal(title, fields, onOk) {
   box.appendChild(acts);
   mask.appendChild(box);
   document.body.appendChild(mask);
-  const close = () => mask.remove();
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
   cancel.onclick = close;
   xBtn.onclick = close;
   ok.onclick = () => {
@@ -1511,7 +1511,7 @@ function applyChatBg(uri) {
   const view = $('chatView');
   if (!view) return;
   if (uri) {
-    view.style.backgroundImage = 'url("' + uri + '")';
+    view.style.backgroundImage = 'url("' + CSS.escape(uri) + '")';
     view.style.backgroundSize = 'cover';
     view.style.backgroundPosition = 'center';
     view.style.backgroundRepeat = 'no-repeat';
@@ -1550,7 +1550,10 @@ function connectWS() {
   };
   state.ws.onclose = () => {
     state.wsAuthed = false;
-    setTimeout(() => { if (state.me) connectWS(); }, 2000);
+    const attempt = (state._wsReconnectAttempt || 0) + 1;
+    state._wsReconnectAttempt = attempt;
+    const delay = Math.min(2000 * Math.pow(2, Math.min(attempt - 1, 6)), 60000);
+    setTimeout(() => { if (state.me) connectWS(); }, delay);
   };
 }
 
@@ -1576,6 +1579,7 @@ function handleServer(data) {
   switch (type) {
     case P.S_AUTH_OK:
       state.wsAuthed = true;
+      state._wsReconnectAttempt = 0;
       while (state.outboundQueue.length && state.ws && state.ws.readyState === WebSocket.OPEN) {
         const queued = state.outboundQueue.shift();
         state.ws.send(JSON.stringify(queued));
