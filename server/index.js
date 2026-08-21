@@ -127,11 +127,19 @@ function publicUser(u) {
 }
 
 function signToken(user) {
-  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ id: user.id, username: user.username, tv: user.token_version || 0 }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 function verifyToken(token) {
-  try { return jwt.verify(token, JWT_SECRET); } catch { return null; }
+  try {
+    const p = jwt.verify(token, JWT_SECRET);
+    if (!p || !p.id) return null;
+    // 检查 token_version 是否匹配（密码重置/封禁后废除旧 token）
+    const u = prepare('SELECT token_version FROM users WHERE id=?').get(p.id);
+    if (!u) return null;
+    if ((p.tv || 0) !== (u.token_version || 0)) return null;
+    return p;
+  } catch { return null; }
 }
 
 function send(ws, type, payload) {
@@ -143,6 +151,18 @@ function send(ws, type, payload) {
 let ready = false;
 
 // ---------- REST ----------
+// ---------- 限流器（滑动窗口，内存） ----------
+const _rateBuckets = new Map(); // key -> {count, resetAt}
+function rateLimit(key, max, windowMs) {
+  const now = Date.now();
+  let b = _rateBuckets.get(key);
+  if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + windowMs }; _rateBuckets.set(key, b); }
+  b.count++;
+  return b.count > max;
+}
+function getIp(req) { return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || ''; }
+
+const MAX_MSG_CONTENT = 100 * 1024; // 100KB
 // ---------- 验证码池（内存，按 email -> {code, expireAt, used}） ----------
 const emailCodes = new Map();
 function genCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
@@ -174,6 +194,8 @@ async function sendMail(to, subject, html) {
 // 请求验证码：POST /api/email/code { email, purpose: "register"|"bind" }
 app.post('/api/email/code', async (req, res) => {
   cleanCode();
+  const ip = getIp(req);
+  if (rateLimit('email:' + ip, 5, 10 * 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请10分钟后再试' });
   const { email, purpose } = req.body || {};
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
     return res.status(400).json({ error: '邮箱格式错误' });
@@ -219,6 +241,8 @@ function validUid(s) { return /^[A-Za-z0-9]{4,16}$/.test(s || ''); }
 // 注册（必须带 email + 邮箱验证码；可选 customUid 自定义ID）
 app.post('/api/register', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const ip = getIp(req);
+  if (rateLimit('register:' + ip, 5, 60 * 60 * 1000)) return res.status(429).json({ error: '注册过于频繁，请稍后再试' });
   const { username, password, nickname, email, code, customUid } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
   if (!email) return res.status(400).json({ error: '请填写邮箱' });
@@ -292,6 +316,8 @@ app.post('/api/email/bind', (req, res) => {
 
 app.post('/api/login', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const ip = getIp(req);
+  if (rateLimit('login:' + ip, 10, 15 * 60 * 1000)) return res.status(429).json({ error: '登录尝试过多，请15分钟后再试' });
   // account 可为用户名或邮箱（兼容旧字段 username）
   const account = String((req.body || {}).account || (req.body || {}).username || '').trim();
   const password = (req.body || {}).password;
@@ -340,7 +366,7 @@ app.post('/api/password/reset', (req, res) => {
   const user = prepare('SELECT id FROM users WHERE email=?').get(email);
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   const hash = bcrypt.hashSync(String(newPassword), 10);
-  prepare('UPDATE users SET password=? WHERE id=?').run(hash, user.id);
+  prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, user.id);
   res.json({ ok: true });
 });
 
@@ -784,13 +810,15 @@ app.get('/api/history/:peerId', (req, res) => {
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
+  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   const rows = prepare(`SELECT m.*,mm.reply_to,mm.forwarded_from,mm.burn_after_reading,mm.pinned,
     pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
     FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
     LEFT JOIN messages pm ON pm.id=mm.reply_to
-    WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at ASC`)
-    .all(payload.id, peerId, peerId, payload.id);
-  const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
+    WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at DESC LIMIT ? OFFSET ?`)
+    .all(payload.id, peerId, peerId, payload.id, limit, offset);
+  const msgs = rows.reverse().map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
   res.json({ messages: msgs });
 });
 
@@ -883,6 +911,7 @@ app.post('/api/messages', (req, res) => {
   const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = req.body || {};
   const toId = parseInt(to, 10);
   if (!Number.isInteger(toId) || !content || typeof content !== 'string') return res.status(400).json({ error: '消息内容无效' });
+  if (content.length > MAX_MSG_CONTENT) return res.status(413).json({ error: '消息内容过长（最大100KB）' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, toId)) return res.status(403).json({ error: '你已拉黑对方，无法发送消息' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '对方已把你拉黑，无法发送消息' });
   if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) return res.status(400).json({ error: '消息标识无效' });
@@ -1153,14 +1182,16 @@ app.get('/api/group/:id/messages', (req, res) => {
   if (!groupId) return res.status(400).json({ error: '群ID错误' });
   const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
   if (!isMember) return res.status(403).json({ error: '你不在此群' });
+  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   const rows = prepare(
     `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
             u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
       FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
       LEFT JOIN group_message_meta gmm ON gmm.message_id = gm.id
-      WHERE gm.group_id=? ORDER BY gm.created_at ASC`
-  ).all(groupId);
-  const msgs = rows.map(r => ({
+      WHERE gm.group_id=? ORDER BY gm.created_at DESC LIMIT ? OFFSET ?`
+  ).all(groupId, limit, offset);
+  const msgs = rows.reverse().map(r => ({
     id: r.id, groupId: r.groupId, from: r.fromId, content: r.content, createdAt: r.createdAt,
     fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid },
     pinned: !!r.pinned, replyTo: r.replyTo || null
@@ -2908,7 +2939,7 @@ app.post('/api/admin/ban', (req, res) => {
   if (isAdmin(target)) return res.status(400).json({ error: '不能封禁管理员账号' });
   if (banned) {
     const reason = String((req.body || {}).reason || '').trim().slice(0, 200);
-    prepare('UPDATE users SET banned=1, banned_at=?, banned_by=?, ban_reason=? WHERE id=?')
+    prepare('UPDATE users SET banned=1, banned_at=?, banned_by=?, ban_reason=?, token_version=COALESCE(token_version,0)+1 WHERE id=?')
       .run(Date.now(), guard.u.id, reason, id);
   } else {
     prepare('UPDATE users SET banned=0, banned_at=NULL, banned_by=NULL, ban_reason=NULL WHERE id=?').run(id);
@@ -3428,12 +3459,18 @@ function removeWs(uid, ws) {
   if (!list.length) online.delete(uid);
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   ws.uid = null;
+  // 未认证客户端10秒超时
+  const authTimer = setTimeout(() => { if (!ws.uid) try { ws.close(4001, 'auth timeout'); } catch {} }, 10000);
+  ws.on('close', () => { try { clearTimeout(authTimer); } catch {} });
 
   ws.on('message', (buf) => {
     let data;
-    try { data = JSON.parse(buf.toString()); } catch { return; }
+    try {
+      if (buf.length > MAX_MSG_CONTENT) { send(ws, P.S_ERROR || 'error', { error: '消息过大' }); return; }
+      data = JSON.parse(buf.toString());
+    } catch { return; }
     const { type, payload } = data;
 
     try {
@@ -3444,6 +3481,7 @@ wss.on('connection', (ws) => {
       if (!dbUser) return send(ws, P.S_AUTH_FAIL, { error: '用户不存在' });
       if (dbUser.banned) return send(ws, P.S_AUTH_FAIL, { error: '该账号已被封禁' + (dbUser.ban_reason ? '：' + dbUser.ban_reason : '') });
       ws.uid = dbUser.id;
+      try { clearTimeout(authTimer); } catch {} // 认证成功，清除超时
       ws.user = publicUser(dbUser);
       ws._ip = clientIp({ headers: {}, socket: ws._socket || ws._req || {} });
       // IP 封禁校验

@@ -91,11 +91,12 @@ class SecureChatApi {
   Future<Map<String, dynamic>> _json(String method, String path, {Object? body, bool auth = true, Map<String, String>? query}) async {
     final headers = auth ? _headers : {'Content-Type': 'application/json'};
     final uri = _uri(path, query);
+    const timeout = Duration(seconds: 15);
     final response = switch (method) {
-      'GET' => await http.get(uri, headers: headers),
-      'POST' => await http.post(uri, headers: headers, body: jsonEncode(body ?? const {})),
-      'DELETE' => await http.delete(uri, headers: headers),
-      _ => await http.get(uri, headers: headers),
+      'GET' => await http.get(uri, headers: headers).timeout(timeout),
+      'POST' => await http.post(uri, headers: headers, body: jsonEncode(body ?? const {})).timeout(timeout),
+      'DELETE' => await http.delete(uri, headers: headers).timeout(timeout),
+      _ => await http.get(uri, headers: headers).timeout(timeout),
     };
     Map<String, dynamic> data;
     try {

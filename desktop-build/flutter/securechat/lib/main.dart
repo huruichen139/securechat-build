@@ -538,6 +538,7 @@ class _ChatViewStateState extends State<_ChatView> {
   final _unreadDividerKey = GlobalKey();
   bool _deletedLoaded = false;
   WebSocketChannel? socket;
+  StreamSubscription? _wsSub;
   CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
@@ -717,7 +718,7 @@ class _ChatViewStateState extends State<_ChatView> {
         _markIncomingRead();
         socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
         _scrollToLatest();
-      } catch (_) {}
+      } catch (e) { debugPrint('[chat] load group history failed: $e'); }
       return;
     }
     final peerId = conv['id'] as int;
@@ -745,7 +746,7 @@ class _ChatViewStateState extends State<_ChatView> {
       _markIncomingRead();
       socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': peerId}}));
       _scrollToLatest();
-    } catch (_) {}
+    } catch (e) { debugPrint('[chat] load history failed: $e'); }
   }
 
   /// 在第一条未读消息上方插入「N 条未读消息」分割条（仅聊天类消息，不含分割条自身）
@@ -828,7 +829,8 @@ class _ChatViewStateState extends State<_ChatView> {
         uploadMyPrekeys(widget.api);
       }
       socket = widget.api.connect();
-      socket!.stream.listen((event) async {
+      _wsSub?.cancel();
+      _wsSub = socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
         if (type == 'msg') {
@@ -1005,6 +1007,10 @@ class _ChatViewStateState extends State<_ChatView> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('选择好友后发起通话')));
       return;
     }
+    if (socket == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未连接服务器，请检查网络')));
+      return;
+    }
     final service = calls ??= CallService(socket: socket!);
     if (service.busy) return;
     await service.startCall(to, withVideo: video);
@@ -1056,6 +1062,8 @@ class _ChatViewStateState extends State<_ChatView> {
 
   @override
   void dispose() {
+    _wsSub?.cancel();
+    _voiceSub?.cancel();
     socket?.sink.close();
     calls?.dispose();
     voicePlayer?.dispose();
@@ -1325,7 +1333,7 @@ class _ChatViewStateState extends State<_ChatView> {
                 if (msg['forwardedFrom'] != null)
                   Padding(
                     padding: const EdgeInsets.only(left: 4, bottom: 3),
-                    child: Text('转发的消息', style: TextStyle(color: mine ? const Color(0xff4a4a4a) : t.subText, fontSize: 11)),
+                    child: Text('转发的消息', style: TextStyle(color: mine ? t.text : t.subText, fontSize: 11)),
                   ),
                 if (replyText != null)
                   Container(
@@ -1445,15 +1453,18 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
+  StreamSubscription? _voiceSub;
+
   Future<void> _toggleVoice(String id) async {
     if (playingVoiceId == id) {
       await voicePlayer?.stop();
       if (mounted) setState(() => playingVoiceId = null);
       return;
     }
+    _voiceSub?.cancel();
     await voicePlayer?.dispose();
     final player = AudioPlayer();
-    player.onPlayerComplete.listen((_) {
+    _voiceSub = player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => playingVoiceId = null);
     });
     try {
@@ -2166,7 +2177,7 @@ class _WindowDragBar extends StatelessWidget {
                     child: Row(children: [
                       const Icon(Icons.lock_outline, size: 15, color: _wechatGreen),
                       const SizedBox(width: 8),
-                      const Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text('SecureChat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87)),
                     ]),
                   ),
                 ),
@@ -2244,8 +2255,8 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     try {
       await widget.api.resetPassword(em, cd, pw);
       if (!mounted) return;
-      Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('密码已重置，请使用新密码登录')));
+      Navigator.pop(context, true);
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
     }

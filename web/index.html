@@ -105,8 +105,16 @@
   (function () {
     var host = location.hostname || '';
     window.SERVER_HOST = location.origin;
-    // 移动端独立 UI：m.chat.32768.top 或窄屏（<= 720px）启用单栏模式
-    window.IS_MOBILE = host.indexOf('m.') === 0 || window.matchMedia('(max-width: 720px)').matches;
+    var mq = window.matchMedia('(max-width: 720px)');
+    window.IS_MOBILE = host.indexOf('m.') === 0 || mq.matches;
+    function syncMobile(e) {
+      var v = host.indexOf('m.') === 0 || e.matches;
+      if (v === window.IS_MOBILE) return;
+      window.IS_MOBILE = v;
+      document.documentElement.classList.toggle('is-mobile', v);
+    }
+    if (mq.addEventListener) mq.addEventListener('change', syncMobile);
+    else if (mq.addListener) mq.addListener(syncMobile);
     if (window.IS_MOBILE) document.documentElement.classList.add('is-mobile');
   })();
 </script>

@@ -417,6 +417,9 @@ function init() {
   try {
     db.run('ALTER TABLE users ADD COLUMN github_id TEXT');
   } catch (e) { /* 列已存在 */ }
+  try {
+    db.run('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0');
+  } catch (e) { /* 列已存在 */ }
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_qq_openid ON users(qq_openid) WHERE qq_openid IS NOT NULL');
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id) WHERE github_id IS NOT NULL');
   db.run(`CREATE TABLE IF NOT EXISTS passkey_credentials (
@@ -536,7 +539,9 @@ function doPersist() {
   if (!db) return;
   try {
     const data = db.export();
-    fs.writeFileSync(dbPath, Buffer.from(data));
+    const tmpPath = dbPath + '.tmp.' + process.pid;
+    fs.writeFileSync(tmpPath, Buffer.from(data));
+    fs.renameSync(tmpPath, dbPath);
   } catch (e) {
     console.error('persist failed', e);
   }
@@ -561,10 +566,9 @@ function prepare(sql) {
   return {
     run(...args) {
       db.run(sql, args);
-      // 先取 last_insert_rowid 再持久化：sql.js 的 export() 会把 last_insert_rowid 重置为 0
       const row = db.exec('SELECT last_insert_rowid() AS id');
       const lastInsertRowid = (row && row.length && row[0].values.length) ? row[0].values[0][0] : 0;
-      persistNow();
+      persist(); // 防抖落盘，批量写入时只落盘最后一次
       return { lastInsertRowid };
     },
     get(...args) {

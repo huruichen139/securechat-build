@@ -11,6 +11,7 @@ import 'services/securechat_api.dart';
 /// 1. 消息翻译 - 弹窗显示
 Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String text) async {
   if (text.isEmpty) return;
+  final targetCtrl = TextEditingController(text: 'zh');
   final result = await showDialog<String>(
     context: ctx,
     builder: (_) => AlertDialog(
@@ -21,12 +22,12 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
           Text('原文: $text', style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 12),
           TextField(
+            controller: targetCtrl,
             decoration: const InputDecoration(
               labelText: '目标语言',
               hintText: '如: en, yue, ja, ko',
               prefixIcon: Icon(Icons.language),
             ),
-            onChanged: (v) {},
           ),
         ],
       ),
@@ -41,8 +42,8 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
                 'Content-Type': 'application/json',
                 if (api.token != null) 'Authorization': 'Bearer ${api.token}',
               },
-              body: json.encode({'text': text, 'target': 'zh'}),
-            );
+              body: json.encode({'text': text, 'target': targetCtrl.text.trim().isEmpty ? 'zh' : targetCtrl.text.trim()}),
+            ).timeout(const Duration(seconds: 15));
             if (resp.statusCode == 200) {
               final data = json.decode(resp.body);
               Navigator.pop(ctx, data['translated'] ?? '');
@@ -156,6 +157,7 @@ Future<void> showScheduleDialog(BuildContext ctx, SecureChatApi api, int peerId,
   final pickedTime = await showTimePicker(context: ctx, initialTime: TimeOfDay.now());
   if (pickedTime == null) return;
   timeCtrl.text = pickedTime.format(ctx);
+  final scheduledDateTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
   
   await showDialog(
     context: ctx,
@@ -181,11 +183,14 @@ Future<void> showScheduleDialog(BuildContext ctx, SecureChatApi api, int peerId,
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
         TextButton(
           onPressed: () async {
-            final scheduledAt = DateTime.parse('${dateCtrl.text} ${timeCtrl.text}:00').millisecondsSinceEpoch;
+            final scheduledAt = scheduledDateTime.millisecondsSinceEpoch;
             final uri = Uri.parse('${api.baseUrl}/api/scheduled-messages');
             final resp = await http.post(
               uri,
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                if (api.token != null) 'Authorization': 'Bearer ${api.token}',
+              },
               body: json.encode({
                 'peerId': peerId,
                 'isGroup': isGroup,
@@ -224,7 +229,10 @@ Future<void> showBurnDialog(BuildContext ctx, Map<String, dynamic> msg, SecureCh
   final msgId = msg['id'];
   // 调用服务端 burn 接口
   final uri = Uri.parse('${api.baseUrl}/api/message/burn');
-  await http.post(uri, headers: {'Content-Type': 'application/json'}, body: json.encode({
+  await http.post(uri, headers: {
+    'Content-Type': 'application/json',
+    if (api.token != null) 'Authorization': 'Bearer ${api.token}',
+  }, body: json.encode({
     'messageId': msgId,
     'duration': duration,
   }));
@@ -332,16 +340,20 @@ Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, Secure
   if (ok != true) return;
   try {
     final reason = reasonCtrl.text.trim();
+    final authHeaders = {
+      'Content-Type': 'application/json',
+      if (api.token != null) 'Authorization': 'Bearer ${api.token}',
+    };
     if (isGroup) {
       await http.post(
         Uri.parse('${api.baseUrl}/api/group-message/recall'),
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders,
         body: json.encode({'messageId': msgId, 'groupId': peerId, 'reason': reason}),
       );
     } else {
       await http.post(
         Uri.parse('${api.baseUrl}/api/message/recall'),
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders,
         body: json.encode({'messageId': msgId, 'reason': reason}),
       );
     }
