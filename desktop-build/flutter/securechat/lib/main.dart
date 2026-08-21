@@ -571,6 +571,7 @@ class _ChatViewStateState extends State<_ChatView> {
   CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
+  int _recordingStart = 0; // 录音开始时间戳（用于计算时长）
   AudioPlayer? voicePlayer;
   String? playingVoiceId;
   int? myId;
@@ -863,11 +864,11 @@ class _ChatViewStateState extends State<_ChatView> {
           final from = m['from'];
           final mine = from == myId;
           final sender = (m['fromUser'] is Map) ? (((m['fromUser'] as Map)['nickname'] ?? (m['fromUser'] as Map)['username']) ?? '').toString() : null;
-          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
           final read = mine || m['read'] == true;
           final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
           msgs.add(voice != null
-              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount}
+              ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount}
               : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount});
         }
         final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
@@ -892,10 +893,10 @@ class _ChatViewStateState extends State<_ChatView> {
             ? '[加密消息，历史内容不可在此会话恢复]'
             : await e2eeDecrypt('$peerId', content);
         final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
-        final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+        final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
         final read = m['read'] == true;
         msgs.add(voice != null
-            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
+            ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
             : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
       }
       final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
@@ -1109,7 +1110,7 @@ class _ChatViewStateState extends State<_ChatView> {
           final text = from == myId
               ? (looksLikeRatchetCipher(content) ? '[已发送加密消息]' : content)
               : await e2eeDecrypt('$from', content);
-          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
           if (conv != null && !talkingToPeer) {
             final key = 'f${from == myId ? to : from}';
             setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
@@ -1124,7 +1125,7 @@ class _ChatViewStateState extends State<_ChatView> {
                 socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': from}}));
               }
               _appendMsg(voice != null
-                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
+                  ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
                   : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView});
               _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView};
             }
@@ -1188,7 +1189,7 @@ class _ChatViewStateState extends State<_ChatView> {
           final fromUser = p['fromUser'];
           final sender = (fromUser is Map) ? (((fromUser)['nickname'] ?? fromUser['username']) ?? '').toString() : null;
           final mine = from == myId;
-          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
+          final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
           if (conv == null || conv['kind'] != 'group' || conv['id'] != gid) {
             if (!mine) setState(() => _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1);
             return;
@@ -1198,7 +1199,7 @@ class _ChatViewStateState extends State<_ChatView> {
               socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
             }
             _appendMsg(voice != null
-                ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
+                ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
                 : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
             _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true};
           });
@@ -1285,16 +1286,18 @@ class _ChatViewStateState extends State<_ChatView> {
       return;
     }
     if (recording) {
+      final recStart = _recordingStart;
       final path = await recorder.stop();
       setState(() => recording = false);
       if (path == null) return;
+      final durSecs = recStart > 0 ? ((DateTime.now().millisecondsSinceEpoch - recStart) / 1000).round().clamp(1, 3600) : 0;
       try {
         final uploaded = await widget.api.uploadVoice(to, await File(path).readAsBytes(), 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a');
         final id = uploaded['id'];
         final vcmid = 'v${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(vcmid);
-        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id]', 'clientMsgId': vcmid}}));
-        setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'mine': true, 'time': '现在', 'read': false}));
+        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id:$durSecs]', 'clientMsgId': vcmid}}));
+        setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'voiceDur': durSecs, 'mine': true, 'time': '现在', 'read': false}));
         _lastMsg['f$to'] = {'text': '[语音消息]', 'mine': true, 'read': false};
         try {
           final transcript = await widget.api.transcribe(id);
@@ -1317,6 +1320,7 @@ class _ChatViewStateState extends State<_ChatView> {
       return;
     }
     await recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100), path: '${Directory.systemTemp.path}/securechat-${DateTime.now().millisecondsSinceEpoch}.m4a');
+    _recordingStart = DateTime.now().millisecondsSinceEpoch;
     setState(() => recording = true);
   }
 
@@ -1665,7 +1669,7 @@ class _ChatViewStateState extends State<_ChatView> {
     final fileMeta = _parseFileMeta(text);
     final redPacketId = _parseRedPacket(text);
     final content = voiceId != null
-        ? _voiceBubble(mine, voiceId)
+        ? _voiceBubble(mine, voiceId, msg['voiceDur'] as int?)
         : redPacketId != null
             ? _redPacketBubble(mine, redPacketId, t)
         : fileMeta != null
@@ -1823,7 +1827,7 @@ class _ChatViewStateState extends State<_ChatView> {
     return '回复了一条消息';
   }
 
-  Widget _voiceBubble(bool mine, String id) {
+  Widget _voiceBubble(bool mine, String id, int? dur) {
     final playing = playingVoiceId == id;
     final t = widget.config.theme;
     return Container(
@@ -1845,7 +1849,7 @@ class _ChatViewStateState extends State<_ChatView> {
           return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? _wechatGreen : t.subText, borderRadius: BorderRadius.circular(2)));
         }),
         const SizedBox(width: 8),
-        Text('语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)),
+        Text(dur != null ? '语音 ″' : '语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)),
       ]),
     );
   }
