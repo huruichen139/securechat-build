@@ -589,6 +589,7 @@ class _ChatViewStateState extends State<_ChatView> {
   int _chatSearchIdx = -1;
   bool _isTyping = false;
   final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
+  final _chatBgColors = <String, Color>{}; // 会话背景色 keyed by convKey
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -1317,6 +1318,8 @@ class _ChatViewStateState extends State<_ChatView> {
     final t = config.theme;
     final border = Border(bottom: BorderSide(color: t.div));
     final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.28 : 0.14);
+    final convKey = selConv != null ? _convKey(selConv!) : null;
+    final bgColor = convKey != null ? _chatBgColors[convKey] : null;
     return Column(children: [
       Container(height: 60, padding: const EdgeInsets.symmetric(horizontal: 20), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
         CircleAvatar(backgroundColor: avatarBg, child: Icon(selConv?['icon'] ?? Icons.person, color: t.primary, size: 22)),
@@ -1348,6 +1351,7 @@ class _ChatViewStateState extends State<_ChatView> {
               PopupMenuItem(value: 1, child: Text('发起音视频会议')),
               PopupMenuItem(value: 2, child: Text('添加好友')),
               PopupMenuItem(value: 3, child: Text('查看聊天资料')),
+              PopupMenuItem(value: 7, child: Text('设置聊天背景')),
               PopupMenuItem(value: 4, child: Text('我的名片')),
               PopupMenuItem(value: 5, child: Text('扫一扫')),
             ],
@@ -1405,9 +1409,11 @@ class _ChatViewStateState extends State<_ChatView> {
       Expanded(
         child: messages.isEmpty
             ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText)))
-             : ListView.builder(
-                 controller: _msgScroll,
-                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+             : Container(
+                 color: bgColor,
+                 child: ListView.builder(
+                   controller: _msgScroll,
+                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 itemCount: messages.length,
                 itemBuilder: (_, i) {
                   final msg = messages[i];
@@ -1415,6 +1421,7 @@ class _ChatViewStateState extends State<_ChatView> {
                   return _bubble(msg, isSearchTarget: isSearchTarget);
                 },
               ),
+            ),
       ),
       if (replyingTo != null) _replyBar(),
       _composer(),
@@ -2154,6 +2161,7 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   void _onContextMenu(int v, BuildContext ctx) {
+    if (v == 2) _showAddFriendDialog(ctx);
     if (v == 3) _showChatInfo(ctx);
     if (v == 4) _showMyCard(ctx);
     if (v == 5) {
@@ -2164,6 +2172,74 @@ class _ChatViewStateState extends State<_ChatView> {
       }
     }
     if (v == 6) _showJoinGroupDialog(ctx);
+    if (v == 7) _showBgPicker(ctx);
+  }
+
+  void _showAddFriendDialog(BuildContext ctx) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: ctx,
+      builder: (d) => AlertDialog(
+        title: const Text('添加好友'),
+        content: TextField(controller: ctrl, decoration: const InputDecoration(hintText: '输入对方 UID', prefixIcon: Icon(Icons.person_add))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('取消')),
+          TextButton(onPressed: () async {
+            final uid = ctrl.text.trim();
+            if (uid.isEmpty) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('请输入 UID'))); return; }
+            Navigator.pop(d);
+            try {
+              await widget.api.addFriend(uid);
+              if (!mounted) return;
+              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('好友请求已发送')));
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('发送失败：$e')));
+            }
+          }, child: const Text('发送请求')),
+        ],
+      ),
+    );
+  }
+
+  void _showBgPicker(BuildContext ctx) {
+    if (selConv == null) return;
+    final convKey = _convKey(selConv!);
+    final colors = <Color?>[
+      null,
+      const Color(0xffededed), const Color(0xffd4edda), const Color(0xffd1ecf1),
+      const Color(0xfffce4ec), const Color(0xfffff9c4), const Color(0xffe8eaf6),
+      const Color(0xffffe0b2), const Color(0xffe0f2f1), const Color(0xfff3e5f5),
+    ];
+    showDialog(
+      context: ctx,
+      builder: (d) => AlertDialog(
+        title: const Text('选择聊天背景'),
+        content: Wrap(
+          spacing: 10, runSpacing: 10,
+          children: [
+            for (final c in colors)
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (c == null) { _chatBgColors.remove(convKey); } else { _chatBgColors[convKey] = c; }
+                  });
+                  Navigator.pop(d);
+                },
+                child: Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: c ?? Theme.of(ctx).scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _chatBgColors[convKey] == c ? _wechatGreen : Colors.grey.shade300, width: 2),
+                  ),
+                  child: c == null ? const Icon(Icons.close, size: 18) : null,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _blockCurrentUser() {
