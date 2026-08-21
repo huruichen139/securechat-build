@@ -593,6 +593,8 @@ class _ChatViewStateState extends State<_ChatView> {
   bool _multiSelectMode = false;
   final _selectedMsgs = <Map<String, dynamic>>{};
   double _fontSize = 15.0; // 聊天字体大小
+  final _likedMsgs = <String, int>{}; // 双击点赞: msgKey -> 点赞时间戳
+  Offset? _heartPos; // 爱心动画位置
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -1093,7 +1095,7 @@ class _ChatViewStateState extends State<_ChatView> {
             final i = messages.lastIndexWhere((m) => m['cmid'] == cmid);
             _sentIds.remove(cmid);
             if (i >= 0) {
-              setState(() => messages[i]['id'] = p['id']);
+              setState(() { messages[i]['id'] = p['id']; messages[i]['status'] = 'sent'; });
               return;
             }
           }
@@ -1170,7 +1172,7 @@ class _ChatViewStateState extends State<_ChatView> {
             final i = messages.lastIndexWhere((m) => m['cmid'] == cmid);
             _sentIds.remove(cmid);
             if (i >= 0) {
-              setState(() => messages[i]['id'] = p['id']);
+              setState(() { messages[i]['id'] = p['id']; messages[i]['status'] = 'sent'; });
               return;
             }
           }
@@ -1682,6 +1684,7 @@ class _ChatViewStateState extends State<_ChatView> {
               _selectedMsgs.add(msg);
             }
           }) : null,
+          onDoubleTap: _multiSelectMode ? null : () => _likeMessage(msg),
           onLongPress: _multiSelectMode ? null : () => _bubbleMenu(context, msg),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1727,11 +1730,16 @@ class _ChatViewStateState extends State<_ChatView> {
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 16),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (mine && msg['status'] == 'sending') ...[
+                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5)),
+                      const SizedBox(width: 4),
+                    ],
                     Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
                     if (mine) ...[
                       const SizedBox(width: 4),
                       Text(_readLabel(msg), style: TextStyle(color: _readLabelColor(msg, t), fontSize: 10)),
                     ],
+                    _likeBadge(msg),
                   ]),
                 ),
               ]),
@@ -2106,7 +2114,7 @@ class _ChatViewStateState extends State<_ChatView> {
       final gcmid = 'g${DateTime.now().microsecondsSinceEpoch}';
       _sentIds.add(gcmid);
       socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text, 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
-      setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1}));
+      setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1, 'status': 'sending'}));
       _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true};
       return;
     }
@@ -2114,7 +2122,7 @@ class _ChatViewStateState extends State<_ChatView> {
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
-    setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false}); });
+    setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false, 'status': 'sending'}); });
     _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false};
   }
 
@@ -2291,6 +2299,24 @@ class _ChatViewStateState extends State<_ChatView> {
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已转发')));
+  }
+
+  /// 双击消息点赞：气泡旁弹出爱心动画
+  void _likeMessage(Map<String, dynamic> msg) {
+    final key = msg['cmid']?.toString() ?? 'id${msg['id']}';
+    setState(() => _likedMsgs[key] = DateTime.now().millisecondsSinceEpoch);
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _likedMsgs.remove(key));
+    });
+  }
+
+  Widget _likeBadge(Map<String, dynamic> msg) {
+    final key = msg['cmid']?.toString() ?? 'id${msg['id']}';
+    if (!_likedMsgs.containsKey(key)) return const SizedBox.shrink();
+    return const Padding(
+      padding: EdgeInsets.only(left: 4),
+      child: Icon(Icons.favorite, color: Color(0xfffa5151), size: 16),
+    );
   }
 
   void _bubbleMenu(BuildContext context, Map<String, dynamic> msg) {
