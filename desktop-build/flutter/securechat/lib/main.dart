@@ -590,6 +590,9 @@ class _ChatViewStateState extends State<_ChatView> {
   bool _isTyping = false;
   final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
   final _chatBgColors = <String, Color>{}; // 会话背景色 keyed by convKey
+  bool _multiSelectMode = false;
+  final _selectedMsgs = <Map<String, dynamic>>{};
+  double _fontSize = 15.0; // 聊天字体大小
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -1337,6 +1340,7 @@ class _ChatViewStateState extends State<_ChatView> {
         const Spacer(),
         if (selConv != null) ...[
           IconButton(tooltip: '搜索消息', onPressed: _toggleChatSearch, icon: Icon(Icons.search, color: _chatSearchVisible ? _wechatGreen : t.subText)),
+          IconButton(tooltip: _multiSelectMode ? '退出多选' : '多选消息', onPressed: _toggleMultiSelect, icon: Icon(_multiSelectMode ? Icons.close : Icons.checklist, color: _multiSelectMode ? _wechatGreen : t.subText)),
           IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
           IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
           if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
@@ -1352,6 +1356,7 @@ class _ChatViewStateState extends State<_ChatView> {
               PopupMenuItem(value: 2, child: Text('添加好友')),
               PopupMenuItem(value: 3, child: Text('查看聊天资料')),
               PopupMenuItem(value: 7, child: Text('设置聊天背景')),
+              PopupMenuItem(value: 8, child: Text('字体大小')),
               PopupMenuItem(value: 4, child: Text('我的名片')),
               PopupMenuItem(value: 5, child: Text('扫一扫')),
             ],
@@ -1423,6 +1428,18 @@ class _ChatViewStateState extends State<_ChatView> {
               ),
             ),
       ),
+      if (_multiSelectMode)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.85), border: Border(top: BorderSide(color: t.div))),
+          child: Row(children: [
+            Text('已选 ${_selectedMsgs.length} 条', style: TextStyle(color: t.text, fontSize: 13)),
+            const Spacer(),
+            IconButton(tooltip: '批量转发', onPressed: _selectedMsgs.isEmpty ? null : _batchForward, icon: Icon(Icons.forward, color: _selectedMsgs.isEmpty ? t.subText : _wechatGreen)),
+            IconButton(tooltip: '批量删除', onPressed: _selectedMsgs.isEmpty ? null : _batchDelete, icon: Icon(Icons.delete_outline, color: _selectedMsgs.isEmpty ? t.subText : Colors.red)),
+            TextButton(onPressed: _toggleMultiSelect, child: const Text('取消')),
+          ]),
+        ),
       if (replyingTo != null) _replyBar(),
       _composer(),
     ]);
@@ -1502,16 +1519,28 @@ class _ChatViewStateState extends State<_ChatView> {
         : fileMeta != null
             ? _fileBubble(mine, fileMeta, t)
             : _textBubble(mine, msg, t);
+    final isSelected = _selectedMsgs.any((m) => m['id'] == msg['id'] || (msg['cmid'] != null && m['cmid'] == msg['cmid']));
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: GestureDetector(
-          onLongPress: () => _bubbleMenu(context, msg),
+          onTap: _multiSelectMode ? () => setState(() {
+            if (isSelected) {
+              _selectedMsgs.removeWhere((m) => m['id'] == msg['id'] || (msg['cmid'] != null && m['cmid'] == msg['cmid']));
+            } else {
+              _selectedMsgs.add(msg);
+            }
+          }) : null,
+          onLongPress: _multiSelectMode ? null : () => _bubbleMenu(context, msg),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (_multiSelectMode && mine) ...[
+                Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? _wechatGreen : t.subText, size: 20),
+                const SizedBox(width: 6),
+              ],
               if (!mine) ...[
                 CircleAvatar(radius: 16, backgroundColor: t.primary.withValues(alpha: t.isDark ? 0.25 : 0.14), child: const Icon(Icons.person, size: 17, color: _wechatGreen)),
                 const SizedBox(width: 8),
@@ -1556,6 +1585,10 @@ class _ChatViewStateState extends State<_ChatView> {
                   ]),
                 ),
               ]),
+              if (_multiSelectMode && !mine) ...[
+                const SizedBox(width: 6),
+                Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? _wechatGreen : t.subText, size: 20),
+              ],
             ],
           ),
         ),
@@ -1577,7 +1610,7 @@ class _ChatViewStateState extends State<_ChatView> {
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
-      child: SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: 16, height: 1.4)),
+      child: SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
     );
   }
 
@@ -2173,6 +2206,127 @@ class _ChatViewStateState extends State<_ChatView> {
     }
     if (v == 6) _showJoinGroupDialog(ctx);
     if (v == 7) _showBgPicker(ctx);
+    if (v == 8) _showFontSizeDialog(ctx);
+  }
+
+  void _showFontSizeDialog(BuildContext ctx) {
+    showDialog(
+      context: ctx,
+      builder: (d) => StatefulBuilder(
+        builder: (d, setState) => AlertDialog(
+          title: const Text('聊天字体大小'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('预览：你好，这是一条消息', style: TextStyle(fontSize: _fontSize)),
+            const SizedBox(height: 12),
+            Row(children: [
+              const Text('小'),
+              Expanded(child: Slider(min: 12, max: 22, divisions: 10, value: _fontSize, onChanged: (v) => setState(() => _fontSize = v))),
+              const Text('大'),
+            ]),
+            Text('${_fontSize.toStringAsFixed(0)} px', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 12)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => setState(() => _fontSize = 15.0), child: const Text('默认')),
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('确定')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleMultiSelect() {
+    setState(() {
+      _multiSelectMode = !_multiSelectMode;
+      if (!_multiSelectMode) _selectedMsgs.clear();
+    });
+  }
+
+  void _batchDelete() async {
+    if (_selectedMsgs.isEmpty) return;
+    final count = _selectedMsgs.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除消息'),
+        content: Text('确定删除选中的 $count 条消息？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      for (final msg in _selectedMsgs) {
+        final cmid = msg['cmid'] as String?;
+        if (cmid != null) _deletedIds.add(cmid);
+        messages.removeWhere((m) => m['id'] == msg['id'] || (cmid != null && m['cmid'] == cmid));
+      }
+      _selectedMsgs.clear();
+      _multiSelectMode = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已删除 $count 条消息')));
+  }
+
+  void _batchForward() async {
+    if (_selectedMsgs.isEmpty) return;
+    if (conversations.isEmpty) return;
+    String query = '';
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final filtered = query.isEmpty
+              ? conversations
+              : conversations.where((c) => (c['name'] ?? '').toString().toLowerCase().contains(query.toLowerCase())).toList();
+          return AlertDialog(
+            title: Text('转发 ${_selectedMsgs.length} 条消息到...'),
+            content: SizedBox(width: 360, height: 400,
+              child: Column(children: [
+                TextField(
+                  autofocus: true,
+                  decoration: InputDecoration(hintText: '搜索联系人/群聊', prefixIcon: const Icon(Icons.search, size: 20), border: const OutlineInputBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                  onChanged: (v) => setState(() => query = v),
+                ),
+                const SizedBox(height: 8),
+                Expanded(child: ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final c = filtered[i];
+                    final idx = conversations.indexOf(c);
+                    return ListTile(
+                      dense: true,
+                      leading: CircleAvatar(radius: 18, backgroundColor: _wechatGreen, child: Text((c['name'] ?? '?').toString().substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14))),
+                      title: Text(c['name']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: c['kind'] == 'group' ? const Text('群聊', style: TextStyle(fontSize: 11)) : null,
+                      onTap: () => Navigator.pop(ctx, idx),
+                    );
+                  },
+                )),
+              ]),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消'))],
+          );
+        },
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final conv = conversations[picked];
+    final texts = _selectedMsgs.map((m) => (m['text'] ?? '').toString()).where((t) => t.isNotEmpty).toList();
+    if (texts.isEmpty) return;
+    final content = texts.join('\n');
+    if (conv['kind'] == 'group') {
+      final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
+      _sentIds.add(gcmid);
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid}}));
+    } else {
+      final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
+      _sentIds.add(cmid);
+      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': cmid}}));
+    }
+    if (!mounted) return;
+    setState(() { _selectedMsgs.clear(); _multiSelectMode = false; });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已批量转发')));
   }
 
   void _showAddFriendDialog(BuildContext ctx) {
