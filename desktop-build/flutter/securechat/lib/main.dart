@@ -641,6 +641,19 @@ class _ChatViewStateState extends State<_ChatView> {
       final sp = await SharedPreferences.getInstance();
       final fs = sp.getDouble('chatFontSize');
       if (fs != null && fs >= 12 && fs <= 22 && mounted) setState(() => _fontSize = fs);
+      // 加载聊天背景色
+      final bgKeys = sp.getStringList('chatBgColors');
+      if (bgKeys != null && mounted) {
+        setState(() {
+          for (final entry in bgKeys) {
+            final parts = entry.split(':');
+            if (parts.length == 2) {
+              final val = int.tryParse(parts[1]);
+              if (val != null) _chatBgColors[parts[0]] = Color(val);
+            }
+          }
+        });
+      }
     } catch (_) {}
   }
 
@@ -1331,7 +1344,11 @@ class _ChatViewStateState extends State<_ChatView> {
     if (last == null) {
       return conv['kind'] == 'group' ? '群聊' : (conv['online'] == true ? '在线' : '离线');
     }
-    final txt = (last['text'] ?? '').toString();
+    var txt = (last['text'] ?? '').toString();
+    // 语音/文件预览
+    if (RegExp(r'^\[语音消息:').hasMatch(txt)) txt = '[语音]';
+    if (txt.startsWith('__FILE__')) txt = '[文件]';
+    if (txt.startsWith('[红包:')) txt = '[红包]';
     final preview = txt.length > 14 ? '${txt.substring(0, 14)}…' : txt;
     if (last['mine'] == true) {
       final read = last['read'] == true ? '已读' : '未读';
@@ -2470,6 +2487,13 @@ class _ChatViewStateState extends State<_ChatView> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已批量转发')));
   }
 
+  void _saveBgColors() {
+    try {
+      final entries = _chatBgColors.entries.map((e) => '${e.key}:${e.value.value}').toList();
+      SharedPreferences.getInstance().then((p) => p.setStringList('chatBgColors', entries)).catchError((_){});
+    } catch (_) {}
+  }
+
   void _showAddFriendDialog(BuildContext ctx) {
     final ctrl = TextEditingController();
     showDialog(
@@ -2519,6 +2543,7 @@ class _ChatViewStateState extends State<_ChatView> {
                   setState(() {
                     if (c == null) { _chatBgColors.remove(convKey); } else { _chatBgColors[convKey] = c; }
                   });
+                  _saveBgColors();
                   Navigator.pop(d);
                 },
                 child: Container(
