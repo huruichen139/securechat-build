@@ -588,7 +588,7 @@ function enterChat() {
 
 function renderMyInfo() {
   const hasImg = state.me && state.me.avatar;
-  const avHtml = hasImg ? '<img src="' + state.me.avatar + '">'
+  const avHtml = hasImg ? '<img src="' + escapeHtml(state.me.avatar) + '">'
     : avatarChar(state.me.nickname);
   // 地区：country/province/city 是独立列；若三者皆空，再尝试从 extra 取现住地（currentAddress / hometown）
   const c = (state.me && state.me.country) || '';
@@ -1763,7 +1763,7 @@ function renderContacts() {
     const div = document.createElement('div');
     div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
     const unread = state.unread[u.id] || 0;
-    const avHtml = u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname);
+    const avHtml = escapeHtml(u.avatar) ? '<img src="' + escapeHtml(u.avatar) + '">' : avatarChar(u.nickname);
     const isPinned = !!chatPrefs().pinned['u:' + u.id];
     const isMuted = !!chatPrefs().muted['u:' + u.id];
     const lastMsg = state.lastFrom[u.id];
@@ -1839,7 +1839,7 @@ function renderContactsDirectory() {
         div.onclick = () => selectGroup(g.id);
       } else {
         const u = item.u;
-        const avHtml = u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname);
+    const avHtml = u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : avatarChar(u.nickname);
         div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
         div.innerHTML = `<div class="avatar">${avHtml}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(u.nickname)}</div><div class="last">${u.online ? '在线' : '离线'}</div></div>`;
         div.onclick = () => selectPeer(u.id);
@@ -2144,7 +2144,7 @@ function openPeerProfile(peerId) {
   mask.innerHTML = `
     <div class="profile-card">
       <div class="profile-head">
-        <div class="profile-avatar">${peer.avatar ? '<img src="' + peer.avatar + '">' : avatarChar(peer.nickname)}</div>
+        <div class="profile-avatar">${peer.avatar ? '<img src="' + escapeHtml(peer.avatar) + '">' : avatarChar(peer.nickname)}</div>
         <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
         <div class="profile-id">微信号：${escapeHtml(peer.uid || '')} · ID: ${peer.id}</div>
         <div class="profile-online">${peer.online ? '<span class="dot online"></span> 在线' : escapeHtml(peerStatusLabel(peer))}</div>
@@ -2195,7 +2195,7 @@ async function openGroupProfile(groupId) {
       </div>
       <div class="profile-members">
         ${members.length ? members.map(m => `<div class="profile-member" data-mid="${m.id}">
-          <div class="avatar" style="width:34px;height:34px;border-radius:6px">${m.avatar ? '<img src="' + m.avatar + '">' : avatarChar(m.myNickname || m.nickname)}</div>
+          <div class="avatar" style="width:34px;height:34px;border-radius:6px">${m.avatar ? '<img src="' + escapeHtml(m.avatar) + '">' : avatarChar(m.myNickname || m.nickname)}</div>
           <span>${escapeHtml(m.myNickname || m.nickname)}</span>${m.id === (g.ownerId) ? '<em style="color:#fa5151;font-style:normal;font-size:11px">群主</em>' : ''}
         </div>`).join('') : '<div style="padding:12px;color:#aaa;font-size:13px">暂无成员</div>'}
       </div>
@@ -2279,7 +2279,7 @@ async function selectGroup(groupId) {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
-    if (!res.ok) { $('messages').innerHTML = '<div style="color:#999;text-align:center">' + (data.error || '加载历史失败') + '</div>'; return; }
+    if (!res.ok) { $('messages').innerHTML = '<div style="color:#999;text-align:center">' + escapeHtml(data.error || '加载历史失败') + '</div>'; return; }
     state.groupMsgs[groupId] = data.messages || [];
     renderGroupMessages(data.messages || []);
   } catch (e) {
@@ -2340,7 +2340,7 @@ function appendGroupMessage(m, prepend) {
     row.className = 'msg-row ' + (mine ? 'me' : 'other');
     const fromName = (m.fromUser && m.fromUser.nickname) || ('用户' + m.from);
     const avHtml = (m.fromUser && m.fromUser.avatar)
-      ? '<img src="' + m.fromUser.avatar + '">'
+      ? '<img src="' + escapeHtml(m.fromUser.avatar) + '">'
       : avatarChar(fromName);
     const nameLine = mine ? '' : '<div class="name">' + escapeHtml(fromName) + '</div>';
     const bars = '<span class="voice-bars">' + Array.from({ length: 5 }, (_, i) => '<span style="height:' + (6 + i * 2) + 'px"></span>').join('') + '</span>';
@@ -2375,7 +2375,7 @@ function appendGroupMessage(m, prepend) {
   row.className = 'msg-row ' + (mine ? 'me' : 'other');
   const fromName = (m.fromUser && m.fromUser.nickname) || ('用户' + m.from);
   const avHtml = (m.fromUser && m.fromUser.avatar)
-    ? '<img src="' + m.fromUser.avatar + '">'
+    ? '<img src="' + escapeHtml(m.fromUser.avatar) + '">'
     : avatarChar(fromName);
   const nameLine = mine ? '' : '<div class="name">' + escapeHtml(fromName) + '</div>';
   if (m.id != null) row.setAttribute('data-id', String(m.id));
@@ -2870,7 +2870,7 @@ function openForwardPicker(msg) {
       </div>
       <div class="profile-members">
         ${targets.map(t => `<div class="profile-member" data-k="${t.kind}" data-id="${t.id}">
-          <div class="avatar" style="width:34px;height:34px;border-radius:6px">${t.avatar ? '<img src="' + t.avatar + '">' : avatarChar(t.name)}</div>
+          <div class="avatar" style="width:34px;height:34px;border-radius:6px">${t.avatar ? '<img src="' + escapeHtml(t.avatar) + '">' : avatarChar(t.name)}</div>
           <span>${escapeHtml(t.name)}</span>${t.kind === 'group' ? '<em style="color:#888;font-style:normal;font-size:11px">群聊</em>' : ''}
         </div>`).join('')}
       </div>
@@ -3390,7 +3390,7 @@ window.addEventListener('focus', () => { if (window.chatAPI) window.chatAPI.stop
 // ============ 工具 ============
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-    '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 }
 
@@ -4088,7 +4088,7 @@ function renderMePage() {
   const header = document.getElementById('meHeaderContent');
   if (!header) return;
   const hasImg = state.me.avatar;
-  const avHtml = hasImg ? `<img src="${state.me.avatar}">` : avatarChar(state.me.nickname);
+  const avHtml = hasImg ? `<img src="${escapeHtml(state.me.avatar)}">` : avatarChar(state.me.nickname);
   const qrHtml = '<span class="me-qr" id="meQrBtn" title="扫一扫"><span class="wx-ico-sm">扫</span></span>';
   header.innerHTML = `
     <div class="me-avatar">${avHtml}</div>
@@ -4145,7 +4145,7 @@ function renderContactsPage() {
   newFEl.innerHTML = state.pendingReq.length ? state.pendingReq.map(r => {
     const u = r.fromUser || {};
     return `<div class="contact" data-uid="${r.from}">
-      <div class="avatar">${u.avatar ? '<img src="'+u.avatar+'">' : avatarChar(u.nickname)}</div>
+      <div class="avatar">${escapeHtml(u.avatar) ? '<img src="'+escapeHtml(u.avatar)+'">' : avatarChar(u.nickname)}</div>
       <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(u.nickname || '未知')}</div>
         <div class="last">ID: ${escapeHtml(String(r.from))}</div>
@@ -4212,7 +4212,7 @@ function renderContactsPage() {
     <div class="contact-section">
       ${groups[k].map(u => `
         <div class="contact" data-uid="${u.id}">
-          <div class="avatar">${u.avatar ? '<img src="'+u.avatar+'">' : avatarChar(u.nickname)}</div>
+          <div class="avatar">${escapeHtml(u.avatar) ? '<img src="'+escapeHtml(u.avatar)+'">' : avatarChar(u.nickname)}</div>
           <div style="flex:1;overflow:hidden">
             <div class="name">${escapeHtml(u.nickname)}</div>
             <div class="last">${u.online ? '<span class="dot online"></span> 在线' : '离线'}</div>
@@ -4584,7 +4584,7 @@ async function renderBlocklistPage() {
   const bl = await loadBlocklist(true);
   if (!bl.size) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">暂无黑名单</div>'; return; }
   list.innerHTML = [...bl.values()].map(u => '<div class="contact" style="display:flex;align-items:center;padding:10px 14px;background:#fff">' +
-    '<div class="avatar">' + (u.avatar ? '<img src="' + u.avatar + '">' : avatarChar(u.nickname || u.username)) + '</div>' +
+    '<div class="avatar">' + (escapeHtml(u.avatar) ? '<img src="' + escapeHtml(u.avatar) + '">' : avatarChar(u.nickname || u.username)) + '</div>' +
     '<div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(u.nickname || u.username) + '</div>' +
     '<div class="last">ID: ' + escapeHtml(String(u.uid || u.id)) + '</div></div>' +
     '<button class="btn-cn" style="padding:4px 10px;font-size:12px" data-unblock="' + u.id + '">解除拉黑</button></div>').join('');

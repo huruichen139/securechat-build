@@ -700,7 +700,9 @@ function messageForUser(messageId, userId) {
   `).get(messageId, userId, userId);
 }
 
+const _ALLOWED_META_FIELDS = new Set(['reply_to', 'forwarded_from', 'burn_after_reading', 'pinned']);
 function messageMetaUpdate(messageId, userId, field, value) {
+  if (!_ALLOWED_META_FIELDS.has(field)) throw new Error('invalid meta field');
   const message = messageForUser(messageId, userId);
   if (!message) return null;
   const now = Date.now();
@@ -1097,6 +1099,7 @@ app.post('/api/group/create', (req, res) => {
 });
 
 // 加群：POST /api/group/join { groupId }
+// 要求：请求者必须是群成员（或由群主/管理员操作）
 app.post('/api/group/join', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const auth = req.headers.authorization || '';
@@ -1106,6 +1109,8 @@ app.post('/api/group/join', (req, res) => {
   if (!groupId) return res.status(400).json({ error: '群ID不能为空' });
   const g = prepare('SELECT id FROM groups WHERE id=?').get(groupId);
   if (!g) return res.status(404).json({ error: '群不存在' });
+  const member = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
+  if (!member) return res.status(403).json({ error: '你不是该群成员' });
   prepare('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)')
     .run(groupId, payload.id, Date.now());
   res.json({ ok: true });
@@ -1113,7 +1118,7 @@ app.post('/api/group/join', (req, res) => {
 });
 
 // 邀请入群：POST /api/group/invite { groupId, uid }
-// 注意：body 里的 uid 是用户的 UID 字符串（如 xY7mK3n4），不是数据库 id
+// 要求：请求者必须是群成员
 app.post('/api/group/invite', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const auth = req.headers.authorization || '';
@@ -1126,6 +1131,8 @@ app.post('/api/group/invite', (req, res) => {
   if (!uid) return res.status(400).json({ error: '对方UID不能为空' });
   const g = prepare('SELECT id FROM groups WHERE id=?').get(groupId);
   if (!g) return res.status(404).json({ error: '群不存在' });
+  const inviter = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
+  if (!inviter) return res.status(403).json({ error: '你不是该群成员，无法邀请' });
   const target = prepare('SELECT id FROM users WHERE uid=?').get(uid);
   if (!target) return res.status(404).json({ error: '该UID不存在' });
   const exists = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, target.id);
@@ -1399,8 +1406,13 @@ app.post('/api/videos/:id/like', (req, res) => {
   const id = Number(req.params.id);
   if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
   const on = req.body && req.body.on !== false;
-  if (on) { prepare('INSERT OR IGNORE INTO video_likes(video_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now()); prepare('UPDATE videos SET likes=likes+1 WHERE id=?').run(id); }
-  else { prepare('DELETE FROM video_likes WHERE video_id=? AND user_id=?').run(id, payload.id); prepare('UPDATE videos SET likes=MAX(0,likes-1) WHERE id=?').run(id); }
+  if (on) {
+    const already = prepare('SELECT 1 FROM video_likes WHERE video_id=? AND user_id=?').get(id, payload.id);
+    if (!already) {
+      prepare('INSERT INTO video_likes(video_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
+      prepare('UPDATE videos SET likes=likes+1 WHERE id=?').run(id);
+    }
+  } else { prepare('DELETE FROM video_likes WHERE video_id=? AND user_id=?').run(id, payload.id); prepare('UPDATE videos SET likes=MAX(0,likes-1) WHERE id=?').run(id); }
   persist();
   res.json({ ok: true, liked: on });
 });

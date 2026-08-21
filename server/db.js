@@ -569,18 +569,11 @@ function prepare(sql) {
     },
     get(...args) {
       const stmt = db.prepare(sql);
-      stmt.bind(args);
-      const row = stmt.step() ? stmt.getAsObject() : null;
-      stmt.free();
-      return row;
+      try { stmt.bind(args); const row = stmt.step() ? stmt.getAsObject() : null; return row; } finally { stmt.free(); }
     },
     all(...args) {
       const stmt = db.prepare(sql);
-      stmt.bind(args);
-      const rows = [];
-      while (stmt.step()) rows.push(stmt.getAsObject());
-      stmt.free();
-      return rows;
+      try { stmt.bind(args); const rows = []; while (stmt.step()) rows.push(stmt.getAsObject()); return rows; } finally { stmt.free(); }
     }
   };
 }
