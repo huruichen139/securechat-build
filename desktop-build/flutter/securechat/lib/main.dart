@@ -633,6 +633,15 @@ class _ChatViewStateState extends State<_ChatView> {
     _connect();
     _loadData();
     _checkUpdate();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final fs = sp.getDouble('chatFontSize');
+      if (fs != null && fs >= 12 && fs <= 22 && mounted) setState(() => _fontSize = fs);
+    } catch (_) {}
   }
 
   void _onInputChanged() {
@@ -766,8 +775,8 @@ class _ChatViewStateState extends State<_ChatView> {
           final read = mine || m['read'] == true;
           final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
           msgs.add(voice != null
-              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount}
-              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount});
+              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount}
+              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount});
         }
         final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
         _insertUnreadDivider(dedup);
@@ -794,8 +803,8 @@ class _ChatViewStateState extends State<_ChatView> {
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
         final read = m['read'] == true;
         msgs.add(voice != null
-            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
-            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
+            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
+            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
       }
       final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
       _insertUnreadDivider(dedup);
@@ -809,10 +818,13 @@ class _ChatViewStateState extends State<_ChatView> {
 
   /// 在第一条未读消息上方插入「N 条未读消息」分割条（仅聊天类消息，不含分割条自身）
   void _insertUnreadDivider(List<Map<String, dynamic>> msgs) {
+    // 先插入日期分隔条
+    _insertDateSeparators(msgs);
     var unreadCount = 0;
     var firstIdx = -1;
     for (var i = 0; i < msgs.length; i++) {
       final m = msgs[i];
+      if (m['divider'] == true || m['dateSep'] == true) continue;
       if (m['mine'] != true && m['read'] != true) {
         unreadCount++;
         if (firstIdx < 0) firstIdx = i;
@@ -820,6 +832,38 @@ class _ChatViewStateState extends State<_ChatView> {
     }
     if (unreadCount > 0 && firstIdx >= 0) {
       msgs.insert(firstIdx, {'divider': true, 'unreadCount': unreadCount});
+    }
+  }
+
+  static String _dateLabel(int ts) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(ts);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDay = DateTime(dt.year, dt.month, dt.day);
+    final diff = today.difference(msgDay).inDays;
+    if (diff == 0) return '今天';
+    if (diff == 1) return '昨天';
+    if (diff < 7) return '${diff}天前';
+    return '${dt.year}/${dt.month}/${dt.day}';
+  }
+
+  void _insertDateSeparators(List<Map<String, dynamic>> msgs) {
+    if (msgs.isEmpty) return;
+    final inserts = <int, Map<String, dynamic>>{};
+    String? lastLabel;
+    for (var i = 0; i < msgs.length; i++) {
+      final ts = msgs[i]['ts'];
+      if (ts == null) continue;
+      final label = _dateLabel(ts is int ? ts : int.tryParse('$ts') ?? 0);
+      if (label != lastLabel) {
+        inserts[i] = {'dateSep': true, 'label': label};
+        lastLabel = label;
+      }
+    }
+    int offset = 0;
+    for (final entry in inserts.entries) {
+      msgs.insert(entry.key + offset, entry.value);
+      offset++;
     }
   }
 
@@ -1502,6 +1546,16 @@ class _ChatViewStateState extends State<_ChatView> {
             decoration: BoxDecoration(color: widget.config.theme.div.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(10)),
             child: Text('${msg['unreadCount']} 条未读消息', style: TextStyle(color: widget.config.theme.subText, fontSize: 11)),
           ),
+        ),
+      );
+    }
+    if (msg['dateSep'] == true) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(color: widget.config.theme.div.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(4)),
+          child: Text(msg['label'] ?? '', style: TextStyle(color: widget.config.theme.subText, fontSize: 11)),
         ),
       );
     }
@@ -2227,7 +2281,7 @@ class _ChatViewStateState extends State<_ChatView> {
           ]),
           actions: [
             TextButton(onPressed: () => setState(() => _fontSize = 15.0), child: const Text('默认')),
-            TextButton(onPressed: () => Navigator.pop(d), child: const Text('确定')),
+            TextButton(onPressed: () { SharedPreferences.getInstance().then((p) => p.setDouble('chatFontSize', _fontSize)).catchError((_){}); Navigator.pop(d); }, child: const Text('确定')),
           ],
         ),
       ),
