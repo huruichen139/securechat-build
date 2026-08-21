@@ -204,6 +204,7 @@ async function sendMail(to, subject, html) {
 
 // 请求验证码：POST /api/email/code { email, purpose: "register"|"bind" }
 app.post('/api/email/code', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   cleanCode();
   const ip = getIp(req);
   if (rateLimit('email:' + ip, 5, 10 * 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请10分钟后再试' });
@@ -399,6 +400,7 @@ app.post('/api/login/qr/create', (req, res) => {
 });
 
 app.get('/api/login/qr/image', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const session = getQrLoginSession(req.query.token);
   if (!session) return res.status(410).json({ error: '二维码已过期，请重新生成' });
   try {
@@ -408,6 +410,7 @@ app.get('/api/login/qr/image', async (req, res) => {
 });
 
 app.get('/api/login/qr/status', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const session = getQrLoginSession(req.query.token);
   if (!session) return res.status(410).json({ error: '二维码已过期，请重新生成' });
   res.json({ status: session.status, expiresAt: session.expiresAt });
@@ -431,6 +434,7 @@ app.post('/api/login/qr/confirm', (req, res) => {
 
 // 二维码端轮询：未登录时由网页/客户端发起，拿到一次性登录凭证后即登录成功。
 app.post('/api/login/qr/consume', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const session = getQrLoginSession(req.body && req.body.token);
   if (!session) return res.status(410).json({ error: '二维码已过期' });
   if (session.status !== 'confirmed' || !session.loginToken) return res.json({ status: session.status });
@@ -440,6 +444,7 @@ app.post('/api/login/qr/consume', (req, res) => {
 
 // 通用二维码渲染：GET /api/qrcode/render?text=...&w=...（返回 PNG，用于网页端展示名片等）
 app.get('/api/qrcode/render', async (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const text = (req.query.text || '').toString().slice(0, 1024);
   if (!text) return res.status(400).json({ error: '缺少 text 参数' });
   try {
@@ -751,6 +756,7 @@ function messageMetaUpdate(messageId, userId, field, value) {
 }
 
 app.post('/api/messages/:id/reply', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const id = Number(req.params.id); const message = messageForUser(id, payload.id);
   if (!message) return res.status(404).json({ error: '消息不存在' });
@@ -759,6 +765,7 @@ app.post('/api/messages/:id/reply', (req, res) => {
 });
 
 app.post('/api/messages/:id/pin', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const meta = messageMetaUpdate(Number(req.params.id), payload.id, 'pinned', !!(req.body && req.body.pinned));
   if (!meta) return res.status(404).json({ error: '消息不存在' });
@@ -766,6 +773,7 @@ app.post('/api/messages/:id/pin', (req, res) => {
 });
 
 app.post('/api/messages/:id/favorite', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const id = Number(req.params.id); if (!messageForUser(id, payload.id)) return res.status(404).json({ error: '消息不存在' });
   if (req.body && req.body.favorite === false) prepare('DELETE FROM message_favorites WHERE user_id=? AND message_id=?').run(payload.id, id);
@@ -774,6 +782,7 @@ app.post('/api/messages/:id/favorite', (req, res) => {
 });
 
 app.get('/api/favorites', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const rows = prepare(`SELECT m.id,m.from_id AS from,m.to_id AS to,m.content,m.created_at AS createdAt,f.created_at AS favoritedAt
     FROM message_favorites f JOIN messages m ON m.id=f.message_id WHERE f.user_id=? ORDER BY f.created_at DESC`).all(payload.id);
@@ -781,6 +790,7 @@ app.get('/api/favorites', (req, res) => {
 });
 
 app.post('/api/chats/:peerId/settings', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = Number(req.params.peerId); if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
   const body = req.body || {}; const now = Date.now();
@@ -794,12 +804,14 @@ app.post('/api/chats/:peerId/settings', (req, res) => {
 });
 
 app.get('/api/chats/settings', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const rows = prepare('SELECT peer_id AS peerId,muted,pinned,updated_at AS updatedAt FROM user_chat_settings WHERE user_id=? ORDER BY pinned DESC,updated_at DESC').all(payload.id);
   res.json({ settings: rows });
 });
 
 app.post('/api/webhooks', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const url = String(req.body && req.body.url || '').trim();
   if (!/^https:\/\//i.test(url)) return res.status(400).json({ error: 'Webhook 必须使用 HTTPS' });
@@ -810,6 +822,7 @@ app.post('/api/webhooks', (req, res) => {
 });
 
 app.get('/api/webhooks', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   res.json({ webhooks: prepare('SELECT id,url,enabled,created_at AS createdAt FROM webhooks WHERE user_id=? ORDER BY id DESC').all(payload.id) });
 });
@@ -1035,6 +1048,7 @@ app.get('/api/files', (req, res) => {
 });
 
 app.get('/api/files/:id', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const file = prepare('SELECT * FROM file_transfers WHERE id=? AND (from_id=? OR to_id=?)').get(req.params.id, payload.id, payload.id);
@@ -1107,6 +1121,7 @@ app.post('/api/stt', (req, res) => {
 });
 
 app.get('/api/call-recordings', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = req.query.peer ? parseInt(req.query.peer, 10) : null;
@@ -1121,6 +1136,7 @@ app.post('/api/call-recordings', express.raw({
     type: (req) => { const ct = String(req.headers['content-type'] || '').split(';')[0].trim(); return ct === 'video/webm' || ct === 'audio/webm'; },
     limit: '500mb'
   }), (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '回放为空' });
@@ -1139,6 +1155,7 @@ app.post('/api/call-recordings', express.raw({
 });
 
 app.get('/api/call-recordings/:id', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const row = prepare('SELECT * FROM call_recordings WHERE id=?').get(req.params.id);

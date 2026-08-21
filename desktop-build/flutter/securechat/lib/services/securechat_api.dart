@@ -701,4 +701,23 @@ class SecureChatApi {
 
   Future<Map<String, dynamic>> adminSaveEpayConfig(Map<String, dynamic> config) =>
       _json('POST', '/api/admin/pay/epay/config', body: config);
+
+  Future<void> joinGroup(int groupId) =>
+      _json('POST', '/api/group/join', body: {'groupId': groupId});
+
+  Future<void> blockUser(int targetId) =>
+      _json('POST', '/api/block', body: {'targetId': targetId});
+
+  Future<void> unblockUser(int targetId) =>
+      _json('POST', '/api/unblock', body: {'targetId': targetId});
+
+  Future<List<Map<String, dynamic>>> blockList() async {
+    final data = await _json('GET', '/api/blocklist');
+    return ((data['blocked'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAnnouncements() async {
+    final data = await _json('GET', '/api/announcements');
+    return ((data['announcements'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
 }

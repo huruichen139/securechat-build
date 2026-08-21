@@ -429,6 +429,34 @@ class _ChatShellState extends State<ChatShell> {
   final _contactsViewState = GlobalKey<_ContactsViewStateState>();
   ({int id, bool isGroup, String name})? _pendingOpen;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAnnouncements();
+  }
+
+  Future<void> _loadAnnouncements() async {
+    try {
+      final anns = await widget.api.fetchAnnouncements();
+      if (!mounted || anns.isEmpty) return;
+      for (final a in anns) {
+        if (!mounted) return;
+        final level = a['level'] ?? 'info';
+        final color = level == 'danger' ? Colors.red : level == 'warning' ? Colors.orange : _wechatGreen;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: Icon(Icons.campaign, color: color, size: 32),
+            title: Text(a['title'] ?? '公告'),
+            content: Text(a['content'] ?? ''),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('我知道了'))],
+          ),
+        );
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    } catch (_) {}
+  }
+
   void _openChatFromContacts(int id, bool isGroup, String name) {
     setState(() {
       _tab = 0;
@@ -560,6 +588,7 @@ class _ChatViewStateState extends State<_ChatView> {
   List<Map<String, dynamic>> _chatSearchResults = [];
   int _chatSearchIdx = -1;
   bool _isTyping = false;
+  final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -701,8 +730,18 @@ class _ChatViewStateState extends State<_ChatView> {
   Future<void> _openConversation(int index) async {
     final conv = conversations[index];
     final seq = ++_openSeq;
+    // 保存当前草稿
+    if (selConv != null) {
+      final oldKey = _convKey(selConv!);
+      if (input.text.isNotEmpty) { _drafts[oldKey] = input.text; } else { _drafts.remove(oldKey); }
+    }
     setState(() { selected = index; _unread.remove(_convKey(conv)); });
     messages.clear();
+    // 恢复目标会话草稿
+    final newKey = _convKey(conv);
+    final draft = _drafts.remove(newKey);
+    input.text = draft ?? '';
+    if (draft != null && draft.isNotEmpty) inputFocus.requestFocus();
     if (conv['kind'] == 'group') {
       if (mounted) setState(() => selName = conv['name'].toString());
       final gid = conv['id'] as int;
@@ -1305,6 +1344,7 @@ class _ChatViewStateState extends State<_ChatView> {
             onSelected: (v) => _onContextMenu(v, context),
             itemBuilder: (_) => const [
               PopupMenuItem(value: 0, child: Text('发起群聊')),
+              PopupMenuItem(value: 6, child: Text('加入群聊')),
               PopupMenuItem(value: 1, child: Text('发起音视频会议')),
               PopupMenuItem(value: 2, child: Text('添加好友')),
               PopupMenuItem(value: 3, child: Text('查看聊天资料')),
@@ -1642,6 +1682,7 @@ class _ChatViewStateState extends State<_ChatView> {
       child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
         IconButton(tooltip: '附件', onPressed: _pickAndSendFile, icon: Icon(Icons.add_circle_outline, color: t.text)),
+        IconButton(tooltip: '表情', onPressed: () => _showEmojiPicker(context), icon: Icon(Icons.emoji_emotions_outlined, color: t.text)),
         Expanded(child: TextField(
           controller: input,
           focusNode: inputFocus,
@@ -1990,21 +2031,51 @@ class _ChatViewStateState extends State<_ChatView> {
   Future<void> _forwardMessage(Map<String, dynamic> msg) async {
     if (conversations.isEmpty) return;
     final target = selected;
+    String query = '';
     final picked = await showDialog<int>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('选择要转发到的会话'),
-        children: [
-          for (var i = 0; i < conversations.length; i++)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, i),
-              child: Row(children: [
-                Icon(conversations[i]['icon'] as IconData, size: 18),
-                const SizedBox(width: 10),
-                Text(conversations[i]['name'].toString()),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final filtered = query.isEmpty
+              ? conversations
+              : conversations.where((c) => (c['name'] ?? '').toString().toLowerCase().contains(query.toLowerCase())).toList();
+          return AlertDialog(
+            title: const Text('转发到...'),
+            content: SizedBox(
+              width: 360, height: 400,
+              child: Column(children: [
+                TextField(
+                  autofocus: true,
+                  decoration: InputDecoration(hintText: '搜索联系人/群聊', prefixIcon: const Icon(Icons.search, size: 20), border: const OutlineInputBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                  onChanged: (v) => setState(() => query = v),
+                ),
+                const SizedBox(height: 8),
+                Expanded(child: ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final c = filtered[i];
+                    final idx = conversations.indexOf(c);
+                    return ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: _wechatGreen,
+                        backgroundImage: c['avatar'] != null && (c['avatar'] as String).isNotEmpty ? NetworkImage(c['avatar'] as String) : null,
+                        child: c['avatar'] == null || (c['avatar'] as String).isEmpty
+                            ? Text((c['name'] ?? '?').toString().substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14))
+                            : null,
+                      ),
+                      title: Text(c['name']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: c['kind'] == 'group' ? const Text('群聊', style: TextStyle(fontSize: 11)) : null,
+                      onTap: () => Navigator.pop(ctx, idx),
+                    );
+                  },
+                )),
               ]),
             ),
-        ],
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消'))],
+          );
+        },
       ),
     );
     if (picked == null || picked == target || !mounted) return;
@@ -2025,6 +2096,8 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   void _bubbleMenu(BuildContext context, Map<String, dynamic> msg) {
+    final isFromMe = msg['from'] == myId;
+    final isFriendChat = selConv != null && selConv!['kind'] == 'friend' && !isFromMe;
     showModalBottomSheet(
       context: context,
       builder: (sheetCtx) => SafeArea(
@@ -2039,6 +2112,7 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.image_search), title: const Text('提取文字'), onTap: () { Navigator.pop(sheetCtx); _showOCRDialog(sheetCtx, msg); }),
           ListTile(leading: const Icon(Icons.remove), title: const Text('阅后即焚'), onTap: () { Navigator.pop(sheetCtx); _showBurnDialog(sheetCtx, msg); }),
           ListTile(leading: const Icon(Icons.backspace), title: const Text('撤回'), onTap: () { Navigator.pop(sheetCtx); _showRecallDialog(sheetCtx, msg); }),
+          if (isFriendChat) ListTile(leading: const Icon(Icons.block, color: Colors.orange), title: const Text('拉黑', style: TextStyle(color: Colors.orange)), onTap: () { Navigator.pop(sheetCtx); _blockCurrentUser(); }),
           ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
         ]),
       ),
@@ -2089,6 +2163,100 @@ class _ChatViewStateState extends State<_ChatView> {
         ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('扫描仅支持手机端')));
       }
     }
+    if (v == 6) _showJoinGroupDialog(ctx);
+  }
+
+  void _blockCurrentUser() {
+    final conv = selConv;
+    if (conv == null || conv['kind'] != 'friend') return;
+    final targetId = conv['id'] as int;
+    final targetName = conv['name']?.toString() ?? '对方';
+    showDialog(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('拉黑确认'),
+        content: Text('确定要拉黑 $targetName 吗？拉黑后将无法收到对方消息。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('取消')),
+          TextButton(onPressed: () async {
+            Navigator.pop(d);
+            try {
+              await widget.api.blockUser(targetId);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已拉黑 $targetName')));
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e')));
+            }
+          }, child: const Text('拉黑', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+  }
+
+  static const _emojiList = [
+    '😀','😂','🤣','😊','😍','🥰','😘','😎','🤔','😤',
+    '😭','😱','🥺','🙄','😴','🤗','👍','👎','❤️','🔥',
+    '🎉','🎊','💪','🙏','👌','✌️','🤝','👏','💯','⭐',
+    '🌟','✨','💫','🌈','☀️','🌙','🍀','🌸','🍎','🎯',
+    '🚀','💎','🏆','📱','💻','📷','🎵','☕','🍕','🍰',
+  ];
+
+  void _showEmojiPicker(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      builder: (sheetCtx) => SafeArea(
+        child: Container(
+          height: 280,
+          padding: const EdgeInsets.all(8),
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 8, mainAxisSpacing: 4, crossAxisSpacing: 4),
+            itemCount: _emojiList.length,
+            itemBuilder: (_, i) => GestureDetector(
+              onTap: () {
+                final emoji = _emojiList[i];
+                final text = input.text;
+                final sel = input.selection;
+                final start = sel.start >= 0 ? sel.start : text.length;
+                input.text = text.substring(0, start) + emoji + text.substring(start);
+                input.selection = TextSelection.collapsed(offset: start + emoji.length);
+                Navigator.pop(sheetCtx);
+                inputFocus.requestFocus();
+              },
+              child: Center(child: Text(_emojiList[i], style: const TextStyle(fontSize: 24))),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showJoinGroupDialog(BuildContext ctx) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: ctx,
+      builder: (d) => AlertDialog(
+        title: const Text('加入群聊'),
+        content: TextField(controller: ctrl, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: '输入群号', prefixIcon: Icon(Icons.tag))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('取消')),
+          TextButton(onPressed: () async {
+            final gid = int.tryParse(ctrl.text.trim());
+            if (gid == null) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('请输入有效的群号'))); return; }
+            Navigator.pop(d);
+            try {
+              await widget.api.joinGroup(gid);
+              if (!mounted) return;
+              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('已加入群聊')));
+              _loadData();
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('加入失败：$e')));
+            }
+          }, child: const Text('加入')),
+        ],
+      ),
+    );
   }
 
   Future<void> _togglePin(int index, bool pinned) async {
@@ -2177,12 +2345,12 @@ class _ChatViewStateState extends State<_ChatView> {
       card = await widget.api.myCard();
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('获取名片失败：${e.toString().replaceFirst('Bad state: ', '')}')));
-      return;
+      return null;
     }
     final uid = (card['uid'] ?? '').toString();
     if (uid.isEmpty) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未获取到您的 UID，无法生成名片')));
-      return;
+      return null;
     }
     final name = (card['name'] ?? (card['nickname'] ?? (card['username'] ?? ''))).toString();
     if (context.mounted) {
