@@ -852,8 +852,8 @@ class _ChatViewStateState extends State<_ChatView> {
           final read = mine || m['read'] == true;
           final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
           msgs.add(voice != null
-              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount}
-              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'read': read, 'readCount': readCount});
+              ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount}
+              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount});
         }
         final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
         _insertUnreadDivider(dedup);
@@ -880,8 +880,8 @@ class _ChatViewStateState extends State<_ChatView> {
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})\]$').firstMatch(text);
         final read = m['read'] == true;
         msgs.add(voice != null
-            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
-            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
+            ? {'voiceId': voice[1], 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
+            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
       }
       final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
       _insertUnreadDivider(dedup);
@@ -1109,8 +1109,8 @@ class _ChatViewStateState extends State<_ChatView> {
                 socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': from}}));
               }
               _appendMsg(voice != null
-                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
-                  : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView});
+                  ? {'cmid': cmid, 'voiceId': voice[1], 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
+                  : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView});
               _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView};
             }
           });
@@ -1780,12 +1780,20 @@ class _ChatViewStateState extends State<_ChatView> {
   String replyPreviewText(Map<String, dynamic> msg) {
     final id = msg['replyTo'];
     if (id == null || id == 0) return '';
+    // 先查本地已加载消息
     for (final m in messages) {
       if (m['id'] == id) {
         final s = (m['text'] ?? '').toString();
         if (s.startsWith('__FILE__')) return '文件';
         return s.isEmpty ? '语音消息' : (s.length > 30 ? s.substring(0, 30) + '…' : s);
       }
+    }
+    // fallback: 服务端附带的 replyContent
+    final rc = msg['replyContent'];
+    if (rc != null && rc is String && rc.isNotEmpty) {
+      final s = rc;
+      if (s.startsWith('__FILE__')) return '文件';
+      return s.length > 30 ? s.substring(0, 30) + '…' : s;
     }
     return '回复了一条消息';
   }
