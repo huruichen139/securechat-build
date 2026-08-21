@@ -1328,6 +1328,7 @@ class _ChatViewStateState extends State<_ChatView> {
               color: isSelected ? config.primary.withValues(alpha: theme.isDark ? 0.28 : 0.12) : Colors.transparent,
               child: InkWell(
                 onTap: () => _openConversation(origIdx),
+                onLongPress: () => _showConvMenu(origIdx, context),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(children: [
@@ -2014,8 +2015,8 @@ class _ChatViewStateState extends State<_ChatView> {
     _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false};
   }
 
-  Future<void> _clearConversation() async {
-    final conv = selConv;
+  Future<void> _clearConversation([int? index]) async {
+    final conv = index != null && index >= 0 && index < conversations.length ? conversations[index] : selConv;
     if (conv == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -2539,6 +2540,21 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           }, child: const Text('加入')),
         ],
+      ),
+    );
+  }
+
+  void _showConvMenu(int index, BuildContext ctx) {
+    final conv = conversations[index];
+    if (conv['kind'] != 'friend' && conv['kind'] != 'group') return;
+    showModalBottomSheet(
+      context: ctx,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: Icon(conv['pinned'] == true ? Icons.push_pin : Icons.push_pin_outlined), title: Text(conv['pinned'] == true ? '取消置顶' : '置顶聊天'), onTap: () { Navigator.pop(sheetCtx); _togglePin(index, !(conv['pinned'] == true)); }),
+          ListTile(leading: Icon(conv['muted'] == true ? Icons.notifications_active : Icons.notifications_off_outlined), title: Text(conv['muted'] == true ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(sheetCtx); _toggleMute(index, !(conv['muted'] == true)); }),
+          ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除聊天', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _clearConversation(index); }),
+        ]),
       ),
     );
   }
