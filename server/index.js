@@ -170,6 +170,8 @@ function rateLimit(key, max, windowMs) {
   return b.count > max;
 }
 function getIp(req) { return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || ''; }
+// 限流桶定期清理（60秒），防止内存无限增长
+setInterval(() => { const now = Date.now(); for (const [k, b] of _rateBuckets) { if (now > b.resetAt) _rateBuckets.delete(k); } }, 60000);
 
 const MAX_MSG_CONTENT = 100 * 1024; // 100KB
 // ---------- 验证码池（内存，按 email -> {code, expireAt, used}） ----------
@@ -1037,6 +1039,11 @@ app.get('/api/files/:id', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const file = prepare('SELECT * FROM file_transfers WHERE id=? AND (from_id=? OR to_id=?)').get(req.params.id, payload.id, payload.id);
   if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '文件不存在' });
+  // 路径遍历防护：验证文件路径在允许目录内
+  const resolved = path.resolve(file.path);
+  if (!resolved.startsWith(path.resolve(FILES_DIR)) && !resolved.startsWith(path.resolve(CALLS_DIR))) {
+    return res.status(403).json({ error: '路径非法' });
+  }
   res.setHeader('Content-Type', file.mime);
   res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
   fs.createReadStream(file.path).pipe(res);
@@ -3255,7 +3262,7 @@ app.post('/api/admin/user/reset-password', (req, res) => {
   if (pwd.length < 6) return res.status(400).json({ error: '密码至少6位' });
   const bcrypt = require('bcryptjs');
   const hash = bcrypt.hashSync(pwd, 10);
-  prepare('UPDATE users SET password=? WHERE id=?').run(hash, id);
+  prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, id);
   // 重置后强制下线
   for (const ws of online.get(id) || []) { try { send(ws, P.S_KICKED, { reason: '密码已被管理员重置' }); } catch {} }
   try { online.delete(id); } catch {}

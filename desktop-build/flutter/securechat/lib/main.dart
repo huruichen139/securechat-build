@@ -554,6 +554,12 @@ class _ChatViewStateState extends State<_ChatView> {
   final searchCtrl = TextEditingController();
   final ScrollController _msgScroll = ScrollController();
   String _search = '';
+  bool _chatSearchVisible = false;
+  final _chatSearchCtrl = TextEditingController();
+  String _chatSearchQuery = '';
+  List<Map<String, dynamic>> _chatSearchResults = [];
+  int _chatSearchIdx = -1;
+  bool _isTyping = false;
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -590,9 +596,17 @@ class _ChatViewStateState extends State<_ChatView> {
     super.initState();
     _pendingOpen = widget.initialOpen;
     if (_pendingOpen != null) widget.onOpenConsumed?.call();
+    input.addListener(_onInputChanged);
     _connect();
     _loadData();
     _checkUpdate();
+  }
+
+  void _onInputChanged() {
+    final hasText = input.text.trim().isNotEmpty;
+    if (hasText != _isTyping) {
+      setState(() => _isTyping = hasText);
+    }
   }
 
   ({int id, bool isGroup, String name})? _pendingOpen;
@@ -793,6 +807,63 @@ class _ChatViewStateState extends State<_ChatView> {
         _snapToBottom();
       }
     });
+  }
+
+  void _onChatSearchChanged(String q) {
+    setState(() {
+      _chatSearchQuery = q;
+      if (q.isEmpty) {
+        _chatSearchResults = [];
+        _chatSearchIdx = -1;
+        return;
+      }
+      final lower = q.toLowerCase();
+      _chatSearchResults = messages.where((m) {
+        final text = (m['text'] ?? '').toString().toLowerCase();
+        return text.contains(lower) && m['divider'] != true;
+      }).toList();
+      _chatSearchIdx = _chatSearchResults.isNotEmpty ? 0 : -1;
+    });
+    if (_chatSearchResults.isNotEmpty) _scrollToSearchResult(0);
+  }
+
+  void _scrollToSearchResult(int idx) {
+    if (idx < 0 || idx >= _chatSearchResults.length) return;
+    final msg = _chatSearchResults[idx];
+    final i = messages.indexOf(msg);
+    if (i < 0 || !_msgScroll.hasClients) return;
+    final target = (i / messages.length) * _msgScroll.position.maxScrollExtent;
+    _msgScroll.animateTo(target.clamp(0.0, _msgScroll.position.maxScrollExtent), duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    setState(() => _chatSearchIdx = idx);
+  }
+
+  void _nextSearchResult() {
+    if (_chatSearchResults.isEmpty) return;
+    final next = (_chatSearchIdx + 1) % _chatSearchResults.length;
+    _scrollToSearchResult(next);
+  }
+
+  void _prevSearchResult() {
+    if (_chatSearchResults.isEmpty) return;
+    final prev = (_chatSearchIdx - 1 + _chatSearchResults.length) % _chatSearchResults.length;
+    _scrollToSearchResult(prev);
+  }
+
+  void _toggleChatSearch() {
+    setState(() {
+      _chatSearchVisible = !_chatSearchVisible;
+      if (!_chatSearchVisible) {
+        _chatSearchCtrl.clear();
+        _chatSearchQuery = '';
+        _chatSearchResults = [];
+        _chatSearchIdx = -1;
+      }
+    });
+    if (_chatSearchVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_chatSearchVisible) FocusScope.of(context).requestFocus(FocusNode());
+      });
+    }
   }
 
   /// 历史列表按服务端 id 去重（服务端重复行/多次拉取时兜底）
@@ -1078,9 +1149,11 @@ class _ChatViewStateState extends State<_ChatView> {
     calls?.dispose();
     voicePlayer?.dispose();
     recorder.dispose();
+    input.removeListener(_onInputChanged);
     input.dispose();
     inputFocus.dispose();
     searchCtrl.dispose();
+    _chatSearchCtrl.dispose();
     _msgScroll.dispose();
     super.dispose();
   }
@@ -1211,10 +1284,17 @@ class _ChatViewStateState extends State<_ChatView> {
         const SizedBox(width: 10),
         Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.text)),
-          Text(selConv != null ? _convStatusLine(selConv!) : '', style: TextStyle(color: t.subText, fontSize: 11)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(selConv != null ? _convStatusLine(selConv!) : '', style: TextStyle(color: t.subText, fontSize: 11)),
+            if (_isTyping) ...[
+              const SizedBox(width: 6),
+              Text('正在输入...', style: TextStyle(color: _wechatGreen, fontSize: 11, fontWeight: FontWeight.w500)),
+            ],
+          ]),
         ]),
         const Spacer(),
         if (selConv != null) ...[
+          IconButton(tooltip: '搜索消息', onPressed: _toggleChatSearch, icon: Icon(Icons.search, color: _chatSearchVisible ? _wechatGreen : t.subText)),
           IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
           IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
           if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
@@ -1234,6 +1314,54 @@ class _ChatViewStateState extends State<_ChatView> {
           ),
         ],
       ])),
+      if (_chatSearchVisible)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(bottom: BorderSide(color: t.div))),
+          child: Row(children: [
+            Expanded(child: TextField(
+              controller: _chatSearchCtrl,
+              autofocus: true,
+              style: TextStyle(color: t.text, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: '搜索消息内容...',
+                hintStyle: TextStyle(color: t.subText, fontSize: 13),
+                prefixIcon: Icon(Icons.search, color: t.subText, size: 20),
+                suffixIcon: _chatSearchQuery.isNotEmpty
+                    ? Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('${_chatSearchIdx >= 0 ? _chatSearchIdx + 1 : 0}/${_chatSearchResults.length}', style: TextStyle(color: t.subText, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: Icon(Icons.keyboard_arrow_up, color: t.subText, size: 20),
+                          onPressed: _prevSearchResult,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.keyboard_arrow_down, color: t.subText, size: 20),
+                          onPressed: _nextSearchResult,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        ),
+                      ])
+                    : null,
+                fillColor: t.inputBg,
+                filled: true,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              ),
+              onChanged: _onChatSearchChanged,
+            )),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.close, color: t.subText, size: 20),
+              onPressed: _toggleChatSearch,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ]),
+        ),
       Expanded(
         child: messages.isEmpty
             ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText)))
@@ -1241,7 +1369,11 @@ class _ChatViewStateState extends State<_ChatView> {
                  controller: _msgScroll,
                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 itemCount: messages.length,
-                itemBuilder: (_, i) => _bubble(messages[i]),
+                itemBuilder: (_, i) {
+                  final msg = messages[i];
+                  final isSearchTarget = _chatSearchResults.isNotEmpty && _chatSearchIdx >= 0 && i == messages.indexOf(_chatSearchResults[_chatSearchIdx]);
+                  return _bubble(msg, isSearchTarget: isSearchTarget);
+                },
               ),
       ),
       if (replyingTo != null) _replyBar(),
@@ -1294,7 +1426,7 @@ class _ChatViewStateState extends State<_ChatView> {
     return msg['read'] == true ? t.subText : const Color(0xfffa5151);
   }
 
-  Widget _bubble(Map<String, dynamic> msg) {
+  Widget _bubble(Map<String, dynamic> msg, {bool isSearchTarget = false}) {
     if (msg['divider'] == true) {
       return Center(
         key: _unreadDividerKey,
@@ -1355,7 +1487,16 @@ class _ChatViewStateState extends State<_ChatView> {
                     ),
                     child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12, fontStyle: FontStyle.italic)),
                   ),
-                content,
+                if (isSearchTarget)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _wechatGreen, width: 2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: content,
+                  )
+                else
+                  content,
                 const SizedBox(height: 3),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: mine ? 2 : 16),
