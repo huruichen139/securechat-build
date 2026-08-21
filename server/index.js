@@ -106,9 +106,18 @@ const app = express();
 // ---------- CORS：允许网页端独立部署（不同域名）访问 API ----------
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
+  next();
+});
+
+// 安全头
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
 
@@ -165,7 +174,7 @@ function getIp(req) { return (req.headers['x-forwarded-for'] || '').split(',')[0
 const MAX_MSG_CONTENT = 100 * 1024; // 100KB
 // ---------- 验证码池（内存，按 email -> {code, expireAt, used}） ----------
 const emailCodes = new Map();
-function genCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
+function genCode() { return String(crypto.randomInt(100000, 1000000)); }
 function cleanCode() { const now = Date.now(); for (const [k, v] of emailCodes) if (v.expireAt < now) emailCodes.delete(k); }
 
 // ---------- SMTP 邮件发送（163 邮箱） ----------
@@ -175,7 +184,7 @@ const mailer = nodemailer.createTransport({
   secure: true,
   auth: {
     user: process.env.SMTP_USER || 'andy130305@163.com',
-    pass: process.env.SMTP_PASS || 'JZmmd32V9UusCa3z'
+    pass: process.env.SMTP_PASS
   }
 });
 
@@ -1086,7 +1095,7 @@ app.post('/api/stt', (req, res) => {
   }
   runStt(filePath)
     .then(text => res.json({ ok: true, text }))
-    .catch(e => res.status(501).json({ error: '语音转文字服务未启用：' + e.message }))
+    .catch(e => { console.error('[stt]', e.message); res.status(501).json({ error: '语音转文字服务未启用' }); })
     .finally(() => { if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch {} } });
 });
 
@@ -1869,7 +1878,8 @@ app.post('/api/admin/update-package', express.raw({ type: 'application/octet-str
   } catch (err) {
     try { fs.rmSync(extracted, { recursive: true, force: true }); fs.rmSync(zipPath, { force: true }); } catch {}
     updateStatus = { state: 'failed', error: err.message, updatedAt: Date.now() };
-    res.status(400).json({ error: '更新包校验或解压失败: ' + err.message });
+    console.error('[update] verify failed:', err.message);
+    res.status(400).json({ error: '更新包校验或解压失败' });
   }
 });
 
@@ -1886,7 +1896,8 @@ app.post('/api/admin/update-package/apply', async (req, res) => {
     scheduleRestart();
   } catch (err) {
     updateStatus = { ...updateStatus, state: 'failed', error: err.message, updatedAt: Date.now() };
-    res.status(500).json({ error: '应用更新失败: ' + err.message, backup });
+    console.error('[update] apply failed:', err.message);
+    res.status(500).json({ error: '应用更新失败', backup });
   }
 });
 
@@ -2330,9 +2341,9 @@ app.get('/oauth/qq/callback', async (req, res) => {
     'function bind(){var em=document.getElementById("email").value.trim();var cd=document.getElementById("code").value.trim();if(!em||!cd){toast("请填写邮箱和验证码");return;}fetch("/api/oauth/qq/bind",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,openid:OPENID,email:em,code:cd})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
     'function reg(){fetch("/api/oauth/qq/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,openid:OPENID})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
     'function poll(){fetch("/api/oauth/qq/poll?state="+encodeURIComponent(STATE)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
-    'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_qq_login",state:STATE,ok:true},"*");}setTimeout(function(){location.href="/?qq_done=1";},1200);}catch(e){}}' +
+    'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_qq_login",state:STATE,ok:true},location.origin);}setTimeout(function(){location.href="/?qq_done=1";},1200);}catch(e){}}' +
     'if(BOUND){showOk();poll();}else{document.getElementById("bindBox").style.display="block";document.getElementById("waitBox").style.display="none";}' +
-    'setTimeout(function(){try{window.opener&&window.opener.postMessage({type:"securechat_qq_ready",state:STATE},"*")}catch(e){}},300);' +
+    'setTimeout(function(){try{window.opener&&window.opener.postMessage({type:"securechat_qq_ready",state:STATE},location.origin)}catch(e){}},300);' +
     '</script></body></html>';
   res.type('html').send(html);
 });
@@ -2598,7 +2609,7 @@ app.get('/oauth/github/callback', async (req, res) => {
     'function bind(){var em=document.getElementById("email").value.trim();var cd=document.getElementById("code").value.trim();if(!em||!cd){toast("请填写邮箱和验证码");return;}fetch("/api/oauth/github/bind",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,githubId:GITHUB_ID,email:em,code:cd})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
     'function reg(){fetch("/api/oauth/github/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,githubId:GITHUB_ID})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
     'function poll(){fetch("/api/oauth/github/poll?state="+encodeURIComponent(STATE)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
-    'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_github_login",state:STATE,ok:true},"*");}setTimeout(function(){location.href="/?github_done=1";},1200);}catch(e){}}' +
+    'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_github_login",state:STATE,ok:true},location.origin);}setTimeout(function(){location.href="/?github_done=1";},1200);}catch(e){}}' +
     'if(BOUND){showOk();poll();}else{document.getElementById("bindBox").style.display="block";document.getElementById("waitBox").style.display="none";}' +
     '</script></body></html>';
   res.type('html').send(html);
@@ -2632,7 +2643,7 @@ app.post('/api/passkey/register', (req, res) => {
     persist();
     res.json({ ok: true, credentialId, secret, deviceName });
   } catch (e) {
-    res.status(500).json({ error: '注册失败: ' + e.message });
+    res.status(500).json({ error: '注册失败' });
   }
 });
 
@@ -2753,6 +2764,12 @@ app.post('/api/ai/chat', async (req, res) => {
   const model = String(body.model || '').trim();
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (!/^https:\/\//i.test(baseUrl)) return res.status(400).json({ error: 'AI Base URL 必须使用 HTTPS' });
+  // SSRF防护：只允许已知的AI提供商域名
+  try {
+    const host = new URL(baseUrl).hostname;
+    const allowed = /^(api\.openai\.com|api\.anthropic\.com|api\.ltzy\.top|acu\.ltzy\.top|generativelanguage\.googleapis\.com|open\.bigmodel\.cn|api\.deepseek\.com|api\.moonshot\.cn|api\.zhipu\.ai)$/i;
+    if (!allowed.test(host)) return res.status(403).json({ error: '该AI服务商不在允许列表中' });
+  } catch { return res.status(400).json({ error: 'AI Base URL 格式无效' }); }
   if (!apiKey || !model || !messages.length) return res.status(400).json({ error: 'AI 配置不完整' });
   if (baseUrl.length > 300 || apiKey.length > 500 || messages.length > 40) return res.status(400).json({ error: 'AI 请求参数过大' });
   try {
@@ -2778,7 +2795,8 @@ app.post('/api/ai/chat', async (req, res) => {
     }
     res.status(upstream.ok ? 200 : upstream.status).json(upstreamBody);
   } catch (e) {
-    res.status(502).json({ error: 'AI 服务连接失败：' + (e && e.message ? e.message : '网络错误') });
+    console.error('[ai] upstream error:', e && e.message);
+    res.status(502).json({ error: 'AI 服务连接失败' });
   }
 });
 
@@ -3069,7 +3087,7 @@ app.get('/api/admin/replay/conversations', (req, res) => {
       });
     }
   } catch (e) {
-    return res.status(500).json({ error: '读取会话失败: ' + e.message });
+    return res.status(500).json({ error: '读取会话失败' });
   }
   out.sort((x, y) => (y.lastAt || 0) - (x.lastAt || 0));
   logAudit(guard.u.id, 'replay_list', null, 'conversation', '查看会话清单', clientIp(req));
@@ -3137,7 +3155,7 @@ app.get('/api/admin/replay/messages', (req, res) => {
       }))
     });
   } catch (e) {
-    res.status(500).json({ error: '读取消息失败: ' + e.message });
+    res.status(500).json({ error: '读取消息失败' });
   }
 });
 

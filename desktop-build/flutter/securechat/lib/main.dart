@@ -539,6 +539,7 @@ class _ChatViewStateState extends State<_ChatView> {
   bool _deletedLoaded = false;
   WebSocketChannel? socket;
   StreamSubscription? _wsSub;
+  int _wsReconnectAttempt = 0;
   CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
@@ -821,6 +822,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   Future<void> _connect() async {
     try {
+      _wsReconnectAttempt = 0; // 连接成功时重置
       myId = widget.api.myId;
       x3dhApi = widget.api;
       _ensureDeletedLoaded();
@@ -980,7 +982,15 @@ class _ChatViewStateState extends State<_ChatView> {
           if (!mounted) return;
           try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$nick 拍了拍你'), duration: const Duration(seconds: 2))); } catch (_) {}
         }
-      }, onError: (_) {});
+      }, onError: (_) {}, onDone: () {
+        // WebSocket断开后指数退避重连
+        if (!mounted) return;
+        final attempt = (_wsReconnectAttempt) + 1;
+        _wsReconnectAttempt = attempt;
+        final delay = Duration(milliseconds: (2000 * (1 << (attempt - 1))).clamp(2000, 60000));
+        debugPrint('[ws] disconnected, reconnecting in ${delay.inSeconds}s (attempt $attempt)');
+        Future.delayed(delay, () { if (mounted && socket != null) _connect(); });
+      });
     } catch (_) {}
   }
 

@@ -383,7 +383,14 @@ class _GroupRoomState extends State<_GroupRoom> {
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
         FilledButton(onPressed: () async {
           Navigator.pop(ctx);
-          try { await _svc.replyMessage(widget.groupId, msgId, replyTo: ctrl.text.trim().isEmpty ? null : msgId); await _load(); }
+          final text = ctrl.text.trim();
+          if (text.isEmpty) return;
+          try {
+            final cmid = 'gm${DateTime.now().microsecondsSinceEpoch}';
+            await _svc.sendMessage(widget.groupId, text, clientMsgId: cmid);
+            await _svc.replyMessage(widget.groupId, 0, replyTo: msgId);
+            await _load();
+          }
           catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e'))); }
         }, child: const Text('确认')),
       ],

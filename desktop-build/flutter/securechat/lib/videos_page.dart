@@ -67,13 +67,14 @@ class _VideosPageState extends State<VideosPage> {
 
   Future<void> _post() async {
     final title = _titleCtrl.text.trim();
+    final content = _contentCtrl.text.trim();
     if (title.isEmpty) return;
     setState(() {
       _titleCtrl.clear();
       _contentCtrl.clear();
     });
     try {
-      await widget.api.postVideo(title, content: _contentCtrl.text.trim());
+      await widget.api.postVideo(title, content: content);
       await _reload();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发布成功')));
     } catch (e) {
