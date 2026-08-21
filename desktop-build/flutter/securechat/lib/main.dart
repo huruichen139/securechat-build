@@ -649,6 +649,83 @@ class _ChatViewStateState extends State<_ChatView> {
     if (hasText != _isTyping) {
       setState(() => _isTyping = hasText);
     }
+    // 群聊 @ 提及检测
+    if (selConv != null && selConv!['kind'] == 'group') {
+      final text = input.text;
+      final cursor = input.selection.baseOffset;
+      if (cursor > 0 && cursor <= text.length) {
+        final before = text.substring(0, cursor);
+        final atMatch = RegExp(r'@([^\s@]*)$').firstMatch(before);
+        if (atMatch != null && atMatch[1]!.length < 20) {
+          _showMentionOverlay(atMatch[1]!);
+          return;
+        }
+      }
+      _hideMentionOverlay();
+    }
+  }
+
+  OverlayEntry? _mentionOverlay;
+
+  void _showMentionOverlay(String query) async {
+    try {
+      final gid = selConv?['id'] as int?;
+      if (gid == null) return;
+      final members = await widget.api.groupMembers(gid);
+      if (!mounted) return;
+      final filtered = query.isEmpty
+          ? members
+          : members.where((m) {
+              final nick = (m['nickname'] ?? m['username'] ?? '').toString().toLowerCase();
+              return nick.contains(query.toLowerCase());
+            }).toList();
+      if (filtered.isEmpty) { _hideMentionOverlay(); return; }
+      _hideMentionOverlay();
+      _mentionOverlay = OverlayEntry(
+        builder: (ctx) => Positioned(
+          bottom: 80, left: 60,
+          child: Material(elevation: 8, borderRadius: BorderRadius.circular(8), child: Container(
+            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 220),
+            decoration: BoxDecoration(color: Theme.of(ctx).scaffoldBackgroundColor, borderRadius: BorderRadius.circular(8)),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: filtered.length > 8 ? 8 : filtered.length,
+              itemBuilder: (_, i) {
+                final m = filtered[i];
+                final nick = (m['nickname'] ?? m['username'] ?? '?').toString();
+                return ListTile(
+                  dense: true,
+                  leading: CircleAvatar(radius: 14, backgroundColor: _wechatGreen, child: Text(nick.isNotEmpty ? nick[0] : '?', style: const TextStyle(color: Colors.white, fontSize: 11))),
+                  title: Text(nick, style: const TextStyle(fontSize: 13)),
+                  onTap: () {
+                    _insertMention(nick);
+                    _hideMentionOverlay();
+                  },
+                );
+              },
+            ),
+          )),
+        ),
+      );
+      Overlay.of(context).insert(_mentionOverlay!);
+    } catch (_) {}
+  }
+
+  void _hideMentionOverlay() {
+    _mentionOverlay?.remove();
+    _mentionOverlay = null;
+  }
+
+  void _insertMention(String nick) {
+    final text = input.text;
+    final cursor = input.selection.baseOffset;
+    if (cursor < 0 || cursor > text.length) return;
+    final before = text.substring(0, cursor);
+    final after = text.substring(cursor);
+    final replaced = before.replaceFirst(RegExp(r'@([^\s@]*)$'), '@$nick ');
+    input.text = '$replaced$after';
+    input.selection = TextSelection.collapsed(offset: replaced.length);
+    inputFocus.requestFocus();
   }
 
   ({int id, bool isGroup, String name})? _pendingOpen;
@@ -1230,6 +1307,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   @override
   void dispose() {
+    _hideMentionOverlay();
     _wsSub?.cancel();
     _voiceSub?.cancel();
     socket?.sink.close();
