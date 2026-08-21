@@ -269,8 +269,10 @@ class CallService extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed = true;
     _ringTimer?.cancel();
+    try { localRenderer.dispose(); } catch (_) {}
+    try { remoteRenderer.dispose(); } catch (_) {}
+    _disposed = true;
     _end(null);
     super.dispose();
   }

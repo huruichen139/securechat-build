@@ -1485,6 +1485,8 @@ class _ChatViewStateState extends State<_ChatView> {
       voicePlayer = player;
       if (mounted) setState(() => playingVoiceId = id);
     } catch (e) {
+      _voiceSub?.cancel();
+      player.dispose();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音播放失败：$e')));
     }
   }
@@ -1902,8 +1904,12 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
-  void _showQuickReplies() {
-    showQuickRepliesSheet(context, widget.api);
+  void _showQuickReplies() async {
+    final result = await showQuickRepliesSheet(context, widget.api);
+    if (result != null && result is String && mounted) {
+      input.text = result;
+      inputFocus.requestFocus();
+    }
   }
 
   void _showScheduleDialog() {

@@ -97,12 +97,12 @@ class QuickReplyManager {
 }
 
 /// 3. 快捷回复面板
-Future<void> showQuickRepliesSheet(BuildContext ctx, SecureChatApi api) async {
+Future<String?> showQuickRepliesSheet(BuildContext ctx, SecureChatApi api) async {
   await QuickReplyManager.instance.loadReplies();
   final replies = await QuickReplyManager.instance.getReplies();
-  if (!ctx.mounted) return;
+  if (!ctx.mounted) return null;
   
-  showModalBottomSheet(
+  return showModalBottomSheet<String>(
     context: ctx,
     builder: (_) => SafeArea(
       child: Column(

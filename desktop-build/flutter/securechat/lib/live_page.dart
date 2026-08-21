@@ -194,7 +194,10 @@ class _LiveRoomViewState extends State<_LiveRoomView> {
       // 只追加新弹幕
       final existing = _chats.map((c) => svc.toInt(c['id'])).toSet();
       final fresh = rows.where((c) => !existing.contains(svc.toInt(c['id']))).toList();
-      if (fresh.isNotEmpty) setState(() => _chats.addAll(fresh));
+      if (fresh.isNotEmpty) setState(() {
+        _chats.addAll(fresh);
+        if (_chats.length > 500) _chats.removeRange(0, _chats.length - 500);
+      });
     } catch (_) {}
   }
 
