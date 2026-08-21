@@ -839,6 +839,37 @@ app.get('/api/search/messages', (req, res) => {
   res.json({ messages });
 });
 
+// 导出聊天记录：GET /api/export/messages?peerId=&format=json|txt
+app.get('/api/export/messages', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const peerId = parseInt(req.query.peerId, 10);
+  if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人ID无效' });
+  const format = req.query.format === 'txt' ? 'txt' : 'json';
+  const rows = prepare(
+    `SELECT m.*,u1.nickname AS fromName,u2.nickname AS toName FROM messages m
+     LEFT JOIN users u1 ON u1.id=m.from_id LEFT JOIN users u2 ON u2.id=m.to_id
+     WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?)
+     ORDER BY m.created_at ASC`
+  ).all(payload.id, peerId, peerId, payload.id);
+  if (format === 'txt') {
+    const lines = rows.map(r => {
+      const time = new Date(r.created_at).toLocaleString('zh-CN');
+      const name = r.from_id === payload.id ? (r.fromName || '我') : (r.toName || '对方');
+      return `[${time}] ${name}: ${r.content}`;
+    });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="chat-${peerId}.txt"`);
+    res.send(lines.join('\n'));
+  } else {
+    const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, fromName: r.fromName, toName: r.toName, content: r.content, createdAt: r.created_at, read: r.read }));
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="chat-${peerId}.json"`);
+    res.json({ messages: msgs, exportedAt: Date.now() });
+  }
+});
+
 app.delete('/api/history/:peerId', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
@@ -1049,7 +1080,7 @@ app.post('/api/stt', (req, res) => {
     } catch (e) { return res.status(400).json({ error: '音频数据无效' }); }
   } else {
     if (!/^[0-9a-f-]{8,}$/.test(id)) return res.status(400).json({ error: '文件 id 无效' });
-    const file = prepare('SELECT * FROM file_transfers WHERE id=?').get(id);
+    const file = prepare('SELECT * FROM file_transfers WHERE id=? AND (from_id=? OR to_id=?)').get(id, payload.id, payload.id);
     if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '语音文件不存在' });
     filePath = file.path;
   }
@@ -1080,6 +1111,8 @@ app.post('/api/call-recordings', express.raw({
   const toId = parseInt(req.query.to, 10);
   const kind = req.query.kind === 'video' ? 'video' : 'audio';
   if (!Number.isInteger(toId) || !prepare('SELECT id FROM users WHERE id=?').get(toId)) return res.status(400).json({ error: '接收方无效' });
+  const areFriends = prepare('SELECT 1 FROM friends WHERE user_id=? AND friend_id=? AND status=1').get(payload.id, toId);
+  if (!areFriends) return res.status(403).json({ error: '只能录制好友通话' });
   const id = crypto.randomUUID();
   const filePath = path.join(CALLS_DIR, id + '.webm');
   try {
@@ -1264,12 +1297,19 @@ app.get('/api/moments', (req, res) => {
      ORDER BY m.created_at DESC LIMIT ? OFFSET ?`
   ).all(...friendIds, limit, offset);
   // 补点赞与评论
+  // 批量查点赞/评论，避免 N+1
+  const momentIds = rows.map(m => m.id);
+  const allLikes = momentIds.length ? prepare('SELECT moment_id,user_id FROM moment_likes WHERE moment_id IN (' + momentIds.map(()=>'?').join(',') + ') ORDER BY created_at').all(...momentIds) : [];
+  const allComments = momentIds.length ? prepare(
+    `SELECT c.id,c.moment_id AS momentId,c.user_id AS userId,c.content AS content,c.created_at AS createdAt,u.nickname
+     FROM moment_comments c JOIN users u ON u.id=c.user_id WHERE c.moment_id IN (` + momentIds.map(()=>'?').join(',') + `) ORDER BY c.created_at ASC`
+  ).all(...momentIds) : [];
+  const likesByMoment = new Map(); const commentsByMoment = new Map();
+  for (const l of allLikes) { if (!likesByMoment.has(l.moment_id)) likesByMoment.set(l.moment_id, []); likesByMoment.get(l.moment_id).push(l.user_id); }
+  for (const c of allComments) { if (!commentsByMoment.has(c.momentId)) commentsByMoment.set(c.momentId, []); commentsByMoment.get(c.momentId).push(c); }
   const data = rows.map(m => {
-    const likes = prepare('SELECT user_id FROM moment_likes WHERE moment_id=? ORDER BY created_at').all(m.id).map(r => r.user_id);
-    const comments = prepare(
-      `SELECT c.id,c.moment_id AS momentId,c.user_id AS userId,c.content AS content,c.created_at AS createdAt,u.nickname
-       FROM moment_comments c JOIN users u ON u.id=c.user_id WHERE c.moment_id=? ORDER BY c.created_at ASC`
-    ).all(m.id);
+    const likes = likesByMoment.get(m.id) || [];
+    const comments = commentsByMoment.get(m.id) || [];
     try { m.images = JSON.parse(m.images || '[]'); } catch { m.images = []; }
     m.likeCount = likes.length;
     m.likedByMe = likes.includes(payload.id);
@@ -1423,10 +1463,11 @@ app.get('/api/videos', (req, res) => {
             u.nickname,u.avatar
      FROM videos v JOIN users u ON u.id=v.user_id ORDER BY v.created_at DESC LIMIT 100`
   ).all();
-  const data = rows.map(v => ({
-    ...v,
-    likedByMe: !!prepare('SELECT 1 FROM video_likes WHERE video_id=? AND user_id=?').get(v.id, payload.id),
-  }));
+  // 批量查点赞状态，避免 N+1
+  const videoIds = rows.map(v => v.id);
+  const likedIds = videoIds.length ? prepare('SELECT video_id FROM video_likes WHERE user_id=? AND video_id IN (' + videoIds.map(()=>'?').join(',') + ')').all(payload.id, ...videoIds).map(r => r.video_id) : new Set();
+  const likedSet = new Set(likedIds);
+  const data = rows.map(v => ({ ...v, likedByMe: likedSet.has(v.id) }));
   res.json({ videos: data });
 });
 // 点赞：POST /api/videos/:id/like { on }
@@ -3680,11 +3721,15 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+let _lastUserListHash = '';
 function broadcastUserList() {
   const users = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey,last_seen FROM users').all();
   const list = users.map(u => ({ ...publicUser(u), online: onlineHas(u.id) }));
+  // 简单哈希去重：避免短时间内重复广播相同内容（如频繁改头像触发多次）
+  const hash = JSON.stringify(list.map(u => u.id + ':' + u.online + ':' + u.nickname));
+  if (hash === _lastUserListHash) return;
+  _lastUserListHash = hash;
   for (const uid of online.keys()) sendToUser(uid, P.S_USER_LIST, { users: list });
-  // 用户在线状态变化也会影响群成员在线展示，同步推送群列表
   broadcastGroups();
 }
 

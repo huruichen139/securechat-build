@@ -1758,6 +1758,21 @@ class _ChatViewStateState extends State<_ChatView> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('聊天记录已清空')));
   }
 
+  Future<void> _exportChat() async {
+    final conv = selConv;
+    if (conv == null || conv['kind'] != 'friend') {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂仅支持导出单聊记录')));
+      return;
+    }
+    try {
+      final data = await widget.api.exportChat(conv['id'] as int, format: 'json');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已导出 ${data.length} 字节（JSON格式）')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('导出失败：$e')));
+    }
+  }
+
   void _startReply(Map<String, dynamic> msg) {
     final text = (msg['text'] ?? '').toString();
     setState(() {
@@ -1992,6 +2007,7 @@ class _ChatViewStateState extends State<_ChatView> {
       ]),
       const SizedBox(height: 12),
       const Divider(height: 1),
+      ListTile(leading: const Icon(Icons.download_outlined), title: const Text('导出聊天记录'), onTap: () { Navigator.pop(ctx); _exportChat(); }),
       ListTile(leading: const Icon(Icons.cleaning_services_outlined), title: const Text('清空聊天记录'), onTap: () { Navigator.pop(ctx); _clearConversation(); }),
       ListTile(leading: const Icon(Icons.push_pin_outlined), title: Text(conv['pinned'] == true ? '取消置顶' : '置顶会话'), onTap: () { Navigator.pop(ctx); _togglePin(selected, !(conv['pinned'] == true)); }),
       ListTile(leading: const Icon(Icons.notifications_none), title: Text(conv['muted'] == true ? '取消免打扰' : '消息免打扰'), onTap: () { Navigator.pop(ctx); _toggleMute(selected, !(conv['muted'] == true)); }),

@@ -258,6 +258,13 @@ class SecureChatApi {
     await _json('POST', '/api/messages/$messageId/favorite', body: {'favorite': favorite});
   }
 
+  Future<String> exportChat(int peerId, {String format = 'json'}) async {
+    final uri = _uri('/api/export/messages', {'peerId': '$peerId', 'format': format});
+    final resp = await http.get(uri, headers: {if (token != null) 'Authorization': 'Bearer $token'}).timeout(const Duration(seconds: 30));
+    if (resp.statusCode == 200) return resp.body;
+    throw Exception('导出失败: ${resp.statusCode}');
+  }
+
   Future<void> pinMessage(int messageId, bool pinned) async {
     await _json('POST', '/api/messages/$messageId/pin', body: {'pinned': pinned});
   }
