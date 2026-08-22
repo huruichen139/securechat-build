@@ -1229,6 +1229,35 @@
       loadEpayConfig();
     } catch (e) { toast('请求失败：' + e.message, 'error'); }
   }
+
+  // ============ 本站网关密钥（易支付入站） ============
+  async function loadGatewayKey() {
+    try {
+      const resp = await fetch(API + '/epaygw/settings');
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.code !== 1) { el('gwKeyTip').textContent = '加载失败'; return; }
+      el('gwKeyCurrent').value = data.data.gatewayKey || '';
+      el('gwKeyCurrent').type = 'password';
+    } catch (e) { el('gwKeyTip').textContent = '加载失败：' + e.message; }
+  }
+
+  async function saveGatewayKey() {
+    const v = el('gwKeyNew').value.trim();
+    if (!v) { el('gwKeyTip').textContent = '请输入新密钥'; return; }
+    if (v.length < 4) { el('gwKeyTip').textContent = '密钥至少 4 位'; return; }
+    try {
+      const resp = await fetch(API + '/epaygw/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: v })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.code !== 1) { el('gwKeyTip').textContent = data.msg || ('保存失败 ' + resp.status); return; }
+      el('gwKeyTip').textContent = '已保存，立即生效';
+      el('gwKeyNew').value = '';
+      loadGatewayKey();
+    } catch (e) { el('gwKeyTip').textContent = '请求失败：' + e.message; }
+  }
   document.addEventListener('DOMContentLoaded', () => {
     // 左侧后台分区导航：只切换内容面板，不刷新页面、不丢失滚动位置
     document.querySelectorAll('.admin-nav-item').forEach(btn => {
@@ -1249,7 +1278,7 @@
         if (target === 'replay') loadReplayConversations();
         if (target !== 'replay') stopReplay();   // 离开分区就停掉回放定时器
         if (target === 'merchants') loadMerchants();
-        if (target === 'epay') loadEpayConfig();
+        if (target === 'epay') { loadEpayConfig(); loadGatewayKey(); }
       });
     });
     el('refreshBtn').addEventListener('click', refresh);
@@ -1281,6 +1310,11 @@
     if (el('replayExportBtn')) el('replayExportBtn').addEventListener('click', exportReplay);
     if (el('merchantRefreshBtn')) el('merchantRefreshBtn').addEventListener('click', loadMerchants);
     if (el('epaySaveBtn')) el('epaySaveBtn').addEventListener('click', saveEpayConfig);
+    if (el('gwKeyShowBtn')) el('gwKeyShowBtn').addEventListener('click', () => {
+      const inp = el('gwKeyCurrent');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+    if (el('gwKeySaveBtn')) el('gwKeySaveBtn').addEventListener('click', saveGatewayKey);
     // 群组
     if (el('groupSearchBtn')) el('groupSearchBtn').addEventListener('click', () => loadAllGroups(el('groupSearch').value.trim()));
     if (el('groupLoadBtn')) el('groupLoadBtn').addEventListener('click', () => loadAllGroups());

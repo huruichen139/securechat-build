@@ -424,6 +424,17 @@
       <div class="admin-panel-row"><label>同步返回地址 <input type="text" id="epayReturn" placeholder="可选" /></label></div>
       <div class="admin-panel-row"><button id="epaySaveBtn" class="admin-btn">保存配置</button><span id="epaySaveTip" style="font-size:12px;color:#94a3b8;margin-left:10px"></span></div>
     </div>
+    <h3 style="margin-top:18px">本站网关密钥（易支付入站）</h3>
+    <div class="admin-panel">
+      <div class="admin-panel-row"><label>当前网关密钥 <input type="text" id="gwKeyCurrent" readonly style="background:#f1f5f9" /></label></div>
+      <div class="admin-panel-row"><label>新密钥 <input type="password" id="gwKeyNew" placeholder="留空表示不修改" /></label></div>
+      <div class="admin-panel-row">
+        <button id="gwKeyShowBtn" class="admin-btn">显示/隐藏</button>
+        <button id="gwKeySaveBtn" class="admin-btn">保存网关密钥</button>
+        <span id="gwKeyTip" style="font-size:12px;color:#94a3b8;margin-left:10px"></span>
+      </div>
+      <p style="font-size:12px;color:#94a3b8;margin-top:6px">商户对接 /epaygw/submit.php 时用此密钥做 MD5 签名，修改后立即生效。</p>
+    </div>
   </section>
 
  </div>
