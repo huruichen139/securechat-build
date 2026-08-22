@@ -500,6 +500,25 @@ class _ChatShellState extends State<ChatShell> {
     );
   }
 
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('退出登录'),
+        content: const Text('确定要退出当前账号吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('退出')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await widget.api.clearSession();
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
   Widget _rail(AppConfig config) {
     final t = config.theme;
     final railBg = t.isDark ? const Color(0xff17181a) : const Color(0xfff2f3f5);
@@ -536,6 +555,14 @@ class _ChatShellState extends State<ChatShell> {
           const SizedBox(height: 4),
         ],
         const Spacer(),
+        Tooltip(
+          message: '退出登录',
+          child: InkWell(
+            onTap: _confirmLogout,
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(width: 54, height: 48, child: Center(child: Icon(Icons.logout_rounded, size: 22, color: t.subText))),
+          ),
+        ),
         const SizedBox(height: 10),
       ]),
     );
