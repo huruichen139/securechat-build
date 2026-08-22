@@ -3479,7 +3479,7 @@ function humanBytes(b) {
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 const webDir = process.env.WEB_DIR || path.join(__dirname, '..', 'web');
 // admin/download 页禁止缓存，避免更新后浏览器/SW 卡旧版
-app.get(['/admin.html', '/download.html', '/index.html', '/'], (req, res, next) => {
+app.get(['/admin.html', '/download.html', '/merchant.html', '/index.html', '/'], (req, res, next) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });

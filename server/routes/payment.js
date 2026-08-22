@@ -138,6 +138,15 @@ module.exports = function registerPayment(app, db, auth) {
     prepare("CREATE INDEX IF NOT EXISTS idx_pay_auth_user_merchant ON pay_authorizations(user_id, merchant_id, status)").run();
   }
   ensureTables();
+  // 迁移：pay_merchants 增加每商户独立 API 密钥列
+  try { prepare("ALTER TABLE pay_merchants ADD COLUMN api_key TEXT").run(); } catch (e) {}
+  try {
+    const rows = prepare('SELECT id FROM pay_merchants WHERE api_key IS NULL OR api_key=""').all();
+    for (const r of rows) {
+      prepare('UPDATE pay_merchants SET api_key=? WHERE id=?').run('sk_' + crypto.randomBytes(16).toString('hex'), r.id);
+    }
+    if (rows.length) persist();
+  } catch (e) {}
 
   function saveEpayConfig(c) {
     const value = JSON.stringify({
@@ -586,7 +595,7 @@ module.exports = function registerPayment(app, db, auth) {
 
   // ============ 支付网关（内置钱包沙箱） ============
   function merchantPublic(m) {
-    return { id: m.id, userId: m.user_id, name: m.name, callbackUrl: m.callback_url || '', authMode: m.auth_mode, status: m.status, reason: m.reason || '', createdAt: m.created_at, reviewedAt: m.reviewed_at || null };
+    return { id: m.id, userId: m.user_id, name: m.name, callbackUrl: m.callback_url || '', authMode: m.auth_mode, status: m.status, reason: m.reason || '', apiKey: m.api_key || '', createdAt: m.created_at, reviewedAt: m.reviewed_at || null };
   }
   function orderPublic(o) {
     return { id: o.id, orderNo: o.order_no, merchantId: o.merchant_id, amount: o.amount, subject: o.subject, status: o.status, createdAt: o.created_at, paidAt: o.paid_at || null, expiresAt: o.expires_at, qrText: 'securechat://gateway/pay?order=' + encodeURIComponent(o.order_no) };
@@ -610,6 +619,24 @@ module.exports = function registerPayment(app, db, auth) {
   app.get('/api/pay/gateway/merchant/me', mw, (req, res) => {
     const m = prepare('SELECT * FROM pay_merchants WHERE user_id=?').get(req.user.id);
     res.json({ merchant: m ? merchantPublic(m) : null });
+  });
+
+  // 商户自助修改：名称 / 回调地址 / 重新生成自己的 API 密钥
+  app.post('/api/pay/gateway/merchant/update', mw, (req, res) => {
+    const m = prepare('SELECT * FROM pay_merchants WHERE user_id=?').get(req.user.id);
+    if (!m) return res.status(404).json({ error: '你还没有商户，请先申请' });
+    const name = req.body?.name !== undefined ? String(req.body.name).trim().slice(0, 80) : m.name;
+    if (!name) return res.status(400).json({ error: '商户名称不能为空' });
+    let callbackUrl = m.callback_url || '';
+    if (req.body?.callbackUrl !== undefined) {
+      callbackUrl = String(req.body.callbackUrl).trim().slice(0, 500);
+      if (callbackUrl && !/^https:\/\//i.test(callbackUrl)) return res.status(400).json({ error: '回调地址必须使用 HTTPS' });
+    }
+    let apiKey = m.api_key || '';
+    if (req.body?.regenerateKey) apiKey = 'sk_' + crypto.randomBytes(16).toString('hex');
+    prepare('UPDATE pay_merchants SET name=?, callback_url=?, api_key=? WHERE id=?').run(name, callbackUrl, apiKey, m.id);
+    persist();
+    res.json({ ok: true, merchant: merchantPublic(prepare('SELECT * FROM pay_merchants WHERE id=?').get(m.id)) });
   });
 
   // 创建订单：只有审核通过的商户能创建。
@@ -887,7 +914,11 @@ module.exports = function registerPayment(app, db, auth) {
       const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
       if (!u || !u.email || !String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',').includes(u.email.toLowerCase())) return res.status(403).json({ error: '无权限' });
       const status = ['approved', 'rejected', 'pending'].includes(req.body?.status) ? req.body.status : 'pending';
-      prepare('UPDATE pay_merchants SET status=?,reason=?,reviewed_at=? WHERE id=?').run(status, String(req.body?.reason || '').slice(0, 200), Date.now(), parseInt(req.params.id, 10));
+      const target = prepare('SELECT * FROM pay_merchants WHERE id=?').get(parseInt(req.params.id, 10));
+      if (!target) return res.status(404).json({ error: '商户不存在' });
+      let apiKey = target.api_key || '';
+      if (status === 'approved' && !apiKey) apiKey = 'sk_' + crypto.randomBytes(16).toString('hex');
+      prepare('UPDATE pay_merchants SET status=?,reason=?,reviewed_at=?,api_key=? WHERE id=?').run(status, String(req.body?.reason || '').slice(0, 200), Date.now(), apiKey, target.id);
       persist();
       res.json({ ok: true, status });
     });
