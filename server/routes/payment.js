@@ -173,6 +173,12 @@ module.exports = function registerPayment(app, db, auth) {
     next();
   }
 
+  // 管理端点鉴权：优先外部 auth 中间件，否则回退内置 JWT 校验（auth 为 null 时旧代码会直接 401，导致管理接口全部不可用）
+  function adminMw(req, res, next) {
+    if (auth && typeof auth === 'function') return auth(req, res, next);
+    return mw(req, res, next);
+  }
+
   function getUserRow(id) { return prepare('SELECT id,username,nickname,avatar,uid FROM users WHERE id=?').get(id); }
 
   function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -721,8 +727,7 @@ module.exports = function registerPayment(app, db, auth) {
   // ============ EPay 通道 ============
   // 配置只允许管理员设置；key 不返回给客户端。
   app.get('/api/admin/pay/epay/config', (req, res) => {
-    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
-    return auth(req, res, () => {
+    return adminMw(req, res, () => {
       const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
       const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
       if (!u || !admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '无权限' });
@@ -732,8 +737,7 @@ module.exports = function registerPayment(app, db, auth) {
   });
 
   app.post('/api/admin/pay/epay/config', (req, res) => {
-    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
-    return auth(req, res, () => {
+    return adminMw(req, res, () => {
       const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
       const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
       if (!u || !admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '无权限' });
@@ -900,8 +904,7 @@ module.exports = function registerPayment(app, db, auth) {
 
   // 管理员审核商户（调用方可接入现有 admin 页面）。
   app.get('/api/admin/pay/merchants', (req, res) => {
-    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
-    return auth(req, res, () => {
+    return adminMw(req, res, () => {
       const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
       if (!u || !u.email || !String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',').includes(u.email.toLowerCase())) return res.status(403).json({ error: '无权限' });
       res.json({ merchants: prepare('SELECT * FROM pay_merchants ORDER BY created_at DESC').all().map(merchantPublic) });
@@ -909,8 +912,7 @@ module.exports = function registerPayment(app, db, auth) {
   });
 
   app.post('/api/admin/pay/merchants/:id/review', (req, res) => {
-    if (!auth || typeof auth !== 'function') return res.status(401).json({ error: '未授权' });
-    return auth(req, res, () => {
+    return adminMw(req, res, () => {
       const u = prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
       if (!u || !u.email || !String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',').includes(u.email.toLowerCase())) return res.status(403).json({ error: '无权限' });
       const status = ['approved', 'rejected', 'pending'].includes(req.body?.status) ? req.body.status : 'pending';
