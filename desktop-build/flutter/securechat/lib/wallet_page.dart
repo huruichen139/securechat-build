@@ -45,40 +45,68 @@ class _WalletPageState extends State<WalletPage> {
 
   Future<void> _rechargeSheet() async {
     final amtC = TextEditingController(text: '10');
-    String payType = 'alipay';
+    final codeC = TextEditingController();
+    String payType = 'alipay'; // alipay | wxpay | qqpay | redeem
+    final t = (widget.config as AppConfig).theme;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) => Padding(
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
+        Widget chip(String label, IconData icon, String val) {
+          final sel = payType == val;
+          return Expanded(child: InkWell(
+            onTap: () => setSheet(() => payType = val),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: sel ? Ux.green.withValues(alpha: 0.1) : t.bg,
+                border: Border.all(color: sel ? Ux.green : t.div, width: sel ? 1.5 : 1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(children: [
+                Icon(icon, color: sel ? Ux.green : t.subText, size: 22),
+                const SizedBox(height: 4),
+                Text(label, style: TextStyle(fontSize: 12, color: sel ? Ux.green : t.subText, fontWeight: sel ? FontWeight.w600 : FontWeight.w400)),
+              ]),
+            ),
+          ));
+        }
+        return Padding(
         padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('在线充值', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+          const Text('余额充值', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
           const SizedBox(height: 14),
-          Wrap(spacing: 8, children: [10.0, 20.0, 50.0, 100.0, 500.0].map((v) => ChoiceChip(
-            label: Text('¥${v.toStringAsFixed(0)}'),
-            selected: amtC.text == v.toStringAsFixed(0),
-            onSelected: (_) { amtC.text = v.toStringAsFixed(0); setSheet(() {}); },
-          )).toList()),
-          const SizedBox(height: 12),
-          TextField(controller: amtC, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '自定义金额（元）', prefixText: '¥ ')),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: ChoiceChip(label: const Text('支付宝'), selected: payType == 'alipay', onSelected: (_) => setSheet(() => payType = 'alipay'))),
-            const SizedBox(width: 8),
-            Expanded(child: ChoiceChip(label: const Text('微信支付'), selected: payType == 'wxpay', onSelected: (_) => setSheet(() => payType = 'wxpay'))),
-          ]),
+          Row(children: [chip('支付宝', Icons.payment, 'alipay'), const SizedBox(width: 8), chip('微信', Icons.chat_bubble_outline, 'wxpay')]),
+          const SizedBox(height: 8),
+          Row(children: [chip('QQ钱包', Icons.account_circle_outlined, 'qqpay'), const SizedBox(width: 8), chip('兑换码', Icons.redeem, 'redeem')]),
+          const SizedBox(height: 14),
+          if (payType == 'redeem') ...[
+            TextField(controller: codeC, autofocus: true, decoration: const InputDecoration(hintText: '请输入兑换码')),
+          ] else ...[
+            Wrap(spacing: 8, children: [10.0, 20.0, 50.0, 100.0, 500.0].map((v) => ChoiceChip(
+              label: Text('¥${v.toStringAsFixed(0)}'),
+              selected: amtC.text == v.toStringAsFixed(0),
+              onSelected: (_) { amtC.text = v.toStringAsFixed(0); setSheet(() {}); },
+            )).toList()),
+            const SizedBox(height: 12),
+            TextField(controller: amtC, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '自定义金额（元）', prefixText: '¥ ')),
+          ],
           const SizedBox(height: 16),
           SizedBox(width: double.infinity, child: FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('去支付'),
+            child: Text(payType == 'redeem' ? '立即兑换' : (payType == 'qqpay' ? '去QQ钱包支付' : (payType == 'wxpay' ? '去微信支付' : '去支付宝支付'))),
           )),
-          const SizedBox(height: 4),
-          SizedBox(width: double.infinity, child: TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('使用兑换码充值'))),
         ]),
-      )),
+        );
+      }),
     );
-    if (ok == null) return;
-    if (ok != true) { await _redeem(); return; }
+    if (ok != true) return;
+    if (payType == 'redeem') {
+      if (codeC.text.trim().isEmpty) return;
+      await _redeemWithCode(codeC.text.trim());
+      return;
+    }
     final amount = double.tryParse(amtC.text.trim());
     if (amount == null || amount < 0.01) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入有效金额')));
@@ -96,6 +124,19 @@ class _WalletPageState extends State<WalletPage> {
       _pollRecharge(orderNo);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('充值失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
+  }
+
+  Future<void> _redeemWithCode(String code) async {
+    try {
+      final r = await widget.api.redeem(code);
+      setState(() => _balance = (r['balance'] as num?)?.toDouble() ?? _balance);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换成功，+${r['value']}')));
+        await _reload();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换失败：${e.toString().replaceFirst('Bad state: ', '')}')));
     }
   }
 
