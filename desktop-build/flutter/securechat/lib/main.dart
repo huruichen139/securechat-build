@@ -79,7 +79,7 @@ class _SecureChatAppState extends State<SecureChatApp> {
     return AnimatedBuilder(
       animation: config,
       builder: (context, _) {
-        final t = config.theme;
+    final t = config.theme;
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SecureChat',
@@ -2393,7 +2393,9 @@ class _ChatViewStateState extends State<_ChatView> {
     if (conversations.isEmpty) return;
     final target = selected;
     String query = '';
-    final picked = await showDialog<int>(
+    final t = widget.config.theme;
+    final selectedFwd = <int>{};
+    final picked = await showDialog<List<int>>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
@@ -2428,32 +2430,38 @@ class _ChatViewStateState extends State<_ChatView> {
                       ),
                       title: Text(c['name']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: c['kind'] == 'group' ? const Text('群聊', style: TextStyle(fontSize: 11)) : null,
-                      onTap: () => Navigator.pop(ctx, idx),
+                      trailing: Icon(selectedFwd.contains(idx) ? Icons.check_circle : Icons.radio_button_unchecked, color: selectedFwd.contains(idx) ? _wechatGreen : t.subText),
+                      onTap: () { setState(() { if (selectedFwd.contains(idx)) selectedFwd.remove(idx); else selectedFwd.add(idx); }); },
                     );
                   },
                 )),
               ]),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消'))],
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')), FilledButton(onPressed: selectedFwd.isEmpty ? null : () => Navigator.pop(ctx, selectedFwd.toList()), child: const Text('转发'))],
           );
         },
       ),
     );
-    if (picked == null || picked == target || !mounted) return;
-    final conv = conversations[picked];
+    if (picked == null || picked.isEmpty || !mounted) return;
     final text = (msg['text'] ?? '').toString();
     final content = text.isEmpty ? '转发消息' : text;
-    if (conv['kind'] == 'group') {
-      final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
-      _sentIds.add(gcmid);
-      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
-    } else {
-      final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
-      _sentIds.add(cmid);
-      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt('${conv['id']}', content), 'clientMsgId': cmid, 'forwardedFrom': msg['id']}}));
+    int count = 0;
+    for (final idx in picked) {
+      final conv = conversations[idx];
+      if (conv['id'].toString() == target.toString()) continue;
+      if (conv['kind'] == 'group') {
+        final gcmid = 'gf\$' + 'DateTime.now().microsecondsSinceEpoch';
+        _sentIds.add(gcmid);
+        socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
+      } else {
+        final cmid = 'ff\$' + 'DateTime.now().microsecondsSinceEpoch';
+        _sentIds.add(cmid);
+        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt(conv['id'].toString(), content), 'clientMsgId': cmid, 'forwardedFrom': msg['id']}}));
+      }
+      count++;
+      await Future.delayed(const Duration(milliseconds: 50));
     }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已转发')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已转发到 \$' + 'count 个会话')));
   }
 
   /// 双击消息点赞：气泡旁弹出爱心动画
