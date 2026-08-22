@@ -599,6 +599,8 @@ class _ChatViewStateState extends State<_ChatView> {
   final recorder = AudioRecorder();
   bool recording = false;
   int _recordingStart = 0; // 录音开始时间戳（用于计算时长）
+  Timer? _recordingTimer;
+  int _recordingDuration = 0;
   int _groupOnlineCount = -1; // 当前群在线人数（-1=未知）
   AudioPlayer? voicePlayer;
   String? playingVoiceId;
@@ -1414,7 +1416,13 @@ class _ChatViewStateState extends State<_ChatView> {
     }
     await recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100), path: '${Directory.systemTemp.path}/securechat-${DateTime.now().millisecondsSinceEpoch}.m4a');
     _recordingStart = DateTime.now().millisecondsSinceEpoch;
+    _recordingDuration = 0;
     setState(() => recording = true);
+    Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      final secs = ((DateTime.now().millisecondsSinceEpoch - _recordingStart) / 1000).round();
+      if (mounted) setState(() => _recordingDuration = secs);
+    });
   }
 
   @override
@@ -1425,6 +1433,7 @@ class _ChatViewStateState extends State<_ChatView> {
     socket?.sink.close();
     calls?.dispose();
     voicePlayer?.dispose();
+    _recordingTimer?.cancel();
     recorder.dispose();
     input.removeListener(_onInputChanged);
     input.dispose();
@@ -2063,7 +2072,7 @@ class _ChatViewStateState extends State<_ChatView> {
       decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
-        if (recording) ...[SizedBox(width: 6), _PulseIndicator(color: Colors.red), SizedBox(width: 4), Text('录音中...', style: TextStyle(color: Colors.red, fontSize: 12))],
+        if (recording) ...[SizedBox(width: 6), _PulseIndicator(color: Colors.red), SizedBox(width: 4), Text((_recordingDuration ~/ 60).toString().padLeft(2, '0') + ':' + (_recordingDuration % 60).toString().padLeft(2, '0'), style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)), SizedBox(width: 4), Text('录音中...', style: TextStyle(color: Colors.red, fontSize: 12))],
         IconButton(tooltip: '附件', onPressed: _pickAndSendFile, icon: Icon(Icons.add_circle_outline, color: t.text)),
         IconButton(tooltip: '表情', onPressed: () => _showEmojiPicker(context), icon: Icon(Icons.emoji_emotions_outlined, color: t.text)),
         Expanded(child: TextField(
