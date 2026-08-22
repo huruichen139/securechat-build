@@ -2614,18 +2614,18 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
-
-  }
-    }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分享失败: $e')));
-    } catch (e) {
-      }
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
-        await Clipboard.setData(ClipboardData(text: text));
-      if (text.isNotEmpty) {
-      final text = msg['text'] ?? msg['content'] ?? '';
-    try {
   Future<void> _shareMessage(Map<String, dynamic> msg) async {
+    try {
+      final text = msg['text'] ?? msg['content'] ?? '';
+      if (text.isNotEmpty) {
+        await Clipboard.setData(ClipboardData(text: text));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分享失败: $e')));
+    }
+  }
+
   void _bubbleMenu(BuildContext context, Map<String, dynamic> msg) {
     final isFromMe = msg['from'] == myId;
     final isFriendChat = selConv != null && selConv!['kind'] == 'friend' && !isFromMe;
