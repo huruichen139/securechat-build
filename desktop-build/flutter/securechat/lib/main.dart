@@ -816,7 +816,7 @@ class _ChatViewStateState extends State<_ChatView> {
           final settings = csMap[g['id']];
           conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
-        conversations.sort((a, b) => ((b['pinned'] == true) ? 1 : 0) - ((a['pinned'] == true) ? 1 : 0));
+        conversations.sort((a, b) { final bp = (b['pinned'] == true) ? 1 : 0; final ap = (a['pinned'] == true) ? 1 : 0; if (bp != ap) return bp - ap; final bu = ((b['unread'] as num?)?.toInt() ?? 0); final au = ((a['unread'] as num?)?.toInt() ?? 0); return bu.compareTo(au); });
         messages.clear();
       });
       final pending = _pendingOpen;
@@ -1603,6 +1603,7 @@ class _ChatViewStateState extends State<_ChatView> {
           if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
            IconButton(tooltip: '清空聊天', onPressed: () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
            if (selConv!['kind'] == 'group') IconButton(tooltip: '群成员', onPressed: _showGroupMembers, icon: Icon(Icons.people_outline, color: t.subText)),
+          if (selConv!['kind'] == 'group') IconButton(tooltip: '群公告', onPressed: _showGroupAnnouncement, icon: Icon(Icons.campaign_outlined, color: t.subText)),
           if (selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
           PopupMenuButton<int>(
             icon: const Icon(Icons.more_horiz),
@@ -1711,7 +1712,9 @@ class _ChatViewStateState extends State<_ChatView> {
             Text('已选 ${_selectedMsgs.length} 条', style: TextStyle(color: t.text, fontSize: 13)),
             const Spacer(),
             IconButton(tooltip: '批量转发', onPressed: _selectedMsgs.isEmpty ? null : _batchForward, icon: Icon(Icons.forward, color: _selectedMsgs.isEmpty ? t.subText : _wechatGreen)),
+            IconButton(tooltip: '批量收藏', onPressed: _selectedMsgs.isEmpty ? null : _batchFavorite, icon: Icon(Icons.star_outline, color: _selectedMsgs.isEmpty ? t.subText : Colors.amber)),
             IconButton(tooltip: '批量删除', onPressed: _selectedMsgs.isEmpty ? null : _batchDelete, icon: Icon(Icons.delete_outline, color: _selectedMsgs.isEmpty ? t.subText : Colors.red)),
+            IconButton(tooltip: '批量撤回', onPressed: _selectedMsgs.isEmpty ? null : _batchRecall, icon: Icon(Icons.backspace, color: _selectedMsgs.isEmpty ? t.subText : Colors.orange)),
             TextButton(onPressed: _toggleMultiSelect, child: const Text('取消')),
           ]),
         ),
@@ -2264,8 +2267,19 @@ class _ChatViewStateState extends State<_ChatView> {
     final id = (meta['id'] ?? '').toString();
     if (id.isEmpty) return;
     final isGroup = selConv != null && selConv!['kind'] == 'group';
+    final dlCtrl = ValueNotifier<double>(0.0);
+    final dlgCtx = context;
+    showDialog(context: dlgCtx, barrierDismissible: false, builder: (_) => ValueListenableBuilder<double>(
+      valueListenable: dlCtrl,
+      builder: (_, v, __) => AlertDialog(content: Column(mainAxisSize: MainAxisSize.min, children: [
+        CircularProgressIndicator(value: v > 0 ? null : null, color: const Color(0xff07c160)),
+        const SizedBox(height: 12),
+        Text(v > 0 ? '下载中 %' : '下载中...', style: const TextStyle(fontSize: 13)),
+      ])),
+    ));
     try {
       final bytes = isGroup ? await widget.api.fetchGroupFile(id) : await widget.api.fetchFile(id);
+      if (Navigator.canPop(dlgCtx)) Navigator.pop(dlgCtx);
       if (!mounted) return;
       final mime = (meta['mime'] ?? '').toString();
       if (mime.startsWith('image/')) {
@@ -2274,17 +2288,15 @@ class _ChatViewStateState extends State<_ChatView> {
         final out = await FilePicker.platform.saveFile(fileName: (meta['name'] ?? 'file').toString());
         if (out != null) {
           await File(out).writeAsBytes(bytes);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存'), duration: Duration(seconds: 1)));
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存'), duration: Duration(seconds: 1)));
         }
       }
     } catch (e) {
+      if (Navigator.canPop(dlgCtx)) Navigator.pop(dlgCtx);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('文件获取失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('文件获取失败：')));
     }
   }
-
   int _lastTypingSent = 0;
   void _sendTyping() {
     final conv = selConv;
@@ -2618,6 +2630,23 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
+  void _showGroupAnnouncement() {
+    final conv = selConv;
+    if (conv == null || conv['kind'] != 'group') return;
+    final announcement = conv['announcement']?.toString();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Icon(Icons.campaign_outlined, color: const Color(0xff07c160)),
+          const SizedBox(width: 8),
+          const Text('群公告'),
+        ]),
+        content: Text(announcement ?? '暂无群公告', style: TextStyle(color: announcement != null ? null : widget.config.theme.subText)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+      ),
+    );
+  }
   void _showGroupMembers() async {
     final conv = selConv;
     if (conv == null || conv['kind'] != 'group') return;
@@ -2729,6 +2758,57 @@ class _ChatViewStateState extends State<_ChatView> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已删除 $count 条消息')));
   }
 
+  void _batchFavorite() async {
+    if (_selectedMsgs.isEmpty) return;
+    int count = 0;
+    for (final msg in _selectedMsgs) {
+      final id = msg['id'] as int?;
+      if (id != null) {
+        try { await widget.api.setFavorite(id); count++; } catch (_) {}
+      }
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已收藏 $count 条消息')));
+      setState(() { _selectedMsgs.clear(); _multiSelectMode = false; });
+    }
+  }
+  void _batchRecall() async {
+    if (_selectedMsgs.isEmpty) return;
+    final conv = selConv;
+    if (conv == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('撤回消息'),
+        content: Text('确定撤回选中的 ${_selectedMsgs.length} 条消息？（仅5分钟内可撤回）'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('撤回')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    int count = 0;
+    for (final msg in _selectedMsgs) {
+      final msgId = msg['id'] as int?;
+      if (msgId == null) continue;
+      try {
+        if (conv['kind'] == 'group') { await widget.api.recallGroupMessage(conv['id'] as int, msgId); }
+        else { await widget.api.recallMessage(msgId); }
+        count++;
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        for (final msg in _selectedMsgs) {
+          messages.removeWhere((m) => m['id'] == msg['id']);
+        }
+        _selectedMsgs.clear();
+        _multiSelectMode = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已撤回 $count 条消息')));
+    }
+  }
   void _batchForward() async {
     if (_selectedMsgs.isEmpty) return;
     if (conversations.isEmpty) return;
