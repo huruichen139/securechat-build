@@ -1310,11 +1310,16 @@
     if (el('replayExportBtn')) el('replayExportBtn').addEventListener('click', exportReplay);
     if (el('merchantRefreshBtn')) el('merchantRefreshBtn').addEventListener('click', loadMerchants);
     if (el('epaySaveBtn')) el('epaySaveBtn').addEventListener('click', saveEpayConfig);
+    $('keyCopyBtn') && 0; // noop guard
     if (el('gwKeyShowBtn')) el('gwKeyShowBtn').addEventListener('click', () => {
       const inp = el('gwKeyCurrent');
       inp.type = inp.type === 'password' ? 'text' : 'password';
     });
     if (el('gwKeySaveBtn')) el('gwKeySaveBtn').addEventListener('click', saveGatewayKey);
+    // 钱包管理
+    if (el('walQueryBtn')) el('walQueryBtn').addEventListener('click', queryWallet);
+    if (el('walQuery')) el('walQuery').addEventListener('keydown', e => { if (e.key === 'Enter') queryWallet(); });
+    if (el('walAddBtn')) el('walAddBtn').addEventListener('click', adjustWallet);
     // 群组
     if (el('groupSearchBtn')) el('groupSearchBtn').addEventListener('click', () => loadAllGroups(el('groupSearch').value.trim()));
     if (el('groupLoadBtn')) el('groupLoadBtn').addEventListener('click', () => loadAllGroups());
@@ -1334,6 +1339,13 @@
 
   // ============ 兑换码管理 ============
   let redeemClaimedFilter = '';
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); if (done) done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
   function loadRedeemCodes(claimed) {
     redeemClaimedFilter = claimed || '';
     const tb = el('redeemTbody');
@@ -1354,13 +1366,21 @@
         const claimedAt = c.claimed_at ? fmtTime(c.claimed_at) : '-';
         const claimer = c.claimed_by ? String(c.claimed_by).slice(0, 8) : '-';
         return `<tr>
-          <td><code>${escapeHtml(c.code)}</code></td>
+          <td><code>${escapeHtml(c.code)}</code> <button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c.code)}" style="padding:2px 8px;font-size:11px;margin-left:6px">${used ? '复制' : '📋 复制'}</button></td>
           <td>${c.value}元</td>
           <td>${statusHtml}</td>
           <td>${claimedAt}</td>
           <td>${escapeHtml(claimer)}</td>
         </tr>`;
       }).join('');
+      tb.querySelectorAll('.redeem-copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const code = btn.dataset.code;
+          const done = () => { const o = btn.textContent; btn.textContent = '✓ 已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
+          else fallbackCopy(code, done);
+        });
+      });
     }).catch(e => { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c0392b">加载失败: ' + escapeHtml(e.message) + '</td></tr>'; });
   }
   function renderRedeemResult(codes, value) {
@@ -1369,15 +1389,14 @@
     const resultDiv = el('redeemResult');
     if (!list || !countEl || !resultDiv) return;
     countEl.textContent = codes.length;
-    list.innerHTML = codes.map(c => `<code class="admin-redeem-code" title="点击复制">${escapeHtml(c)}</code>`).join('');
+    list.innerHTML = codes.map(c => `<span style="display:inline-flex;align-items:center;gap:4px;margin:3px"><code class="admin-redeem-code">${escapeHtml(c)}</code><button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c)}" style="padding:2px 8px;font-size:11px">📋 复制</button></span>`).join('');
     resultDiv.style.display = '';
-    list.querySelectorAll('.admin-redeem-code').forEach(el => {
-      el.addEventListener('click', () => {
-        navigator.clipboard.writeText(el.textContent).then(() => {
-          const orig = el.textContent;
-          el.textContent = '✓ 已复制';
-          setTimeout(() => { el.textContent = orig; }, 1200);
-        });
+    list.querySelectorAll('.redeem-copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code;
+        const done = () => { const o = btn.textContent; btn.textContent = '✓ 已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
+        else fallbackCopy(code, done);
       });
     });
   }

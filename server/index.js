@@ -1450,6 +1450,107 @@ app.get('/api/wallet/txn', (req, res) => {
   res.json({ txn: rows });
 });
 
+// ============ 在线充值（EPay 真实支付）============
+let _rechargeTableReady = false;
+function ensureRechargeTable() {
+  if (_rechargeTableReady) return;
+  try {
+    prepare(`CREATE TABLE IF NOT EXISTS wallet_recharges (
+      order_no TEXT PRIMARY KEY, user_id INTEGER NOT NULL, amount FLOAT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'alipay', status TEXT NOT NULL DEFAULT 'pending',
+      trade_no TEXT, created_at INTEGER NOT NULL, paid_at INTEGER
+    )`).run();
+    _rechargeTableReady = true;
+  } catch (e) { console.error('[wallet] create recharge table failed: ' + (e && e.message || e)); }
+}
+
+function epayConfigRead() {
+  try {
+    const row = prepare('SELECT value FROM settings WHERE key=?').get('epay_config');
+    return row ? JSON.parse(row.value) : {};
+  } catch (e) { return {}; }
+}
+function epaySignOf(params, key) {
+  const keys = Object.keys(params).filter(k => k !== 'sign' && k !== 'sign_type' && params[k] !== '' && params[k] !== undefined && params[k] !== null).sort();
+  const qs = keys.map(k => k + '=' + params[k]).join('&');
+  return crypto.createHash('md5').update(qs + key, 'utf8').digest('hex');
+}
+
+// 用户发起在线充值：POST /api/wallet/recharge { amount, type }
+app.post('/api/wallet/recharge', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const c = epayConfigRead();
+  if (!c.enabled || !c.key || !c.merchantPid) return res.status(503).json({ error: '在线充值暂未开启，可使用兑换码充值' });
+  const amount = Math.round(parseFloat((req.body || {}).amount) * 100) / 100;
+  const type = ['alipay', 'wxpay', 'qqpay'].includes((req.body || {}).type) ? req.body.type : 'alipay';
+  if (!Number.isFinite(amount) || amount < 0.01 || amount > 50000) return res.status(400).json({ error: '金额无效（0.01 ~ 50000）' });
+  const orderNo = 'WR' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(4).toString('hex').toUpperCase();
+  ensureRechargeTable();
+  prepare('INSERT INTO wallet_recharges(order_no,user_id,amount,type,status,created_at) VALUES(?,?,?,?,?,?)')
+    .run(orderNo, payload.id, amount, type, 'pending', Date.now());
+  persist();
+  const base = process.env.PUBLIC_BASE_URL || ('https://' + (req.headers.host || 'mc.32768.top:8888'));
+  const params = {
+    pid: String(c.merchantPid),
+    type,
+    out_trade_no: orderNo,
+    notify_url: base + '/api/wallet/recharge/notify',
+    return_url: base + '/wallet-pay.html',
+    name: 'SecureChat钱包充值',
+    money: amount.toFixed(2)
+  };
+  params.sign = epaySignOf(params, c.key);
+  params.sign_type = 'MD5';
+  const gateway = (c.gatewayUrl || ((c.baseUrl || '').replace(/\/$/, '') + '/submit.php'));
+  const query = Object.entries(params).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
+  res.json({ ok: true, orderNo, amount, payUrl: gateway + (gateway.includes('?') ? '&' : '?') + query });
+});
+
+// 充值状态轮询：GET /api/wallet/recharge/status?orderNo=
+app.get('/api/wallet/recharge/status', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const auth = req.headers.authorization || '';
+  const payload = verifyToken(auth.replace('Bearer ', ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  ensureRechargeTable();
+  const r = prepare('SELECT * FROM wallet_recharges WHERE order_no=? AND user_id=?').get(String(req.query.orderNo || ''), payload.id);
+  if (!r) return res.status(404).json({ error: '订单不存在' });
+  res.json({ status: r.status, amount: r.amount });
+});
+
+// 易支付异步回调：验签 → 幂等入账。标准协议响应纯文本 success
+app.all('/api/wallet/recharge/notify', (req, res) => {
+  if (!ready) return res.status(503).send('fail');
+  const p = Object.assign({}, req.query || {}, req.body || {});
+  const c = epayConfigRead();
+  if (!c.key) return res.status(503).send('fail');
+  if (epaySignOf(p, c.key) !== String(p.sign || '').toLowerCase()) {
+    console.log('[wallet] recharge notify sign mismatch: ' + JSON.stringify(p).slice(0, 300));
+    return res.send('sign error');
+  }
+  if (String(p.trade_status || '') !== 'TRADE_SUCCESS') return res.send('success');
+  ensureRechargeTable();
+  const r = prepare('SELECT * FROM wallet_recharges WHERE order_no=?').get(String(p.out_trade_no || ''));
+  if (!r) return res.send('order not found');
+  if (r.status === 'paid') return res.send('success');
+  // 金额校验：回调金额必须与订单一致
+  if (Math.abs(Number(r.amount) - Number(p.money)) > 0.001) {
+    console.log('[wallet] recharge money mismatch: order=' + r.amount + ' notify=' + p.money);
+    return res.send('money mismatch');
+  }
+  prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(r.user_id, Date.now());
+  prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(r.amount, r.amount, Date.now(), r.user_id);
+  prepare('UPDATE wallet_recharges SET status=?,trade_no=?,paid_at=? WHERE order_no=?').run('paid', String(p.trade_no || ''), Date.now(), r.order_no);
+  prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)')
+    .run(r.user_id, 'recharge', r.amount, '在线充值(' + (p.trade_no || '') + ')', Date.now());
+  persist();
+  console.log('[wallet] recharged: user=' + r.user_id + ' +' + r.amount);
+  res.send('success');
+});
+
 // 状态：GET my status / SET 状态（微信『我的状态』）
 app.get('/api/status', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
@@ -2037,6 +2138,50 @@ app.get('/api/admin/redeem', (req, res) => {
   else if (claimed === '1') rows = prepare('SELECT * FROM redeem_codes WHERE claimed_by IS NOT NULL ORDER BY claimed_at DESC').all();
   else rows = prepare('SELECT * FROM redeem_codes ORDER BY created_at DESC').all();
   res.json({ codes: rows });
+});
+
+// 管理员直充余额：POST /api/admin/wallet/add { uid 或 userId, amount, remark }
+app.post('/api/admin/wallet/add', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const b = req.body || {};
+  const amount = parseFloat(b.amount);
+  if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 1000000) return res.status(400).json({ error: '金额无效' });
+  let user = null;
+  if (b.userId) user = prepare('SELECT id FROM users WHERE id=?').get(parseInt(b.userId, 10));
+  else if (b.uid) user = prepare('SELECT id FROM users WHERE uid=?').get(String(b.uid));
+  else if (b.username) user = prepare('SELECT id FROM users WHERE username=?').get(String(b.username));
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(user.id, Date.now());
+  if (amount > 0) {
+    prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(amount, amount, Date.now(), user.id);
+  } else {
+    const w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(user.id);
+    if ((w.balance || 0) + amount < 0) return res.status(400).json({ error: '扣减后余额为负' });
+    prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), user.id);
+  }
+  prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)').run(user.id, amount > 0 ? 'recharge' : 'admin_deduct', Math.abs(amount), b.remark || '管理员调整', Date.now());
+  persist();
+  const w2 = prepare('SELECT balance FROM wallets WHERE user_id=?').get(user.id);
+  res.json({ ok: true, userId: user.id, balance: w2.balance });
+});
+
+// 管理员查任意用户余额：GET /api/admin/wallet?uid=xxx
+app.get('/api/admin/wallet', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const guard = adminGuard(req, res);
+  if (guard.sent) return;
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(400).json({ error: '请提供用户 UID / 用户名 / ID' });
+  let u = prepare('SELECT id,username,nickname,uid FROM users WHERE uid=?').get(q);
+  if (!u) u = prepare('SELECT id,username,nickname,uid FROM users WHERE username=?').get(q);
+  if (!u && /^\d+$/.test(q)) u = prepare('SELECT id,username,nickname,uid FROM users WHERE id=?').get(parseInt(q, 10));
+  if (!u) return res.status(404).json({ error: '用户不存在' });
+  let w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(u.id);
+  if (!w) { prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(u.id, Date.now()); w = { balance: 0 }; }
+  const txn = prepare('SELECT kind,amount,remark,created_at FROM wallet_txn WHERE user_id=? ORDER BY created_at DESC LIMIT 10').all(u.id);
+  res.json({ user: u, balance: w.balance || 0, recentTxn: txn });
 });
 
 // 管理员上传安装包（无依赖二进制上传）：express.raw 直接解析 application/octet-stream 得到 Buffer，
@@ -3479,7 +3624,7 @@ function humanBytes(b) {
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 const webDir = process.env.WEB_DIR || path.join(__dirname, '..', 'web');
 // admin/download 页禁止缓存，避免更新后浏览器/SW 卡旧版
-app.get(['/admin.html', '/download.html', '/merchant.html', '/index.html', '/'], (req, res, next) => {
+app.get(['/admin.html', '/download.html', '/merchant.html', '/wallet-pay.html', '/index.html', '/'], (req, res, next) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });

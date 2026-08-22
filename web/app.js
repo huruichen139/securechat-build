@@ -4687,6 +4687,13 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     };
   }
   // 复制全部
+  function adminFallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); if (done) done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
   const adminCopyAllBtn = $('adminCopyAllBtn');
   if (adminCopyAllBtn) {
     adminCopyAllBtn.onclick = () => {
@@ -4719,8 +4726,16 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
         const claimedAt = c.claimed_at ? new Date(c.claimed_at).toLocaleString() : '-';
         const statusCls = c.claimed_by ? 'used' : 'unused';
         const statusText = c.claimed_by ? '已使用' : '未使用';
-        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><span class="value">' + c.value + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
+        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #07c160;color:#07c160;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + c.value + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
       }).join('');
+      tbl.querySelectorAll('.admin-code-copy').forEach(btn => {
+        btn.onclick = () => {
+          const code = btn.dataset.code;
+          const done = () => { const o = btn.textContent; btn.textContent = '✓'; setTimeout(() => { btn.textContent = o; }, 1200); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => adminFallbackCopy(code, done));
+          else adminFallbackCopy(code, done);
+        };
+      });
     } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
   };
 })();

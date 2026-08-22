@@ -376,6 +376,12 @@ class SecureChatApi {
     return ((data['txn'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  // 在线充值（EPay 真实支付）：返回 payUrl 跳转支付
+  Future<Map<String, dynamic>> walletRecharge(double amount, {String type = 'alipay'}) =>
+      _json('POST', '/api/wallet/recharge', body: {'amount': amount, 'type': type});
+  Future<Map<String, dynamic>> rechargeStatus(String orderNo) =>
+      _json('GET', '/api/wallet/recharge/status', query: {'orderNo': orderNo});
+
   // ============ 状态 ============
   Future<Map<String, dynamic>?> myStatus() async {
     final data = await _json('GET', '/api/status');
