@@ -25,4 +25,4 @@ cloudflared.exe
 /log_utfprobe.txt
 server/.env
 desktop-build/harmony/.hvigor/
-desktop-build/harmony/entry/build/
+desktop-build/harmony/entry/build/server/.epaygw_key.json
