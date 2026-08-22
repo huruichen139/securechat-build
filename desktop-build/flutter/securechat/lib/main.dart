@@ -26,6 +26,7 @@ import 'call_page.dart';
 import 'deeplink.dart';
 import 'qr_confirm_page.dart';
 import 'update_service.dart';
+import 'favorites_page.dart';
 import 'discover_page.dart';
 import 'me_page.dart';
 import 'community_tools_page.dart';
@@ -624,6 +625,7 @@ class _ChatViewStateState extends State<_ChatView> {
   final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
   final _chatBgColors = <String, Color>{}; // 会话背景色 keyed by convKey
   bool _multiSelectMode = false;
+  bool _morePanel = false;
   bool _showScrollDown = false;
   final _selectedMsgs = <Map<String, dynamic>>{};
   double _fontSize = 15.0; // 聊天字体大小
@@ -2070,10 +2072,11 @@ class _ChatViewStateState extends State<_ChatView> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
         if (recording) ...[SizedBox(width: 6), _PulseIndicator(color: Colors.red), SizedBox(width: 4), Text((_recordingDuration ~/ 60).toString().padLeft(2, '0') + ':' + (_recordingDuration % 60).toString().padLeft(2, '0'), style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)), SizedBox(width: 4), Text('录音中...', style: TextStyle(color: Colors.red, fontSize: 12))],
-        IconButton(tooltip: '附件', onPressed: _pickAndSendFile, icon: Icon(Icons.add_circle_outline, color: t.text)),
+        IconButton(tooltip: '更多', onPressed: () { if (mounted) setState(() => _morePanel = !_morePanel); }, icon: Icon(_morePanel ? Icons.close : Icons.add_circle_outline, color: t.text)),
         IconButton(tooltip: '表情', onPressed: () => _showEmojiPicker(context), icon: Icon(Icons.emoji_emotions_outlined, color: t.text)),
         Expanded(child: TextField(
           controller: input,
@@ -2086,7 +2089,6 @@ class _ChatViewStateState extends State<_ChatView> {
         )),
         const SizedBox(width: 8),
         if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
-        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
         IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
         IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
         SizedBox(height: 42, child: FilledButton(
@@ -2095,15 +2097,109 @@ class _ChatViewStateState extends State<_ChatView> {
           child: const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('发送')),
         )),
       ]),
+      if (_morePanel && canSend) ...[
+        const Divider(height: 1),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Wrap(spacing: 22, runSpacing: 16, children: [
+            _moreCell(t, Icons.redeem_rounded, '红包', () { setState(() => _morePanel = false); _showSendRedPacket(); }),
+            _moreCell(t, Icons.image_outlined, '图片', () { setState(() => _morePanel = false); _pickAndSendFile(imageOnly: true); }),
+            _moreCell(t, Icons.folder_outlined, '文件', () { setState(() => _morePanel = false); _pickAndSendFile(); }),
+            _moreCell(t, Icons.star_outline, '收藏', () { setState(() => _morePanel = false); Navigator.push(context, MaterialPageRoute(builder: (_) => FavoritesPage(api: widget.api, config: widget.config))); }),
+            _moreCell(t, Icons.call_outlined, '语音通话', () { setState(() => _morePanel = false); _startCall(false); }),
+            _moreCell(t, Icons.videocam_outlined, '视频通话', () { setState(() => _morePanel = false); _startCall(true); }),
+          ]),
+        ),
+      ],
+      ]),
     );
   }
 
-  Future<void> _pickAndSendFile() async {
+  Widget _moreCell(AppTheme t, IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 64,
+        child: Column(children: [
+          Container(
+            width: 52, height: 52,
+            decoration: BoxDecoration(color: t.inputBg, borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: t.text, size: 26),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(color: t.subText, fontSize: 11)),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _showSendRedPacket() async {
+    final conv = selConv;
+    if (conv == null) return;
+    final isGroup = conv['kind'] == 'group';
+    final amtC = TextEditingController();
+    final cntC = TextEditingController(text: '1');
+    final greetC = TextEditingController(text: '恭喜发财，大吉大利！');
+    String mode = 'random';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
+        title: Text(isGroup ? '发群红包' : '发红包'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: amtC, keyboardType: const TextInputType.numberWithOptions(decimal: true), autofocus: true, decoration: const InputDecoration(hintText: '金额（元）', prefixText: '¥ ')),
+          if (isGroup) ...[
+            const SizedBox(height: 10),
+            TextField(controller: cntC, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: '红包个数')),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: ChoiceChip(label: const Text('拼手气'), selected: mode == 'random', onSelected: (_) => setD(() => mode = 'random'))),
+              const SizedBox(width: 8),
+              Expanded(child: ChoiceChip(label: const Text('普通'), selected: mode == 'average', onSelected: (_) => setD(() => mode = 'average'))),
+            ]),
+          ],
+          const SizedBox(height: 10),
+          TextField(controller: greetC, decoration: const InputDecoration(hintText: '祝福语')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('塞钱进红包')),
+        ],
+      )),
+    );
+    if (ok != true) return;
+    final amount = double.tryParse(amtC.text.trim());
+    final count = int.tryParse(cntC.text.trim()) ?? 1;
+    if (amount == null || amount <= 0) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入有效金额')));
+      return;
+    }
+    try {
+      final r = await widget.api.redPacketSend(
+        to: isGroup ? null : conv['id'] as int,
+        groupId: isGroup ? conv['id'] as int : null,
+        amount: amount,
+        count: count,
+        mode: mode,
+        greeting: greetC.text.trim(),
+      );
+      // 本地回显红包气泡（服务端 WS 也会推一份，靠 cmid 去重）
+      final pid = r['packetId'];
+      if (pid != null && mounted) {
+        setState(() => messages.add({'cmid': 'rp${r['msgId'] ?? pid}', 'text': '[红包:$pid]', 'mine': true, 'time': '现在'}));
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('红包已发出')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('发红包失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
+  }
+
+  Future<void> _pickAndSendFile({bool imageOnly = false}) async {
     final conv = selConv;
     if (conv == null) return;
     FilePickerResult? res;
     try {
-      res = await FilePicker.platform.pickFiles(withData: true);
+      res = await FilePicker.platform.pickFiles(withData: true, type: imageOnly ? FileType.image : FileType.any);
     } catch (_) {}
     if (res == null || res.files.isEmpty || res.files.single.bytes == null || !mounted) return;
     final f = res.files.single;

@@ -131,6 +131,16 @@ class SecureChatApi {
   Future<Map<String, dynamic>> grabRedPacket(int id) => _json('POST', '/api/redpacket/$id/grab');
   Future<Map<String, dynamic>> redPacketDetail(int id) => _json('GET', '/api/redpacket/$id');
 
+  Future<Map<String, dynamic>> redPacketSend({int? to, int? groupId, required double amount, int count = 1, String mode = 'random', String greeting = '恭喜发财，大吉大利！'}) =>
+      _json('POST', '/api/redpacket', body: {
+        if (to != null) 'to': to,
+        if (groupId != null) 'groupId': groupId,
+        'amount': amount,
+        'count': count,
+        'mode': mode,
+        'greeting': greeting,
+      });
+
   Future<List<Map<String, dynamic>>> feedsNews() async {
     final r = await _json('GET', '/api/feeds/news');
     return (r['list'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
