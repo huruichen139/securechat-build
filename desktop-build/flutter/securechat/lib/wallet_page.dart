@@ -77,9 +77,7 @@ class _WalletPageState extends State<WalletPage> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('余额充值', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
           const SizedBox(height: 14),
-          Row(children: [chip('支付宝', Icons.payment, 'alipay'), const SizedBox(width: 8), chip('微信', Icons.chat_bubble_outline, 'wxpay')]),
-          const SizedBox(height: 8),
-          Row(children: [chip('QQ钱包', Icons.account_circle_outlined, 'qqpay'), const SizedBox(width: 8), chip('兑换码', Icons.redeem, 'redeem')]),
+          Row(children: [chip('支付宝', Icons.payment, 'alipay'), const SizedBox(width: 8), chip('微信', Icons.chat_bubble_outline, 'wxpay'), const SizedBox(width: 8), chip('兑换码', Icons.redeem, 'redeem')]),
           const SizedBox(height: 14),
           if (payType == 'redeem') ...[
             TextField(controller: codeC, autofocus: true, decoration: const InputDecoration(hintText: '请输入兑换码')),

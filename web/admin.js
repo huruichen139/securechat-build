@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 /* SecureChat 管理员后台 —— 只读看板，调用 /api/admin/overview */
 (function () {
   const API = window.SERVER_HOST || ''; // 同源部署时为 ''，跨源时形如 'https://mc.32768.top:5432'
@@ -1376,7 +1376,7 @@
       tb.querySelectorAll('.redeem-copy-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const code = btn.dataset.code;
-          const done = () => { const o = btn.textContent; btn.textContent = '✓ 已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
+          const done = () => { const o = btn.textContent; btn.textContent = '已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
           if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
           else fallbackCopy(code, done);
         });
@@ -1394,7 +1394,7 @@
     list.querySelectorAll('.redeem-copy-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const code = btn.dataset.code;
-        const done = () => { const o = btn.textContent; btn.textContent = '✓ 已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
+        const done = () => { const o = btn.textContent; btn.textContent = '已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
         else fallbackCopy(code, done);
       });
