@@ -602,6 +602,8 @@ class _ChatViewStateState extends State<_ChatView> {
   int _groupOnlineCount = -1; // 当前群在线人数（-1=未知）
   AudioPlayer? voicePlayer;
   String? playingVoiceId;
+  Duration _voicePosition = Duration.zero;
+  Duration _voiceDuration = Duration.zero;
   int? myId;
   String? selName;
   final _sentIds = <String>{};
@@ -1991,6 +1993,10 @@ class _ChatViewStateState extends State<_ChatView> {
       final bytes = await widget.api.fetchFile(id);
       final path = '${Directory.systemTemp.path}/securechat-voice-$id.m4a';
       await File(path).writeAsBytes(bytes);
+      _voicePosition = Duration.zero;
+      _voiceDuration = await player.getDuration() ?? Duration.zero;
+      player.onPositionChanged.listen((pos) { if (mounted) setState(() => _voicePosition = pos); });
+      player.onDurationChanged.listen((dur) { if (mounted) setState(() => _voiceDuration = dur); });
       await player.play(DeviceFileSource(path));
       voicePlayer = player;
       if (mounted) setState(() => playingVoiceId = id);
