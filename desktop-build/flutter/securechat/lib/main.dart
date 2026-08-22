@@ -622,6 +622,7 @@ class _ChatViewStateState extends State<_ChatView> {
   final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
   final _chatBgColors = <String, Color>{}; // 会话背景色 keyed by convKey
   bool _multiSelectMode = false;
+  bool _showScrollDown = false;
   final _selectedMsgs = <Map<String, dynamic>>{};
   double _fontSize = 15.0; // 聊天字体大小
   final _likedMsgs = <String, int>{}; // 双击点赞: msgKey -> 点赞时间戳
@@ -669,6 +670,7 @@ class _ChatViewStateState extends State<_ChatView> {
     _loadData();
     _checkUpdate();
     _loadPrefs();
+    _msgScroll.addListener(() { if (mounted) { final atBottom = _msgScroll.position.pixels >= _msgScroll.position.maxScrollExtent - 80; if (_showScrollDown == atBottom) setState(() { _showScrollDown = !atBottom; }); } });
   }
 
   Future<void> _loadPrefs() async {
@@ -1688,7 +1690,8 @@ class _ChatViewStateState extends State<_ChatView> {
         ),
       ),
       Expanded(
-        child: messages.isEmpty
+        child: Stack(children: [
+          Positioned.fill(child: messages.isEmpty
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.chat_bubble_outline, size: 48, color: t.subText.withValues(alpha: 0.4)), const SizedBox(height: 12), Text('还没有消息', style: TextStyle(color: t.subText, fontSize: 14)), const SizedBox(height: 4), Text('发送消息开始聊天', style: TextStyle(color: t.subText.withValues(alpha: 0.6), fontSize: 12))]))
              : Container(
                  color: bgColor,
@@ -1703,6 +1706,9 @@ class _ChatViewStateState extends State<_ChatView> {
                 },
               ),
             ),
+            ),
+          if (_showScrollDown) Positioned(bottom: 16, right: 16, child: GestureDetector(onTap: _scrollToBottom, child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.panel, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)]), child: Icon(Icons.keyboard_arrow_down, color: t.text, size: 24)))),
+        ]),
       ),
       if (_multiSelectMode)
         Container(
