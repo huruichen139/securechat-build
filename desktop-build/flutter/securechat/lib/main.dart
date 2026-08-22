@@ -2110,20 +2110,35 @@ class _ChatViewStateState extends State<_ChatView> {
       onTap: () => mine ? _showRedPacketDetail(packetId) : _grabRedPacket(packetId),
       child: Container(
         width: 220,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: const Color(0xffe84c3d), borderRadius: BorderRadius.circular(8)),
-        child: Row(children: [
-          const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 32),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('微信红包', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(mine ? '查看领取详情' : '点击领取红包', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          ])),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xffe84c3d), Color(0xffc0392b)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [BoxShadow(color: const Color(0xffe84c3d).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.only(top: 6, bottom: 4),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white24, width: 0.5))),
+            child: const Center(child: Text('恭喜发财 大吉大利', style: TextStyle(color: Color(0xfffff176), fontSize: 11, fontWeight: FontWeight.w500))),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(children: [
+              const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 28),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                const Text('红包', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(mine ? '查看领取详情' : '点击领取红包', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ])),
+            ]),
+          ),
         ]),
       ),
     );
   }
+
 
   Future<void> _grabRedPacket(int packetId) async {
     try {
