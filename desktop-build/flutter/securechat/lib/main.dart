@@ -1579,7 +1579,8 @@ class _ChatViewStateState extends State<_ChatView> {
           IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
           if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
            IconButton(tooltip: '清空聊天', onPressed: () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
-           if (selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
+           if (selConv!['kind'] == 'group') IconButton(tooltip: '群成员', onPressed: _showGroupMembers, icon: Icon(Icons.people_outline, color: t.subText)),
+          if (selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
           PopupMenuButton<int>(
             icon: const Icon(Icons.more_horiz),
             onSelected: (v) => _onContextMenu(v, context),
@@ -2485,6 +2486,42 @@ class _ChatViewStateState extends State<_ChatView> {
         });
       },
     );
+  }
+
+  void _showGroupMembers() async {
+    final conv = selConv;
+    if (conv == null || conv['kind'] != 'group') return;
+    final gid = conv['id'] as int;
+    try {
+      final result = await widget.api.groupMembers(gid);
+      if (!mounted) return;
+      final members = result as List;
+      showModalBottomSheet(context: context, builder: (ctx) => Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(padding: const EdgeInsets.all(16), child: Text('群成员 ()', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+          const Divider(height: 1),
+          Expanded(child: ListView.builder(
+            itemCount: members.length,
+            itemBuilder: (_, i) {
+              final m = members[i];
+              final nick = (m['nickname'] ?? m['username'] ?? '?').toString();
+              final online = m['online'] == true;
+              return ListTile(
+                leading: Stack(clipBehavior: Clip.none, children: [
+                  CircleAvatar(backgroundColor: _wechatGreen, child: Text(nick.isNotEmpty ? nick[0] : '?', style: const TextStyle(color: Colors.white))),
+                  if (online) Positioned(right: -1, bottom: -1, child: Container(width: 10, height: 10, decoration: BoxDecoration(color: const Color(0xff07c160), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+                ]),
+                title: Text(nick),
+                subtitle: Text(online ? '在线' : '离线', style: TextStyle(color: online ? _wechatGreen : widget.config.theme.subText, fontSize: 12)),
+              );
+            },
+          )),
+        ]),
+      ));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('加载群成员失败')));
+    }
   }
 
   void _onContextMenu(int v, BuildContext ctx) {
