@@ -1060,6 +1060,23 @@ class _ChatViewStateState extends State<_ChatView> {
     setState(() => _chatSearchIdx = idx);
   }
 
+  Widget _highlightText(String text, String query, {required TextStyle style, int maxLines = 4}) {
+    if (query.isEmpty) return Text(text, maxLines: maxLines, overflow: TextOverflow.ellipsis, style: style);
+    final lower = text.toLowerCase();
+    final qLower = query.toLowerCase();
+    final spans = <TextSpan>[];
+    int lastIdx = 0;
+    while (true) {
+      final idx = lower.indexOf(qLower, lastIdx);
+      if (idx < 0) { spans.add(TextSpan(text: text.substring(lastIdx), style: style)); break; }
+      if (idx > lastIdx) spans.add(TextSpan(text: text.substring(lastIdx, idx), style: style));
+      spans.add(TextSpan(text: text.substring(idx, idx + query.length), style: style.copyWith(backgroundColor: const Color(0xfffff176).withValues(alpha: 0.6), color: const Color(0xff1a1a1a))));
+      lastIdx = idx + query.length;
+    }
+    return RichText(maxLines: maxLines, overflow: TextOverflow.ellipsis, text: TextSpan(children: spans));
+  }
+
+
   void _nextSearchResult() {
     if (_chatSearchResults.isEmpty) return;
     final next = (_chatSearchIdx + 1) % _chatSearchResults.length;
@@ -1893,7 +1910,7 @@ class _ChatViewStateState extends State<_ChatView> {
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
-      child: SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
+      child: _chatSearchQuery.isNotEmpty ? _highlightText(msg['text'] as String, _chatSearchQuery, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)) : SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
     );
   }
 
@@ -1970,7 +1987,7 @@ class _ChatViewStateState extends State<_ChatView> {
           return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? _wechatGreen : t.subText, borderRadius: BorderRadius.circular(2)));
         }),
         const SizedBox(width: 8),
-        Text(dur != null ? '语音 ″' : '语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)),
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(dur != null ? '语音 ${dur}\u2033' : '语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)), if (playing && _voiceDuration.inMilliseconds > 0) SizedBox(width: 80, child: LinearProgressIndicator(value: _voicePosition.inMilliseconds / _voiceDuration.inMilliseconds, backgroundColor: t.div, valueColor: const AlwaysStoppedAnimation(_wechatGreen), minHeight: 2)),]),
       ]),
     );
   }
