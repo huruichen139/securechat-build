@@ -1277,7 +1277,7 @@ app.get('/api/group/:id/members', (req, res) => {
   const members = prepare(
     `SELECT u.id, u.username, u.nickname, u.avatar, u.uid AS uid FROM group_members gm
        JOIN users u ON u.id = gm.user_id WHERE gm.group_id=? ORDER BY gm.joined_at ASC`
-  ).all(groupId);
+  ).all(groupId).map(m => ({ ...m, online: onlineHas(m.id) }));
   const group = prepare('SELECT g.id, g.name, g.owner_id AS ownerId FROM groups g WHERE g.id=?').get(groupId);
   const memberIds = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId).map(r => r.user_id);
   res.json({ members, group: { id: group.id, name: group.name, ownerId: group.ownerId, memberCount: memberIds.length } });

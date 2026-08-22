@@ -572,6 +572,7 @@ class _ChatViewStateState extends State<_ChatView> {
   final recorder = AudioRecorder();
   bool recording = false;
   int _recordingStart = 0; // 录音开始时间戳（用于计算时长）
+  int _groupOnlineCount = -1; // 当前群在线人数（-1=未知）
   AudioPlayer? voicePlayer;
   String? playingVoiceId;
   int? myId;
@@ -709,9 +710,11 @@ class _ChatViewStateState extends State<_ChatView> {
               itemBuilder: (_, i) {
                 final m = filtered[i];
                 final nick = (m['nickname'] ?? m['username'] ?? '?').toString();
+                final online = m['online'] == true;
                 return ListTile(
                   dense: true,
-                  leading: CircleAvatar(radius: 14, backgroundColor: _wechatGreen, child: Text(nick.isNotEmpty ? nick[0] : '?', style: const TextStyle(color: Colors.white, fontSize: 11))),
+                  leading: Stack(clipBehavior: Clip.none, children: [CircleAvatar(radius: 14, backgroundColor: _wechatGreen, child: Text(nick.isNotEmpty ? nick[0] : '?', style: const TextStyle(color: Colors.white, fontSize: 11))), if (online) Positioned(right: -1, bottom: -1, child: Container(width: 9, height: 9, decoration: BoxDecoration(color: const Color(0xff07c160), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)))),
+                  ]),
                   title: Text(nick, style: const TextStyle(fontSize: 13)),
                   onTap: () {
                     _insertMention(nick);
@@ -852,6 +855,12 @@ class _ChatViewStateState extends State<_ChatView> {
       if (mounted) setState(() => selName = conv['name'].toString());
       final gid = conv['id'] as int;
       _groupReadUsers['g$gid'] = <int>{};
+      if (mounted) setState(() => _groupOnlineCount = -1);
+      widget.api.groupMembers(gid).then((members) {
+        if (!mounted || selConv?['id'] != gid || selConv?['kind'] != 'group') return;
+        final n = members.where((m) => m['online'] == true).length;
+        setState(() => _groupOnlineCount = n);
+      }).catchError((_) {});
       try {
         final ghis = await widget.api.groupHistory(gid);
         if (!mounted) return;
@@ -1607,7 +1616,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   /// 聊天顶栏/资料卡状态行：在线 或「上次在线 xxx前」
   String _convStatusLine(Map<String, dynamic> conv) {
-    if (conv['kind'] == 'group') return '群聊';
+    if (conv['kind'] == 'group') return _groupOnlineCount >= 0 ? '群聊 · ' : '群聊';
     if (conv['online'] == true) return '在线';
     return _lastSeenLabel(conv['lastSeen'] as int?);
   }
