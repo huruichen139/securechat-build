@@ -13,6 +13,7 @@ import 'ai_page.dart';
 import 'search_page.dart';
 import 'read_page.dart';
 import 'embedded_web_page.dart';
+import 'epay_settings_page.dart';
 
 class DiscoverPage extends StatelessWidget {
   const DiscoverPage({super.key, this.api, required this.config, this.onOpenChat});
@@ -53,6 +54,7 @@ class DiscoverPage extends StatelessWidget {
             ListCell(config: cfg, icon: Icons.cloud_outlined, title: 'AI 中转站', subtitle: 'ai.32768.top', onTap: () => _openWeb(context, 'AI 中转站', 'https://ai.32768.top')),
             ListCell(config: cfg, icon: Icons.folder_open_outlined, title: '云网盘', subtitle: 'mc.32768.top:5216', onTap: () => _openWeb(context, '云网盘', 'https://mc.32768.top:5216')),
             ListCell(config: cfg, icon: Icons.dns_outlined, title: '服务器管理', subtitle: 'mc.32768.top:4567', onTap: () => _openWeb(context, '服务器管理', 'https://mc.32768.top:4567')),
+            ListCell(config: cfg, icon: Icons.payments_outlined, title: 'EPay 网关设置', subtitle: '查看/修改商户密钥', onTap: () => _open(context, EpaySettingsPage(api: api ?? SecureChatApi(), config: cfg))),
           ]),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],

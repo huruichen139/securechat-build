@@ -6,7 +6,9 @@ const http = require('http');
 const https = require('https');
 const QRCode = require('qrcode');
 
-const GATEWAY_KEY = 'securechat-mock-key';
+const { loadKey, saveKey } = require('./epaygw_config');
+let _gwConfig = loadKey();
+function getGwKey() { return _gwConfig.key || 'securechat-mock-key'; }
 const ORDERS_FILE = path.join(process.env.DATA_DIR || path.join(process.cwd(), 'data'), 'epaygw_orders.json');
 
 let orders = new Map();
@@ -45,7 +47,7 @@ function signOf(params, key) {
 function verifySign(params, sign) {
   if (!sign) return true;
   const want = String(sign).toUpperCase();
-  return signOf(params, GATEWAY_KEY).indexOf(want) >= 0;
+  return signOf(params, getGwKey()).indexOf(want) >= 0;
 }
 
 function moneyFmt(v) {
@@ -125,7 +127,7 @@ function notifyMerchant(o) {
   const keys = Object.keys(params).sort();
   const qs = keys.map(k => k + '=' + params[k]).join('&');
   // go-epay 等客户端严格比较小写 hex，标准易支付实现亦兼容小写
-  const sign = crypto.createHash('md5').update(qs + GATEWAY_KEY).digest('hex');
+  const sign = crypto.createHash('md5').update(qs + getGwKey()).digest('hex');
   const body = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&') + '&sign=' + sign + '&sign_type=MD5';
   const lib = /^https:/i.test(o.notify_url) ? https : http;
   const req = lib.request(o.notify_url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } }, (res) => {
@@ -361,5 +363,19 @@ module.exports = function (app, db, authMw) {
     const p = Object.assign({}, req.query || {}, req.body || {});
     if (!verifySign(p, p.sign)) return res.status(400).send('签名校验失败');
     return renderCashier(req, res, p);
+  });
+
+  // EPay 设置接口
+  app.get('/epaygw/settings', (req, res) => {
+    const key = getGwKey();
+    res.json({ code: 1, data: { gatewayKey: key, merchantId: GATEWAY_MERCHANT_ID } });
+  });
+
+  app.post('/epaygw/settings', (req, res) => {
+    const newKey = String(req.body && req.body.key || '');
+    if (newKey.length < 4) return res.json({ code: 0, msg: '密钥不能为空' });
+    _gwConfig.key = newKey;
+    saveKey(_gwConfig);
+    res.json({ code: 1, msg: '已更新' });
   });
 };

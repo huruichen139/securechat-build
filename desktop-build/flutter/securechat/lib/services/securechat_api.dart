@@ -718,6 +718,10 @@ class SecureChatApi {
   Future<Map<String, dynamic>> adminSaveEpayConfig(Map<String, dynamic> config) =>
       _json('POST', '/api/admin/pay/epay/config', body: config);
 
+  Future<Map<String, dynamic>> getEpaySettings() => _json('GET', '/epaygw/settings');
+
+  Future<void> setEpaySettings(String key) => _json('POST', '/epaygw/settings', body: {'key': key});
+
   Future<void> joinGroup(int groupId) =>
       _json('POST', '/api/group/join', body: {'groupId': groupId});
 
