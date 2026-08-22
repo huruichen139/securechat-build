@@ -1503,6 +1503,7 @@ class _ChatViewStateState extends State<_ChatView> {
             CircleAvatar(radius: 20, backgroundColor: config.primary, child: Text('S', style: TextStyle(color: theme.onAccent, fontWeight: FontWeight.bold, fontSize: 14))),
             const SizedBox(width: 10),
             Expanded(child: Text('微信', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
+         IconButton(tooltip: '全部已读', onPressed: () { setState(() => _unread.clear()); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
           ]),
         ),
         Padding(
