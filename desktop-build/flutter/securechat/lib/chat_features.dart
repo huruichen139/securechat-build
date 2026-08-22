@@ -318,45 +318,28 @@ Future<void> showOCRDialog(BuildContext ctx, SecureChatApi api, Map<String, dyna
 }
 
 /// 8. 消息撤回（带原因）
-Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, SecureChatApi api, int peerId, bool isGroup) async {
-  final msgId = msg['id'];
+Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, SecureChatApi api, int peerId, bool isGroup, {VoidCallback? onRecalled}) async {
+  final msgId = msg['id'] as int?;
   if (msgId == null) return;
-  final reasonCtrl = TextEditingController();
   final ok = await showDialog<bool>(
     context: ctx,
     builder: (_) => AlertDialog(
       title: const Text('撤回消息'),
-      content: TextField(
-        controller: reasonCtrl,
-        decoration: const InputDecoration(hintText: '备注原因（可选）'),
-        autofocus: true,
-      ),
+      content: const Text('确定要撤回这条消息吗？'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('撤回')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('撤回')),
       ],
     ),
   );
   if (ok != true) return;
   try {
-    final reason = reasonCtrl.text.trim();
-    final authHeaders = {
-      'Content-Type': 'application/json',
-      if (api.token != null) 'Authorization': 'Bearer ${api.token}',
-    };
     if (isGroup) {
-      await http.post(
-        Uri.parse('${api.baseUrl}/api/group-message/recall'),
-        headers: authHeaders,
-        body: json.encode({'messageId': msgId, 'groupId': peerId, 'reason': reason}),
-      );
+      await api.recallGroupMessage(peerId, msgId);
     } else {
-      await http.post(
-        Uri.parse('${api.baseUrl}/api/message/recall'),
-        headers: authHeaders,
-        body: json.encode({'messageId': msgId, 'reason': reason}),
-      );
+      await api.recallMessage(msgId);
     }
+    if (onRecalled != null) onRecalled();
     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('已撤回')));
   } catch (e) {
     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('撤回失败：$e')));

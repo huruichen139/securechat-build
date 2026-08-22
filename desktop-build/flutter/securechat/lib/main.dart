@@ -1150,7 +1150,7 @@ class _ChatViewStateState extends State<_ChatView> {
           if (conv != null && !talkingToPeer) {
             final key = 'f${from == myId ? to : from}';
             setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
-            _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false};
+            _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
             return;
           }
           setState(() {
@@ -1163,7 +1163,7 @@ class _ChatViewStateState extends State<_ChatView> {
               _appendMsg(voice != null
                   ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
                   : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView});
-              _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView};
+              _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView, 'ts': DateTime.now().millisecondsSinceEpoch};
             }
           });
         } else if (type == 'msg_read') {
@@ -1181,6 +1181,21 @@ class _ChatViewStateState extends State<_ChatView> {
           final last = _lastMsg['f$peerId'];
           if (last != null && last['mine'] == true) last['read'] = true;
           setState(() {});
+        } else if (type == 'msg_recall') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          final msgId = p['messageId'];
+          if (msgId == null) return;
+          setState(() {
+            for (int i = messages.length - 1; i >= 0; i--) {
+              if (messages[i]['id'] == msgId) { messages.removeAt(i); break; }
+            }
+          });
+          if (selConv != null) {
+            final peerId = p['from'];
+            final convKey = 'f';
+            _lastMsg.remove(convKey);
+          }
         } else if (type == 'group_msg_read') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
@@ -1215,6 +1230,14 @@ class _ChatViewStateState extends State<_ChatView> {
           }
           if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
           if (_isDeleted(p['id'])) return;
+          // 群消息撤回
+          if (p['recalled'] == true) {
+            final recalledMsgId = p['id'];
+            if (recalledMsgId != null) {
+              setState(() { for (int i = messages.length - 1; i >= 0; i--) { if (messages[i]['id'] == recalledMsgId) { messages.removeAt(i); break; } } });
+            }
+            return;
+          }
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
@@ -1237,7 +1260,7 @@ class _ChatViewStateState extends State<_ChatView> {
             _appendMsg(voice != null
                 ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
                 : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
-            _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true};
+            _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch};
           });
         } else if (type == 'user_list') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
@@ -1334,7 +1357,7 @@ class _ChatViewStateState extends State<_ChatView> {
         _sentIds.add(vcmid);
         socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id:$durSecs]', 'clientMsgId': vcmid}}));
         setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'voiceDur': durSecs, 'mine': true, 'time': '现在', 'read': false}));
-        _lastMsg['f$to'] = {'text': '[语音消息]', 'mine': true, 'read': false};
+        _lastMsg['f$to'] = {'text': '[语音消息]', 'mine': true, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
         try {
           final transcript = await widget.api.transcribe(id);
           if (transcript.isNotEmpty) {
@@ -1381,6 +1404,17 @@ class _ChatViewStateState extends State<_ChatView> {
   static String _convKey(Map<String, dynamic> conv) => '${conv['kind'] == 'group' ? 'g' : 'f'}${conv['id']}';
 
   /// 会话列表副标题：优先显示最后一条消息摘要；自己发的消息附加「已读/未读」
+  String _relativeTime(int? ts) {
+    if (ts == null || ts <= 0) return '';
+    final diff = DateTime.now().millisecondsSinceEpoch - ts;
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return '\分钟前';
+    if (diff < 86400000) return '\小时前';
+    if (diff < 172800000) return '昨天';
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    return '${d.month}/${d.day}';
+  }
+
   String _convSubtitle(Map<String, dynamic> conv, dynamic theme) {
     final last = _lastMsg[_convKey(conv)];
     if (last == null) {
@@ -1461,6 +1495,7 @@ class _ChatViewStateState extends State<_ChatView> {
             final conv = items[i];
             final origIdx = conversations.indexOf(conv);
             final isSelected = origIdx == selected;
+            final lastTs = _lastMsg[_convKey(conv)]?['ts'] as int?;
             return Material(
               color: isSelected ? config.primary.withValues(alpha: theme.isDark ? 0.28 : 0.12) : Colors.transparent,
               child: InkWell(
@@ -1476,6 +1511,7 @@ class _ChatViewStateState extends State<_ChatView> {
                         if (conv['pinned'] == true) const Icon(Icons.push_pin, size: 13, color: Color(0xffe67e22)),
                         if (conv['pinned'] == true) const SizedBox(width: 3),
                         Expanded(child: Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontWeight: FontWeight.w600, fontSize: 14))),
+                        if (lastTs != null) Text(_relativeTime(lastTs), style: TextStyle(color: theme.subText, fontSize: 10)),
                       ]),
                       const SizedBox(height: 3),
                       Text(_convSubtitle(conv, theme), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.subText, fontSize: 12)),
@@ -1935,14 +1971,15 @@ class _ChatViewStateState extends State<_ChatView> {
           minLines: 1,
           maxLines: 4,
           style: TextStyle(color: t.text),
+          onChanged: (_) { if (mounted) setState(() {}); _sendTyping(); },
           decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
         )),
         const SizedBox(width: 8),
         IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
           IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
           SizedBox(height: 42, child: FilledButton(
-          onPressed: canSend ? () => _sendText() : null,
-          style: FilledButton.styleFrom(backgroundColor: _wechatGreen, foregroundColor: Colors.white),
+          onPressed: canSend && input.text.isNotEmpty ? () => _sendText() : null,
+          style: FilledButton.styleFrom(backgroundColor: input.text.isNotEmpty ? _wechatGreen : t.subText, foregroundColor: Colors.white),
           child: const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('发送')),
         )),
       ]),
@@ -2142,6 +2179,16 @@ class _ChatViewStateState extends State<_ChatView> {
     }
   }
 
+  int _lastTypingSent = 0;
+  void _sendTyping() {
+    final conv = selConv;
+    if (conv == null || conv['kind'] != 'friend') return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastTypingSent < 3000) return;
+    _lastTypingSent = now;
+    socket?.sink.add(jsonEncode({'type': 'typing', 'payload': {'to': conv['id']}}));
+  }
+
   Future<void> _sendText() async {
     final conv = selConv;
     final text = input.text.trim();
@@ -2155,7 +2202,7 @@ class _ChatViewStateState extends State<_ChatView> {
       _sentIds.add(gcmid);
       socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text, 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
       setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1, 'status': 'sending'}));
-      _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true};
+      _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch};
       return;
     }
     final to = conv['id'] as int;
@@ -2163,7 +2210,7 @@ class _ChatViewStateState extends State<_ChatView> {
     _sentIds.add(cmid);
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
     setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false, 'status': 'sending'}); });
-    _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false};
+    _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
   }
 
   Future<void> _clearConversation([int? index]) async {
@@ -2414,7 +2461,14 @@ class _ChatViewStateState extends State<_ChatView> {
   void _showRecallDialog(BuildContext ctx, Map<String, dynamic> msg) {
     final conv = selConv;
     if (conv == null) return;
-    showRecallDialog(ctx, msg, widget.api, conv['id'] as int, conv['kind'] == 'group');
+    showRecallDialog(ctx, msg, widget.api, conv['id'] as int, conv['kind'] == 'group',
+      onRecalled: () {
+        setState(() {
+          final idx = messages.indexWhere((m) => m['id'] == msg['id'] || (msg['cmid'] != null && m['cmid'] == msg['cmid']));
+          if (idx >= 0) messages.removeAt(idx);
+        });
+      },
+    );
   }
 
   void _onContextMenu(int v, BuildContext ctx) {

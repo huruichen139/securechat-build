@@ -50,6 +50,14 @@ class SecureChatApi {
     _syncGlobal();
   }
 
+  Future<void> recallMessage(int msgId) async {
+    await _json('POST', '/api/messages/${msgId}/recall', body: {});
+  }
+
+  Future<void> recallGroupMessage(int groupId, int msgId) async {
+    await _json('POST', '/api/groups/${groupId}/messages/${msgId}/recall', body: {});
+  }
+
   Future<void> clearSession() async {
     token = null;
     myId = null;
