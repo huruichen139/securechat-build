@@ -1709,7 +1709,7 @@ class _ChatViewStateState extends State<_ChatView> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.85), border: Border(top: BorderSide(color: t.div))),
           child: Row(children: [
-            Text('已选 ${_selectedMsgs.length} 条', style: TextStyle(color: t.text, fontSize: 13)),
+            GestureDetector(onTap: () { setState(() { final selectable = messages.where((m) => m['divider'] != true && m['dateSep'] != true).toList(); if (_selectedMsgs.length >= selectable.length) { _selectedMsgs.clear(); } else { _selectedMsgs.addAll(selectable.where((m) => !_selectedMsgs.any((s) => s['id'] == m['id']))); } }); }, child: Text('已选 / 条', style: TextStyle(color: t.text, fontSize: 13))),
             const Spacer(),
             IconButton(tooltip: '批量转发', onPressed: _selectedMsgs.isEmpty ? null : _batchForward, icon: Icon(Icons.forward, color: _selectedMsgs.isEmpty ? t.subText : _wechatGreen)),
             IconButton(tooltip: '批量收藏', onPressed: _selectedMsgs.isEmpty ? null : _batchFavorite, icon: Icon(Icons.star_outline, color: _selectedMsgs.isEmpty ? t.subText : Colors.amber)),
@@ -2177,6 +2177,7 @@ class _ChatViewStateState extends State<_ChatView> {
         content: Text(balance != null ? '领取成功：${result['amount'] ?? ''} 元，当前余额 $balance 元' : '领取成功：${result['amount'] ?? ''} 元'),
         duration: const Duration(seconds: 3),
       ));
+      _showConfetti();
     } catch (e) {
       if (!mounted) return;
       _showRedPacketDetail(packetId, fallbackError: e.toString().replaceFirst('Bad state: ', ''));
@@ -2263,6 +2264,38 @@ class _ChatViewStateState extends State<_ChatView> {
     return '$bytes B';
   }
 
+  void _showConfetti() {
+    if (!mounted) return;
+    final overlay = Overlay.of(context);
+    final entries = <OverlayEntry>[];
+    final colors = [Colors.red, Colors.amber, Colors.green, Colors.blue, Colors.pink, Colors.orange];
+    for (var i = 0; i < 30; i++) {
+      final entry = OverlayEntry(builder: (ctx) {
+        final dx = 0.2 + (i % 5) * 0.15;
+        return AnimatedPositioned(
+          duration: Duration(milliseconds: 1200 + (i * 50)),
+          left: MediaQuery.of(ctx).size.width * dx,
+          top: -20.0 + (i * 15),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: -20.0, end: MediaQuery.of(ctx).size.height * 0.8),
+            duration: Duration(milliseconds: 1200 + (i * 50)),
+            curve: Curves.easeOut,
+            builder: (_, v, __) => Positioned(
+              top: v,
+              left: MediaQuery.of(ctx).size.width * dx + (i.isEven ? 10 : -10),
+              child: Opacity(
+                opacity: (v / MediaQuery.of(ctx).size.height).clamp(0.0, 1.0),
+                child: Icon(Icons.circle, size: 8 + (i % 3) * 3, color: colors[i % colors.length]),
+              ),
+            ),
+          ),
+        );
+      });
+      entries.add(entry);
+      overlay.insert(entry);
+    }
+    Future.delayed(const Duration(milliseconds: 2500), () { for (final e in entries) { e.remove(); } });
+  }
   Future<void> _openFile(Map<String, dynamic> meta) async {
     final id = (meta['id'] ?? '').toString();
     if (id.isEmpty) return;
