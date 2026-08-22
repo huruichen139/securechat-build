@@ -31,6 +31,8 @@ class SecureChatApi {
   String baseUrl;
   String? token;
   int? myId;
+  String? myNickname;
+  String? myUsername;
 
   static const _kToken = 'sc_api_token';
   static const _kMyId = 'sc_api_myid';
@@ -61,6 +63,8 @@ class SecureChatApi {
   Future<void> clearSession() async {
     token = null;
     myId = null;
+    myNickname = null;
+    myUsername = null;
     globalToken = null;
     globalMyId = null;
     final sp = await SharedPreferences.getInstance();
@@ -80,6 +84,8 @@ class SecureChatApi {
     final user = data['user'];
     if (user is Map && user['id'] != null) {
       myId = int.tryParse('${user['id']}');
+      myNickname = user['nickname']?.toString();
+      myUsername = user['username']?.toString();
     }
     _syncGlobal();
   }
@@ -632,6 +638,8 @@ class SecureChatApi {
     final user = data['user'];
     if (user is Map && user['id'] != null) {
       myId = int.tryParse('${user['id']}');
+      myNickname = user['nickname']?.toString();
+      myUsername = user['username']?.toString();
     }
     await persistSession();
   }

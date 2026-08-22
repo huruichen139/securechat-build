@@ -623,6 +623,7 @@ class _ChatViewStateState extends State<_ChatView> {
   final _selectedMsgs = <Map<String, dynamic>>{};
   double _fontSize = 15.0; // 聊天字体大小
   final _likedMsgs = <String, int>{}; // 双击点赞: msgKey -> 点赞时间戳
+  final _mentionMe = <String, bool>{}; // 群聊@我标记 keyed by convKey // 双击点赞: msgKey -> 点赞时间戳
   Offset? _heartPos; // 爱心动画位置
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
@@ -882,6 +883,7 @@ class _ChatViewStateState extends State<_ChatView> {
       if (mounted) setState(() => selName = conv['name'].toString());
       final gid = conv['id'] as int;
       _groupReadUsers['g$gid'] = <int>{};
+      _mentionMe.remove('g$gid');
       if (mounted) setState(() => _groupOnlineCount = -1);
       widget.api.groupMembers(gid).then((members) {
         if (!mounted || selConv?['id'] != gid || selConv?['kind'] != 'group') return;
@@ -1249,6 +1251,14 @@ class _ChatViewStateState extends State<_ChatView> {
           final sender = (fromUser is Map) ? (((fromUser)['nickname'] ?? fromUser['username']) ?? '').toString() : null;
           final mine = from == myId;
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
+          // 检测@我
+          if (!mine) {
+            final myNick = widget.api.myNickname ?? '';
+            final myUser = widget.api.myUsername ?? '';
+            if (text.contains('@所有人') || (myNick.isNotEmpty && text.contains('@')) || (myUser.isNotEmpty && text.contains('@'))) {
+              _mentionMe['g'] = true;
+            }
+          }
           if (conv == null || conv['kind'] != 'group' || conv['id'] != gid) {
             if (!mine) setState(() => _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1);
             return;
@@ -1514,7 +1524,13 @@ class _ChatViewStateState extends State<_ChatView> {
                         if (lastTs != null) Text(_relativeTime(lastTs), style: TextStyle(color: theme.subText, fontSize: 10)),
                       ]),
                       const SizedBox(height: 3),
-                      Text(_convSubtitle(conv, theme), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.subText, fontSize: 12)),
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Flexible(child: Text(_convSubtitle(conv, theme), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.subText, fontSize: 12))),
+                        if (_mentionMe[_convKey(conv)] == true) ...[
+                          const SizedBox(width: 4),
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: _wechatGreen, borderRadius: BorderRadius.circular(3)), child: const Text('@我', style: TextStyle(color: Colors.white, fontSize: 9))),
+                        ],
+                      ]),
                       if ((_unread[_convKey(conv)] ?? 0) > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 3),
