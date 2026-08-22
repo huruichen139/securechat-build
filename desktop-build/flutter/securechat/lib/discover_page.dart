@@ -12,6 +12,7 @@ import 'community_tools_page.dart';
 import 'ai_page.dart';
 import 'search_page.dart';
 import 'read_page.dart';
+import 'embedded_web_page.dart';
 
 class DiscoverPage extends StatelessWidget {
   const DiscoverPage({super.key, this.api, required this.config, this.onOpenChat});
@@ -48,6 +49,11 @@ class DiscoverPage extends StatelessWidget {
             ListCell(config: cfg, icon: Icons.apps_outlined, title: '小程序', onTap: () => _open(context, MiniAppStorePage(api: api ?? SecureChatApi(), config: cfg))),
             ListCell(config: cfg, icon: Icons.smart_toy_outlined, title: 'AI 助手', onTap: () => _open(context, AiPage(api: api ?? SecureChatApi(), config: cfg))),
           ]),
+          _group(cfg, [
+            ListCell(config: cfg, icon: Icons.cloud_outlined, title: 'AI 中转站', subtitle: 'ai.32768.top', onTap: () => _openWeb(context, 'AI 中转站', 'https://ai.32768.top')),
+            ListCell(config: cfg, icon: Icons.folder_open_outlined, title: '云网盘', subtitle: 'mc.32768.top:5216', onTap: () => _openWeb(context, '云网盘', 'https://mc.32768.top:5216')),
+            ListCell(config: cfg, icon: Icons.dns_outlined, title: '服务器管理', subtitle: 'mc.32768.top:4567', onTap: () => _openWeb(context, '服务器管理', 'https://mc.32768.top:4567')),
+          ]),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
@@ -56,6 +62,10 @@ class DiscoverPage extends StatelessWidget {
 
   void _open(BuildContext context, Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
+  void _openWeb(BuildContext context, String title, String url) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => EmbeddedWebPage(title: title, url: url, config: config)));
   }
 
   Widget _group(AppConfig cfg, List<Widget> items) {

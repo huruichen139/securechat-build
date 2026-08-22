@@ -1698,7 +1698,7 @@ class _ChatViewStateState extends State<_ChatView> {
                 itemBuilder: (_, i) {
                   final msg = messages[i];
                   final isSearchTarget = _chatSearchResults.isNotEmpty && _chatSearchIdx >= 0 && i == messages.indexOf(_chatSearchResults[_chatSearchIdx]);
-                  return _bubble(msg, isSearchTarget: isSearchTarget);
+                  return TweenAnimationBuilder<double>(tween: Tween(begin: 0.03, end: 0.0), duration: const Duration(milliseconds: 200), curve: Curves.easeOut, key: ValueKey(msg['id']?.toString() ?? msg['cmid']?.toString()), builder: (_, v, child) => Transform.translate(offset: Offset(0, v * 100), child: Opacity(opacity: 1.0 - v.abs(), child: child)), child: _bubble(msg, isSearchTarget: isSearchTarget));
                 },
               ),
             ),
@@ -1918,9 +1918,11 @@ class _ChatViewStateState extends State<_ChatView> {
     final name = (meta['name'] ?? '文件').toString();
     final mime = (meta['mime'] ?? '').toString();
     final isImage = mime.startsWith('image/');
+    final fileId = meta['id']?.toString();
+    final baseUrl = widget.api.baseUrl;
+    final token = widget.api.token;
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: mine ? _wechatBubbleMine : t.bubbleOther,
         borderRadius: BorderRadius.only(
@@ -1931,15 +1933,32 @@ class _ChatViewStateState extends State<_ChatView> {
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(isImage ? Icons.image_search_outlined : Icons.insert_drive_file_outlined, size: 28, color: isImage ? _wechatGreen : t.subText),
-        const SizedBox(width: 8),
-        Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: mine ? const Color(0xff1a1a1a) : t.text)),
-          Text(_fmtSize((meta['size'] is num) ? meta['size'] as num : (num.tryParse('${meta['size']}') ?? 0)), style: TextStyle(fontSize: 11, color: t.subText)),
-        ])),
-        const SizedBox(width: 8),
-        InkWell(onTap: () => _openFile(meta), child: Icon(isImage ? Icons.zoom_in_rounded : Icons.download_rounded, size: 20, color: _wechatGreen)),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (isImage && fileId != null)
+          ClipRRect(
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+            child: Image.network(
+              baseUrl + '/api/files/' + fileId,
+              width: 200, height: 160, fit: BoxFit.cover,
+              headers: {'Authorization': 'Bearer ' + (token ?? '')},
+              loadingBuilder: (_, child, progress) => progress == null ? child : SizedBox(width: 200, height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _wechatGreen))),
+              errorBuilder: (_, __, ___) => SizedBox(width: 200, height: 100, child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.broken_image, size: 36, color: t.subText), const SizedBox(height: 4), Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: t.subText))]))),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (!isImage || fileId == null)
+              Icon(isImage ? Icons.image_search_outlined : Icons.insert_drive_file_outlined, size: 28, color: isImage ? _wechatGreen : t.subText),
+            if (!isImage || fileId == null) const SizedBox(width: 8),
+            Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: mine ? const Color(0xff1a1a1a) : t.text)),
+              Text(_fmtSize((meta['size'] is num) ? meta['size'] as num : (num.tryParse(meta['size'].toString()) ?? 0)), style: TextStyle(fontSize: 11, color: t.subText)),
+            ])),
+            const SizedBox(width: 8),
+            InkWell(onTap: () => _openFile(meta), child: Icon(isImage ? Icons.zoom_in_rounded : Icons.download_rounded, size: 20, color: _wechatGreen)),
+          ]),
+        ),
       ]),
     );
   }
