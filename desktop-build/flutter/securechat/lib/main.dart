@@ -623,7 +623,8 @@ class _ChatViewStateState extends State<_ChatView> {
   final _selectedMsgs = <Map<String, dynamic>>{};
   double _fontSize = 15.0; // 聊天字体大小
   final _likedMsgs = <String, int>{}; // 双击点赞: msgKey -> 点赞时间戳
-  final _mentionMe = <String, bool>{}; // 群聊@我标记 keyed by convKey // 双击点赞: msgKey -> 点赞时间戳
+  final _mentionMe = <String, bool>{};
+  Map<String, dynamic>? _pinnedMsg; // 群聊@我标记 keyed by convKey // 双击点赞: msgKey -> 点赞时间戳
   Offset? _heartPos; // 爱心动画位置
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
@@ -910,9 +911,10 @@ class _ChatViewStateState extends State<_ChatView> {
               : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount});
         }
         final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
+        final pinned = dedup.where((m) => m['pinned'] == true).toList();
         _insertUnreadDivider(dedup);
         if (!mounted || seq != _openSeq) return;
-        setState(() { messages..clear()..addAll(dedup); });
+        setState(() { messages..clear()..addAll(dedup); _pinnedMsg = pinned.isNotEmpty ? pinned.last : null; });
         _markIncomingRead();
         socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
         _scrollToLatest();
@@ -938,9 +940,10 @@ class _ChatViewStateState extends State<_ChatView> {
             : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
       }
       final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
+      final pinned = dedup.where((m) => m['pinned'] == true).toList();
       _insertUnreadDivider(dedup);
       if (!mounted || seq != _openSeq) return;
-      setState(() { messages..clear()..addAll(dedup); });
+      setState(() { messages..clear()..addAll(dedup); _pinnedMsg = pinned.isNotEmpty ? pinned.last : null; });
       _markIncomingRead();
       socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': peerId}}));
       _scrollToLatest();
@@ -1646,6 +1649,23 @@ class _ChatViewStateState extends State<_ChatView> {
             ),
           ]),
         ),
+      if (_pinnedMsg != null) GestureDetector(
+        onTap: () {
+          final idx = messages.indexWhere((m) => m['id'] == _pinnedMsg!['id']);
+          if (idx >= 0) _msgScroll.animateTo(idx * 72.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        },
+        onLongPress: _unpinMessage,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.85), border: Border(bottom: BorderSide(color: t.div))),
+          child: Row(children: [
+            const Icon(Icons.push_pin, size: 14, color: Color(0xffe67e22)),
+            const SizedBox(width: 6),
+            const Expanded(child: Text('置顶消息', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Color(0xffe67e22), fontSize: 12))),
+            Icon(Icons.close, size: 14, color: t.subText),
+          ]),
+        ),
+      ),
       Expanded(
         child: messages.isEmpty
             ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText)))
@@ -2325,6 +2345,20 @@ class _ChatViewStateState extends State<_ChatView> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('置顶失败：$e')));
+    }
+  }
+
+  void _unpinMessage() async {
+    final msg = _pinnedMsg;
+    if (msg == null) return;
+    final id = msg['id'] as int?;
+    if (id == null) return;
+    try {
+      await widget.api.pinMessage(id, false);
+      if (mounted) setState(() => _pinnedMsg = null);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已取消置顶')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('取消置顶失败')));
     }
   }
 
