@@ -321,6 +321,14 @@ Future<void> showOCRDialog(BuildContext ctx, SecureChatApi api, Map<String, dyna
 Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, SecureChatApi api, int peerId, bool isGroup, {VoidCallback? onRecalled}) async {
   final msgId = msg['id'] as int?;
   if (msgId == null) return;
+  final ts = msg['ts'];
+  if (ts != null) {
+    final msgTime = ts is int ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.tryParse(ts.toString());
+    if (msgTime != null && DateTime.now().difference(msgTime).inMinutes > 5) {
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('发送超过5分钟的消息无法撤回')));
+      return;
+    }
+  }
   final ok = await showDialog<bool>(
     context: ctx,
     builder: (_) => AlertDialog(
