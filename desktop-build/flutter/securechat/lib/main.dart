@@ -1857,6 +1857,7 @@ class _ChatViewStateState extends State<_ChatView> {
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: mine ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.05),
+                      border: Border(left: BorderSide(color: _wechatGreen.withValues(alpha: 0.6), width: 3)),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12, fontStyle: FontStyle.italic)),
