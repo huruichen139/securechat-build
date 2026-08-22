@@ -1522,6 +1522,7 @@ class _ChatViewStateState extends State<_ChatView> {
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         if (conv['pinned'] == true) const Icon(Icons.push_pin, size: 13, color: Color(0xffe67e22)),
+                        if (conv['muted'] == true) const Icon(Icons.notifications_off, size: 13, color: Color(0xff999999)),
                         if (conv['pinned'] == true) const SizedBox(width: 3),
                         Expanded(child: Text((conv['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: theme.text, fontWeight: FontWeight.w600, fontSize: 14))),
                         if (lastTs != null) Text(_relativeTime(lastTs), style: TextStyle(color: theme.subText, fontSize: 10)),
@@ -1668,7 +1669,7 @@ class _ChatViewStateState extends State<_ChatView> {
       ),
       Expanded(
         child: messages.isEmpty
-            ? Center(child: Text('还没有消息', style: TextStyle(color: t.subText)))
+            ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.chat_bubble_outline, size: 48, color: t.subText.withValues(alpha: 0.4)), const SizedBox(height: 12), Text('还没有消息', style: TextStyle(color: t.subText, fontSize: 14)), const SizedBox(height: 4), Text('发送消息开始聊天', style: TextStyle(color: t.subText.withValues(alpha: 0.6), fontSize: 12))]))
              : Container(
                  color: bgColor,
                  child: ListView.builder(
@@ -1730,6 +1731,15 @@ class _ChatViewStateState extends State<_ChatView> {
     if (diff < 7 * 86400000) return '${(diff / 86400000).floor()} 天前在线';
     final d = DateTime.fromMillisecondsSinceEpoch(ts);
     return '${d.year}/${d.month}/${d.day} 在线';
+  }
+
+  Widget _readIcon(Map<String, dynamic> msg) {
+    if (selConv != null && selConv!['kind'] == 'group') {
+      final rc = (msg['readCount'] as num?)?.toInt() ?? 0;
+      return rc > 1 ? Text('已读 ', style: TextStyle(color: widget.config.theme.subText, fontSize: 10)) : const SizedBox.shrink();
+    }
+    final read = msg['read'] == true;
+    return Icon(read ? Icons.done_all : Icons.done, size: 14, color: read ? _wechatGreen : widget.config.theme.subText);
   }
 
   String _readLabel(Map<String, dynamic> msg) {
@@ -1813,7 +1823,7 @@ class _ChatViewStateState extends State<_ChatView> {
               ],
               Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                 if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group')
-                  Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: t.subText, fontSize: 11))),
+                  Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: Color((msg['sender'].hashCode & 0xFFFFFF) | 0xFF000000).withValues(alpha: 0.8), fontSize: 11))),
                 if (msg['forwardedFrom'] != null)
                   Padding(
                     padding: const EdgeInsets.only(left: 4, bottom: 3),
@@ -1850,7 +1860,7 @@ class _ChatViewStateState extends State<_ChatView> {
                     Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
                     if (mine) ...[
                       const SizedBox(width: 4),
-                      Text(_readLabel(msg), style: TextStyle(color: _readLabelColor(msg, t), fontSize: 10)),
+                      _readIcon(msg),
                     ],
                     _likeBadge(msg),
                   ]),
@@ -2012,6 +2022,7 @@ class _ChatViewStateState extends State<_ChatView> {
           decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
         )),
         const SizedBox(width: 8),
+        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
         IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
           IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
           SizedBox(height: 42, child: FilledButton(
@@ -2465,6 +2476,7 @@ class _ChatViewStateState extends State<_ChatView> {
       builder: (sheetCtx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(leading: const Icon(Icons.copy), title: const Text('复制'), onTap: () { Navigator.pop(sheetCtx); _copyMessage(msg); }),
+          ListTile(leading: const Icon(Icons.checklist), title: const Text('多选'), onTap: () { Navigator.pop(sheetCtx); _toggleMultiSelect(); }),
           ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
