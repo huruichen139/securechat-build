@@ -2614,6 +2614,18 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
+
+  }
+    }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分享失败: $e')));
+    } catch (e) {
+      }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
+        await Clipboard.setData(ClipboardData(text: text));
+      if (text.isNotEmpty) {
+      final text = msg['text'] ?? msg['content'] ?? '';
+    try {
+  Future<void> _shareMessage(Map<String, dynamic> msg) async {
   void _bubbleMenu(BuildContext context, Map<String, dynamic> msg) {
     final isFromMe = msg['from'] == myId;
     final isFriendChat = selConv != null && selConv!['kind'] == 'friend' && !isFromMe;
@@ -2625,6 +2637,7 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.checklist), title: const Text('多选'), onTap: () { Navigator.pop(sheetCtx); _toggleMultiSelect(); }),
           ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
+          ListTile(leading: const Icon(Icons.share), title: const Text('分享'), onTap: () { Navigator.pop(sheetCtx); _shareMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
           ListTile(leading: const Icon(Icons.waving_hand, size: 20), title: const Text('拍一拍'), onTap: () { Navigator.pop(sheetCtx); _patMessage(msg); }),
           ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('置顶消息'), onTap: () { Navigator.pop(sheetCtx); _pinMessage(msg); }),
