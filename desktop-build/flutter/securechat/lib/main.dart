@@ -2075,7 +2075,8 @@ class _ChatViewStateState extends State<_ChatView> {
           decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
         )),
         const SizedBox(width: 8),
-        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@' + 'member', onPressed: () => _showAtMemberPicker(), icon: const Icon(Icons.alternate_email, size: 20)),
+        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
+        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
         IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
         IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
         SizedBox(height: 42, child: FilledButton(
@@ -2189,25 +2190,6 @@ class _ChatViewStateState extends State<_ChatView> {
       if (!mounted) return;
       _showRedPacketDetail(packetId, fallbackError: e.toString().replaceFirst('Bad state: ', ''));
     }
-  }
-
-  void _showAtMemberPicker() async {
-    final conv = selConv;
-    if (conv == null || conv['kind'] != 'group') return;
-    final gid = conv['id'] as int;
-    try {
-      final result = await widget.api.groupMembers(gid);
-      if (!mounted) return;
-      final members = result as List;
-      final myId = widget.api.myId;
-      final others = members.where((m) => (m['userId'] ?? m['id']) != myId).toList();
-      final picked = await showModalBottomSheet<String>(context: context, builder: (ctx) => Container(constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5), child: Column(mainAxisSize: MainAxisSize.min, children: [const Padding(padding: EdgeInsets.all(16), child: Text('Select member to @', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16))), const Divider(height: 1), Expanded(child: ListView.builder(itemCount: others.length, itemBuilder: (_, i) { final m = others[i]; final nick = (m['nickname'] ?? m['username'] ?? '?').toString(); return ListTile(leading: CircleAvatar(backgroundColor: _wechatGreen, child: Text(nick.isNotEmpty ? nick[0] : '?', style: const TextStyle(color: Colors.white))), title: Text(nick), onTap: () => Navigator.pop(ctx, nick)); }))])));
-      if (picked != null && mounted) {
-        input.text += '@' + picked + ' ';
-        inputFocus.requestFocus();
-        if (mounted) setState(() {});
-      }
-    } catch (e) { debugPrint('AtMemberPicker error: ' + e.toString()); }
   }
 
   Future<void> _showRedPacketDetail(int packetId, {String? fallbackError}) async {
