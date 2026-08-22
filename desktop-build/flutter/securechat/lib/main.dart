@@ -1876,7 +1876,7 @@ class _ChatViewStateState extends State<_ChatView> {
                       const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5)),
                       const SizedBox(width: 4),
                     ],
-                    Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10)),
+                    GestureDetector(onTap: () { final ts = msg['ts']; if (ts != null) { final dt = ts is int ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.tryParse(ts.toString()); if (dt != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 2), content: Text(dt.year.toString() + '-' + dt.month.toString().padLeft(2, '0') + '-' + dt.day.toString().padLeft(2, '0') + ' ' + dt.hour.toString().padLeft(2, '0') + ':' + dt.minute.toString().padLeft(2, '0') + ':' + dt.second.toString().padLeft(2, '0')))); } }, child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10))),
                     if (mine) ...[
                       const SizedBox(width: 4),
                       _readIcon(msg),
@@ -2046,9 +2046,10 @@ class _ChatViewStateState extends State<_ChatView> {
         )),
         const SizedBox(width: 8),
         if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
+        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
         IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
-          IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
-          SizedBox(height: 42, child: FilledButton(
+        IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
+        SizedBox(height: 42, child: FilledButton(
           onPressed: canSend && input.text.isNotEmpty ? () => _sendText() : null,
           style: FilledButton.styleFrom(backgroundColor: input.text.isNotEmpty ? _wechatGreen : t.subText, foregroundColor: Colors.white),
           child: const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('发送')),
