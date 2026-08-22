@@ -2055,6 +2055,7 @@ class _ChatViewStateState extends State<_ChatView> {
       decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
+        if (recording) ...[SizedBox(width: 6), _PulseIndicator(color: Colors.red), SizedBox(width: 4), Text('录音中...', style: TextStyle(color: Colors.red, fontSize: 12))],
         IconButton(tooltip: '附件', onPressed: _pickAndSendFile, icon: Icon(Icons.add_circle_outline, color: t.text)),
         IconButton(tooltip: '表情', onPressed: () => _showEmojiPicker(context), icon: Icon(Icons.emoji_emotions_outlined, color: t.text)),
         Expanded(child: TextField(
@@ -3530,5 +3531,28 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           FilledButton(onPressed: _downloading ? null : _startDownload, child: Text(_downloading ? '下载中…' : '下载并更新')),
       ],
     );
+  }
+}
+class _PulseIndicator extends StatefulWidget {
+  const _PulseIndicator({this.color = Colors.red});
+  final Color color;
+  @override
+  State<_PulseIndicator> createState() => _PulseIndicatorState();
+}
+class _PulseIndicatorState extends State<_PulseIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+  }
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(animation: _ctrl, builder: (_, __) => Container(
+      width: 8, height: 8,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: widget.color.withValues(alpha: 0.4 + _ctrl.value * 0.6)),
+    ));
   }
 }
