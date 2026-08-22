@@ -2411,6 +2411,23 @@ class _ChatViewStateState extends State<_ChatView> {
     }
   }
 
+
+  void _patMessage(Map<String, dynamic> msg) {
+    final conv = selConv;
+    if (conv == null) return;
+    final senderName = msg['sender']?.toString() ?? '对方';
+    final myName = widget.api.myNickname ?? widget.api.myUsername ?? '我';
+    final content = myName + '拍了拍' + senderName;
+    if (conv['kind'] == 'group') {
+      final gcmid = 'gp' + DateTime.now().microsecondsSinceEpoch.toString();
+      _sentIds.add(gcmid);
+      socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'isPat': true}}));
+    } else {
+      final cmid = 'fp' + DateTime.now().microsecondsSinceEpoch.toString();
+      _sentIds.add(cmid);
+      socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': content, 'clientMsgId': cmid, 'isPat': true}}));
+    }
+  }
   void _deleteLocalMessage(Map<String, dynamic> msg) {
     final id = msg['id'];
     if (id != null) {
@@ -2526,6 +2543,7 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
+          ListTile(leading: const Icon(Icons.waving_hand, size: 20), title: const Text('拍一拍'), onTap: () { Navigator.pop(sheetCtx); _patMessage(msg); }),
           ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('置顶消息'), onTap: () { Navigator.pop(sheetCtx); _pinMessage(msg); }),
            ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { Navigator.pop(sheetCtx); showTranslateDialog(sheetCtx, widget.api, msg['text'] ?? ''); }),
           ListTile(leading: const Icon(Icons.mic), title: const Text('语音转文字'), onTap: () { Navigator.pop(sheetCtx); _showTranscribeDialog(sheetCtx, msg); }),
