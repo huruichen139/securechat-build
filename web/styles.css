@@ -1,6 +1,6 @@
 @charset "UTF-8";
 /* ============================================================
-   SecureChat          v3
+   SecureChat          v3-20260823-19
                    /         /    
    ============================================================ */
 
@@ -201,6 +201,15 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 }
 .auth-card .btn:hover { filter: brightness(.95); }
 .auth-card .err { color: var(--danger); font-size: 12.5px; min-height: 18px; margin-top: 6px; }
+.auth-card .code-row { display: flex; gap: 0; margin-bottom: 10px; width: 100%; box-sizing: border-box; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 3px; }
+.auth-card .code-row input { flex: 1; border: none; background: transparent; padding: 8px 10px; min-width: 0; }
+.auth-card .code-btn {
+  padding: 8px 12px; border: none; border-radius: 6px;
+  background: var(--surface); color: var(--accent);
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.auth-card .code-btn:hover { filter: brightness(.97); }
 .qr-login-tip { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
 
 /* ============       ============ */
@@ -280,7 +289,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   color: var(--muted); letter-spacing: .03em;
 }
 .sidebar-tools { padding: 0 12px 6px; }
-.add-friend { display: flex; gap: 6px; margin-bottom: 8px; }
+.add-friend { display: flex; gap: 6px; margin-bottom: 8px; min-width: 0; }
+.add-friend .search { flex: 1; min-width: 0; padding-left: 10px; padding-right: 10px; }
+.add-friend .add-btn { flex-shrink: 0; padding: 7px 10px; font-size: 12.5px; }
 .add-friend .search { flex: 1; }
 .group-actions { display: flex; gap: 6px; }
 .unified-group-actions .add-btn { flex: 1; text-align: center; }
@@ -486,7 +497,7 @@ body.dark-mode .announce-banner { background: #332a14; color: #e8c97a; border-bo
   cursor: pointer;
 }
 .msg-row .avatar img { width: 100%; height: 100%; object-fit: cover; }
-.bubble-wrap { max-width: min(66%, 540px); display: flex; flex-direction: column; }
+.bubble-wrap { max-width: min(66%, 540px); display: flex; flex-direction: column; position: relative; }
 .msg-row.me .bubble-wrap { align-items: flex-end; }
 .msg-row .name {
   font-size: 11.5px; color: var(--muted);
@@ -577,13 +588,23 @@ body.dark-mode .announce-banner { background: #332a14; color: #e8c97a; border-bo
 /*        */
 .message-actions {
   position: absolute;
+  top: -32px; right: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   box-shadow: var(--shadow);
   padding: 4px; z-index: 30;
-  display: flex; gap: 2px;
+  display: none; gap: 2px;
+  white-space: nowrap;
 }
+.message-actions button {
+  padding: 3px 8px; border: none; border-radius: 4px;
+  background: transparent; color: var(--text); font-size: 12px;
+  cursor: pointer; transition: background .12s;
+}
+.message-actions button:hover { background: var(--surface2); color: var(--accent); }
+.msg-row:hover .message-actions,
+.msg-row.show-actions .message-actions { display: flex; }
 
 /*     */
 .welcome-panel {
@@ -1135,3 +1156,18 @@ body.dark-mode .bottom-nav { background: rgba(23,25,29,.94); }
 .ok { color: var(--accent); }
 .gray { filter: grayscale(1); opacity: .7; }
 .cancel { color: var(--muted); }
+
+/* rail bottom + my-info compact fixes */
+.sidebar-rail-bottom { gap: 2px; }
+.sidebar-rail-bottom .rail-action { width: auto; height: auto; padding: 4px 6px; font-size: 11px; border-radius: 6px; }
+.my-info { padding: 8px 10px; }
+.me-top-row { gap: 6px; }
+.my-avatar, .me-avatar { width: 30px !important; height: 30px !important; border-radius: 8px; }
+.me-tool-btn { padding: 2px 6px; font-size: 10.5px; }
+.account-exit { padding: 2px 6px; font-size: 10.5px; }
+.theme-switch { padding: 1px; }
+.theme-choice { padding: 1px 6px; font-size: 10.5px; }
+.me-tool-row { gap: 3px; margin-top: 6px; }
+/* sidebar resizable */
+.sidebar-resizer { width: 5px; flex-shrink: 0; cursor: col-resize; background: transparent; transition: background .15s; }
+.sidebar-resizer:hover, .sidebar-resizer.dragging { background: var(--accent-soft); }

@@ -1,5 +1,6 @@
-﻿{
-    "current":  "1.52.0",
-    "releaseNotes": "v1.52.0：新增消息置顶、引用回复、拍一拍、合并转发、@所有人等功能，支持Windows+Android双端构建发布。",
-    "latest": "1.52.0"
+{
+    "current":  "1.0.0",
+    "latest":  "1.63.14",
+    "releaseNotes":  "消息分享,录音时长显示,全部已读,回到底部按钮",
+    "updatedAt":  1787400000000
 }

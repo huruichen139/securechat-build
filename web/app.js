@@ -4725,3 +4725,15 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
   };
 })();
+
+/* ===== sidebar resize ===== */
+(function(){
+  var rs = document.getElementById('sidebarResizer');
+  var sb = document.querySelector('.sidebar-content');
+  if (!rs || !sb) return;
+  var startX=0, startW=0, dragging=false;
+  rs.addEventListener('mousedown', function(e){ dragging=true; startX=e.clientX; startW=sb.getBoundingClientRect().width; rs.classList.add('dragging'); e.preventDefault(); });
+  window.addEventListener('mousemove', function(e){ if(!dragging) return; var w=Math.min(480,Math.max(220,startW+e.clientX-startX)); sb.style.width=w+'px'; sb.style.flex='0 0 '+w+'px'; });
+  window.addEventListener('mouseup', function(){ if(dragging){ dragging=false; rs.classList.remove('dragging'); try{localStorage.setItem('sc_side_w', sb.getBoundingClientRect().width);}catch(e){} } });
+  try{ var sw=parseFloat(localStorage.getItem('sc_side_w')); if(sw){ sb.style.width=sw+'px'; sb.style.flex='0 0 '+sw+'px'; } }catch(e){}
+})();
