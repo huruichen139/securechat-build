@@ -79,22 +79,24 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 .logout-btn:hover { color: #fa5151; background: #fff0f0; }
 
 /* 模态弹窗 */
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { width: 320px; background: #fff; border-radius: 12px; padding: 20px 22px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
-.modal h3 { font-size: 16px; color: var(--text); margin-bottom: 12px; font-weight: 600; }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(3px); }
+.modal { width: 320px; background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,.2); animation: rise .25s cubic-bezier(.22,1,.36,1) both; }
+.modal h3 { font-size: 16px; color: var(--text); margin-bottom: 14px; font-weight: 600; text-align: center; }
 /* 顶部带叉叉的标题栏 */
-.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .modal-head h3 { margin: 0; font-size: 16px; color: var(--text); font-weight: 600; }
-.modal-x { background: transparent; border: none; cursor: pointer; color: #999; font-size: 26px; width: 28px; height: 28px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; transition: background .15s, color .15s; }
-.modal-x:hover { background: #f0f2f5; color: #333; }
-.modal .field { margin-bottom: 10px; }
-.modal .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-.modal .field input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; user-select: text; }
-.modal .field input:focus { border-color: var(--primary); }
-.modal-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
-.modal-actions button { padding: 7px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; }
+.modal-x { background: transparent; border: none; cursor: pointer; color: #999; font-size: 24px; width: 28px; height: 28px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; transition: all .15s; }
+.modal-x:hover { background: #f0f0f0; color: #333; }
+.modal .field { margin-bottom: 12px; }
+.modal .field label { display: block; font-size: 12.5px; color: #666; margin-bottom: 5px; font-weight: 500; }
+.modal .field input { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; user-select: text; background: #f8f8f8; transition: all .15s; }
+.modal .field input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.1); }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+.modal-actions button { padding: 8px 18px; border: none; border-radius: 8px; font-size: 13.5px; cursor: pointer; font-weight: 500; transition: all .15s; }
 .modal-actions .ok { background: var(--primary); color: #fff; }
+.modal-actions .ok:hover { filter: brightness(0.95); }
 .modal-actions .cancel { background: #f0f0f0; color: #555; }
+.modal-actions .cancel:hover { background: #e5e5e5; }
 .modal.modal-scroll { width: 480px; max-height: 90vh; overflow-y: auto; }
 .modal .field-cat { font-size: 13px; font-weight: 700; color: var(--primary); margin: 14px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .modal .field-row { margin-bottom: 8px; }
@@ -226,9 +228,11 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .message-notice span { display: block; max-height: 4.2em; overflow: hidden; line-height: 1.4; font-size: 13px; word-break: break-word; }
 @keyframes message-notice-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 .btn-cn {
-  padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
-  background: var(--primary); color: #fff; font-weight: 600;
+  padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 13.5px;
+  background: var(--primary); color: #fff; font-weight: 500; transition: all .15s;
 }
+.btn-cn:hover { filter: brightness(0.95); }
+.btn-cn:active { transform: scale(0.97); }
 .btn-cn.danger { background: #fa5151; }
 .btn-cn.gray { background: #aaa; }
 
@@ -268,9 +272,9 @@ body.dark-mode .call-bar #callText { color: #e2e8f0; }
 .mini-program-item { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; border: 1px solid #dbe3ea; border-radius: 10px; background: #fff; padding: 9px 12px; color: #172033; }
 .mini-program-item span { color: #64748b; font-size: 11px; }
 .toast {
-  min-width: 240px; max-width: 360px; padding: 12px 18px; border-radius: 8px; font-size: 14px;
-  background: #333; color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.18);
-  opacity: 0; transform: translateY(-12px); transition: all .25s ease;
+  min-width: 240px; max-width: 360px; padding: 12px 18px; border-radius: 10px; font-size: 14px;
+  background: #333; color: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  opacity: 0; transform: translateY(-12px); transition: all .28s cubic-bezier(.22,1,.36,1);
   display: flex; align-items: center; gap: 10px; user-select: none;
 }
 .toast.show { opacity: 1; transform: translateY(0); }
@@ -2590,7 +2594,10 @@ body.dark-mode .contact:hover { background: #232428; }
 body.dark-mode .contact.active { background: rgba(7,193,96,.14); }
 body.dark-mode .welcome-action { background: #232428; border-color: rgba(255,255,255,.06); }
 body.dark-mode .wx-me-group, body.dark-mode .wx-group { background: #1f2023; border-color: rgba(255,255,255,.06); }
-body.dark-mode .modal-box { background: #1f2023; border-color: rgba(255,255,255,.06); }
+body.dark-mode .modal-box { background: #1a1a1a; border-color: #333; }
+body.dark-mode .modal { background: #1a1a1a; color: #e5e5e5; }
+body.dark-mode .modal-x { color: #888; }
+body.dark-mode .modal-x:hover { background: #333; color: #e5e5e5; }
 body.dark-mode .auth-card { background: #1a1a1a; border-color: #333333; }
 body.dark-mode .day-divider { background: #232428; color: #6b7076; }
 body.dark-mode .ai-header, body.dark-mode .ai-composer { background: #1a1b1e !important; }
