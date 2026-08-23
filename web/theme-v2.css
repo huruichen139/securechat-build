@@ -409,3 +409,88 @@ input:focus, textarea:focus {
 .voice-bubble { border-radius: 10px !important; }
 .reaction-box, .reaction-result { border-radius: 999px !important; }
 .progress-bar { border-radius: 999px !important; }
+
+/* ============================================================
+   第二波：会话条目精修 + 管理后台主题
+   ============================================================ */
+
+/* 会话条目内部：名称/摘要/时间/在线点 */
+.contact .name { font-weight: 600 !important; font-size: 14px !important; color: var(--v2-text) !important; }
+.contact .last { font-size: 12.5px !important; color: var(--v2-text-sub) !important; }
+.contact .time { font-size: 10.5px !important; color: var(--v2-text-sub) !important; }
+.contact .dot { background: #b6bcc6 !important; }
+.contact .dot.online { background: var(--v2-accent) !important; box-shadow: 0 0 0 2px rgba(7,193,96,.18) !important; }
+.contact .avatar img { border-radius: 10px !important; object-fit: cover; }
+
+/* 未读徽标 */
+.contact .badge, .tab-badge {
+  background: #fa5151 !important;
+  color: #fff !important;
+  border-radius: 9px !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+}
+.rail-badge { background: #fa5151 !important; }
+
+/* ---------- 管理后台（admin.html / index.html adminView）---------- */
+.admin-sidebar { background: var(--v2-surface) !important; border-right: 1px solid var(--v2-border) !important; }
+.admin-side-brand { color: var(--v2-text) !important; }
+.admin-brand-mark {
+  background: linear-gradient(135deg, var(--v2-accent), #23b0ff) !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+.admin-nav-item {
+  border-radius: var(--v2-radius-sm) !important;
+  transition: background .14s ease !important;
+}
+.admin-nav-item:hover { background: var(--v2-surface-2) !important; }
+.admin-nav-item.active { background: rgba(7,193,96,.1) !important; }
+.admin-nav-item.active span { color: var(--v2-accent) !important; }
+.admin-workspace { background: var(--v2-bg) !important; }
+.admin-topbar { background: var(--v2-surface) !important; border-bottom: 1px solid var(--v2-border) !important; }
+.admin-section, .admin-panel, .admin-tablewrap, .admin-logincard {
+  background: var(--v2-surface) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: var(--v2-radius) !important;
+  color: var(--v2-text) !important;
+  box-shadow: none !important;
+}
+.admin-btn {
+  background: var(--v2-accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--v2-radius-sm) !important;
+  font-weight: 600 !important;
+}
+.admin-action-btn { border-radius: 8px !important; }
+.admin-table th { color: var(--v2-text-sub) !important; font-weight: 600 !important; }
+.admin-table td, .admin-table th { border-bottom-color: var(--v2-border) !important; }
+.admin-badge.online { background: rgba(7,193,96,.12) !important; color: var(--v2-accent) !important; }
+.admin-badge.banned { background: rgba(250,81,81,.12) !important; color: #fa5151 !important; }
+.admin-realtime { background: var(--v2-surface) !important; border-bottom: 1px solid var(--v2-border) !important; }
+.admin-live-dot { background: var(--v2-accent) !important; }
+
+/* admin.html 页面本体 */
+body { background: var(--v2-bg) !important; }
+
+/* ---------- 登录页背景微调：极淡品牌色渐变 ---------- */
+.auth-wrap::before { display: none !important; }
+
+/* ---------- 详情页（download/profile 等）卡片化 ---------- */
+.dl-card, .stat-card, .memory-card {
+  background: var(--v2-surface) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: var(--v2-radius) !important;
+  color: var(--v2-text) !important;
+}
+
+/* 输入控件统一填充风格（管理端等） */
+input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+  background: var(--v2-surface) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: 8px !important;
+  color: var(--v2-text) !important;
+}
+
