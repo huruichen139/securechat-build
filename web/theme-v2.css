@@ -1,0 +1,411 @@
+/* ============================================================
+   SecureChat Web Theme v2 —— 全新设计系统
+   现代清爽风格 · 桌面/手机自适应 · 覆盖旧样式
+   ============================================================ */
+
+/* ---------- 设计令牌 ---------- */
+:root {
+  --v2-bg: #f2f4f7;
+  --v2-surface: #ffffff;
+  --v2-surface-2: #f7f8fa;
+  --v2-border: #e4e7ec;
+  --v2-text: #1a1d21;
+  --v2-text-sub: #6b7280;
+  --v2-accent: #07c160;
+  --v2-accent-deep: #06ad56;
+  --v2-mine: #95ec69;
+  --v2-mine-text: #10240b;
+  --v2-radius: 14px;
+  --v2-radius-sm: 10px;
+  --v2-shadow: 0 1px 3px rgba(16, 24, 40, .06), 0 8px 28px rgba(16, 24, 40, .07);
+  --v2-rail-w: 64px;
+  --v2-side-w: 292px;
+}
+
+/* ---------- 手动深色模式（html/body 带 .dark-mode 类时生效）---------- */
+html.dark-mode, body.dark-mode {
+  --v2-bg: #111214;
+  --v2-surface: #1c1e22;
+  --v2-surface-2: #22252a;
+  --v2-border: #303338;
+  --v2-text: #e8eaed;
+  --v2-text-sub: #9aa0a6;
+  --v2-mine: #2e7d43;
+  --v2-mine-text: #dff7e5;
+  --v2-shadow: 0 1px 3px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+}
+body.dark-mode, html.dark-mode { background: var(--v2-bg) !important; }
+.dark-mode .sidebar-rail { background: #0a0b0d !important; }
+.dark-mode .day-divider span, .dark-mode .chat-time { background: rgba(255,255,255,.08) !important; }
+.dark-mode .quote-block { background: rgba(255,255,255,.06) !important; }
+.dark-mode .bottom-nav { background: rgba(20,22,26,.92) !important; }
+.dark-mode .add-btn.gray { background: var(--v2-surface-2) !important; color: var(--v2-text) !important; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --v2-bg: #111214;
+    --v2-surface: #1c1e22;
+    --v2-surface-2: #22252a;
+    --v2-border: #303338;
+    --v2-text: #e8eaed;
+    --v2-text-sub: #9aa0a6;
+    --v2-mine: #2e7d43;
+    --v2-mine-text: #dff7e5;
+    --v2-shadow: 0 1px 3px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+
+/* ---------- 全局底色：去掉彩色光斑，回归干净中性 ---------- */
+html, body {
+  background: var(--v2-bg) !important;
+  background-attachment: scroll !important;
+  color: var(--v2-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body::before { display: none !important; }
+
+* { scrollbar-width: thin; scrollbar-color: rgba(128,134,144,.35) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(128,134,144,.32); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(128,134,144,.5); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- 登录页 ---------- */
+.auth-wrap {
+  background:
+    radial-gradient(900px 600px at 85% -10%, rgba(7,193,96,.08), transparent 55%),
+    var(--v2-bg) !important;
+  background-attachment: scroll !important;
+}
+.auth-card {
+  background: var(--v2-surface) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--v2-shadow) !important;
+  backdrop-filter: none !important;
+}
+.auth-logo {
+  font-weight: 800 !important;
+  letter-spacing: -.5px;
+  font-size: 26px !important;
+  background: linear-gradient(135deg, var(--v2-accent), #23b0ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+.auth-sub { color: var(--v2-text-sub) !important; }
+.tabs { gap: 4px; }
+.tab {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  transition: background .18s ease, color .18s ease;
+}
+.tab.on {
+  background: rgba(7,193,96,.1);
+  color: var(--v2-accent) !important;
+}
+
+/* 输入框统一 */
+input, textarea, select {
+  font-family: inherit;
+}
+input:not([type="checkbox"]):not([type="radio"]), textarea {
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(7,193,96,.14);
+}
+
+/* ---------- 主布局：侧栏 + 主区 ---------- */
+.chat-wrap { background: var(--v2-bg) !important; backdrop-filter: none !important; }
+
+.sidebar {
+  background: var(--v2-surface) !important;
+  backdrop-filter: none !important;
+  border-right: 1px solid var(--v2-border) !important;
+  box-shadow: none !important;
+}
+
+/* 左侧竖排功能栏 */
+.sidebar-rail { background: #16181c !important; }
+@media (prefers-color-scheme: dark) { .sidebar-rail { background: #0a0b0d !important; } }
+.sidebar-rail-brand {
+  background: linear-gradient(135deg, var(--v2-accent), #23b0ff) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  border-radius: 12px !important;
+}
+.rail-icon, .rail-action { border-radius: 10px; transition: background .15s ease; }
+.rail-action.on, .rail-icon.on { background: rgba(255,255,255,.12); }
+
+/* 品牌区 */
+.brand-mark { border-radius: 10px !important; }
+.sidebar-brand strong { letter-spacing: -.3px; }
+
+/* 列表标题与统计 */
+.section-label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  letter-spacing: .04em;
+  color: var(--v2-text-sub) !important;
+}
+.list-heading {
+  color: var(--v2-text-sub) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.sidebar-mini-stats span { color: var(--v2-text-sub); }
+
+/* 会话条目 */
+.contact {
+  margin: 1px 8px !important;
+  padding: 10px 10px !important;
+  border-radius: var(--v2-radius-sm) !important;
+  border-bottom: none !important;
+  transition: background .14s ease !important;
+}
+.contact:hover { background: var(--v2-surface-2) !important; }
+.contact.on {
+  background: var(--v2-accent) !important;
+  color: #fff !important;
+}
+.contact.on .name, .contact.on .preview, .contact.on .time { color: #fff !important; }
+.contact .avatar img, .contact .avatar {
+  border-radius: 10px !important;
+}
+
+/* 加好友输入行 / 按钮 */
+.add-friend input.search, .search {
+  background: var(--v2-surface-2) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: var(--v2-radius-sm) !important;
+  color: var(--v2-text) !important;
+}
+.add-btn {
+  background: var(--v2-accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--v2-radius-sm) !important;
+  font-weight: 600 !important;
+  transition: filter .15s ease;
+}
+.add-btn:hover { filter: brightness(.96); }
+.add-btn.gray { background: var(--v2-surface-2) !important; color: var(--v2-text) !important; border: 1px solid var(--v2-border) !important; }
+.btn-cn { border-radius: var(--v2-radius-sm) !important; font-weight: 600 !important; }
+.friend-req-bar { border-radius: var(--v2-radius-sm) !important; }
+
+/* 我的信息卡 */
+.my-info { border-top: 1px solid var(--v2-border) !important; background: transparent !important; }
+
+/* ---------- 主聊天区 ---------- */
+.main { background: var(--v2-bg) !important; }
+
+.header {
+  background: var(--v2-surface) !important;
+  backdrop-filter: none !important;
+  border-bottom: 1px solid var(--v2-border) !important;
+  box-shadow: none !important;
+}
+.head-tool {
+  border-radius: 8px !important;
+  color: var(--v2-text-sub) !important;
+  transition: background .14s ease, color .14s ease;
+}
+.head-tool:hover { background: var(--v2-surface-2); color: var(--v2-text) !important; }
+
+/* 消息区背景 */
+.messages {
+  background: var(--v2-bg) !important;
+}
+
+.day-divider { color: var(--v2-text-sub); }
+.day-divider span, .chat-time {
+  background: rgba(0,0,0,.05) !important;
+  color: var(--v2-text-sub) !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  padding: 3px 10px !important;
+}
+@media (prefers-color-scheme: dark) {
+  .day-divider span, .chat-time { background: rgba(255,255,255,.08) !important; }
+}
+
+/* 消息气泡：微信式 */
+.msg-row { padding: 6px 18px !important; }
+.msg-row .avatar { border-radius: 10px !important; overflow: hidden; }
+.msg-row .name {
+  font-size: 11.5px !important;
+  color: var(--v2-text-sub) !important;
+  margin-bottom: 3px !important;
+}
+.bubble-wrap { max-width: min(68%, 520px); }
+.bubble {
+  background: var(--v2-surface) !important;
+  color: var(--v2-text) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: 4px 14px 14px 14px !important;
+  box-shadow: 0 1px 2px rgba(16,24,40,.04) !important;
+  padding: 9px 13px !important;
+  font-size: 14.5px !important;
+  line-height: 1.55 !important;
+}
+.msg-row.me .bubble {
+  background: var(--v2-mine) !important;
+  color: var(--v2-mine-text) !important;
+  border-color: transparent !important;
+  border-radius: 14px 4px 14px 14px !important;
+}
+.msg-row.me .bubble a { color: inherit; }
+.bubble.recalled {
+  background: transparent !important;
+  border: none !important;
+  color: var(--v2-text-sub) !important;
+  font-size: 12.5px !important;
+  box-shadow: none !important;
+  text-align: center;
+  width: 100%;
+}
+.time {
+  color: var(--v2-text-sub) !important;
+  font-size: 10.5px !important;
+}
+.read-state { font-size: 10.5px !important; }
+
+/* 图片/文件消息圆角 */
+.file-msg, .file-image, .file-image-wrap img { border-radius: 10px !important; }
+
+/* 红包气泡 */
+.rp-bubble { border-radius: 12px !important; overflow: hidden; }
+
+/* 引用块 */
+.quote-block {
+  background: rgba(0,0,0,.04) !important;
+  border-left: 3px solid var(--v2-accent) !important;
+  border-radius: 6px !important;
+  font-size: 12.5px !important;
+}
+@media (prefers-color-scheme: dark) {
+  .quote-block { background: rgba(255,255,255,.06) !important; }
+}
+
+/* ---------- 输入区 ---------- */
+.composer, .chat-composer {
+  background: var(--v2-surface) !important;
+  backdrop-filter: none !important;
+  border-top: 1px solid var(--v2-border) !important;
+}
+.composer input, .composer-input-wrap input, .composer textarea {
+  background: var(--v2-surface-2) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: var(--v2-radius-sm) !important;
+  color: var(--v2-text) !important;
+}
+.composer-send-btn, .send {
+  background: var(--v2-accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--v2-radius-sm) !important;
+  font-weight: 700 !important;
+  transition: filter .15s ease;
+}
+.composer-send-btn:hover, .send:hover { filter: brightness(.95); }
+
+/* ---------- 欢迎页 ---------- */
+.welcome-panel { background: transparent !important; }
+.welcome-kicker { color: var(--v2-accent) !important; }
+.welcome-orb { display: none !important; }
+.welcome-features .welcome-icon { border-radius: 12px !important; }
+
+/* ---------- 通用弹层 / 模态 ---------- */
+.modal-mask, .announcement-mask, .album-viewer-mask, .profile-mask, .rp-mask {
+  background: rgba(10,12,16,.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
+.modal-box, .modal, .modal-sm, .update-dialog {
+  background: var(--v2-surface) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--v2-shadow) !important;
+  color: var(--v2-text) !important;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  background: rgba(28,30,34,.92) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  box-shadow: var(--v2-shadow) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* ---------- 发现页 / 我的页 ---------- */
+.wx-discover-item, .wx-me-item {
+  transition: background .14s ease;
+}
+.wx-discover-list, .wx-group, .wx-me-group {
+  background: var(--v2-surface) !important;
+  border: 1px solid var(--v2-border) !important;
+  border-radius: var(--v2-radius) !important;
+  overflow: hidden;
+}
+.discover-icon, .wx-me-icon, .wx-discover-icon {
+  border-radius: 9px !important;
+}
+
+/* ---------- 表情/更多面板 ---------- */
+.plus-panel, .emoji-panel, .at-panel {
+  background: var(--v2-surface) !important;
+  border-top: 1px solid var(--v2-border) !important;
+}
+.plus-item, .emoji-item {
+  border-radius: var(--v2-radius-sm) !important;
+  transition: background .14s ease;
+}
+.plus-item:hover, .emoji-item:hover { background: var(--v2-surface-2) !important; }
+
+/* ---------- 手机端自适应（≤ 760px，与 app.js 的 mobile-chat-active 断点一致）---------- */
+@media (max-width: 760px) {
+  :root {
+    --v2-radius: 12px;
+  }
+  /* 触控目标放大 */
+  .bubble { font-size: 15.5px !important; line-height: 1.6 !important; padding: 10px 14px !important; }
+  .bubble-wrap { max-width: 78% !important; }
+  .msg-row { padding: 6px 12px !important; }
+  .msg-row .avatar { width: 38px; height: 38px; }
+  .head-tool { padding: 8px 10px !important; font-size: 14px !important; }
+  .composer { padding-bottom: max(env(safe-area-inset-bottom), 8px) !important; }
+  .bottom-nav { backdrop-filter: blur(16px) !important; background: rgba(255,255,255,.92) !important; }
+  @media (prefers-color-scheme: dark) {
+    .bottom-nav { background: rgba(20,22,26,.92) !important; }
+  }
+  /* 会话列表占满宽度时条目更高 */
+  .contact { padding: 12px 10px !important; }
+  .sidebar-content .search { height: 40px !important; font-size: 15px !important; }
+  /* 隐藏桌面装饰 */
+  .sidebar-mini-stats { display: none !important; }
+  .welcome-orb, .welcome-features { display: none !important; }
+}
+
+/* 平板中间档（761–1100px）：收窄侧栏 */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .sidebar { --v2-side-w: 250px; width: 250px !important; }
+}
+
+/* ---------- 动效 ---------- */
+@keyframes v2-pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+.msg-row { animation: v2-pop-in .18s ease both; }
+.modal-box, .auth-card { animation: v2-pop-in .22s ease both; }
+
+/* ---------- 杂项修正 ---------- */
+.badge { border-radius: 8px !important; }
+.announce-banner { border-radius: 0 0 var(--v2-radius-sm) var(--v2-radius-sm) !important; }
+.voice-bubble { border-radius: 10px !important; }
+.reaction-box, .reaction-result { border-radius: 999px !important; }
+.progress-bar { border-radius: 999px !important; }
