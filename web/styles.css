@@ -99,25 +99,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .search { width: 100%; background: var(--surface2); border-color: transparent; }
 .search:focus { background: var(--surface); border-color: var(--accent); }
 
-.input {
-  width: 100%; padding: 11px 12px; margin-bottom: 12px; border: 1px solid #d9d9d9;
-  border-radius: 8px; font-size: 14px; user-select: text; background: #fff;
-}
-.input:focus { border-color: var(--accent); outline: none; }
 .input-sm { width: 200px; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; user-select: text; }
-.code-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.code-btn {
-  padding: 0 14px; border: 1px solid var(--accent); background: #fff; color: var(--accent);
-  border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;
-}
-.code-btn:hover { background: var(--accent-soft); }
-
-.btn {
-  width: 100%; padding: 11px; background: var(--accent); color: #fff; border: none;
-  border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600;
-}
-.btn:hover { filter: brightness(0.97); }
-.btn:active { transform: translateY(1px); }
 
 /*      */
 .btn-cn {
@@ -176,38 +158,49 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   margin-bottom: 4px;
 }
 .auth-sub { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 26px; }
-.tabs {
-  display: flex; gap: 0; width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 4px;
-  margin-bottom: 20px;
+.auth-card .tabs,
+.auth-card .input,
+.auth-card .login-mode-row,
+.auth-card .btn,
+.auth-card .code-row {
+  width: 100%;
   box-sizing: border-box;
 }
-.tab {
-  flex: 1; text-align: center; padding: 8px 0;
-  border-radius: 9px; font-weight: 600; font-size: 14px;
-  color: var(--muted); cursor: pointer; transition: all .18s;
-}
-.tab.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(18,24,38,.08); }
-.auth-wrap input { width: 100%; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; background: #fff; box-sizing: border-box; }
-.auth-wrap input:focus { border-color: var(--accent); outline: none; }
-.code-row { display: flex; gap: 8px; width: 100%; }
-.code-row input { flex: 1; }
-.err { color: var(--danger); font-size: 12.5px; min-height: 18px; margin-top: 6px; }
-.login-mode-row {
-  display: flex; gap: 0; margin-bottom: 12px; width: 100%;
+.auth-card .tabs {
+  display: flex; gap: 0; margin-bottom: 16px;
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: var(--r-sm); padding: 3px;
-  box-sizing: border-box;
 }
-.login-mode-btn {
-  flex: 1; padding: 7px 0; border-radius: 7px;
+.auth-card .tab {
+  flex: 1; text-align: center; padding: 8px 0;
+  border-radius: 6px; font-weight: 600; font-size: 14px;
+  color: var(--muted); cursor: pointer;
+}
+.auth-card .tab.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.auth-card .input {
+  padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-size: 14px; background: #fff;
+}
+.auth-card .input:focus { border-color: var(--accent); outline: none; }
+.auth-card .login-mode-row {
+  display: flex; gap: 0; margin-bottom: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 3px;
+}
+.auth-card .login-mode-btn {
+  flex: 1; padding: 7px 0; border-radius: 6px;
   background: transparent; border: none;
-  color: var(--muted); font-size: 13px; font-weight: 500;
+  color: var(--muted); font-size: 13px;
 }
-.login-mode-btn.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.auth-card .login-mode-btn.on { background: var(--surface); color: var(--accent); }
+.auth-card .btn {
+  padding: 10px; border: 1px solid var(--accent);
+  border-radius: var(--r-sm); background: var(--accent);
+  color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.auth-card .btn:hover { filter: brightness(.95); }
+.auth-card .err { color: var(--danger); font-size: 12.5px; min-height: 18px; margin-top: 6px; }
 .qr-login-tip { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
 
 /* ============       ============ */
