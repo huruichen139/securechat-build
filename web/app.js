@@ -2434,6 +2434,10 @@ function appendGroupMessage(m, prepend) {
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
+  if (mine && m.createdAt && (Date.now() - m.createdAt) < 1500) {
+    row.classList.add('just-sent');
+    row.addEventListener('animationend', () => row.classList.remove('just-sent'), { once: true });
+  }
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
@@ -2839,6 +2843,10 @@ function appendMessage(m, prepend) {
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
+  if (mine && m.createdAt && (Date.now() - m.createdAt) < 1500) {
+    row.classList.add('just-sent');
+    row.addEventListener('animationend', () => row.classList.remove('just-sent'), { once: true });
+  }
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
@@ -3311,7 +3319,12 @@ if (desktopInput) desktopInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
 });
 let typingSent = 0;
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
 $('input').addEventListener('input', () => {
+  autoGrow($('input'));
   saveCurrentDraft();
   onAtKey($('input'));
   if (!state.activePeer) return;
@@ -3319,6 +3332,7 @@ $('input').addEventListener('input', () => {
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
 });
 if (desktopInput) desktopInput.addEventListener('input', () => {
+  autoGrow(desktopInput);
   saveCurrentDraft();
   onAtKey(desktopInput);
   if (!state.activePeer) return;
