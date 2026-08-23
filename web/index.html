@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -8,7 +8,98 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=v3-20260823-22" />
+  <link rel="stylesheet" href="styles.css?v=f390c0f-fix-1787490286888" />
+  <style>
+    /* ============ 真·亚克力效果 (内联，UTF-8，优先级高于外部 CSS) ============ */
+    /* 1) 给 body / .chat-wrap / .auth-wrap 加彩色渐变流动背景（这样 backdrop-filter 才有东西可模糊） */
+    html, body {
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 800px at 8% -5%, rgba(124, 196, 245, .28), transparent 60%),
+        radial-gradient(1100px 700px at 100% 15%, rgba(180, 145, 245, .26), transparent 60%),
+        radial-gradient(900px 700px at 50% 110%, rgba(255, 200, 130, .22), transparent 60%),
+        linear-gradient(120deg, #f3f6fb 0%, #eef1f8 35%, #f6eef6 70%, #eef5f3 100%);
+      background-attachment: fixed;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(800px 600px at 25% 30%, rgba(7,193,96,.10), transparent 60%),
+        radial-gradient(700px 500px at 75% 70%, rgba(59,130,246,.12), transparent 60%),
+        radial-gradient(600px 400px at 60% 20%, rgba(236,72,153,.10), transparent 60%);
+      animation: sc-blob 18s ease-in-out infinite alternate;
+      filter: saturate(1.05);
+    }
+    @keyframes sc-blob {
+      0%   { transform: translate(0,0) scale(1); }
+      50%  { transform: translate(2%, -1%) scale(1.06); }
+      100% { transform: translate(-2%, 1%) scale(.96); }
+    }
+    /* 2) 真半透明面板：让 backdrop-filter 模糊能看到底色 */
+    .chat-wrap, .auth-wrap { background: transparent !important; }
+    .sidebar {
+      background: rgba(255, 255, 255, .55) !important;
+      backdrop-filter: blur(22px) saturate(1.6) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(1.6) !important;
+      box-shadow: 1px 0 0 rgba(255,255,255,.4);
+    }
+    .header, .composer, .ai-view .ai-header, .ai-view .ai-composer {
+      background: rgba(255, 255, 255, .6) !important;
+      backdrop-filter: blur(22px) saturate(1.6) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(1.6) !important;
+    }
+    .auth-card {
+      background: rgba(255, 255, 255, .6) !important;
+      backdrop-filter: blur(28px) saturate(1.7) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(1.7) !important;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, .18) !important;
+      border: 1px solid rgba(255, 255, 255, .5) !important;
+    }
+    .contact-list, .messages, .ai-view .ai-msgs {
+      background: transparent !important;
+    }
+    .modal, .modal-mask > * {
+      backdrop-filter: blur(30px) saturate(1.6) !important;
+      -webkit-backdrop-filter: blur(30px) saturate(1.6) !important;
+    }
+    /* 3) 暗色模式：深色亚克力 + 同样有彩色光晕可模糊 */
+    body.dark-mode, html.dark-mode, .dark-mode .chat-wrap {
+      background:
+        radial-gradient(1200px 800px at 8% -5%, rgba(30, 58, 138, .42), transparent 60%),
+        radial-gradient(1100px 700px at 100% 15%, rgba(76, 29, 149, .42), transparent 60%),
+        radial-gradient(900px 700px at 50% 110%, rgba(15, 118, 110, .30), transparent 60%),
+        linear-gradient(120deg, #0b1220 0%, #0f1530 35%, #181030 70%, #0d1a18 100%) !important;
+      background-attachment: fixed;
+    }
+    .dark-mode .sidebar {
+      background: rgba(17, 24, 39, .55) !important;
+      backdrop-filter: blur(22px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(1.4) !important;
+    }
+    .dark-mode .header, .dark-mode .composer, .dark-mode .ai-view .ai-header, .dark-mode .ai-view .ai-composer {
+      background: rgba(17, 24, 39, .55) !important;
+      backdrop-filter: blur(22px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(1.4) !important;
+    }
+    .dark-mode .auth-card {
+      background: rgba(17, 24, 39, .6) !important;
+      backdrop-filter: blur(28px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(1.4) !important;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .4) !important;
+      border: 1px solid rgba(255, 255, 255, .08) !important;
+    }
+    /* 让所有面板表面内文字保持高对比度 */
+
+    /* 4) 滚动条 */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.35); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,.55); }
+  </style>
 <script>
   // API / WebSocket 自动跟随当前页面来源（同源），避免硬编码地址连不通。
   (function () {

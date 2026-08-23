@@ -580,7 +580,7 @@
       { label: '扫一扫', icon: '▦', fn: () => scanFlow('receive') },
       { label: '群收款', icon: '群', fn: () => openGroupCollect() },
       { label: '群接龙', icon: '接', fn: () => openGroupSolection() },
-      { label: '充值', icon: '充', fn: () => onlineRechargeFlow() },
+      { label: '充值', icon: '充', fn: () => rechargeEntry() },
       { label: '缴费', icon: '缴', fn: () => openLifePay() },
     ];
     items.forEach((it) => {
@@ -613,10 +613,39 @@
     renderBills(billsBox);
   }
 
+  // 充值入口：三选一（兑换码/微信/支付宝）
+  function rechargeEntry() {
+    modal('充值', (body) => {
+      body.style.cssText = 'padding:0';
+      const options = [
+        { label: '兑换码充值', desc: '输入兑换码兑换余额', icon: '\u5151', color: '#07c160', fn: redeemFlow },
+        { label: '微信支付', desc: '微信扫码支付充值', icon: '\u5fae', color: '#07c160', fn: () => onlineRechargeFlow('wxpay') },
+        { label: '支付宝支付', desc: '支付宝扫码支付充值', icon: '\u652f', color: '#1677ff', fn: () => onlineRechargeFlow('alipay') },
+      ];
+      options.forEach(opt => {
+        const row = document.createElement('button');
+        row.style.cssText = 'display:flex;align-items:center;gap:14px;width:100%;padding:16px 18px;border:none;background:#fff;cursor:pointer;text-align:left;border-bottom:1px solid #f5f5f5';
+        row.onmouseover = () => row.style.background = '#f9f9f9';
+        row.onmouseout = () => row.style.background = '#fff';
+        const ic = document.createElement('div');
+        ic.style.cssText = 'width:42px;height:42px;border-radius:10px;background:' + opt.color + '15;color:' + opt.color + ';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0';
+        ic.textContent = opt.icon;
+        const info = document.createElement('div');
+        info.innerHTML = '<div style="font-size:15px;font-weight:600;color:#191919">' + opt.label + '</div><div style="font-size:12px;color:#999;margin-top:2px">' + opt.desc + '</div>';
+        const arrow = document.createElement('div');
+        arrow.style.cssText = 'margin-left:auto;color:#ccc;font-size:16px';
+        arrow.textContent = '\u203a';
+        row.appendChild(ic); row.appendChild(info); row.appendChild(arrow);
+        row.onclick = () => { close(); opt.fn(); };
+        body.appendChild(row);
+      });
+    });
+  }
+
   // 在线充值：走 EPay 真实网关（支付宝/微信），下单后跳转支付并轮询到账
-  function onlineRechargeFlow() {
+  function onlineRechargeFlow(defaultType) {
     const amount = field('充值金额（元）', '', { type: 'number', placeholder: '例如 10' });
-    let payType = 'alipay';
+    let payType = defaultType || 'alipay';
     const typeRow = document.createElement('div');
     typeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
     const types = [
