@@ -314,6 +314,9 @@ class SecureChatApi {
     return ((data['groups'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> createGroup(String name, {List<String> uids = const []}) =>
+      _json('POST', '/api/groups', body: {'name': name, 'uids': uids});
+
   Future<List<Map<String, dynamic>>> history(int peerId) async {
     final data = await _json('GET', '/api/history/$peerId');
     return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();

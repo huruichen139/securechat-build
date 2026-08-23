@@ -2955,6 +2955,7 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   void _onContextMenu(int v, BuildContext ctx) {
+    if (v == 0) _showCreateGroupDialog(ctx);
     if (v == 2) _showAddFriendDialog(ctx);
     if (v == 3) _showChatInfo(ctx);
     if (v == 4) _showMyCard(ctx);
@@ -2968,6 +2969,67 @@ class _ChatViewStateState extends State<_ChatView> {
     if (v == 6) _showJoinGroupDialog(ctx);
     if (v == 7) _showBgPicker(ctx);
     if (v == 8) _showFontSizeDialog(ctx);
+  }
+
+  void _showCreateGroupDialog(BuildContext ctx) async {
+    try {
+      final friends = await widget.api.friends();
+      if (!mounted) return;
+      final nameC = TextEditingController(text: '');
+      final selected = <String>{};
+      showDialog(context: ctx, builder: (d) => StatefulBuilder(builder: (d, setD) => AlertDialog(
+        title: const Text('发起群聊'),
+        content: SizedBox(
+          width: 320,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: nameC, autofocus: true, decoration: const InputDecoration(hintText: '群聊名称')),
+            const SizedBox(height: 10),
+            Flexible(child: friends.isEmpty
+              ? Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text('暂无好友可选', style: TextStyle(color: widget.config.theme.subText)))
+              : SizedBox(height: 220, child: ListView.builder(
+                  itemCount: friends.length,
+                  itemBuilder: (_, i) {
+                    final f = friends[i];
+                    final uid = (f['uid'] ?? '').toString();
+                    final name = (f['nickname'] ?? f['username'] ?? '').toString();
+                    final checked = selected.contains(uid);
+                    return CheckboxListTile(
+                      dense: true,
+                      value: checked,
+                      onChanged: (_) => setD(() { checked ? selected.remove(uid) : selected.add(uid); }),
+                      secondary: CircleAvatar(backgroundColor: _wechatGreen, child: Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(color: Colors.white))),
+                      title: Text(name, style: const TextStyle(fontSize: 14)),
+                    );
+                  },
+                )),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('取消')),
+          FilledButton(onPressed: () async {
+            final name = nameC.text.trim();
+            if (name.isEmpty) return;
+            Navigator.pop(d);
+            try {
+              final r = await widget.api.createGroup(name, uids: selected.toList());
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('群「$name」创建成功，已拉入 ${r['added']?.length ?? selected.length} 位好友')));
+                await _loadData();
+                // 自动打开新群会话
+                final gid = r['group']?['id'];
+                if (gid is int) {
+                  final idx = conversations.indexWhere((c) => c['kind'] == 'group' && c['id'] == gid);
+                  if (idx >= 0) await _openConversation(idx);
+                }
+              }
+            } catch (e) {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('创建失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+            }
+          }, child: const Text('创建')),
+        ],
+      )));
+    } catch (_) {}
   }
 
   void _showFontSizeDialog(BuildContext ctx) {
