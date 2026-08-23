@@ -994,13 +994,16 @@ html.is-mobile .msg-row.show-actions .message-actions { opacity: 1; }
 .message-actions button:hover { color: var(--primary); border-color: var(--primary); }
 body.dark-mode .message-actions button { background: #1e293b; border-color: #334155; color: #cbd5e1; }
 
-body.dark-mode { --background: #0f172a; --foreground: #e2e8f0; --bg: #0f172a; --side-bg: #111827; --text: #e2e8f0; --border: #263244; --muted: #94a3b8; --chip: #1e293b; background: #0f172a; color: #e2e8f0; }
-body.dark-mode .sidebar-rail { background: #0b1220; border-color: #263244; }
-body.dark-mode .sidebar-content, body.dark-mode .sidebar-brand, body.dark-mode .sidebar-tools, body.dark-mode .header, body.dark-mode .composer, body.dark-mode .ai-header, body.dark-mode .ai-composer { background: #111827; border-color: #263244; }
-body.dark-mode .main, body.dark-mode .messages, body.dark-mode .ai-msgs { background: #0f172a; }
-body.dark-mode .contact:hover, body.dark-mode .contact.active { background: #123525; border-color: #1f6b46; }
-body.dark-mode .search, body.dark-mode .input, body.dark-mode .composer textarea, body.dark-mode .ai-composer input, body.dark-mode .tool { background: #0f172a; color: #e2e8f0; border-color: #334155; }
-body.dark-mode .brand-copy strong, body.dark-mode .section-label, body.dark-mode .list-heading { color: #e2e8f0; }
+body.dark-mode { --background: #111111; --foreground: #e5e5e5; --bg: #111111; --side-bg: #1a1a1a; --text: #e5e5e5; --border: #2a2a2a; --muted: #888888; --chip: #1e1e1e; --surface: #1a1a1a; --surface2: #252525; background: #111111; color: #e5e5e5; }
+body.dark-mode .sidebar-rail { background: #0a0a0a; border-color: #2a2a2a; }
+body.dark-mode .sidebar-content, body.dark-mode .sidebar-brand, body.dark-mode .sidebar-tools, body.dark-mode .header, body.dark-mode .composer, body.dark-mode .ai-header, body.dark-mode .ai-composer { background: #1a1a1a; border-color: #2a2a2a; }
+body.dark-mode .main, body.dark-mode .messages, body.dark-mode .ai-msgs { background: #111111; }
+body.dark-mode .contact:hover, body.dark-mode .contact.active { background: #1a2e23; border-color: #1f6b46; }
+body.dark-mode .search, body.dark-mode .input, body.dark-mode .composer textarea, body.dark-mode .ai-composer input, body.dark-mode .tool { background: #1a1a1a; color: #e5e5e5; border-color: #333333; }
+body.dark-mode .brand-copy strong, body.dark-mode .section-label, body.dark-mode .list-heading { color: #e5e5e5; }
+body.dark-mode .bubble { background: #2a2a2a; border-color: #3a3a3a; color: #e5e5e5; }
+body.dark-mode .msg-row.me .bubble { background: #2e7d4f; border-color: #2e7d4f; color: #e5e5e5; }
+body.dark-mode .msg-row.other .bubble { background: #2a2a2a; border-color: #3a3a3a; }
 
 /* Welcome dashboard for an unselected conversation */
 .messages:has(.welcome-panel) { overflow: auto; }
@@ -1956,9 +1959,9 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
 }
 
 /* 深色模式适配 */
-body.dark-mode .bubble { background: #2c2c2e; border-color: #3a3a3a; color: #e0e0e0; }
-body.dark-mode .msg-row.other .bubble { background: #2c2c2e; border-color: #3a3a3a; }
-body.dark-mode .msg-row.other .bubble::before { border-color: transparent #2c2c2e transparent transparent; }
+body.dark-mode .bubble { background: #2a2a2a; border-color: #3a3a3a; color: #e5e5e5; }
+body.dark-mode .msg-row.other .bubble { background: #2a2a2a; border-color: #3a3a3a; }
+body.dark-mode .msg-row.other .bubble::before { border-color: transparent #2a2a2a transparent transparent; }
 body.dark-mode .msg-row.other .bubble::after { border-color: transparent #3a3a3a transparent transparent; }
 body.dark-mode .msg-row.me .bubble { background: #2e7d4f; border-color: #2e7d4f; }
 body.dark-mode .msg-row.me .bubble::before { border-color: transparent transparent transparent #2e7d4f; }
@@ -2586,7 +2589,7 @@ body.dark-mode .contact.active { background: rgba(7,193,96,.14); }
 body.dark-mode .welcome-action { background: #232428; border-color: rgba(255,255,255,.06); }
 body.dark-mode .wx-me-group, body.dark-mode .wx-group { background: #1f2023; border-color: rgba(255,255,255,.06); }
 body.dark-mode .modal-box { background: #1f2023; border-color: rgba(255,255,255,.06); }
-body.dark-mode .auth-card { background: #1f2023; border-color: rgba(255,255,255,.06); }
+body.dark-mode .auth-card { background: #1a1a1a; border-color: #333333; }
 body.dark-mode .day-divider { background: #232428; color: #6b7076; }
 body.dark-mode .ai-header, body.dark-mode .ai-composer { background: #1a1b1e !important; }
 /* 滚动条：细、低调 */
