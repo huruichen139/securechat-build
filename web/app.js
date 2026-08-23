@@ -4087,6 +4087,151 @@ function renderDiscoverPage() {
 }
 
 // 我的页渲染（微信式）
+
+// ============ 设置页面（微信风格） ============
+function openSettingsPage() {
+  const me = state.me;
+  const main = document.querySelector('.main');
+  if (main) main.style.display = 'none';
+  hideMobilePages();
+  let panel = document.getElementById('settingsPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'settingsPanel';
+    panel.style.cssText = 'position:fixed;inset:0;background:var(--bg,#f5f5f5);z-index:1000;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    document.body.appendChild(panel);
+  }
+  panel.style.display = 'block';
+  panel.innerHTML = '';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;padding:12px 16px;background:var(--surface,#f5f5f5);border-bottom:1px solid var(--border,#e5e5e5);position:sticky;top:0;z-index:1';
+  const backBtn = document.createElement('button');
+  backBtn.textContent = '\u2190';
+  backBtn.style.cssText = 'background:none;border:none;font-size:20px;color:var(--text,#191919);cursor:pointer;padding:4px 8px';
+  backBtn.onclick = () => { panel.style.display = 'none'; if (main) main.style.display = ''; };
+  const hdrTitle = document.createElement('span');
+  hdrTitle.textContent = '设置';
+  hdrTitle.style.cssText = 'font-size:17px;font-weight:600;margin-left:8px;color:var(--text,#191919)';
+  hdr.appendChild(backBtn);
+  hdr.appendChild(hdrTitle);
+  panel.appendChild(hdr);
+
+  const content = document.createElement('div');
+  content.style.cssText = 'padding:16px';
+  panel.appendChild(content);
+
+  // 个人信息卡片
+  const profileCard = document.createElement('div');
+  profileCard.style.cssText = 'background:var(--surface,#fff);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;cursor:pointer;border:1px solid var(--border,#e5e5e5)';
+  const av = (me && me.avatar) ? '<img src="' + me.avatar + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + (me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
+  profileCard.innerHTML = av + '<div style="flex:1"><div style="font-size:17px;font-weight:600;color:var(--text,#191919)">' + (me ? escapeHtml(me.nickname) : '') + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">微信号：' + (me ? escapeHtml(me.uid || '') : '') + '</div></div><span style="color:#ccc;font-size:16px">\u203a</span>';
+  profileCard.onclick = () => showMyCard();
+  content.appendChild(profileCard);
+
+  // 设置分组
+  const groups = [
+    {
+      title: '账号与安全',
+      items: [
+        { label: '修改密码', desc: '登录密码管理', icon: '锁', fn: () => toast('密码修改功能开发中', 'info') },
+        { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑定', icon: '邮', fn: () => toast('邮箱绑定功能开发中', 'info') },
+        { label: '登录设备管理', desc: '查看登录过的设备', icon: '机', fn: () => toast('设备管理开发中', 'info') },
+      ]
+    },
+    {
+      title: '通用',
+      items: [
+        { label: '聊天背景', desc: '设置聊天界面背景', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; pickChatBg(); } },
+        { label: '字体大小', desc: localStorage.chatFontSize || '默认', icon: '字', fn: () => {
+          const sizes = ['默认', '小', '中', '大', '特大'];
+          const cur = sizes.indexOf(localStorage.chatFontSize || '默认');
+          const next = (cur + 1) % sizes.length;
+          localStorage.chatFontSize = sizes[next];
+          const base = { '默认': 15, '小': 13, '中': 15, '大': 17, '特大': 19 };
+          document.documentElement.style.fontSize = (base[sizes[next]] || 15) + 'px';
+          toast('字体已设为' + sizes[next], 'success');
+          openSettingsPage();
+        }},
+        { label: '深色模式', desc: document.body.classList.contains('dark-mode') ? '已开启' : '已关闭', icon: '暗', fn: () => {
+          document.body.classList.toggle('dark-mode');
+          localStorage.darkMode = document.body.classList.contains('dark-mode') ? '1' : '0';
+          toast('深色模式已' + (document.body.classList.contains('dark-mode') ? '开启' : '关闭'), 'success');
+          openSettingsPage();
+        }},
+        { label: '语言', desc: '简体中文', icon: '语', fn: () => toast('语言设置开发中', 'info') },
+        { label: '新消息通知', desc: '声音和振动', icon: '声', fn: () => toast('通知设置开发中', 'info') },
+      ]
+    },
+    {
+      title: '隐私',
+      items: [
+        { label: '黑名单', desc: '管理被屏蔽的用户', icon: '黑', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; renderBlocklistPage(); showMobilePage('blocklistPage'); } },
+        { label: '朋友圈设置', desc: '可见范围', icon: '圈', fn: () => toast('隐私设置开发中', 'info') },
+        { label: '添加我的方式', desc: '通过手机号/微信号搜索', icon: '搜', fn: () => toast('隐私设置开发中', 'info') },
+      ]
+    },
+    {
+      title: '帮助与反馈',
+      items: [
+        { label: '意见反馈', desc: '提交问题或建议', icon: '反', fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
+        { label: '关于我们', desc: 'SecureChat v1.63.11', icon: '关', fn: () => {
+          modal('关于 SecureChat', (body) => {
+            body.innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.63.11</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button onclick="window.open('https://github.com/huruichen139/securechat-build','_blank')" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>';
+          });
+        }},
+      ]
+    },
+    {
+      title: 'AI 助手',
+      items: [
+        { label: 'AI 设置', desc: 'API Key / 模型 / 端点', icon: 'AI', fn: () => { if (window.openAiSettings) window.openAiSettings(); else toast('AI 设置开发中', 'info'); } },
+      ]
+    },
+  ];
+
+  groups.forEach(grp => {
+    const section = document.createElement('div');
+    section.style.cssText = 'margin-bottom:20px';
+    const title = document.createElement('div');
+    title.textContent = grp.title;
+    title.style.cssText = 'font-size:13px;color:var(--muted,#999);margin-bottom:8px;padding-left:4px';
+    section.appendChild(title);
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface,#fff);border-radius:12px;overflow:hidden;border:1px solid var(--border,#e5e5e5)';
+    grp.items.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border,#f0f0f0);' + (idx === grp.items.length - 1 ? 'border-bottom:none' : '');
+      row.onmouseover = () => row.style.background = 'var(--surface2,#f9f9f9)';
+      row.onmouseout = () => row.style.background = '';
+      const ic = document.createElement('div');
+      ic.style.cssText = 'width:32px;height:32px;border-radius:6px;background:var(--primary,#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-right:12px;flex-shrink:0';
+      ic.textContent = item.icon;
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0';
+      info.innerHTML = '<div style="font-size:15px;color:var(--text,#191919)">' + item.label + '</div>' + (item.desc ? '<div style="font-size:12px;color:var(--muted,#999);margin-top:2px">' + item.desc + '</div>' : '');
+      const arrow = document.createElement('span');
+      arrow.style.cssText = 'color:#ccc;font-size:14px;margin-left:8px';
+      arrow.textContent = '\u203a';
+      row.appendChild(ic);
+      row.appendChild(info);
+      row.appendChild(arrow);
+      row.onclick = item.fn;
+      card.appendChild(row);
+    });
+    section.appendChild(card);
+    content.appendChild(section);
+  });
+
+  // 退出登录按钮
+  const logoutBtn = document.createElement('button');
+  logoutBtn.textContent = '退出登录';
+  logoutBtn.style.cssText = 'width:100%;padding:12px;border:none;border-radius:12px;background:var(--surface,#fff);color:var(--danger,#fa5151);font-size:16px;font-weight:500;cursor:pointer;margin-top:8px;border:1px solid var(--border,#e5e5e5)';
+  logoutBtn.onclick = () => { if (confirm('确定退出登录？')) { localStorage.removeItem('token'); location.reload(); } };
+  content.appendChild(logoutBtn);
+}
+
 function renderMePage() {
   if (!state.me) return;
   const header = document.getElementById('meHeaderContent');
@@ -4124,7 +4269,7 @@ const services = [
     { name: '更多功能', icon: '更', action: () => openFeatureCenter() },
     { name: '下载', icon: '下', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
     { name: '意见反馈', icon: '反', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
-    { name: '设置', icon: '设', action: () => { if (window.openAiSettings) { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; window.openAiSettings(); } else toast('设置功能开发中', 'info'); } },
+    { name: '设置', icon: '设', action: () => openSettingsPage() },
   ];
   // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
   svc.innerHTML = `

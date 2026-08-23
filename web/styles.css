@@ -2708,3 +2708,8 @@ body.dark-mode .chat-more-menu .chat-more-item.danger { color: #fa5151; }
 /* 聊天头部好友状态行 */
 #chatHeader { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
 #chatHeader .chat-status { font-size: 12px; font-weight: 400; color: var(--muted, #888); }
+
+/* ============ 设置页面 ============ */
+#settingsPanel { font-family: inherit; }
+#settingsPanel button { font-family: inherit; }
+
