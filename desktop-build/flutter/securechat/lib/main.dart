@@ -3337,6 +3337,8 @@ class ContactsView extends StatefulWidget {
 }
 
 class _ContactsViewStateState extends State<ContactsView> {
+  final _cSearchCtrl = TextEditingController();
+  String _cSearch = '';
   final contacts = <Map<String, dynamic>>[];
   final groups = <Map<String, dynamic>>[];
   bool _loading = true;
@@ -3386,14 +3388,22 @@ class _ContactsViewStateState extends State<ContactsView> {
         ? const Center(child: CircularProgressIndicator())
         : CustomScrollView(
             slivers: [
-              _contactSection('联系人', contacts, t),
-              _contactSection('群聊', groups, t),
+              SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: TextField(controller: _cSearchCtrl, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '搜索联系人/群聊', hintStyle: TextStyle(color: t.subText), prefixIcon: Icon(Icons.search, color: t.subText), isDense: true, filled: true, fillColor: t.inputBg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none)), onChanged: (v) => setState(() => _cSearch = v)))),
+              _contactSection('联系人', _filterList(contacts), t),
+              _contactSection('群聊', _filterList(groups), t),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
     );
   }
 
+
+
+  List<Map<String, dynamic>> _filterList(List<Map<String, dynamic>> list) {
+    final q = _cSearch.trim().toLowerCase();
+    if (q.isEmpty) return list;
+    return list.where((c) => (c['name'] as String).toLowerCase().contains(q)).toList();
+  }
   Widget _contactSection(String title, List<Map<String, dynamic>> list, AppTheme t) {
     if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
     return SliverList(
