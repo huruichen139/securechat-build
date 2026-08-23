@@ -3631,7 +3631,7 @@ app.get(['/admin.html', '/download.html', '/merchant.html', '/wallet-pay.html', 
 app.use(express.static(webDir, { setHeaders: (res, filePath) => {
   if (/\.html$/i.test(filePath)) { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
   if (/\.js$/i.test(filePath)) { res.set('Content-Type', 'text/javascript; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
-  if (/\.css$/i.test(filePath)) res.set('Content-Type', 'text/css; charset=utf-8');
+  if (/\.css$/i.test(filePath)) { res.set('Content-Type', 'text/css; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
 }}));
 app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'index.html')); });
 
