@@ -2823,30 +2823,134 @@ class _ChatViewStateState extends State<_ChatView> {
       if (!mounted) return;
       final members = result as List;
       showModalBottomSheet(context: context, builder: (ctx) => Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(padding: const EdgeInsets.all(16), child: Text('群成员 ()', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
-          const Divider(height: 1),
+          Padding(padding: const EdgeInsets.all(16), child: Text('群成员（${members.length}）', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _showInviteToGroup(gid);
+            },
+            icon: const Icon(Icons.person_add_alt_1, size: 18),
+            label: const Text('邀请好友进群'),
+          ))),
+          const Divider(height: 16),
           Expanded(child: ListView.builder(
             itemCount: members.length,
             itemBuilder: (_, i) {
               final m = members[i];
               final nick = (m['nickname'] ?? m['username'] ?? '?').toString();
               final online = m['online'] == true;
+              final mid = m['userId'] ?? m['id'];
               return ListTile(
+                onLongPress: mid is int ? () => _confirmRemoveMember(ctx, gid, mid, nick) : null,
                 leading: Stack(clipBehavior: Clip.none, children: [
                   CircleAvatar(backgroundColor: _wechatGreen, child: Text(nick.isNotEmpty ? nick[0] : '?', style: const TextStyle(color: Colors.white))),
                   if (online) Positioned(right: -1, bottom: -1, child: Container(width: 10, height: 10, decoration: BoxDecoration(color: const Color(0xff07c160), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
                 ]),
                 title: Text(nick),
                 subtitle: Text(online ? '在线' : '离线', style: TextStyle(color: online ? _wechatGreen : widget.config.theme.subText, fontSize: 12)),
+                trailing: Text('长按移出', style: TextStyle(color: widget.config.theme.subText.withValues(alpha: 0.5), fontSize: 10)),
               );
             },
           )),
+          SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(12, 4, 12, 10), child: SizedBox(width: double.infinity, child: OutlinedButton(
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+                title: const Text('退出群聊'),
+                content: Text('确定退出「${conv['name']}」吗？退出后需要重新被邀请才能加入。'),
+                actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('退出'))],
+              ));
+              if (ok != true) return;
+              try {
+                await widget.api.groupLeave(gid);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已退出群聊')));
+                if (mounted) setState(() { selected = -1; messages.clear(); });
+                _loadData();
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('退出失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+              }
+            },
+            child: const Text('退出群聊'),
+          )))),
         ]),
       ));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('加载群成员失败')));
+    }
+  }
+
+  void _confirmRemoveMember(BuildContext sheetCtx, int gid, int userId, String nick) {
+    showDialog(context: context, builder: (d) => AlertDialog(
+      title: const Text('移出成员'),
+      content: Text('将 $nick 移出本群？（仅群主可操作）'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d), child: const Text('取消')),
+        FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () async {
+          Navigator.pop(d);
+          try {
+            await widget.api.groupRemoveMember(gid, userId);
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已移出 $nick')));
+            if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            _showGroupMembers();
+          } catch (e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('移出失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+          }
+        }, child: const Text('移出')),
+      ],
+    ));
+  }
+
+  void _showInviteToGroup(int gid) async {
+    try {
+      final friends = await widget.api.friends();
+      if (!mounted) return;
+      final members = await widget.api.groupMembers(gid);
+      if (!mounted) return;
+      final memberIds = members.map((m) => m['userId'] ?? m['id']).toSet();
+      final candidates = friends.where((f) => !memberIds.contains(f['id'])).toList();
+      if (candidates.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('所有好友都已在群里')));
+        return;
+      }
+      final selected = <int>{};
+      showModalBottomSheet(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) => Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+            Expanded(child: Text('选择好友（已选 ${selected.length}）', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+            FilledButton(onPressed: selected.isEmpty ? null : () async {
+              Navigator.pop(ctx);
+              try {
+                final r = await widget.api.groupInvite(gid, userIds: selected.toList());
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已邀请 ${r['count'] ?? selected.length} 位好友')));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('邀请失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+              }
+            }, child: const Text('邀请')),
+          ])),
+          const Divider(height: 1),
+          Expanded(child: ListView.builder(
+            itemCount: candidates.length,
+            itemBuilder: (_, i) {
+              final f = candidates[i];
+              final fid = f['id'] as int;
+              final name = (f['nickname'] ?? f['username'] ?? '').toString();
+              final checked = selected.contains(fid);
+              return CheckboxListTile(
+                value: checked,
+                onChanged: (_) => setSheet(() { checked ? selected.remove(fid) : selected.add(fid); }),
+                secondary: CircleAvatar(backgroundColor: _wechatGreen, child: Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(color: Colors.white))),
+                title: Text(name),
+              );
+            },
+          )),
+        ]),
+      )));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('加载好友列表失败')));
     }
   }
 

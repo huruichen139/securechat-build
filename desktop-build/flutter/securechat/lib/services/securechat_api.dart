@@ -349,6 +349,12 @@ class SecureChatApi {
     return ((data['members'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> groupInvite(int groupId, {List<int>? userIds}) =>
+      _json('POST', '/api/groups/$groupId/invite', body: {'userIds': userIds ?? <int>[]});
+  Future<void> groupRemoveMember(int groupId, int userId) =>
+      _json('POST', '/api/groups/$groupId/remove', body: {'userId': userId});
+  Future<void> groupLeave(int groupId) => _json('POST', '/api/groups/$groupId/leave');
+
   Future<List<Map<String, dynamic>>> groupHistory(int groupId) async {
     final data = await _json('GET', '/api/groups/$groupId/messages');
     return ((data['messages'] as List?) ?? const []).cast<Map<String, dynamic>>();
