@@ -4635,31 +4635,83 @@ const CHAT_BGS = [
   { name: '默认', color: '' },
   { name: '米白', color: '#f8fafc' },
   { name: '浅灰', color: '#e8eaed' },
+  { name: '深灰', color: '#3a3a3c' },
   { name: '墨绿', color: '#2f4f43' },
   { name: '藏青', color: '#2b3a55' },
   { name: '暖橙', color: '#f5e6d3' },
   { name: '淡蓝', color: '#dbe9f7' },
   { name: '雾紫', color: '#e6e0f0' },
+  { name: '樱花粉', color: '#fce4ec' },
+  { name: '薄荷绿', color: '#e0f2f1' },
+  { name: '日落', color: 'linear-gradient(135deg, #ffecd2, #fcb69f)' },
+  { name: '极光', color: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)' },
+  { name: '森林', color: 'linear-gradient(135deg, #d4fc79, #96e6a1)' },
+  { name: '星空', color: 'linear-gradient(135deg, #0c0c1d, #1a1a3e)' },
+  { name: '晚霞', color: 'linear-gradient(135deg, #fa709a, #fee140)' },
 ];
 function applyChatBg(color) {
   const key = 'chatBgColor';
-  if (color) { localStorage.setItem(key, color); document.documentElement.style.setProperty('--chat-bg', color); }
-  else { localStorage.removeItem(key); document.documentElement.style.removeProperty('--chat-bg'); }
+  if (color) {
+    localStorage.setItem(key, color);
+    if (color.startsWith('data:') || color.startsWith('http')) {
+      document.documentElement.style.setProperty('--chat-bg', 'url(' + color + ') center/cover no-repeat');
+    } else {
+      document.documentElement.style.setProperty('--chat-bg', color);
+    }
+  } else {
+    localStorage.removeItem(key);
+    document.documentElement.style.removeProperty('--chat-bg');
+  }
 }
 function initChatBg() {
-  try { const c = localStorage.getItem('chatBgColor'); if (c) document.documentElement.style.setProperty('--chat-bg', c); } catch (e) {}
+  try {
+    const c = localStorage.getItem('chatBgColor');
+    if (c) {
+      if (c.startsWith('data:') || c.startsWith('http')) {
+        document.documentElement.style.setProperty('--chat-bg', 'url(' + c + ') center/cover no-repeat');
+      } else {
+        document.documentElement.style.setProperty('--chat-bg', c);
+      }
+    }
+  } catch (e) {}
 }
 function openChatBgPicker() {
   const mask = document.createElement('div');
   mask.className = 'profile-mask';
-  mask.innerHTML = `<div class="profile-card" style="max-width:340px">
-    <div class="profile-head"><div class="profile-name" style="font-size:15px">聊天背景</div></div>
-    <div class="chat-bg-grid">${CHAT_BGS.map(b => `<div class="chat-bg-item" data-c="${escapeHtml(b.color)}" style="${b.color ? 'background:' + b.color : 'background:#f8fafc;border:1px dashed #cbd5e1'}"><span style="${b.color ? '' : 'color:#94a3b8'}">${escapeHtml(b.name)}</span></div>`).join('')}</div>
-  </div>`;
+  const bgHtml = CHAT_BGS.map(b => {
+    const bgStyle = b.color ? ('background:' + b.color) : 'background:#f8fafc;border:1px dashed #cbd5e1';
+    const textStyle = b.color ? 'color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)' : 'color:#94a3b8';
+    return '<div class="chat-bg-item" data-c="' + escapeHtml(b.color) + '" style="' + bgStyle + '"><span style="' + textStyle + ';font-size:11px">' + escapeHtml(b.name) + '</span></div>';
+  }).join('');
+  mask.innerHTML = '<div class="profile-card" style="max-width:380px;max-height:80vh;overflow-y:auto">' +
+    '<div class="profile-head"><div class="profile-name" style="font-size:15px">聊天背景</div></div>' +
+    '<div style="padding:0 4px 12px">' +
+    '<div class="chat-bg-grid">' + bgHtml + '</div>' +
+    '<div style="margin-top:12px;display:flex;gap:8px">' +
+    '<button id="bgUploadBtn" style="flex:1;padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#333">上传图片</button>' +
+    '<button id="bgClearBtn" style="flex:1;padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#fa5151">恢复默认</button>' +
+    '</div></div></div>';
   document.body.appendChild(mask);
   mask.querySelectorAll('.chat-bg-item').forEach(el => {
     el.onclick = () => { applyChatBg(el.dataset.c); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
   });
+  var uploadBtn = mask.querySelector('#bgUploadBtn');
+  if (uploadBtn) {
+    uploadBtn.onclick = () => {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = () => {
+        var file = inp.files[0]; if (!file) return;
+        if (file.size > 5*1024*1024) { toast('图片不能超过5MB', 'warn'); return; }
+        var reader = new FileReader();
+        reader.onload = () => { applyChatBg(reader.result); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
+        reader.readAsDataURL(file);
+      };
+      inp.click();
+    };
+  }
+  var clearBtn = mask.querySelector('#bgClearBtn');
+  if (clearBtn) { clearBtn.onclick = () => { clearChatBg(); mask.remove(); }; }
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 initChatBg();

@@ -2630,9 +2630,10 @@ body.dark-mode .announce-banner { background: #422006; border-color: #78350f; co
 
 /* 聊天背景 —— 默认 #EDEDED 对齐微信；用户自定义走 --chat-bg 变量 */
 .messages { background: var(--chat-bg, #ededed); }
-.chat-bg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 4px 0 10px; }
-.chat-bg-item { height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid transparent; }
-.chat-bg-item:hover { border-color: #10b981; }
+.chat-bg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 4px 0 10px; }
+.chat-bg-item { height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid transparent; transition: transform .15s, border-color .15s; }
+.chat-bg-item:hover { border-color: #10b981; transform: scale(1.05); }
+.chat-bg-item:active { transform: scale(.97); }
 body.dark-mode .chat-bg-item { border-color: #334155; }
 
 /* 转发的消息标记 */
