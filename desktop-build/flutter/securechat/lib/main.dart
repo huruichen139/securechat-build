@@ -632,7 +632,6 @@ class _ChatViewStateState extends State<_ChatView> {
   final _likedMsgs = <String, int>{}; // 双击点赞: msgKey -> 点赞时间戳
   final _mentionMe = <String, bool>{};
   Map<String, dynamic>? _pinnedMsg; // 群聊@我标记 keyed by convKey // 双击点赞: msgKey -> 点赞时间戳
-  Offset? _heartPos; // 爱心动画位置
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -1550,7 +1549,10 @@ class _ChatViewStateState extends State<_ChatView> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(children: [
-                    CircleAvatar(radius: 22, backgroundColor: theme.primary.withValues(alpha: theme.isDark ? 0.25 : 0.14), child: Icon(conv['icon'] as IconData, color: config.primary, size: 22)),
+                    Stack(clipBehavior: Clip.none, children: [
+                      CircleAvatar(radius: 22, backgroundColor: theme.primary.withValues(alpha: theme.isDark ? 0.25 : 0.14), child: Icon(conv['icon'] as IconData, color: config.primary, size: 22)),
+                      if (conv['kind'] == 'friend' && conv['online'] == true) Positioned(right: -1, bottom: -1, child: Container(width: 12, height: 12, decoration: BoxDecoration(color: _wechatGreen, shape: BoxShape.circle, border: Border.all(color: theme.panel, width: 2)))),
+                    ]),
                     const SizedBox(width: 10),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
@@ -1782,19 +1784,6 @@ class _ChatViewStateState extends State<_ChatView> {
     return Icon(read ? Icons.done_all : Icons.done, size: 14, color: read ? _wechatGreen : widget.config.theme.subText);
   }
 
-  String _readLabel(Map<String, dynamic> msg) {
-    if (selConv != null && selConv!['kind'] == 'group') {
-      final rc = (msg['readCount'] as num?)?.toInt() ?? 0;
-      return rc > 1 ? '已读 $rc人' : '已读';
-    }
-    return msg['read'] == true ? '已读' : '未读';
-  }
-
-  Color _readLabelColor(Map<String, dynamic> msg, dynamic t) {
-    if (selConv != null && selConv!['kind'] == 'group') return t.subText;
-    return msg['read'] == true ? t.subText : const Color(0xfffa5151);
-  }
-
   Widget _bubble(Map<String, dynamic> msg, {bool isSearchTarget = false}) {
     if (msg['divider'] == true) {
       return Center(
@@ -2009,7 +1998,9 @@ class _ChatViewStateState extends State<_ChatView> {
   Widget _voiceBubble(bool mine, String id, int? dur) {
     final playing = playingVoiceId == id;
     final t = widget.config.theme;
-    return Container(
+    return GestureDetector(
+      onTap: () => _playVoice(id),
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
         color: mine ? _wechatBubbleMine : t.bubbleOther,
@@ -2030,12 +2021,13 @@ class _ChatViewStateState extends State<_ChatView> {
         const SizedBox(width: 8),
         Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(dur != null ? '语音 ${dur}\u2033' : '语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)), if (playing && _voiceDuration.inMilliseconds > 0) SizedBox(width: 80, child: LinearProgressIndicator(value: _voicePosition.inMilliseconds / _voiceDuration.inMilliseconds, backgroundColor: t.div, valueColor: const AlwaysStoppedAnimation(_wechatGreen), minHeight: 2)),]),
       ]),
+      ),
     );
   }
 
   StreamSubscription? _voiceSub;
 
-  Future<void> _toggleVoice(String id) async {
+  Future<void> _playVoice(String id) async {
     if (playingVoiceId == id) {
       await voicePlayer?.stop();
       if (mounted) setState(() => playingVoiceId = null);
