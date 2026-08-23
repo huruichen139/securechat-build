@@ -67,6 +67,10 @@
     friends: () => _req('GET', '/api/friends'),
     groups: () => _req('GET', '/api/groups'),
 
+    // 在线充值（EPay 真实支付）
+    createRecharge: (amount, type) => _req('POST', '/api/wallet/recharge', { amount, type: type || 'alipay' }),
+    rechargeStatus: (orderNo) => _req('GET', '/api/wallet/recharge/status?orderNo=' + encodeURIComponent(orderNo)),
+
     // 收付款码
     createReceiveCode: (amount, remark) => _req('POST', '/api/pay/code/receive', { amount, remark }),
     createPayCode: () => _req('POST', '/api/pay/code/pay', {}),
@@ -576,7 +580,7 @@
       { label: '扫一扫', icon: '▦', fn: () => scanFlow('receive') },
       { label: '群收款', icon: '群', fn: () => openGroupCollect() },
       { label: '群接龙', icon: '接', fn: () => openGroupSolection() },
-      { label: '充值', icon: '充', fn: () => redeemFlow() },
+      { label: '充值', icon: '充', fn: () => onlineRechargeFlow() },
       { label: '缴费', icon: '缴', fn: () => openLifePay() },
     ];
     items.forEach((it) => {
@@ -607,6 +611,92 @@
       if (document.getElementById('pay-recv')) document.getElementById('pay-recv').textContent = '累计收款 ¥' + Number(w.totalReceived || 0).toFixed(2);
     }).catch(e => {});
     renderBills(billsBox);
+  }
+
+  // 在线充值：走 EPay 真实网关（支付宝/微信），下单后跳转支付并轮询到账
+  function onlineRechargeFlow() {
+    const amount = field('充值金额（元）', '', { type: 'number', placeholder: '例如 10' });
+    let payType = 'alipay';
+    const typeRow = document.createElement('div');
+    typeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
+    const types = [
+      { id: 'alipay', label: '支付宝' },
+      { id: 'wxpay', label: '微信支付' }
+    ];
+    const btns = types.map(t => {
+      const b = document.createElement('button');
+      b.textContent = t.label;
+      b.dataset.type = t.id;
+      b.style.cssText = 'flex:1;padding:10px 0;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13.5px;color:#555';
+      b.onclick = () => {
+        payType = t.id;
+        btns.forEach(x => {
+          const on = x.dataset.type === payType;
+          x.style.borderColor = on ? '#07c160' : '#e5e7eb';
+          x.style.background = on ? 'rgba(7,193,96,.08)' : '#fff';
+          x.style.color = on ? '#07c160' : '#555';
+          x.style.fontWeight = on ? '700' : '400';
+        });
+      };
+      typeRow.appendChild(b);
+      return b;
+    });
+    modal('在线充值', (body) => {
+      body.appendChild(amount.w);
+      const lb = document.createElement('label');
+      lb.textContent = '支付方式';
+      lb.style.cssText = 'display:block;font-size:12px;color:#888;margin-bottom:6px';
+      body.appendChild(lb);
+      body.appendChild(typeRow);
+      const tip = document.createElement('div');
+      tip.id = 'recharge-tip';
+      tip.style.cssText = 'font-size:12px;color:#999;min-height:16px';
+      body.appendChild(tip);
+      const redeemLink = document.createElement('button');
+      redeemLink.textContent = '使用兑换码充值';
+      redeemLink.style.cssText = 'margin-top:4px;background:none;border:none;color:#07c160;font-size:12.5px;cursor:pointer;padding:0';
+      redeemLink.onclick = () => redeemFlow();
+      body.appendChild(redeemLink);
+      setTimeout(() => btns[0].click(), 0);
+    }, (acts, close) => {
+      const go = document.createElement('button');
+      go.className = 'btn-primary'; go.textContent = '去支付';
+      go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-weight:600';
+      go.onclick = async () => {
+        const v = parseFloat(amount.inp.value);
+        if (!Number.isFinite(v) || v < 0.01 || v > 50000) { showToast('请输入有效金额', 'warn'); return; }
+        go.disabled = true; go.textContent = '下单中...';
+        try {
+          const r = await Pay.createRecharge(v, payType);
+          close();
+          showToast('已创建订单，正在打开支付页面...', 'success');
+          window.open(r.payUrl, '_blank');
+          // 轮询到账
+          let paid = false;
+          for (let i = 0; i < 60 && !paid; i++) {
+            await new Promise(res => setTimeout(res, 3000));
+            try {
+              const st = await Pay.rechargeStatus(r.orderNo);
+              if (st.status === 'paid') {
+                paid = true;
+                showToast('充值成功 +¥' + Number(st.amount).toFixed(2), 'success', 4000);
+                try { Pay.wallet().then(w => {
+                  const bal = document.getElementById('pay-bal');
+                  if (bal) bal.textContent = Number(w.balance).toFixed(2);
+                  const recv = document.getElementById('pay-recv');
+                  if (recv) recv.textContent = '累计收款 ¥' + Number(w.totalReceived || 0).toFixed(2);
+                }).catch(e => {}); } catch (e) {}
+              }
+            } catch (e) {}
+          }
+          if (!paid) showToast('订单未完成支付，如已支付请稍后刷新余额', 'warn', 4000);
+        } catch (e) {
+          go.disabled = false; go.textContent = '去支付';
+          showToast('下单失败：' + e.message, 'error');
+        }
+      };
+      acts.appendChild(go);
+    });
   }
 
   // 兑换码充值（复用巨石 /api/wallet/redeem）
@@ -646,7 +736,7 @@
     homePanel: homePanel, renderBills: renderBills,
     openTransfer: openTransfer, showReceiveCodeFlow: showReceiveCodeFlow, scanFlow: scanFlow,
     openGroupCollect: openGroupCollect, openGroupSolection: openGroupSolection,
-    openLifePay: openLifePay, redeemFlow: redeemFlow,
+    openLifePay: openLifePay, redeemFlow: redeemFlow, onlineRechargeFlow: onlineRechargeFlow,
     mount: homePanel,
     api: Pay,
   };
