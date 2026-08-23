@@ -177,11 +177,13 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 }
 .auth-sub { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 26px; }
 .tabs {
-  display: flex; gap: 4px;
+  display: flex; gap: 0; width: 100%;
   background: var(--surface2);
+  border: 1px solid var(--border);
   border-radius: var(--r-md);
   padding: 4px;
   margin-bottom: 20px;
+  box-sizing: border-box;
 }
 .tab {
   flex: 1; text-align: center; padding: 8px 0;
@@ -189,17 +191,23 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   color: var(--muted); cursor: pointer; transition: all .18s;
 }
 .tab.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(18,24,38,.08); }
-.auth-wrap input { width: 100%; margin-bottom: 12px; padding: 11px 14px; }
-.code-row { display: flex; gap: 8px; }
+.auth-wrap input { width: 100%; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; background: #fff; box-sizing: border-box; }
+.auth-wrap input:focus { border-color: var(--accent); outline: none; }
+.code-row { display: flex; gap: 8px; width: 100%; }
 .code-row input { flex: 1; }
 .err { color: var(--danger); font-size: 12.5px; min-height: 18px; margin-top: 6px; }
-.login-mode-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.login-mode-btn {
-  flex: 1; padding: 7px 0; border-radius: var(--r-sm);
+.login-mode-row {
+  display: flex; gap: 0; margin-bottom: 12px; width: 100%;
   background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); font-size: 13px;
+  border-radius: var(--r-sm); padding: 3px;
+  box-sizing: border-box;
 }
-.login-mode-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.login-mode-btn {
+  flex: 1; padding: 7px 0; border-radius: 7px;
+  background: transparent; border: none;
+  color: var(--muted); font-size: 13px; font-weight: 500;
+}
+.login-mode-btn.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .qr-login-tip { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
 
 /* ============       ============ */
