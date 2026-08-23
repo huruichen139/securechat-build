@@ -22,6 +22,7 @@ import 'services/x3dh.dart';
 import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
+import 'widgets/ux.dart';
 import 'call_page.dart';
 import 'deeplink.dart';
 import 'qr_confirm_page.dart';
@@ -32,6 +33,10 @@ import 'me_page.dart';
 import 'community_tools_page.dart';
 
 const Color _wechatGreen = Color(0xff07c160);
+
+// 全局好友申请（新的朋友）：ContactsView 与聊天视图共享
+final gFriendReqs = <int, Map<String, dynamic>>{};
+final gFriendReqTick = ValueNotifier<int>(0);
 const Color _wechatBubbleMine = Color(0xff95EC69);
 
 Future<void> main() async {
@@ -1328,6 +1333,16 @@ class _ChatViewStateState extends State<_ChatView> {
           final nick = (p['fromNick'] ?? '某').toString();
           if (!mounted) return;
           try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$nick 拍了拍你'), duration: const Duration(seconds: 2))); } catch (_) {}
+        } else if (type == 'friend_req') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final fu = (p['fromUser'] as Map?)?.cast<String, dynamic>();
+          if (fu != null && fu['id'] is int && mounted) {
+            setState(() => gFriendReqs[fu['id'] as int] = fu);
+            gFriendReqTick.value++;
+            try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${fu['nickname'] ?? '有人'} 请求加你为好友'), duration: const Duration(seconds: 3))); } catch (_) {}
+          }
+        } else if (type == 'friend_list') {
+          if (mounted) _loadData();
         }
       }, onError: (_) {}, onDone: () {
         // WebSocket断开后指数退避重连
@@ -3381,6 +3396,11 @@ class _ContactsViewStateState extends State<ContactsView> {
         : CustomScrollView(
             slivers: [
               SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: TextField(controller: _cSearchCtrl, style: TextStyle(color: t.text), decoration: InputDecoration(hintText: '搜索联系人/群聊', hintStyle: TextStyle(color: t.subText), prefixIcon: Icon(Icons.search, color: t.subText), isDense: true, filled: true, fillColor: t.inputBg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none)), onChanged: (v) => setState(() => _cSearch = v)))),
+              SliverToBoxAdapter(child: Container(margin: const EdgeInsets.only(top: 8, left: 16, right: 16), decoration: BoxDecoration(color: t.card.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(10)), child: Column(children: [
+                _contactActionCell(t, Icons.person_add_alt_1, const Color(0xfffa9d3b), '新的朋友', badge: gFriendReqs.isEmpty ? null : gFriendReqs.length, onTap: _showFriendRequests),
+                CellDivider(config: widget.config, indent: 68),
+                _contactActionCell(t, Icons.group_add, _wechatGreen, '添加朋友', onTap: _showAddFriendDialog),
+              ]))),
               _contactSection('联系人', _filterList(contacts), t),
               _contactSection('群聊', _filterList(groups), t),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -3396,6 +3416,79 @@ class _ContactsViewStateState extends State<ContactsView> {
     if (q.isEmpty) return list;
     return list.where((c) => (c['name'] as String).toLowerCase().contains(q)).toList();
   }
+
+  Widget _contactActionCell(AppTheme t, IconData icon, Color iconBg, String label, {int? badge, VoidCallback? onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(children: [
+            Stack(clipBehavior: Clip.none, children: [
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: Colors.white, size: 22)),
+              if (badge != null && badge > 0) Positioned(right: -4, top: -4, child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(9)), constraints: const BoxConstraints(minWidth: 16), child: Text('$badge', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10)))),
+            ]),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w500))),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  void _showFriendRequests() {
+    final api = widget.api;
+    showModalBottomSheet(context: context, builder: (ctx) => ValueListenableBuilder<int>(
+      valueListenable: gFriendReqTick,
+      builder: (_, __, ___) => SafeArea(child: gFriendReqs.isEmpty
+        ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('暂无好友申请', style: TextStyle(color: Colors.grey))))
+        : ListView(shrinkWrap: true, children: [
+            for (final e in gFriendReqs.entries)
+              ListTile(
+                leading: CircleAvatar(backgroundColor: _wechatGreen, child: Text(((e.value['nickname'] ?? e.value['username'] ?? '?') as String).isNotEmpty ? ((e.value['nickname'] ?? e.value['username'] ?? '?') as String)[0] : '?', style: const TextStyle(color: Colors.white))),
+                title: Text((e.value['nickname'] ?? e.value['username'] ?? '').toString()),
+                subtitle: Text('UID: ${(e.value['uid'] ?? '').toString()}'),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  TextButton(onPressed: () async {
+                    try { await api.acceptFriend(e.key); } catch (_) {}
+                    gFriendReqs.remove(e.key); gFriendReqTick.value++;
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) { setState(() {}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已添加好友'))); }
+                  }, child: const Text('接受', style: TextStyle(color: _wechatGreen))),
+                  TextButton(onPressed: () async {
+                    try { await api.rejectFriend(e.key); } catch (_) {}
+                    gFriendReqs.remove(e.key); gFriendReqTick.value++;
+                    if (mounted) setState(() {});
+                  }, child: const Text('拒绝', style: TextStyle(color: Colors.red))),
+                ]),
+              ),
+          ])),
+    ));
+  }
+
+  void _showAddFriendDialog() {
+    final uidC = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('添加朋友'),
+      content: TextField(controller: uidC, autofocus: true, decoration: const InputDecoration(hintText: '输入对方 UID')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          final uid = uidC.text.trim();
+          if (uid.isEmpty) return;
+          Navigator.pop(ctx);
+          try {
+            await widget.api.addFriend(uid);
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已向 $uid 发送好友申请')));
+          } catch (e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('申请失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+          }
+        }, child: const Text('发送申请')),
+      ],
+    ));
+  }
+
   Widget _contactSection(String title, List<Map<String, dynamic>> list, AppTheme t) {
     if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
     return SliverList(
