@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
 const PACKAGE_VERSION = '1.63.9';
@@ -590,45 +590,31 @@ function renderMyInfo() {
   const hasImg = state.me && state.me.avatar;
   const avHtml = hasImg ? '<img src="' + escapeHtml(state.me.avatar) + '">'
     : avatarChar(state.me.nickname);
-  // 地区：country/province/city 是独立列；若三者皆空，再尝试从 extra 取现住地（currentAddress / hometown）
   const c = (state.me && state.me.country) || '';
   const p = (state.me && state.me.province) || '';
   const ct = (state.me && state.me.city) || '';
   const regionParts = [c, p, ct].filter(Boolean);
   const extra = (state.me && state.me.extra) || {};
   let regionText = regionParts.join(' ');
-  if (!regionText) {
-    const cur = extra.currentAddress || extra.hometown || '';
-    if (cur) regionText = cur;
-  }
-  let regionHtml;
-  if (regionText) {
-    regionHtml = '<div class="my-id region-display" style="cursor:pointer" title="点击编辑资料">' + escapeHtml(regionText) + '</div>';
-  } else {
-    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">地区：未设置，点“资料”填写</div>';
-  }
+  if (!regionText) { const cur = extra.currentAddress || extra.hometown || ''; if (cur) regionText = cur; }
+  let regionHtml = regionText ? '<span class="region-display">' + escapeHtml(regionText) + '</span>' : '';
   const dark = document.body.classList.contains('dark-mode');
-  $('myInfo').innerHTML = '<div class="account-card">'
-    + '<div class="account-main">'
+  $('myInfo').innerHTML = '<div class="me-top-row">'
     + '<div class="avatar my-avatar" id="myAvatar" title="点击换头像">' + avHtml + '</div>'
-    + '<div class="account-copy"><div class="my-name">' + escapeHtml(state.me.nickname) + '</div>'
-    + '<div class="my-id" id="myIdText" style="cursor:pointer" title="点击复制ID">ID: ' + (state.me.uid || '') + '</div></div>'
+    + '<div class="me-meta"><div class="my-name">' + escapeHtml(state.me.nickname) + '</div>'
+    + '<div class="my-id" id="myIdText" style="cursor:pointer" title="点击复制ID">ID: ' + (state.me.uid || '') + (regionText ? ' | ' + regionHtml : '') + '</div></div>'
     + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', '退出登录')) + '">' + escapeHtml(t('logout', '退出')) + '</button>'
     + '</div>'
-    + '<div class="account-region">' + regionHtml + '</div>'
-    + '<div class="account-toolbar">'
-    + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', '资料')) + '</button>'
-    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '改 ID')) + '</button>'
-    + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', '名片')) + '</button>'
-    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', '扫一扫')) + '</button>'
-    + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
-    + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
+    + '<div class="me-tool-row">'
+    + '<button class="me-tool-btn" id="editProfileBtn">' + escapeHtml(t('profile', '资料')) + '</button>'
+    + '<button class="me-tool-btn" id="editUidBtn">' + escapeHtml(t('editUid', '改ID')) + '</button>'
+    + '<button class="me-tool-btn" id="myCardBtn">' + escapeHtml(t('myCard', '名片')) + '</button>'
+    + '<button class="me-tool-btn" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
+    + '<button class="me-tool-btn" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
     + '<span class="theme-switch" role="group" aria-label="外观主题">'
     + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', '日')) + '</button>'
     + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', '夜')) + '</button>'
-    + '</span></div>'
-    + '</div>';
-  // 账户卡里若子标签后续加了 data-i18n，apply() 会兜底；这里再扫一次。
+    + '</span></div>';
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
   $('myAvatar').onclick = pickAvatar;
   $('bgBtn').onclick = pickChatBg;
