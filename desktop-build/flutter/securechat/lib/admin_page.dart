@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -325,6 +327,10 @@ class _UsersTabState extends State<_UsersTab> {
                 Navigator.pop(ctx);
                 final reason = (u['banned'] == true) ? '' : await _prompt('封禁原因（可选）', '');
                 if (reason == null) return;
+                if (u['banned'] != true) {
+                  final c = await _prompt('输入「封禁」确认执行', '');
+                  if (c != '封禁') return;
+                }
                 await _act(
                   () => widget.api.adminBan(u['id'] as int, banned: (u['banned'] != true), reason: reason),
                   okMsg: (u['banned'] == true) ? '已解封' : '已封禁',
@@ -336,6 +342,19 @@ class _UsersTabState extends State<_UsersTab> {
               title: Text('强制下线', style: TextStyle(color: _t.text)),
               onTap: () async {
                 Navigator.pop(ctx);
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (d) => AlertDialog(
+                    backgroundColor: _t.card,
+                    title: Text('强制下线', style: TextStyle(color: _t.text)),
+                    content: Text('确定将 ${u['username'] ?? '该用户'} 强制下线？', style: TextStyle(color: _t.text)),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('取消')),
+                      FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('确定')),
+                    ],
+                  ),
+                );
+                if (ok != true) return;
                 await _act(() => widget.api.adminKick(u['id'] as int), okMsg: '已强制下线');
               },
             ),
@@ -358,7 +377,8 @@ class _UsersTabState extends State<_UsersTab> {
                 if (confirm != '重置') return;
                 // 生成 8 位随机密码
                 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-                final rnd = List.generate(8, (i) => chars[(DateTime.now().microsecondsSinceEpoch * 31 + i * 13) % chars.length]).join();
+                final r = math.Random.secure();
+                final rnd = List.generate(8, (_) => chars[r.nextInt(chars.length)]).join();
                 await _act(() async {
                   await widget.api.adminResetPassword(u['id'] as int, rnd);
                   if (!mounted) return;

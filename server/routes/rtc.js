@@ -87,6 +87,10 @@ module.exports = function registerRtc(app, db, auth) {
   try { fs.mkdirSync(FH_DIR, { recursive: true }); } catch (e) {}
 
   function requireAuth(req, res) {
+    // 下载类请求允许 ?t=<jwt> 携带令牌（浏览器直接下载无 Authorization 头）
+    if (!req.headers.authorization && req.query && typeof req.query.t === 'string' && req.query.t) {
+      try { req.headers.authorization = 'Bearer ' + String(req.query.t); } catch (e) {}
+    }
     const u = apiUser(req);
     if (!u || !u.id) {
       res.status(401).json({ error: '未授权' });
@@ -111,6 +115,13 @@ module.exports = function registerRtc(app, db, auth) {
       return res.status(400).json({ error: 'to 或 sub 无效' });
     }
     if (toId === me) return res.status(400).json({ error: '不能发给自己' });
+    let blocked = false;
+    try {
+      blocked = !!prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(toId, me, me, toId);
+    } catch (e) { blocked = false; }
+    if (blocked) return res.status(403).json({ error: '无法向该用户发送信令' });
+    if ((inbox.get(toId) || []).length >= 200) return res.status(429).json({ error: '信令队列已满' });
+    if (JSON.stringify(data || null).length > 16384) return res.status(400).json({ error: '信令数据过大' });
     pushSignal(toId, me, String(sub).slice(0, 40), data);
     res.json({ ok: true });
   });
@@ -149,17 +160,32 @@ module.exports = function registerRtc(app, db, auth) {
       const raw = require('express').raw({ type: 'application/octet-stream', limit: '100mb' });
       return raw(req, res, next);
     },
-    (req, res) => {
+    async (req, res) => {
       const me = requireAuth(req, res);
       if (!me) return;
       if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '文件为空' });
+      let quota = { c: 0, s: 0 };
+      try {
+        const rows = prepare(
+          `SELECT content FROM messages WHERE to_id=? AND from_id=? AND content LIKE '文件:%'`
+        ).all(FILEHELPER_ID, me);
+        quota.c = rows.length;
+        for (const r of rows) {
+          const m = /^文件:([0-9a-f-]{8,}):(\{.*\})$/.exec(String(r.content || ''));
+          if (!m) continue;
+          try { quota.s += JSON.parse(m[2]).size || 0; } catch (e) {}
+        }
+      } catch (e) {}
+      if (quota.c >= 500 || quota.s + req.body.length > 1024 * 1024 * 1024) {
+        return res.status(400).json({ error: '文件助手空间已满（上限500个或1GB）' });
+      }
       const name = String(req.query.name || 'file').trim().slice(0, 240) || 'file';
       const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
       const id = crypto.randomUUID();
       const filePath = path.join(FH_DIR, id + '.bin');
       const now = Date.now();
       try {
-        fs.writeFileSync(filePath, req.body);
+        await fs.promises.writeFile(filePath, req.body);
         // messages 表：from=self , to=FILEHELPER_ID；content 携带文件元信息供端上解析。
         const marker = '文件:' + id + ':' + JSON.stringify({ name, mime, size: req.body.length, at: now });
         prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)')

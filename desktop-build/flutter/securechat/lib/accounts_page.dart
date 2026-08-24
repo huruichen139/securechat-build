@@ -27,6 +27,7 @@ class _AccountsPageState extends State<AccountsPage> {
   }
 
   Future<void> _reload() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -50,6 +51,7 @@ class _AccountsPageState extends State<AccountsPage> {
     try {
       await widget.api.followAccount(id, on: newOn);
     } catch (_) {
+      if (!mounted) return;
       setState(() => a['followed'] = followed ? 1 : 0);
     }
   }

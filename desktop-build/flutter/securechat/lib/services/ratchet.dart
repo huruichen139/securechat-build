@@ -289,7 +289,6 @@ String encryptMessage(RatchetState state, String plain) {
     state.sendChainKey = parts[1];
     state.dhSelf = dh;
     state.sendN = 0;
-    state.recvN = 0;
   }
   final kdfOut = _kdfChain(state.sendChainKey!);
   state.sendChainKey = kdfOut[0];
@@ -341,15 +340,30 @@ String decryptMessage(RatchetState state, String b64) {
     // 简化：不维护 skipped-key；假设消息严格按序到达
     // 用当前 dhSelf 的私钥跟新的 dhPub 做 ECDH（接收方首次 dhSelf = 身份密钥对）
     if (state.dhSelf == null) throw StateError('无身份私钥，无法完成 DH-step');
-    state.dhRemote = dhPub;
-    state.pn = pn;
-    state.recvN = 0;
-    state.sendN = 0;
     final dhOut = _ecdh(state.dhSelf!.priv, dhPub);
     final parts = _kdfRk(state.rootKey, dhOut);
-    state.rootKey = parts[0];
-    state.recvChainKey = parts[1];
+    final newRoot = parts[0];
+    final newRecvChain = parts[1];
+    if (n < 0) throw StateError('消息序号无效');
+    var chainKey = newRecvChain;
+    var recvIdx = 0;
+    if (n - recvIdx > 1000) throw StateError('消息序号跳跃过大');
+    while (recvIdx < n) {
+      final k = _kdfChain(chainKey);
+      chainKey = k[0];
+      recvIdx++;
+    }
+    final k = _kdfChain(chainKey);
+    final messageKey = k[1];
+    final plain = _aesGcmDecrypt(messageKey, iv, ctWithTag);
+    state.dhRemote = dhPub;
+    state.pn = pn;
+    state.recvN = recvIdx + 1;
+    state.sendN = 0;
+    state.rootKey = newRoot;
+    state.recvChainKey = k[0];
     state.sendChainKey = null; // 下次我发送时会用新 dh 做 DH-step
+    return utf8.decode(plain);
   }
   if (state.recvChainKey == null) throw StateError('接收链未初始化');
   if (n < state.recvN) throw StateError('消息已处理或序号过旧');
