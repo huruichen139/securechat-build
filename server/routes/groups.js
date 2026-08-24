@@ -623,6 +623,26 @@ module.exports = function registerGroups(app, db, auth) {
     }
     res.json({ ok: true });
   });
+
+  // 群消息编辑：POST /api/groups/:id/messages/:msgId/edit
+  app.post('/api/groups/:id/messages/:msgId/edit', mw, (req, res) => {
+    const groupId = parseInt(req.params.id, 10);
+    const msgId = parseInt(req.params.msgId, 10);
+    if (!Number.isInteger(groupId) || !Number.isInteger(msgId)) return fail(res, 400, '参数错误');
+    const msg = p.get('SELECT id,from_id,content,recalled FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
+    if (!msg) return fail(res, 404, '消息不存在');
+    if (msg.from_id !== req.user.id) return fail(res, 403, '只能编辑自己发送的消息');
+    if (msg.recalled) return fail(res, 400, '已撤回的消息无法编辑');
+    const content = (req.body || {}).content;
+    if (!content || typeof content !== 'string' || !content.trim()) return fail(res, 400, '内容不能为空');
+    try {
+      p.run('UPDATE group_messages SET content=? WHERE id=?', content.trim(), msgId);
+    } catch (e) {
+      return fail(res, 500, '编辑失败：' + ((e && e.message) || e));
+    }
+    res.json({ ok: true, messageId: msgId, content: content.trim() });
+  });
+
   module.exports.attachGroupBroadcast = setBroadcastHook;
   module.exports.attachGroupRecall = setRecallHook;
   return { ok: true, routes: ['/api/groups/*'] };

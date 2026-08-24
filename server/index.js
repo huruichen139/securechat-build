@@ -923,6 +923,23 @@ app.post('/api/messages/:id/recall', (req, res) => {
   res.json({ ok: true, messageId: id });
 });
 
+// ---------- 消息编辑 ----------
+app.post('/api/messages/:id/edit', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const id = parseInt(req.params.id, 10);
+  const row = prepare('SELECT id,from_id,content,recalled FROM messages WHERE id=?').get(id);
+  if (!row) return res.status(404).json({ error: '消息不存在' });
+  if (row.from_id !== payload.id) return res.status(403).json({ error: '只能编辑自己发送的消息' });
+  if (row.recalled) return res.status(400).json({ error: '已撤回的消息无法编辑' });
+  const content = (req.body || {}).content;
+  if (!content || typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
+  prepare('UPDATE messages SET content=? WHERE id=?').run(content.trim(), id);
+  persist();
+  res.json({ ok: true, messageId: id, content: content.trim() });
+});
+
 // 文字消息 REST 发送入口：不依赖发送方浏览器的 WebSocket 状态。
 // ---------- 拉黑（黑名单）----------
 // 拉黑：POST /api/block { targetId }；解除：POST /api/unblock { targetId }；列表：GET /api/blocklist

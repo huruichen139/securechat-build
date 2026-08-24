@@ -60,6 +60,14 @@ class SecureChatApi {
     await _json('POST', '/api/groups/${groupId}/messages/${msgId}/recall', body: {});
   }
 
+  Future<void> editMessage(int msgId, String content) async {
+    await _json('POST', '/api/messages/${msgId}/edit', body: {'content': content});
+  }
+
+  Future<void> editGroupMessage(int groupId, int msgId, String content) async {
+    await _json('POST', '/api/groups/${groupId}/messages/${msgId}/edit', body: {'content': content});
+  }
+
   Future<void> clearSession() async {
     token = null;
     myId = null;

@@ -348,10 +348,41 @@ Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, Secure
       await api.recallMessage(msgId);
     }
     if (onRecalled != null) onRecalled();
-    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('已撤回')));
+    if (ctx.mounted) {
+      final text = msg['text']?.toString() ?? '';
+      final isMine = msg['mine'] == true;
+      if (isMine && text.isNotEmpty) {
+        final reEdit = await showDialog<bool>(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('已撤回'),
+            content: const Text('消息已撤回，是否重新编辑？'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('重新编辑')),
+            ],
+          ),
+        );
+        if (reEdit == true && ctx.mounted) {
+          Navigator.pop(ctx); // close bottom sheet if open
+          // Return the text via a callback mechanism
+          _pendingReEditText = text;
+        }
+      } else {
+        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('已撤回')));
+      }
+    }
   } catch (e) {
     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('撤回失败：$e')));
   }
+}
+
+/// 用于暂存撤回后重新编辑的文本
+String? _pendingReEditText;
+String? consumePendingReEditText() {
+  final t = _pendingReEditText;
+  _pendingReEditText = null;
+  return t;
 }
 
 /// 8. 快捷回复按钮 (在 composer 中使用)

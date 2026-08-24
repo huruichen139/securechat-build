@@ -618,6 +618,7 @@ class _ChatViewStateState extends State<_ChatView> {
   final _sentIds = <String>{};
   int? replyingTo;
   String? replyPreview;
+  int? _editingMsgId;
   final inputFocus = FocusNode();
   final searchCtrl = TextEditingController();
   final ScrollController _msgScroll = ScrollController();
@@ -920,8 +921,8 @@ class _ChatViewStateState extends State<_ChatView> {
           final read = mine || m['read'] == true;
           final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
           msgs.add(voice != null
-              ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount}
-              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount});
+              ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true}
+              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true});
         }
         final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
         final pinned = dedup.where((m) => m['pinned'] == true).toList();
@@ -949,8 +950,8 @@ class _ChatViewStateState extends State<_ChatView> {
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
         final read = m['read'] == true;
         msgs.add(voice != null
-            ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read}
-            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read});
+            ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true}
+            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true});
       }
       final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
       final pinned = dedup.where((m) => m['pinned'] == true).toList();
@@ -1223,7 +1224,12 @@ class _ChatViewStateState extends State<_ChatView> {
           if (msgId == null) return;
           setState(() {
             for (int i = messages.length - 1; i >= 0; i--) {
-              if (messages[i]['id'] == msgId) { messages.removeAt(i); break; }
+              if (messages[i]['id'] == msgId) {
+                messages[i]['recalled'] = true;
+                messages[i]['text'] = '';
+                messages[i]['voiceId'] = null;
+                break;
+              }
             }
           });
           if (selConv != null) {
@@ -1269,7 +1275,16 @@ class _ChatViewStateState extends State<_ChatView> {
           if (p['recalled'] == true) {
             final recalledMsgId = p['id'];
             if (recalledMsgId != null) {
-              setState(() { for (int i = messages.length - 1; i >= 0; i--) { if (messages[i]['id'] == recalledMsgId) { messages.removeAt(i); break; } } });
+              setState(() {
+                for (int i = messages.length - 1; i >= 0; i--) {
+                  if (messages[i]['id'] == recalledMsgId) {
+                    messages[i]['recalled'] = true;
+                    messages[i]['text'] = '';
+                    messages[i]['voiceId'] = null;
+                    break;
+                  }
+                }
+              });
             }
             return;
           }
@@ -1755,8 +1770,23 @@ class _ChatViewStateState extends State<_ChatView> {
           ]),
         ),
       if (replyingTo != null) _replyBar(),
+      if (_editingMsgId != null) _editBar(),
       _composer(),
     ]);
+  }
+
+  Widget _editBar() {
+    final t = widget.config.theme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      color: t.panel.withValues(alpha: 0.5),
+      child: Row(children: [
+        Icon(Icons.edit_outlined, color: _wechatGreen, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text('编辑消息', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12))),
+        IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { setState(() { _editingMsgId = null; input.clear(); }); }, color: t.subText),
+      ]),
+    );
   }
 
   Widget _replyBar() {
@@ -1822,6 +1852,18 @@ class _ChatViewStateState extends State<_ChatView> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
           decoration: BoxDecoration(color: widget.config.theme.div.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(4)),
           child: Text(msg['label'] ?? '', style: TextStyle(color: widget.config.theme.subText, fontSize: 11)),
+        ),
+      );
+    }
+    if (msg['recalled'] == true) {
+      final mineRecall = msg['mine'] == true;
+      final who = mineRecall ? '你' : (msg['sender']?.toString().isNotEmpty == true ? msg['sender'].toString() : '对方');
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(color: widget.config.theme.div.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(4)),
+          child: Text('$who撤回了一条消息', style: TextStyle(color: widget.config.theme.subText, fontSize: 11)),
         ),
       );
     }
@@ -1937,7 +1979,13 @@ class _ChatViewStateState extends State<_ChatView> {
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
-      child: _chatSearchQuery.isNotEmpty ? _highlightText(msg['text'] as String, _chatSearchQuery, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)) : SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+        _chatSearchQuery.isNotEmpty ? _highlightText(msg['text'] as String, _chatSearchQuery, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)) : SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
+        if (msg['edited'] == true) Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text('已编辑', style: TextStyle(color: mine ? const Color(0xff191919).withValues(alpha: 0.45) : t.subText, fontSize: 10)),
+        ),
+      ]),
     );
   }
 
@@ -2466,6 +2514,26 @@ class _ChatViewStateState extends State<_ChatView> {
     final conv = selConv;
     final text = input.text.trim();
     if (conv == null || text.isEmpty) return;
+    // Handle edit mode
+    if (_editingMsgId != null) {
+      final editId = _editingMsgId!;
+      setState(() => _editingMsgId = null);
+      input.clear();
+      try {
+        if (conv['kind'] == 'group') {
+          await widget.api.editGroupMessage(conv['id'] as int, editId, text);
+        } else {
+          await widget.api.editMessage(editId, text);
+        }
+        setState(() {
+          final idx = messages.indexWhere((m) => m['id'] == editId);
+          if (idx >= 0) { messages[idx]['text'] = text; messages[idx]['edited'] = true; }
+        });
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('编辑失败：$e')));
+      }
+      return;
+    }
     final replyMsg = replyingTo;
     await _flushReplyBar();
     input.clear();
@@ -2569,6 +2637,20 @@ class _ChatViewStateState extends State<_ChatView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('收藏失败：$e')));
     }
+  }
+
+  void _editMessage(Map<String, dynamic> msg) {
+    final text = msg['text']?.toString() ?? '';
+    if (text.isEmpty) return;
+    if (msg['recalled'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已撤回的消息无法编辑')));
+      return;
+    }
+    setState(() {
+      input.text = text;
+      _editingMsgId = msg['id'] as int?;
+    });
+    inputFocus.requestFocus();
   }
 
   Future<void> _pinMessage(Map<String, dynamic> msg) async {
@@ -2740,6 +2822,7 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.copy), title: const Text('复制'), onTap: () { Navigator.pop(sheetCtx); _copyMessage(msg); }),
           ListTile(leading: const Icon(Icons.checklist), title: const Text('多选'), onTap: () { Navigator.pop(sheetCtx); _toggleMultiSelect(); }),
           ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
+          if (isFromMe) ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('编辑'), onTap: () { Navigator.pop(sheetCtx); _editMessage(msg); }),
           ListTile(leading: const Icon(Icons.forward), title: const Text('转发'), onTap: () { Navigator.pop(sheetCtx); _forwardMessage(msg); }),
           ListTile(leading: const Icon(Icons.share), title: const Text('分享'), onTap: () { Navigator.pop(sheetCtx); _shareMessage(msg); }),
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
@@ -2792,7 +2875,19 @@ class _ChatViewStateState extends State<_ChatView> {
       onRecalled: () {
         setState(() {
           final idx = messages.indexWhere((m) => m['id'] == msg['id'] || (msg['cmid'] != null && m['cmid'] == msg['cmid']));
-          if (idx >= 0) messages.removeAt(idx);
+          if (idx >= 0) {
+            messages[idx]['recalled'] = true;
+            messages[idx]['text'] = '';
+            messages[idx]['voiceId'] = null;
+          }
+        });
+        // Check if re-edit was requested
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final reText = consumePendingReEditText();
+          if (reText != null && mounted) {
+            input.text = reText;
+            inputFocus.requestFocus();
+          }
         });
       },
     );
@@ -3135,7 +3230,12 @@ class _ChatViewStateState extends State<_ChatView> {
     if (mounted) {
       setState(() {
         for (final msg in _selectedMsgs) {
-          messages.removeWhere((m) => m['id'] == msg['id']);
+          final idx = messages.indexWhere((m) => m['id'] == msg['id']);
+          if (idx >= 0) {
+            messages[idx]['recalled'] = true;
+            messages[idx]['text'] = '';
+            messages[idx]['voiceId'] = null;
+          }
         }
         _selectedMsgs.clear();
         _multiSelectMode = false;
@@ -3584,6 +3684,43 @@ class _ContactsViewStateState extends State<ContactsView> {
     return list.where((c) => (c['name'] as String).toLowerCase().contains(q)).toList();
   }
 
+  /// Get first letter for alphabetical grouping (supports Chinese pinyin initials)
+  String _getLetter(String name) {
+    if (name.isEmpty) return '#';
+    final ch = name[0];
+    // ASCII letter
+    if (ch.codeUnitAt(0) >= 65 && ch.codeUnitAt(0) <= 90) return ch.toUpperCase();
+    if (ch.codeUnitAt(0) >= 97 && ch.codeUnitAt(0) <= 122) return ch.toUpperCase();
+    // Chinese characters: use Unicode block as rough pinyin
+    final cu = ch.codeUnitAt(0);
+    if (cu >= 0x4E00 && cu <= 0x9FFF) {
+      // Common Chinese character pinyin first letter mapping (simplified)
+      if (cu >= 0x554A && cu <= 0x5F6A) return 'A';
+      if (cu >= 0x5F6B && cu <= 0x6BD2) return 'B';
+      if (cu >= 0x6BD3 && cu <= 0x7324) return 'C';
+      if (cu >= 0x7325 && cu <= 0x7F56) return 'D';
+      if (cu >= 0x7F57 && cu <= 0x8BA0) return 'E';
+      if (cu >= 0x8BA1 && cu <= 0x9635) return 'F';
+      if (cu >= 0x9636 && cu <= 0x9ECE) return 'G';
+      if (cu >= 0x9ECF && cu <= 0xA4C6) return 'H';
+      if (cu >= 0xA4C7 && cu <= 0xA9C0) return 'J';
+      if (cu >= 0xA9C1 && cu <= 0xAD7D) return 'K';
+      if (cu >= 0xAD7E && cu <= 0xB800) return 'L';
+      if (cu >= 0xB801 && cu <= 0xC6B4) return 'M';
+      if (cu >= 0xC6B5 && cu <= 0xD2B2) return 'N';
+      if (cu >= 0xD2B3 && cu <= 0xDBFF) return 'O';
+      if (cu >= 0xDC00 && cu <= 0xE3E8) return 'P';
+      if (cu >= 0xE3E9 && cu <= 0xED1B) return 'Q';
+      if (cu >= 0xED1C && cu <= 0xF184) return 'R';
+      if (cu >= 0xF185 && cu <= 0xF8B4) return 'S';
+      if (cu >= 0xF8B5 && cu <= 0xFDA4) return 'T';
+      if (cu >= 0xFDA5 && cu <= 0xFE2F) return 'W';
+      if (cu >= 0xFE30 && cu <= 0xFFFD) return 'X';
+      return 'Y'; // catch-all for remaining CJK
+    }
+    return '#';
+  }
+
   Widget _contactActionCell(AppTheme t, IconData icon, Color iconBg, String label, {int? badge, VoidCallback? onTap}) {
     return Material(
       color: Colors.transparent,
@@ -3658,6 +3795,19 @@ class _ContactsViewStateState extends State<ContactsView> {
 
   Widget _contactSection(String title, List<Map<String, dynamic>> list, AppTheme t) {
     if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    // Group by first letter
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final item in list) {
+      final name = (item['name'] as String?) ?? '';
+      final letter = _getLetter(name);
+      grouped.putIfAbsent(letter, () => []).add(item);
+    }
+    final sortedKeys = grouped.keys.toList()..sort();
+    int totalChildren = 1; // section title
+    for (final letter in sortedKeys) {
+      totalChildren += 1; // letter header
+      totalChildren += grouped[letter]!.length;
+    }
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         if (index == 0) {
@@ -3668,8 +3818,28 @@ class _ContactsViewStateState extends State<ContactsView> {
             child: Text(title, style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
           );
         }
-        if (index >= list.length + 1) return null;
-        final item = list[index - 1];
+        int flatIdx = index - 1;
+        String? currentLetter;
+        int itemIdx = 0;
+        for (final letter in sortedKeys) {
+          final items = grouped[letter]!;
+          if (flatIdx < items.length) {
+            currentLetter = letter;
+            itemIdx = flatIdx;
+            break;
+          }
+          flatIdx -= items.length;
+          flatIdx -= 1; // header
+        }
+        if (currentLetter == null) return null;
+        final items = grouped[currentLetter]!;
+        if (itemIdx == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 4),
+            child: Text(currentLetter, style: TextStyle(color: _wechatGreen, fontSize: 13, fontWeight: FontWeight.w700)),
+          );
+        }
+        final item = items[itemIdx];
         final name = item['name'] as String;
         final icon = item['icon'] as IconData;
         final online = item['online'] as bool?;
