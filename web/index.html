@@ -381,8 +381,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 @media (prefers-reduced-motion:reduce){.particles i,.hero h1 .ch,.btn-main,.mockup{animation:none!important}}
 
 /* ===== 多设备全家福 + 加密流程 ===== */
-.device-stage{clip-path:inset(0 0 100% 0);transition:clip-path 1s cubic-bezier(.22,1,.36,1)}
-.device-stage.in{clip-path:inset(0 0 0% 0)}
+.device-stage{animation:stageReveal 1s cubic-bezier(.22,1,.36,1) both}
+@keyframes stageReveal{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(30px)}100%{opacity:1;clip-path:inset(0 0 0% 0);transform:none}}
 .device-stage{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:34px;padding:40px 20px 30px;perspective:1200px}
 .dev{position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,1,.36,1)}
 .dev-screen{background:#0f1115;border-radius:10px;padding:6px;box-shadow:0 24px 50px -14px rgba(20,24,40,.3),inset 0 0 0 1.5px rgba(255,255,255,.08);position:relative;overflow:hidden}
@@ -399,6 +399,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .dev-tablet .dev-screen{width:150px;height:196px;border-radius:14px}
 .dev-phone .dev-screen{width:96px;height:186px;border-radius:18px;padding:4px}
 .dev-phone .dev-ui{padding:5px;border-radius:12px}
+.dev{animation:devIn .7s cubic-bezier(.34,1.56,.64,1) both}
+.dev:nth-child(1){animation-delay:.15s}.dev:nth-child(2){animation-delay:.3s}.dev:nth-child(3){animation-delay:.45s}.dev:nth-child(4){animation-delay:.6s}
+@keyframes devIn{0%{opacity:0;transform:translateY(40px) scale(.85)}100%{opacity:1;transform:none}}
 .dev:hover{transform:translateY(-12px) rotateX(4deg)}
 .dev-glow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:70%;height:26px;background:radial-gradient(ellipse,rgba(7,193,96,.2),transparent 70%);filter:blur(8px);animation:glowPulse 4s ease-in-out infinite}
 @keyframes glowPulse{0%,100%{opacity:.6;width:70%}50%{opacity:1;width:82%}}
