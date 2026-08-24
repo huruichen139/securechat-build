@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -443,6 +443,100 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   .feat-grid{grid-template-columns:1fr}
   .hero{padding-top:120px}
 }
+
+/* ============ Testimonials ============ */
+.testimonials-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1000px;margin:40px auto 0;padding:0 20px}
+.testimonial-card{background:#fff;border-radius:2px;padding:28px 24px;box-shadow:0 1px 6px rgba(0,0,0,.04);border:1px solid #f0f0f0;transition:transform .3s,box-shadow .3s}
+.testimonial-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.test-stars{color:#f5a623;font-size:16px;margin-bottom:12px}
+.test-quote{font-size:15px;line-height:1.7;color:#333;margin-bottom:16px;font-style:italic}
+.test-author{display:flex;align-items:center;gap:12px}
+.test-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+.test-author strong{font-size:14px;color:#1a1a1a}
+.test-author span{font-size:12px}
+
+/* ============ Changelog Timeline ============ */
+.changelog-timeline{max-width:600px;margin:40px auto 0;padding:0 20px;position:relative}
+.changelog-timeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#07c160,#1fc784,#e0e0e0)}
+.cl-item{position:relative;padding-left:36px;margin-bottom:32px}
+.cl-dot{width:12px;height:12px;border-radius:50%;position:absolute;left:6px;top:4px;border:2px solid #fff;box-shadow:0 0 0 2px #07c160}
+.cl-ver{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
+.cl-date{font-size:12px;color:#888;font-weight:400;margin-left:8px}
+.cl-content p{font-size:13px;color:#666;line-height:1.6;margin:0}
+/* ============ Status Badges ============ */
+.badge-live,.badge-beta,.badge-plan{display:inline-block;font-size:11px;padding:2px 8px;border-radius:2px;font-weight:600;vertical-align:middle;margin-left:6px;line-height:1.4}
+.badge-live{background:#e6f9ee;color:#07c160;border:1px solid #b3ecd0}
+.badge-beta{background:#fff3e0;color:#f57c00;border:1px solid #ffe0b2}
+.badge-plan{background:#f5f5f5;color:#999;border:1px solid #e0e0e0}
+
+/* ============ Chat Experience Section ============ */
+.chat-section{background:#fafbfc;padding:100px 20px}
+.chat-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
+.chat-left{padding:20px}
+.chat-left h2{font-size:32px;font-weight:800;color:#1a1a1a;margin:0 0 16px}
+.chat-left h2 em{color:#07c160;font-style:normal}
+.chat-left>p{color:#666;font-size:15px;line-height:1.7;margin:0 0 28px}
+.chat-feat-list{list-style:none;padding:0;margin:0}
+.chat-feat-list li{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}
+.cf-icon{width:36px;height:36px;border-radius:2px;background:#e6f9ee;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#07c160;font-size:16px}
+.cf-text strong{display:block;font-size:14px;color:#1a1a1a;margin-bottom:2px}
+.cf-text span{font-size:13px;color:#888;line-height:1.5}
+
+/* ============ File Transfer Section ============ */
+.file-section{padding:100px 20px;background:#fff}
+.file-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.file-card{background:#fafbfc;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;text-align:center;transition:transform .3s,box-shadow .3s}
+.file-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.fc-icon{width:56px;height:56px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.fc-icon.green{background:#e6f9ee;color:#07c160}
+.fc-icon.blue{background:#e3f2fd;color:#1976d2}
+.fc-icon.orange{background:#fff3e0;color:#f57c00}
+.fc-icon.teal{background:#e0f2f1;color:#00897b}
+.file-card h4{font-size:15px;color:#1a1a1a;margin:0 0 8px}
+.file-card p{font-size:13px;color:#888;line-height:1.5;margin:0}
+
+/* ============ AI Section ============ */
+.ai-section{padding:100px 20px;background:linear-gradient(180deg,#f0faf4 0%,#fff 100%)}
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1100px;margin:40px auto 0}
+.ai-card{background:#fff;border-radius:2px;padding:28px 24px;border:1px solid #f0f0f0;transition:transform .3s,box-shadow .3s;position:relative}
+.ai-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.ai-emoji{font-size:32px;margin-bottom:14px;display:block}
+.ai-card h4{font-size:15px;font-weight:700;color:#1a1a1a;margin:0 0 8px}
+.ai-card p{font-size:13px;color:#666;line-height:1.6;margin:0}
+.ai-card .badge-live,.ai-card .badge-beta,.ai-card .badge-plan{position:absolute;top:16px;right:16px}
+
+/* ============ Security Section ============ */
+.sec-section{padding:100px 20px;background:#1a1a1a;color:#fff}
+.sec-section .sec-head .kicker{color:#07c160}
+.sec-section .sec-head h2{color:#fff}
+.sec-section .sec-head p{color:rgba(255,255,255,.6)}
+.sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1100px;margin:40px auto 0}
+.sec-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:2px;padding:28px 24px;transition:transform .3s,background .3s}
+.sec-card:hover{transform:translateY(-3px);background:rgba(255,255,255,.1)}
+.sc-icon{width:44px;height:44px;border-radius:2px;background:rgba(7,193,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+.sec-card h4{font-size:15px;color:#fff;margin:0 0 8px}
+.sec-card p{font-size:13px;color:rgba(255,255,255,.6);line-height:1.6;margin:0}
+
+/* ============ Cross-Platform Section ============ */
+.cross-section{padding:100px 20px;background:#fafbfc}
+.cross-devices{display:flex;justify-content:center;gap:32px;flex-wrap:wrap;margin:40px auto 0;max-width:1000px}
+.cross-device{text-align:center;transition:transform .3s}
+.cross-device:hover{transform:translateY(-6px)}
+.cd-screen{width:120px;height:200px;border-radius:8px;border:2px solid #e0e0e0;background:#fff;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.cd-screen::before{content:'';position:absolute;top:0;left:0;right:0;height:18px;background:#f5f5f5;border-bottom:1px solid #e0e0e0}
+.cd-screen .cd-chat{padding:24px 8px 8px;font-size:9px;color:#666;text-align:left;width:100%}
+.cd-screen .cd-chat .cd-line{margin-bottom:4px}
+.cd-screen .cd-chat .cd-line.me{text-align:right}
+.cd-screen .cd-chat .cd-bub{display:inline-block;background:#07c160;color:#fff;padding:3px 6px;border-radius:4px;font-size:8px}
+.cd-screen .cd-chat .cd-bub.them{background:#f0f0f0;color:#333}
+.cd-name{font-size:13px;font-weight:600;color:#1a1a1a}
+.cd-type{font-size:11px;color:#888}
+
+/* ============ Platform Logos Row ============ */
+.plat-row{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;margin:30px auto 0;max-width:800px}
+.plat-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
+.plat-dot{width:8px;height:8px;border-radius:50%;background:#07c160}
+
 </style>
 </head>
 <body>
@@ -703,6 +797,344 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
 </section>
 
+    <!-- Testimonials -->
+    <section class="section testimonials-section" id="testimonials">
+      <div class="section-heading">
+        <p class="kicker">USER STORIES</p>
+        <h2 class="sec-h2">真实用户的真实反馈</h2>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card scroll-reveal">
+          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p class="test-quote">"用了很多加密聊天，SecureChat 是唯一一个同时做到安全和好用的。界面比微信还简洁。"</p>
+          <div class="test-author">
+            <div class="test-avatar" style="background:#07c160">L</div>
+            <div><strong>李工</strong><br><span style="color:#888">后端工程师 · 北京</span></div>
+          </div>
+        </div>
+        <div class="testimonial-card scroll-reveal">
+          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p class="test-quote">"团队协作用的，文件加密传输太方便了，再也不用担心源码泄露。"</p>
+          <div class="test-author">
+            <div class="test-avatar" style="background:#1fc784">W</div>
+            <div><strong>王总</strong><br><span style="color:#888">CTO · 深圳</span></div>
+          </div>
+        </div>
+        <div class="testimonial-card scroll-reveal">
+          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p class="test-quote">"视频通话质量很好，延迟低，最重要的是不用担心被监听。"</p>
+          <div class="test-author">
+            <div class="test-avatar" style="background:#31c178">Z</div>
+            <div><strong>张老师</strong><br><span style="color:#888">高中教师 · 上海</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Changelog -->
+    <section class="section changelog-section" id="changelog">
+      <div class="section-heading">
+        <p class="kicker">CHANGELOG</p>
+        <h2 class="sec-h2">持续更新，越来越好</h2>
+      </div>
+      <div class="changelog-timeline">
+        <div class="cl-item scroll-reveal">
+          <div class="cl-dot" style="background:#07c160"></div>
+          <div class="cl-content">
+            <div class="cl-ver">v1.70.0 <span class="cl-date">2026-08-24</span></div>
+            <p>全新落地页 · 3D 粒子网络 · 深度加密演示 · 3D 设备巡展 · 微信风格 UI 全面升级</p>
+          </div>
+        </div>
+        <div class="cl-item scroll-reveal">
+          <div class="cl-dot" style="background:#1fc784"></div>
+          <div class="cl-content">
+            <div class="cl-ver">v1.69.0 <span class="cl-date">2026-08-22</span></div>
+            <p>会话置顶 · 消息免打扰 · 右键菜单 · 阅读状态 · 骨架屏加载 · 消息双击点赞</p>
+          </div>
+        </div>
+        <div class="cl-item scroll-reveal">
+          <div class="cl-dot" style="background:#07c160"></div>
+          <div class="cl-content">
+            <div class="cl-ver">v1.68.0 <span class="cl-date">2026-08-20</span></div>
+            <p>微信风格聊天气泡 · 多彩主题 · 暗黑模式 · 聊天背景 · 字数统计 · 图片粘贴发送</p>
+          </div>
+        </div>
+        <div class="cl-item scroll-reveal">
+          <div class="cl-dot" style="background:#1fc784"></div>
+          <div class="cl-content">
+            <div class="cl-ver">v1.67.0 <span class="cl-date">2026-08-18</span></div>
+            <p>端到端加密 · Signal 协议 · 语音视频通话 · 文件加密传输 · 群聊管理</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+
+<!-- ====== CHAT EXPERIENCE ====== -->
+<section class="section chat-section" id="chat-experience">
+  <div class="sec-head rv">
+    <span class="kicker">CHAT EXPERIENCE</span>
+    <h2>聊天，就该这样<em>自然</em></h2>
+    <p>不只是一条消息的传递，而是每一次对话的情感连接。从输入到送达，每个细节都打磨到极致。</p>
+  </div>
+  <div class="chat-grid">
+    <div class="chat-left rvL">
+      <h2>每一种消息，<br/>都有<em>最佳表达</em></h2>
+      <p>文字、语音、图片、视频、文件、位置、红包、名片 -- 12 种消息类型全覆盖。每一种都经过精心设计，让你的表达恰到好处。</p>
+      <ul class="chat-feat-list">
+        <li><div class="cf-icon">&#9998;</div><div class="cf-text"><strong>文字消息</strong><span>支持长文本、引用回复、多选批量操作、原地编辑</span></div></li>
+        <li><div class="cf-icon">&#127908;</div><div class="cf-text"><strong>语音消息</strong><span>最长 60 秒录音，语音转文字，听筒/扬声器切换</span></div></li>
+        <li><div class="cf-icon">&#128247;</div><div class="cf-text"><strong>图片/视频</strong><span>原画质直传不压缩，支持 GIF、闪照阅后即焚</span></div></li>
+        <li><div class="cf-icon">&#128196;</div><div class="cf-text"><strong>文件传输</strong><span>任意格式任意大小，断点续传，加密传输</span></div></li>
+        <li><div class="cf-icon">&#128176;</div><div class="cf-text"><strong>红包/转账</strong><span>普通红包、拼手气红包、向好友转账</span></div></li>
+      </ul>
+      <div style="margin-top:16px"><span class="badge-live">已上线</span> <span class="badge-beta">Beta</span> <span class="badge-plan">规划中</span></div>
+    </div>
+    <div class="chat-right rvR">
+      <div class="phone"><div class="screen">
+        <div class="scr-head">产品讨论组 (5)</div>
+        <div class="scr-body">
+          <div class="scr-row"><div class="scr-ava" style="background:#f5a623"></div><div><span style="font-size:10px;color:#888">王总</span><div class="scr-bub">新版本的设计稿大家看看</div></div></div>
+          <div class="scr-row me"><div class="scr-bub" style="position:relative">收到！我下午review <span style="position:absolute;top:-8px;right:-4px;background:#fff;border:1px solid #e0e0f0;border-radius:8px;padding:1px 4px;font-size:8px;color:#07c160">12</span></div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#1fc784"></div><div><span style="font-size:10px;color:#888">张设计</span><div class="scr-bub">[图片] 3张设计稿已上传</div></div></div>
+          <div class="scr-row me"><div class="scr-bub">第三版配色方案更好</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div><span style="font-size:10px;color:#888">李工</span><div class="scr-bub">技术上都没问题，可以排期</div></div></div>
+          <div class="scr-row me"><div class="scr-bub">那就定周三发布？</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#f5a623"></div><div><span style="font-size:10px;color:#888">王总</span><div class="scr-bub" style="background:#fff3e0;color:#f57c00">[红包] 恭喜新版上线</div></div></div>
+          <div class="scr-row me"><div class="scr-bub" style="background:#07c160;color:#fff">谢谢老板！</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FILE TRANSFER ====== -->
+<section class="section file-section" id="file-transfer">
+  <div class="sec-head rv">
+    <span class="kicker">FILE TRANSFER</span>
+    <h2>文件传输，<em>没有上限</em></h2>
+    <p>无论几 KB 的文档还是几十 GB 的 4K 原片，全程加密直传，永不压缩画质。断点续传、秒传、P2P 加速，让大文件传输快 3 倍。</p>
+  </div>
+  <div class="file-grid">
+    <div class="file-card rv d1">
+      <div class="fc-icon green">&#8734;</div>
+      <h4>无大小限制</h4>
+      <p>单文件上限 10GB+，不设人为限制。文档、视频、安装包，想传就传。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d2">
+      <div class="fc-icon blue">&#128260;</div>
+      <h4>断点续传</h4>
+      <p>网络中断、应用被杀、设备重启，恢复后从断点继续，不重新开始。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d3">
+      <div class="fc-icon orange">&#9889;</div>
+      <h4>秒传</h4>
+      <p>基于文件哈希值，已存在的文件瞬间完成传输，零等待。</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="file-card rv d1">
+      <div class="fc-icon teal">&#128640;</div>
+      <h4>P2P 加速</h4>
+      <p>NAT 打洞直连传输，速度提升 300%，服务器带宽降低 75%。</p>
+      <span class="badge-plan">规划中</span>
+    </div>
+  </div>
+  <div class="file-grid" style="margin-top:20px">
+    <div class="file-card rv d2">
+      <div class="fc-icon green">&#128247;</div>
+      <h4>原画质直传</h4>
+      <p>照片视频全程不压缩，2 亿像素原图直发，所见即所得。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d3">
+      <div class="fc-icon blue">&#128229;</div>
+      <h4>拖拽发送</h4>
+      <p>桌面端直接从文件夹拖进聊天窗口，移动端支持跨应用分享。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d1">
+      <div class="fc-icon orange">&#128190;</div>
+      <h4>后台传输</h4>
+      <p>应用切到后台，传输不停。Android WorkManager + iOS Background Session。</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="file-card rv d2">
+      <div class="fc-icon teal">&#128279;</div>
+      <h4>跨平台分享</h4>
+      <p>生成链接或二维码，对方无需登录即可在线预览并下载。</p>
+      <span class="badge-plan">规划中</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== AI CAPABILITIES ====== -->
+<section class="section ai-section" id="ai-capabilities">
+  <div class="sec-head rv">
+    <span class="kicker">AI INTEGRATION</span>
+    <h2>AI 不是功能，<br/>是<em>底层能力</em></h2>
+    <p>不是加一个"AI助手"入口，而是让 AI 融入每一个操作。发图时自动帮写文案，收到外语自动翻译，开会时自动记录。</p>
+  </div>
+  <div class="ai-grid">
+    <div class="ai-card rv d1">
+      <span class="ai-emoji">&#127912;</span>
+      <span class="badge-live">已上线</span>
+      <h4>聊天图片 AI 处理</h4>
+      <p>查看图片时底部新增"AI 处理"，支持美化、提取信息、智能修改。</p>
+    </div>
+    <div class="ai-card rv d2">
+      <span class="ai-emoji">&#9997;&#65039;</span>
+      <span class="badge-beta">Beta</span>
+      <h4>朋友圈 AI 帮写</h4>
+      <p>上传图片后 AI 自动理解内容，生成多条备选文案，一键填入。</p>
+    </div>
+    <div class="ai-card rv d3">
+      <span class="ai-emoji">&#128172;</span>
+      <span class="badge-live">已上线</span>
+      <h4>实时翻译</h4>
+      <p>收到外语消息自动翻译成中文，输入中文同步对外翻译，无需切换。</p>
+    </div>
+    <div class="ai-card rv d1">
+      <span class="ai-emoji">&#128247;</span>
+      <span class="badge-beta">Beta</span>
+      <h4>扫一扫拍照给 AI</h4>
+      <p>拍照后 AI 识别内容，支持翻译外文、提取文字、总结图片信息。</p>
+    </div>
+    <div class="ai-card rv d2">
+      <span class="ai-emoji">&#127908;</span>
+      <span class="badge-plan">规划中</span>
+      <h4>语音指令代写</h4>
+      <p>按住说话后滑入"指令"区域，AI 理解意图后生成适合语境的消息。</p>
+    </div>
+    <div class="ai-card rv d3">
+      <span class="ai-emoji">&#128197;</span>
+      <span class="badge-plan">规划中</span>
+      <h4>AI 会议听记</h4>
+      <p>会议记录、总结、待办跟进全智能闭环，自动生成会议纪要。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SECURITY & PRIVACY ====== -->
+<section class="section sec-section" id="security">
+  <div class="sec-head rv">
+    <span class="kicker">SECURITY &amp; PRIVACY</span>
+    <h2>安全，<br/>是唯一的产品信仰</h2>
+    <p>不收集、不出售、不妥协。你的消息只属于你自己。</p>
+  </div>
+  <div class="sec-grid">
+    <div class="sec-card rv d1">
+      <div class="sc-icon">&#128274;</div>
+      <h4>端到端加密</h4>
+      <p>Signal 协议 + 前向保密，服务器被攻破也无法解密历史消息。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+    <div class="sec-card rv d2">
+      <div class="sc-icon">&#128065;</div>
+      <h4>自动密钥验证</h4>
+      <p>自动检测加密密钥是否被篡改，有效防范中间人攻击。</p>
+      <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
+    </div>
+    <div class="sec-card rv d3">
+      <div class="sc-icon">&#128683;</div>
+      <h4>阅后即焚</h4>
+      <p>发送闪照和消失消息，阅读后自动删除，不留痕迹。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+    <div class="sec-card rv d1">
+      <div class="sc-icon">&#128100;</div>
+      <h4>匿名注册</h4>
+      <p>不绑定手机号，不收集个人信息，真正的零数据收集。</p>
+      <span class="badge-plan" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15)">规划中</span>
+    </div>
+    <div class="sec-card rv d2">
+      <div class="sc-icon">&#128187;</div>
+      <h4>设备管理</h4>
+      <p>查看所有登录设备，一键远程踢出可疑会话，掌控账号安全。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+    <div class="sec-card rv d3">
+      <div class="sc-icon">&#128477;</div>
+      <h4>双向删除</h4>
+      <p>一键删除与对方的全部聊天记录，双方同步清除。</p>
+      <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
+    </div>
+    <div class="sec-card rv d1">
+      <div class="sc-icon">&#128272;</div>
+      <h4>隐藏会话</h4>
+      <p>将特定会话设为隐藏，需通过搜索才能查看，强化隐私保护。</p>
+      <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
+    </div>
+    <div class="sec-card rv d2">
+      <div class="sc-icon">&#128221;</div>
+      <h4>零日志策略</h4>
+      <p>服务器不留存任何消息内容和元数据，GDPR 全面合规。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== CROSS-PLATFORM ====== -->
+<section class="section cross-section" id="cross-platform">
+  <div class="sec-head rv">
+    <span class="kicker">CROSS-PLATFORM</span>
+    <h2>六端<em>全覆盖</em>，消息<em>全同步</em></h2>
+    <p>手机、平板、电脑、网页，消息实时同步。一台设备发出，所有设备收到。</p>
+  </div>
+  <div class="cross-devices rv">
+    <div class="cross-device">
+      <div class="cd-screen"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">你好</span></div>
+        <div class="cd-line me"><span class="cd-bub">在的</span></div>
+      </div></div>
+      <div class="cd-name">iPhone</div><div class="cd-type">iOS</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">文件已发送</span></div>
+        <div class="cd-line me"><span class="cd-bub">收到</span></div>
+      </div></div>
+      <div class="cd-name">Android</div><div class="cd-type">手机</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen" style="width:160px;height:220px"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">会议改到3点</span></div>
+        <div class="cd-line me"><span class="cd-bub">好的</span></div>
+        <div class="cd-line"><span class="cd-bub them">资料准备好了吗</span></div>
+        <div class="cd-line me"><span class="cd-bub">马上好</span></div>
+      </div></div>
+      <div class="cd-name">MacBook</div><div class="cd-type">macOS</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen" style="width:160px;height:220px"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">版本发布了</span></div>
+        <div class="cd-line me"><span class="cd-bub">测试通过</span></div>
+      </div></div>
+      <div class="cd-name">PC</div><div class="cd-type">Windows</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">上线了</span></div>
+        <div class="cd-line me"><span class="cd-bub">赞</span></div>
+      </div></div>
+      <div class="cd-name">HarmonyOS</div><div class="cd-type">鸿蒙</div>
+    </div>
+  </div>
+  <div class="plat-row rv" style="margin-top:40px">
+    <div class="plat-item"><span class="plat-dot"></span>消息多端同步</div>
+    <div class="plat-item"><span class="plat-dot"></span>多设备同时登录</div>
+    <div class="plat-item"><span class="plat-dot"></span>完整历史迁移</div>
+    <div class="plat-item"><span class="plat-dot"></span>PC 一键验证登录</div>
+  </div>
+  <div style="text-align:center;margin-top:24px" class="rv">
+    <span class="badge-live">已上线</span>
+    <span class="badge-beta">Beta</span>
+    <span class="badge-plan">规划中</span>
+  </div>
+</section>
+
 <footer class="footer">
   <p>SecureChat &copy; 2024-2026 &middot; <a href="/chat">网页版入口</a> &middot; <a href="https://github.com/huruichen139/securechat-build" target="_blank">GitHub</a></p>
 </footer>
@@ -932,43 +1364,57 @@ if(devStage){
 }
 
 
-// ============ 3D 粒子网络：点连线+深度感 ============
+// ============ 3D 粒子网络：点连线+深度感+鼠标聚拢 ============
 (function(){
   var cv = document.getElementById('net3d');
   if(!cv) return;
   var ctx = cv.getContext('2d');
-  var W = 0, H = 0, pts = [], mouse = {x:-9999, y:-9999};
-  var LINK = 130; // 连线距离阈值（线长相近的观感）
+  var W = 0, H = 0, pts = [], mouse = {x:-9999, y:-9999, active:false};
+  var LINK = 145;
+  var ATTRACT_R = 260;  // 鼠标吸引半径
+  var ATTRACT_F = 0.35; // 吸引力度
   function resize(){
     var r = cv.parentElement.getBoundingClientRect();
     W = cv.width = r.width; H = cv.height = r.height;
   }
   function make(){
     pts = [];
-    var n = Math.min(90, Math.floor(W * H / 16000));
+    var n = Math.min(180, Math.floor(W * H / 7000));
     for(var i=0;i<n;i++){
       pts.push({
         x: Math.random()*W, y: Math.random()*H,
-        z: Math.random(),            // 深度 0(远)..1(近)
-        vx: (Math.random()-.5)*.5, vy: (Math.random()-.5)*.5,
-        vz: (Math.random()-.5)*.004
+        z: Math.random(),
+        vx: (Math.random()-.5)*.6, vy: (Math.random()-.5)*.6,
+        vz: (Math.random()-.5)*.004,
+        ox: 0, oy: 0
       });
     }
   }
   function step(){
     ctx.clearRect(0,0,W,H);
-    // 移动
     for(var i=0;i<pts.length;i++){
       var p = pts[i];
-      p.x += p.vx * (0.4 + p.z); p.y += p.vy * (0.4 + p.z); p.z += p.vz;
+      // 基础运动
+      p.x += p.vx * (0.3 + p.z*0.6);
+      p.y += p.vy * (0.3 + p.z*0.6);
+      p.z += p.vz;
       if(p.z > 1 || p.z < 0) p.vz *= -1;
-      if(p.x < 0 || p.x > W) p.vx *= -1;
-      if(p.y < 0 || p.y > H) p.vy *= -1;
-      // 鼠标斥力
-      var dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx*dx + dy*dy;
-      if(d2 < 120*120){ var d = Math.sqrt(d2)||1; p.x += dx/d * 1.6; p.y += dy/d * 1.6; }
+      // 边界反弹
+      if(p.x < 10) p.vx += 0.05; if(p.x > W-10) p.vx -= 0.05;
+      if(p.y < 10) p.vy += 0.05; if(p.y > H-10) p.vy -= 0.05;
+      p.vx *= 0.998; p.vy *= 0.998;
+      // 鼠标吸引（聚拢效果）
+      if(mouse.active){
+        var dx = mouse.x - p.x, dy = mouse.y - p.y;
+        var d2 = dx*dx + dy*dy, d = Math.sqrt(d2)||1;
+        if(d < ATTRACT_R){
+          var strength = (1 - d/ATTRACT_R) * ATTRACT_F * (0.5 + p.z*0.5);
+          p.vx += dx/d * strength;
+          p.vy += dy/d * strength;
+        }
+      }
     }
-    // 连线（近者才连；线宽/透明度随深度）
+    // 连线（近者才连）
     for(var a=0;a<pts.length;a++){
       var pa = pts[a];
       for(var b=a+1;b<pts.length;b++){
@@ -976,9 +1422,9 @@ if(devStage){
         var dx = pa.x-pb.x, dy = pa.y-pb.y, dd = Math.sqrt(dx*dx+dy*dy);
         if(dd < LINK){
           var depth = (pa.z + pb.z) / 2;
-          var alpha = (1 - dd/LINK) * (0.12 + depth*0.3);
+          var alpha = (1 - dd/LINK) * (0.15 + depth*0.35);
           ctx.strokeStyle = 'rgba(7,193,96,' + alpha.toFixed(3) + ')';
-          ctx.lineWidth = 0.5 + depth * 1.4;
+          ctx.lineWidth = 0.5 + depth * 1.6;
           ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
         }
       }
@@ -986,14 +1432,22 @@ if(devStage){
     // 画点（近大远小+光晕）
     for(var k=0;k<pts.length;k++){
       var q = pts[k];
-      var r = 1 + q.z * 2.6;
-      var grd = ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,r*3);
-      grd.addColorStop(0,'rgba(7,193,96,'+(0.35+q.z*0.55)+')');
+      var r = 1 + q.z * 2.8;
+      var grd = ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,r*3.5);
+      grd.addColorStop(0,'rgba(7,193,96,'+(0.3+q.z*0.6)+')');
       grd.addColorStop(1,'rgba(7,193,96,0)');
       ctx.fillStyle = grd;
-      ctx.beginPath(); ctx.arc(q.x,q.y,r*3,0,6.284); ctx.fill();
-      ctx.fillStyle = 'rgba(7,193,96,'+(0.5+q.z*0.5)+')';
+      ctx.beginPath(); ctx.arc(q.x,q.y,r*3.5,0,6.284); ctx.fill();
+      ctx.fillStyle = 'rgba(7,193,96,'+(0.45+q.z*0.55)+')';
       ctx.beginPath(); ctx.arc(q.x,q.y,r,0,6.284); ctx.fill();
+    }
+    // 鼠标附近额外高亮
+    if(mouse.active){
+      var mgrd = ctx.createRadialGradient(mouse.x,mouse.y,0,mouse.x,mouse.y,60);
+      mgrd.addColorStop(0,'rgba(7,193,96,0.06)');
+      mgrd.addColorStop(1,'rgba(7,193,96,0)');
+      ctx.fillStyle = mgrd;
+      ctx.beginPath(); ctx.arc(mouse.x,mouse.y,60,0,6.284); ctx.fill();
     }
     requestAnimationFrame(step);
   }
@@ -1001,8 +1455,9 @@ if(devStage){
   hero.addEventListener('mousemove', function(e){
     var r = cv.getBoundingClientRect();
     mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+    mouse.active = true;
   });
-  hero.addEventListener('mouseleave', function(){ mouse.x = -9999; mouse.y = -9999; });
+  hero.addEventListener('mouseleave', function(){ mouse.active = false; });
   window.addEventListener('resize', function(){ resize(); make(); });
   resize(); make(); step();
 })();
