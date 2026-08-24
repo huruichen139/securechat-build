@@ -455,8 +455,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .test-author strong{font-size:14px;color:#1a1a1a}
 .test-author span{font-size:12px}
 
-/* ============ Changelog Timeline ============ */
-.changelog-timeline{max-width:600px;margin:40px auto 0;padding:0 20px;position:relative}
+/* ============ Changelog Compact Scroll ============ */
+.cl-mask{position:relative;max-width:520px;margin:0 auto;height:300px;overflow:hidden}
+.cl-scroll{height:100%;overflow-y:auto;padding:30px 20px 30px 36px;scroll-behavior:smooth}
+.cl-scroll::-webkit-scrollbar{width:3px}
+.cl-scroll::-webkit-scrollbar-track{background:transparent}
+.cl-scroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:2px}
+.cl-fade-top,.cl-fade-bottom{position:absolute;left:0;right:0;height:60px;pointer-events:none;z-index:2}
+.cl-fade-top{top:0;background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,0) 100%)}
+.cl-fade-bottom{bottom:0;background:linear-gradient(0deg,#fff 0%,rgba(255,255,255,0) 100%)}
+.changelog-timeline{position:relative}
 .changelog-timeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#07c160,#1fc784,#e0e0e0)}
 .cl-item{position:relative;padding-left:36px;margin-bottom:32px}
 .cl-dot{width:12px;height:12px;border-radius:50%;position:absolute;left:6px;top:4px;border:2px solid #fff;box-shadow:0 0 0 2px #07c160}
@@ -797,75 +805,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
 </section>
 
-    <!-- Testimonials -->
-    <section class="section testimonials-section" id="testimonials">
-      <div class="section-heading">
-        <p class="kicker">USER STORIES</p>
-        <h2 class="sec-h2">真实用户的真实反馈</h2>
-      </div>
-      <div class="testimonials-grid">
-        <div class="testimonial-card scroll-reveal">
-          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <p class="test-quote">"用了很多加密聊天，SecureChat 是唯一一个同时做到安全和好用的。界面比微信还简洁。"</p>
-          <div class="test-author">
-            <div class="test-avatar" style="background:#07c160">L</div>
-            <div><strong>李工</strong><br><span style="color:#888">后端工程师 · 北京</span></div>
-          </div>
-        </div>
-        <div class="testimonial-card scroll-reveal">
-          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <p class="test-quote">"团队协作用的，文件加密传输太方便了，再也不用担心源码泄露。"</p>
-          <div class="test-author">
-            <div class="test-avatar" style="background:#1fc784">W</div>
-            <div><strong>王总</strong><br><span style="color:#888">CTO · 深圳</span></div>
-          </div>
-        </div>
-        <div class="testimonial-card scroll-reveal">
-          <div class="test-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-          <p class="test-quote">"视频通话质量很好，延迟低，最重要的是不用担心被监听。"</p>
-          <div class="test-author">
-            <div class="test-avatar" style="background:#31c178">Z</div>
-            <div><strong>张老师</strong><br><span style="color:#888">高中教师 · 上海</span></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- Changelog -->
-    <section class="section changelog-section" id="changelog">
-      <div class="section-heading">
+    <section class="section changelog-section" id="changelog" style="padding:60px 20px 40px">
+      <div class="section-heading" style="margin-bottom:20px">
         <p class="kicker">CHANGELOG</p>
         <h2 class="sec-h2">持续更新，越来越好</h2>
       </div>
-      <div class="changelog-timeline">
-        <div class="cl-item scroll-reveal">
-          <div class="cl-dot" style="background:#07c160"></div>
-          <div class="cl-content">
-            <div class="cl-ver">v1.70.0 <span class="cl-date">2026-08-24</span></div>
-            <p>全新落地页 · 3D 粒子网络 · 深度加密演示 · 3D 设备巡展 · 微信风格 UI 全面升级</p>
-          </div>
+      <div class="cl-mask">
+        <div class="cl-fade-top"></div>
+        <div class="cl-scroll">
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.70.0 <span class="cl-date">2026-08-24</span></div><p>全新落地页 · 3D 粒子网络 · 深度加密演示 · 3D 设备巡展 · 微信风格 UI 全面升级</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.69.0 <span class="cl-date">2026-08-22</span></div><p>会话置顶 · 消息免打扰 · 右键菜单 · 阅读状态 · 骨架屏加载 · 消息双击点赞</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.68.0 <span class="cl-date">2026-08-20</span></div><p>微信风格聊天气泡 · 多彩主题 · 暗黑模式 · 聊天背景 · 字数统计 · 图片粘贴发送</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.67.0 <span class="cl-date">2026-08-18</span></div><p>端到端加密 · Signal 协议 · 语音视频通话 · 文件加密传输 · 群聊管理</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.66.0 <span class="cl-date">2026-08-15</span></div><p>联系人管理 · 通讯录搜索 · 个人资料页 · 多主题切换 · 深色模式</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.65.0 <span class="cl-date">2026-08-12</span></div><p>语音通话优化 · 视频通话稳定 · 消息撤回 · 重新编辑 · 消息引用</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.64.0 <span class="cl-date">2026-08-10</span></div><p>群聊管理 · 群公告 · 群成员权限 · 表情回应 · @功能</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.63.0 <span class="cl-date">2026-08-08</span></div><p>文件传输升级 · 断点续传 · 批量发送 · 文件预览 · 进度条</p></div></div>
         </div>
-        <div class="cl-item scroll-reveal">
-          <div class="cl-dot" style="background:#1fc784"></div>
-          <div class="cl-content">
-            <div class="cl-ver">v1.69.0 <span class="cl-date">2026-08-22</span></div>
-            <p>会话置顶 · 消息免打扰 · 右键菜单 · 阅读状态 · 骨架屏加载 · 消息双击点赞</p>
-          </div>
-        </div>
-        <div class="cl-item scroll-reveal">
-          <div class="cl-dot" style="background:#07c160"></div>
-          <div class="cl-content">
-            <div class="cl-ver">v1.68.0 <span class="cl-date">2026-08-20</span></div>
-            <p>微信风格聊天气泡 · 多彩主题 · 暗黑模式 · 聊天背景 · 字数统计 · 图片粘贴发送</p>
-          </div>
-        </div>
-        <div class="cl-item scroll-reveal">
-          <div class="cl-dot" style="background:#1fc784"></div>
-          <div class="cl-content">
-            <div class="cl-ver">v1.67.0 <span class="cl-date">2026-08-18</span></div>
-            <p>端到端加密 · Signal 协议 · 语音视频通话 · 文件加密传输 · 群聊管理</p>
-          </div>
-        </div>
+        <div class="cl-fade-bottom"></div>
       </div>
     </section>
 
@@ -883,11 +841,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
       <h2>每一种消息，<br/>都有<em>最佳表达</em></h2>
       <p>文字、语音、图片、视频、文件、位置、红包、名片 -- 12 种消息类型全覆盖。每一种都经过精心设计，让你的表达恰到好处。</p>
       <ul class="chat-feat-list">
-        <li><div class="cf-icon">&#9998;</div><div class="cf-text"><strong>文字消息</strong><span>支持长文本、引用回复、多选批量操作、原地编辑</span></div></li>
-        <li><div class="cf-icon">&#127908;</div><div class="cf-text"><strong>语音消息</strong><span>最长 60 秒录音，语音转文字，听筒/扬声器切换</span></div></li>
-        <li><div class="cf-icon">&#128247;</div><div class="cf-text"><strong>图片/视频</strong><span>原画质直传不压缩，支持 GIF、闪照阅后即焚</span></div></li>
-        <li><div class="cf-icon">&#128196;</div><div class="cf-text"><strong>文件传输</strong><span>任意格式任意大小，断点续传，加密传输</span></div></li>
-        <li><div class="cf-icon">&#128176;</div><div class="cf-text"><strong>红包/转账</strong><span>普通红包、拼手气红包、向好友转账</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div class="cf-text"><strong>文字消息</strong><span>支持长文本、引用回复、多选批量操作、原地编辑</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div><div class="cf-text"><strong>语音消息</strong><span>最长 60 秒录音，语音转文字，听筒/扬声器切换</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="cf-text"><strong>图片/视频</strong><span>原画质直传不压缩，支持 GIF、闪照阅后即焚</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="cf-text"><strong>文件传输</strong><span>任意格式任意大小，断点续传，加密传输</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="cf-text"><strong>红包/转账</strong><span>普通红包、拼手气红包、向好友转账</span></div></li>
       </ul>
       <div style="margin-top:16px"><span class="badge-live">已上线</span> <span class="badge-beta">Beta</span> <span class="badge-plan">规划中</span></div>
     </div>
@@ -918,25 +876,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
   <div class="file-grid">
     <div class="file-card rv d1">
-      <div class="fc-icon green">&#8734;</div>
+      <div class="fc-icon green"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
       <h4>无大小限制</h4>
       <p>单文件上限 10GB+，不设人为限制。文档、视频、安装包，想传就传。</p>
       <span class="badge-live">已上线</span>
     </div>
     <div class="file-card rv d2">
-      <div class="fc-icon blue">&#128260;</div>
+      <div class="fc-icon blue"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
       <h4>断点续传</h4>
       <p>网络中断、应用被杀、设备重启，恢复后从断点继续，不重新开始。</p>
       <span class="badge-live">已上线</span>
     </div>
     <div class="file-card rv d3">
-      <div class="fc-icon orange">&#9889;</div>
+      <div class="fc-icon orange"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
       <h4>秒传</h4>
       <p>基于文件哈希值，已存在的文件瞬间完成传输，零等待。</p>
       <span class="badge-beta">Beta</span>
     </div>
     <div class="file-card rv d1">
-      <div class="fc-icon teal">&#128640;</div>
+      <div class="fc-icon teal"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
       <h4>P2P 加速</h4>
       <p>NAT 打洞直连传输，速度提升 300%，服务器带宽降低 75%。</p>
       <span class="badge-plan">规划中</span>
@@ -944,25 +902,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
   <div class="file-grid" style="margin-top:20px">
     <div class="file-card rv d2">
-      <div class="fc-icon green">&#128247;</div>
+      <div class="fc-icon green"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
       <h4>原画质直传</h4>
       <p>照片视频全程不压缩，2 亿像素原图直发，所见即所得。</p>
       <span class="badge-live">已上线</span>
     </div>
     <div class="file-card rv d3">
-      <div class="fc-icon blue">&#128229;</div>
+      <div class="fc-icon blue"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
       <h4>拖拽发送</h4>
       <p>桌面端直接从文件夹拖进聊天窗口，移动端支持跨应用分享。</p>
       <span class="badge-live">已上线</span>
     </div>
     <div class="file-card rv d1">
-      <div class="fc-icon orange">&#128190;</div>
+      <div class="fc-icon orange"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>
       <h4>后台传输</h4>
       <p>应用切到后台，传输不停。Android WorkManager + iOS Background Session。</p>
       <span class="badge-beta">Beta</span>
     </div>
     <div class="file-card rv d2">
-      <div class="fc-icon teal">&#128279;</div>
+      <div class="fc-icon teal"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
       <h4>跨平台分享</h4>
       <p>生成链接或二维码，对方无需登录即可在线预览并下载。</p>
       <span class="badge-plan">规划中</span>
@@ -979,37 +937,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
   <div class="ai-grid">
     <div class="ai-card rv d1">
-      <span class="ai-emoji">&#127912;</span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
       <span class="badge-live">已上线</span>
       <h4>聊天图片 AI 处理</h4>
       <p>查看图片时底部新增"AI 处理"，支持美化、提取信息、智能修改。</p>
     </div>
     <div class="ai-card rv d2">
-      <span class="ai-emoji">&#9997;&#65039;</span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
       <span class="badge-beta">Beta</span>
       <h4>朋友圈 AI 帮写</h4>
       <p>上传图片后 AI 自动理解内容，生成多条备选文案，一键填入。</p>
     </div>
     <div class="ai-card rv d3">
-      <span class="ai-emoji">&#128172;</span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
       <span class="badge-live">已上线</span>
       <h4>实时翻译</h4>
       <p>收到外语消息自动翻译成中文，输入中文同步对外翻译，无需切换。</p>
     </div>
     <div class="ai-card rv d1">
-      <span class="ai-emoji">&#128247;</span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
       <span class="badge-beta">Beta</span>
       <h4>扫一扫拍照给 AI</h4>
       <p>拍照后 AI 识别内容，支持翻译外文、提取文字、总结图片信息。</p>
     </div>
     <div class="ai-card rv d2">
-      <span class="ai-emoji">&#127908;</span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
       <span class="badge-plan">规划中</span>
       <h4>语音指令代写</h4>
       <p>按住说话后滑入"指令"区域，AI 理解意图后生成适合语境的消息。</p>
     </div>
     <div class="ai-card rv d3">
-      <span class="ai-emoji">&#128197;</span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
       <span class="badge-plan">规划中</span>
       <h4>AI 会议听记</h4>
       <p>会议记录、总结、待办跟进全智能闭环，自动生成会议纪要。</p>
@@ -1026,49 +984,49 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
   <div class="sec-grid">
     <div class="sec-card rv d1">
-      <div class="sc-icon">&#128274;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
       <h4>端到端加密</h4>
       <p>Signal 协议 + 前向保密，服务器被攻破也无法解密历史消息。</p>
       <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
     <div class="sec-card rv d2">
-      <div class="sc-icon">&#128065;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
       <h4>自动密钥验证</h4>
       <p>自动检测加密密钥是否被篡改，有效防范中间人攻击。</p>
       <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
     </div>
     <div class="sec-card rv d3">
-      <div class="sc-icon">&#128683;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
       <h4>阅后即焚</h4>
       <p>发送闪照和消失消息，阅读后自动删除，不留痕迹。</p>
       <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
     <div class="sec-card rv d1">
-      <div class="sc-icon">&#128100;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
       <h4>匿名注册</h4>
       <p>不绑定手机号，不收集个人信息，真正的零数据收集。</p>
       <span class="badge-plan" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15)">规划中</span>
     </div>
     <div class="sec-card rv d2">
-      <div class="sc-icon">&#128187;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
       <h4>设备管理</h4>
       <p>查看所有登录设备，一键远程踢出可疑会话，掌控账号安全。</p>
       <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
     <div class="sec-card rv d3">
-      <div class="sc-icon">&#128477;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
       <h4>双向删除</h4>
       <p>一键删除与对方的全部聊天记录，双方同步清除。</p>
       <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
     </div>
     <div class="sec-card rv d1">
-      <div class="sc-icon">&#128272;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
       <h4>隐藏会话</h4>
       <p>将特定会话设为隐藏，需通过搜索才能查看，强化隐私保护。</p>
       <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
     </div>
     <div class="sec-card rv d2">
-      <div class="sc-icon">&#128221;</div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
       <h4>零日志策略</h4>
       <p>服务器不留存任何消息内容和元数据，GDPR 全面合规。</p>
       <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
@@ -1370,21 +1328,21 @@ if(devStage){
   if(!cv) return;
   var ctx = cv.getContext('2d');
   var W = 0, H = 0, pts = [], mouse = {x:-9999, y:-9999, active:false};
-  var LINK = 145;
-  var ATTRACT_R = 260;  // 鼠标吸引半径
-  var ATTRACT_F = 0.35; // 吸引力度
+  var LINK = 130;
+  var ATTRACT_R = 200;  // 鼠标吸引半径
+  var ATTRACT_F = 0.15; // 吸引力度
   function resize(){
     var r = cv.parentElement.getBoundingClientRect();
     W = cv.width = r.width; H = cv.height = r.height;
   }
   function make(){
     pts = [];
-    var n = Math.min(180, Math.floor(W * H / 7000));
+    var n = Math.min(120, Math.floor(W * H / 12000));
     for(var i=0;i<n;i++){
       pts.push({
         x: Math.random()*W, y: Math.random()*H,
         z: Math.random(),
-        vx: (Math.random()-.5)*.6, vy: (Math.random()-.5)*.6,
+        vx: (Math.random()-.5)*.3, vy: (Math.random()-.5)*.3,
         vz: (Math.random()-.5)*.004,
         ox: 0, oy: 0
       });
@@ -1395,13 +1353,13 @@ if(devStage){
     for(var i=0;i<pts.length;i++){
       var p = pts[i];
       // 基础运动
-      p.x += p.vx * (0.3 + p.z*0.6);
-      p.y += p.vy * (0.3 + p.z*0.6);
+      p.x += p.vx * (0.2 + p.z*0.3);
+      p.y += p.vy * (0.2 + p.z*0.3);
       p.z += p.vz;
       if(p.z > 1 || p.z < 0) p.vz *= -1;
       // 边界反弹
-      if(p.x < 10) p.vx += 0.05; if(p.x > W-10) p.vx -= 0.05;
-      if(p.y < 10) p.vy += 0.05; if(p.y > H-10) p.vy -= 0.05;
+      if(p.x < 10) p.vx += 0.02; if(p.x > W-10) p.vx -= 0.02;
+      if(p.y < 10) p.vy += 0.02; if(p.y > H-10) p.vy -= 0.02;
       p.vx *= 0.998; p.vy *= 0.998;
       // 鼠标吸引（聚拢效果）
       if(mouse.active){
