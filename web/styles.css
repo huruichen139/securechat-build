@@ -35,31 +35,31 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
   background: #f5f5f5;
 }
 .auth-card {
-  width: 360px; background: #fff; border: 1px solid var(--border);
-  border-radius: 14px; padding: 36px 32px; box-shadow: 0 12px 40px rgba(0,0,0,.08);
-  user-select: text; animation: rise .3s cubic-bezier(.22,1,.36,1) both;
+  width: 380px; max-width: calc(100% - 32px); background: #fff; border: 1px solid var(--border);
+  border-radius: 18px; padding: 40px 36px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.08);
+  user-select: text; animation: rise .35s cubic-bezier(.22,1,.36,1) both;
 }
-.auth-logo { font-size: 28px; font-weight: 700; color: var(--primary); text-align: center; margin-bottom: 4px; }
-.auth-sub { font-size: 13px; color: var(--muted); text-align: center; margin: 0 0 24px; }
-.tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
-.tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; color: var(--muted); font-size: 14px; transition: color .15s; }
-.tab.on { color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: 600; }
+.auth-logo { font-size: 30px; font-weight: 800; color: var(--primary); text-align: center; letter-spacing: -.02em; margin-bottom: 6px; }
+.auth-sub { font-size: 13px; color: var(--muted); text-align: center; margin: 0 0 26px; }
+.tabs { display: flex; margin-bottom: 20px; background: #f2f3f5; border-radius: 10px; padding: 4px; }
+.tab { flex: 1; text-align: center; padding: 9px; cursor: pointer; color: #777; font-size: 14px; border-radius: 8px; transition: all .18s; }
+.tab.on { color: #fff; background: var(--primary); font-weight: 600; box-shadow: 0 2px 8px rgba(7,193,96,.25); }
 .input {
-  width: 100%; padding: 12px 14px; margin-bottom: 14px; border: 1px solid #e5e5e5;
-  border-radius: 10px; font-size: 14px; user-select: text; background: #f8f8f8; transition: all .15s;
+  width: 100%; padding: 12px 14px; margin-bottom: 14px; border: 1px solid transparent;
+  border-radius: 10px; font-size: 14px; user-select: text; background: rgba(255,255,255,.75); transition: all .15s;
 }
-.input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.1); }
+.input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.12); }
 .input-sm { width: 200px; padding: 8px 10px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 12px; user-select: text; background: #f8f8f8; }
 .code-row { display: flex; gap: 8px; margin-bottom: 14px; }
-.code-row .code-input { flex: 1; margin-bottom: 0; padding: 12px 14px; border: 1px solid #e5e5e5; border-radius: 10px; font-size: 14px; background: #f8f8f8; transition: all .15s; }
-.code-row .code-input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.1); }
-.code-btn { padding: 12px 16px; border: 1px solid var(--primary); background: #fff; color: var(--primary); border-radius: 10px; font-size: 14px; cursor: pointer; white-space: nowrap; transition: all .15s; }
+.code-row .code-input { flex: 1; margin-bottom: 0; padding: 12px 14px; border: 1px solid transparent; border-radius: 10px; font-size: 14px; background: rgba(255,255,255,.75); transition: all .15s; }
+.code-row .code-input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.12); }
+.code-btn { padding: 12px 16px; border: 1px solid rgba(7,193,96,.4); background: rgba(255,255,255,.7); color: var(--primary); border-radius: 10px; font-size: 13.5px; cursor: pointer; white-space: nowrap; transition: all .15s; }
 .code-btn:hover { background: #eafaf2; }
 .code-btn:disabled { color: #aaa; border-color: #ccc; cursor: not-allowed; }
-.login-mode-row { display: flex; gap: 8px; margin-bottom: 14px; }
-.login-mode-btn { flex: 1; padding: 10px 0; border: 1px solid #e5e5e5; background: #f8f8f8; color: #666; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all .15s; }
-.login-mode-btn:hover { border-color: var(--primary); color: var(--primary); background: #fff; }
-.login-mode-btn.on { border-color: var(--primary); background: #eafaf2; color: var(--primary); font-weight: 600; }
+.login-mode-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.login-mode-btn { flex: 1; padding: 9px 0; border: 1px solid transparent; background: rgba(255,255,255,.65); color: #666; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all .15s; }
+.login-mode-btn:hover { color: var(--primary); background: #fff; }
+.login-mode-btn.on { border-color: var(--primary); background: rgba(7,193,96,.1); color: var(--primary); font-weight: 600; }
 .btn {
   width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none;
   border-radius: 10px; font-size: 15px; cursor: pointer; font-weight: 600;
