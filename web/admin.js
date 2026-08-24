@@ -138,6 +138,7 @@
   async function resetPassword(id) {
     const pwd = window.prompt('输入新密码（至少6位），该用户将被强制下线：', '');
     if (pwd === null || !pwd.trim()) return;
+    if (pwd.trim().length < 6) { toast('密码至少6位', 'warn'); return; }
     const token = getToken();
     if (!token) return;
     try {
@@ -824,13 +825,17 @@
 
   // ============ 公告管理 ============
   async function publishAnnouncement() {
+    const btn = el('annPublishBtn');
+    if (btn && btn.disabled) return;
     const title = (el('annTitle').value || '').trim();
     const content = (el('annContent').value || '').trim();
     const level = el('annLevel').value;
     const top = el('annTop').checked;
     if (!title || !content) { toast('标题和内容不能为空', 'warn'); return; }
+    if (content.length > 2000) { toast('公告内容不能超过2000字', 'warn'); return; }
     const token = getToken();
     if (!token) return;
+    if (btn) btn.disabled = true;
     try {
       const resp = await fetch(API + '/api/admin/announcements', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -843,6 +848,7 @@
       el('annResult').textContent = '已发布 #' + data.announcement.id;
       loadAnnouncements();
     } catch (e) { toast('请求失败：' + e.message, 'error'); }
+    finally { if (btn) btn.disabled = false; }
   }
   async function loadAnnouncements() {
     const token = getToken();
@@ -1167,6 +1173,8 @@
     let reason = '';
     if (status === 'rejected') {
       reason = prompt('拒绝原因：') || '';
+    } else if (status === 'approved') {
+      if (!window.confirm('确认通过商户 #' + id + ' 的审核？')) return;
     }
     try {
       const resp = await fetch(API + '/api/admin/pay/merchants/' + id + '/review', {
@@ -1378,7 +1386,7 @@
         const claimedAt = c.claimed_at ? fmtTime(c.claimed_at) : '-';
         const claimer = c.claimed_by ? String(c.claimed_by).slice(0, 8) : '-';
         return `<tr>
-          <td><code>${escapeHtml(c.code)}</code> <button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c.code)}" style="padding:2px 8px;font-size:11px;margin-left:6px">${used ? '复制' : '📋 复制'}</button></td>
+          <td><code>${escapeHtml(c.code)}</code> <button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c.code)}" style="padding:2px 8px;font-size:11px;margin-left:6px">${used ? '复制' : '复制'}</button></td>
           <td>${c.value}元</td>
           <td>${statusHtml}</td>
           <td>${claimedAt}</td>
@@ -1401,7 +1409,7 @@
     const resultDiv = el('redeemResult');
     if (!list || !countEl || !resultDiv) return;
     countEl.textContent = codes.length;
-    list.innerHTML = codes.map(c => `<span style="display:inline-flex;align-items:center;gap:4px;margin:3px"><code class="admin-redeem-code">${escapeHtml(c)}</code><button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c)}" style="padding:2px 8px;font-size:11px">📋 复制</button></span>`).join('');
+    list.innerHTML = codes.map(c => `<span style="display:inline-flex;align-items:center;gap:4px;margin:3px"><code class="admin-redeem-code">${escapeHtml(c)}</code><button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c)}" style="padding:2px 8px;font-size:11px">复制</button></span>`).join('');
     resultDiv.style.display = '';
     list.querySelectorAll('.redeem-copy-btn').forEach(btn => {
       btn.addEventListener('click', () => {

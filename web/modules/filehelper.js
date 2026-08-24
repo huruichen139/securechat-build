@@ -116,12 +116,12 @@
       '<div class="fh-body">' +
       messages.map((r) => {
         if (r.kind === 'file') {
-          return `<div class="${mine(r)}"><span class="fh-file">📎 ${esc(r.name)} (${humanSize(r.size)})</span>` +
+          return `<div class="${mine(r)}"><span class="fh-file">[文件] ${esc(r.name)} (${humanSize(r.size)})</span>` +
             `<span class="fh-ops"><button data-act="open" data-id="${r.id}" data-name="${esc(r.name)}">打开</button>` +
             `<button data-act="del" data-id="${r.id}">删除</button></span></div>`;
         }
         if (r.kind === 'voice') {
-          return `<div class="${mine(r)}"><span class="fh-voice">🎙 ${esc(r.name)}</span>` +
+          return `<div class="${mine(r)}"><span class="fh-voice">[语音] ${esc(r.name)}</span>` +
             `<span class="fh-ops"><button data-act="voice" data-id="${r.id}">播放</button></span></div>`;
         }
         if (r.kind === 'deleted') return `<div class="${mine(r)}"><span class="fh-deleted">(${esc(r.name)})</span></div>`;

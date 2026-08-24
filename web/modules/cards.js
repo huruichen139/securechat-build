@@ -97,7 +97,7 @@
         if (c.type === 'ticket') {
           var tExp = c.expireAt < Date.now();
           return '<div class="card-item card-ticket' + (c.used || tExp ? ' used' : '') + '">' +
-            '<div class="card-ticket-icon">🎟</div>' +
+            '<div class="card-ticket-icon">票</div>' +
             '<div class="card-ticket-info">' +
               '<div class="card-ticket-name">' + esc(c.name) + '</div>' +
               '<div class="card-ticket-code">兑换码：' + esc(c.code) + '</div>' +

@@ -3480,7 +3480,7 @@ app.post('/api/admin/announcements', (req, res) => {
   const guard = adminGuard(req, res);
   if (guard.sent) return;
   const title = String((req.body || {}).title || '').trim().slice(0, 100);
-  const content = String((req.body || {}).content || '').trim();
+  const content = String((req.body || {}).content || '').trim().slice(0, 2000);
   if (!title || !content) return res.status(400).json({ error: '标题和内容不能为空' });
   const level = ['info', 'warning', 'danger'].includes((req.body || {}).level) ? (req.body || {}).level : 'info';
   const top = !!(req.body || {}).top ? 1 : 0;

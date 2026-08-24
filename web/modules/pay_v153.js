@@ -703,7 +703,7 @@
           const r = await merchantMe();
           const m = r.merchant;
           if (m) {
-            const stTxt = m.status === 'approved' ? '已通过 ✅' : (m.status === 'pending' ? '审核中…' : '已拒绝（' + esc(m.reason || '') + '）');
+            const stTxt = m.status === 'approved' ? '已通过' : (m.status === 'pending' ? '审核中…' : '已拒绝（' + esc(m.reason || '') + '）');
             merchantEl.innerHTML = '<div style="background:#e6f7ee;border-radius:8px;padding:10px;font-size:13px;color:#333"><b>' + esc(m.name) + '</b> · ' + stTxt + '<br>商户号 #' + m.id + ' · 认证：' + esc(m.auth_mode || 'local') + '</div>';
             if (m.status === 'approved') { orderBox.style.display = 'block'; formBox.style.display = 'none'; }
             else { orderBox.style.display = 'none'; formBox.style.display = 'block'; }
@@ -764,7 +764,7 @@
         setTimeout(async () => {
           try {
             const o = await _req('GET', '/api/pay/gateway/order/' + encodeURIComponent(orderNo));
-            if (o.order && o.order.status === 'paid') { showToast('支付成功 ✅', 'success'); refreshAfterPay(); }
+            if (o.order && o.order.status === 'paid') { showToast('支付成功', 'success'); refreshAfterPay(); }
             else showToast('尚未支付，收银台确认后自动到账', 'info');
           } catch (e) {}
         }, 3000);
