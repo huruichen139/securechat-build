@@ -32,8 +32,7 @@
       configured = query || configured;
     } catch (ignore) {}
     if (!configured) {
-      var host = window.location.hostname || '';
-      configured = 'https://mc.32768.top:8888';
+      configured = window.location.origin || 'https://mc.32768.top:8888';
     }
     return String(configured).replace(/\/$/, '');
   }
@@ -118,7 +117,8 @@
       }
       var entries = [];
       if (Array.isArray(releaseNotes)) {
-        entries = releaseNotes.filter(function (e) { return e && e.notes; });
+        entries = releaseNotes.filter(function (e) { return e && (e.notes || e.changes); });
+        entries = entries.map(function (e) { return Object.assign({}, e, { notes: e.notes || e.changes }); });
       } else if (releaseNotes) {
         entries = [{ version: version, date: '', notes: String(releaseNotes) }];
       }
