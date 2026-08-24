@@ -314,7 +314,7 @@
       state.ckS = parts[1];
       state.dhS_priv = dh.privJwk;
       state.dhS_pub = dh.pubSpki;
-      state.nS = 0; state.nR = 0;
+      state.nS = 0;
     }
     const ck = await kdfChain(state.ckS);
     state.ckS = ck[0];
