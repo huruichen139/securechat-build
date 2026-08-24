@@ -1548,7 +1548,15 @@ app.all('/api/wallet/recharge/notify', (req, res) => {
   const p = Object.assign({}, req.query || {}, req.body || {});
   const c = epayConfigRead();
   if (!c.key) return res.status(503).send('fail');
-  if (epaySignOf(p, c.key) !== String(p.sign || '').toLowerCase()) {
+  // 兼容两种签名密钥：商户密钥（外部易支付）与内置网关密钥（.epaygw_key.json）
+  let signOk = epaySignOf(p, c.key) === String(p.sign || '').toLowerCase();
+  if (!signOk) {
+    try {
+      const gw = JSON.parse(fs.readFileSync(path.join(__dirname, '.epaygw_key.json'), 'utf8'));
+      if (gw && gw.key) signOk = epaySignOf(p, gw.key) === String(p.sign || '').toLowerCase();
+    } catch (e) {}
+  }
+  if (!signOk) {
     console.log('[wallet] recharge notify sign mismatch: ' + JSON.stringify(p).slice(0, 300));
     return res.send('sign error');
   }
