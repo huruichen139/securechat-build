@@ -641,6 +641,7 @@ class _ChatViewStateState extends State<_ChatView> {
   bool recording = false;
   int _recordingStart = 0; // 录音开始时间戳（用于计算时长）
   Timer? _recordingTimer;
+  final Set<int> _grabbedPackets = {};
   int _recordingDuration = 0;
   int _groupOnlineCount = -1; // 当前群在线人数（-1=未知）
   AudioPlayer? voicePlayer;
@@ -981,7 +982,7 @@ class _ChatViewStateState extends State<_ChatView> {
         final text = looksLikeRatchetCipher(content)
             ? '[加密消息，历史内容不可在此会话恢复]'
             : await e2eeDecrypt('$peerId', content);
-        final mine = m['from'] == myId || (m['from'] ?? 0) == myId || (m['from'] ?? 0) != peerId;
+        final mine = (m['from'] ?? -1) == myId;
         final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
         final read = m['read'] == true;
         msgs.add(voice != null
@@ -1514,12 +1515,18 @@ class _ChatViewStateState extends State<_ChatView> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('需要麦克风权限')));
       return;
     }
-    await recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100), path: '${Directory.systemTemp.path}/securechat-${DateTime.now().millisecondsSinceEpoch}.m4a');
+    try {
+      await recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100), path: '${Directory.systemTemp.path}/securechat-${DateTime.now().millisecondsSinceEpoch}.m4a');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('录音启动失败')));
+      return;
+    }
     _recordingStart = DateTime.now().millisecondsSinceEpoch;
     _recordingDuration = 0;
     setState(() => recording = true);
-    Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || !recording) { t.cancel(); return; }
       final secs = ((DateTime.now().millisecondsSinceEpoch - _recordingStart) / 1000).round();
       if (mounted) setState(() => _recordingDuration = secs);
     });
@@ -1684,11 +1691,13 @@ class _ChatViewStateState extends State<_ChatView> {
                       if ((_unread[_convKey(conv)] ?? 0) > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 3),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(9)),
-                            child: Text('${_unread[_convKey(conv)]}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-                          ),
+                          child: conv['muted'] == true
+                              ? Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xffb2b2b2), shape: BoxShape.circle))
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(9)),
+                                  child: Text('${_unread[_convKey(conv)]}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                                ),
                         ),
                     ])),
                   ]),
@@ -2438,7 +2447,7 @@ class _ChatViewStateState extends State<_ChatView> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                 const Text('红包', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text(mine ? '查看领取详情' : '点击领取红包', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(mine ? '查看领取详情' : (_grabbedPackets.contains(packetId) ? '已领取' : '点击领取红包'), style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ])),
             ]),
           ),
@@ -2449,6 +2458,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
 
   Future<void> _grabRedPacket(int packetId) async {
+    if (_grabbedPackets.contains(packetId)) return;
     try {
       final result = await widget.api.grabRedPacket(packetId);
       if (!mounted) return;
@@ -2457,6 +2467,7 @@ class _ChatViewStateState extends State<_ChatView> {
         _showRedPacketDetail(packetId);
         return;
       }
+      setState(() => _grabbedPackets.add(packetId));
       final balance = result['balance'];
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(balance != null ? '领取成功：${result['amount'] ?? ''} 元，当前余额 $balance 元' : '领取成功：${result['amount'] ?? ''} 元'),
