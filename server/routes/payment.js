@@ -92,6 +92,7 @@ module.exports = function registerPayment(app, db, auth) {
       " remark TEXT,\n" +
       " created_at INTEGER NOT NULL\n)").run();
     prepare("CREATE INDEX IF NOT EXISTS idx_collect_pay_collect ON collect_payments(collect_id)").run();
+    try { prepare("CREATE UNIQUE INDEX IF NOT EXISTS uq_collect_pay_once ON collect_payments(collect_id,user_id)").run(); } catch (e) {}
 
     prepare("CREATE TABLE IF NOT EXISTS group_solections (\n" +
       " id INTEGER PRIMARY KEY AUTOINCREMENT,\n" +
@@ -318,12 +319,18 @@ module.exports = function registerPayment(app, db, auth) {
     if (code.status !== 'active' || (code.expires_at && code.expires_at < Date.now())) return res.status(410).json({ error: '码已失效' });
     if (code.owner_id === payerId) return res.status(400).json({ error: '不能扫自己的收款码' });
     let amount = parseFloat((req.body && req.body.amount));
+    if (code.amount) {
+      const claim = prepare("UPDATE pay_codes SET status='used' WHERE id=? AND status='active'").run(code.id);
+      if (!claim.changes) return res.status(410).json({ error: '码已失效' });
+    }
     if (code.amount) amount = code.amount;
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
     const remark = String((req.body && req.body.remark) || '').trim().slice(0, 100) || '扫码收款';
     doPay(payerId, code.owner_id, amount, remark, 'paycode', code.id, (err, result) => {
-      if (err) return res.status(err.code || 400).json({ error: err.message });
-      if (code.amount) prepare('UPDATE pay_codes SET status=? WHERE id=?').run('used', code.id);
+      if (err) {
+        if (code.amount) prepare('UPDATE pay_codes SET status=? WHERE id=?').run('active', code.id);
+        return res.status(err.code || 400).json({ error: err.message });
+      }
       try { persist(); } catch (e) {}
       res.json(result);
     });
@@ -339,10 +346,14 @@ module.exports = function registerPayment(app, db, auth) {
     if (code.owner_id === receiverId) return res.status(400).json({ error: '不能向自己收款' });
     const amount = parseFloat((req.body && req.body.amount));
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
+    const claim2 = prepare("UPDATE pay_codes SET status='used' WHERE id=? AND status='active'").run(code.id);
+    if (!claim2.changes) return res.status(410).json({ error: '码已失效或过期' });
     const remark = String((req.body && req.body.remark) || '').trim().slice(0, 100) || '付款码收款';
     doPay(code.owner_id, receiverId, amount, remark, 'paycode', code.id, (err, result) => {
-      if (err) return res.status(err.code || 400).json({ error: err.message });
-      prepare('UPDATE pay_codes SET status=? WHERE id=?').run('used', code.id);
+      if (err) {
+        prepare('UPDATE pay_codes SET status=? WHERE id=?').run('active', code.id);
+        return res.status(err.code || 400).json({ error: err.message });
+      }
       try { persist(); } catch (e) {}
       res.json(result);
     });
@@ -417,11 +428,20 @@ module.exports = function registerPayment(app, db, auth) {
     if (c.status !== 'open') return res.status(400).json({ error: '收款已结束' });
     const existing = prepare('SELECT id FROM collect_payments WHERE collect_id=? AND user_id=?').get(collectId, userId);
     if (existing) return res.status(409).json({ error: '你已缴款' });
+    try {
+      prepare('INSERT INTO collect_payments(collect_id,user_id,amount,remark,created_at) VALUES(?,?,?,?,?)')
+        .run(collectId, userId, c.amount, '(处理中)', Date.now());
+    } catch (e) {
+      if (String(e && e.message || e).includes('UNIQUE')) return res.status(409).json({ error: '你已缴款' });
+      throw e;
+    }
     const remark = String((req.body && req.body.remark) || '').trim() || '群收款';
     doPay(userId, c.creator_id, c.amount, '群收款：' + c.title, 'group_collect', c.id, (err, result) => {
-      if (err) return res.status(err.code || 400).json({ error: err.message });
-      prepare('INSERT INTO collect_payments(collect_id,user_id,amount,remark,created_at) VALUES(?,?,?,?,?)')
-        .run(collectId, userId, c.amount, remark, Date.now());
+      if (err) {
+        prepare('DELETE FROM collect_payments WHERE collect_id=? AND user_id=?').run(collectId, userId);
+        return res.status(err.code || 400).json({ error: err.message });
+      }
+      prepare('UPDATE collect_payments SET remark=? WHERE collect_id=? AND user_id=?').run(remark, collectId, userId);
       try { persist(); } catch (e) {}
       res.json({ ok: true, collect: collectDetail(collectId, userId), balance: result.balance });
     });
