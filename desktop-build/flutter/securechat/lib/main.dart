@@ -1340,12 +1340,16 @@ class _ChatViewStateState extends State<_ChatView> {
           });
         } else if (type == 'signal') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
-          final service = calls;
-          if (service != null) {
-            service.onSignal(p['from'] as int?, p['sub'] as String?, p['data']);
-            if (service.status == CallStatus.ringing && mounted) {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: '对方', config: widget.config)));
-            }
+          final service = calls ??= CallService(socket: socket!);
+          service.onSignal(p['from'] as int?, p['sub'] as String?, p['data']);
+          if (service.status == CallStatus.ringing && mounted) {
+            final fromId = p['from'] as int?;
+            String peerName = '对方';
+            try {
+              final info = await widget.api.userProfile(fromId!);
+              peerName = (info['nickname'] ?? info['username'] ?? '对方').toString();
+            } catch (_) {}
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: peerName, config: widget.config)));
           }
         } else if (type == 'poke') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
