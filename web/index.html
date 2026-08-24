@@ -213,17 +213,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 /* 2. 背景动态网格 */
 .animated-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(7,193,96,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(7,193,96,.035) 1px,transparent 1px);background-size:56px 56px;animation:gridDrift 22s linear infinite}
 @keyframes gridDrift{to{background-position:56px 112px}}
-body>*:not(.animated-grid):not(.cursor-glow):not(.progress-top){position:relative;z-index:2}
 /* 3. 章节标题逐词浮现 */
 .sec-head h2 .w{display:inline-block;opacity:0;transform:translateY(.6em) rotate(4deg);transition:all .55s cubic-bezier(.22,1,.36,1)}
 .sec-head.in h2 .w{opacity:1;transform:none}
 /* 4. 手机滚动视差 */
 .phone{will-change:transform}
-/* 5. 桌面 mockup 气泡入场 */
-.mk-msgs .mk-row{opacity:0;transform:translateY(18px) scale(.95)}
-.mockup-stage.play .mk-row{animation:mkPop .55s cubic-bezier(.34,1.56,.64,1) forwards}
-.mockup-stage.play .mk-row:nth-child(1){animation-delay:.15s}.mockup-stage.play .mk-row:nth-child(2){animation-delay:.4s}.mockup-stage.play .mk-row:nth-child(3){animation-delay:.65s}.mockup-stage.play .mk-row:nth-child(4){animation-delay:.9s}.mockup-stage.play .mk-row:nth-child(5){animation-delay:1.15s}
-@keyframes mkPop{to{opacity:1;transform:none}}
+/* 5. 桌面 mockup 气泡入场（默认可见，play 时重播动画） */
+.mockup-stage.play .mk-row{animation:mkPop .55s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes mkPop{0%{opacity:0;transform:translateY(18px) scale(.95)}100%{opacity:1;transform:none}}
 /* 6. 打字中三点 */
 .typing-dots{display:inline-flex;gap:3px;padding:10px 14px;background:#fff;border-radius:3px 12px 12px 12px;box-shadow:var(--shadow-s);margin-top:-24px;margin-left:36px;opacity:0}
 .mockup-stage.play .typing-dots{animation:mkPop .5s 1.45s cubic-bezier(.34,1.56,.64,1) forwards}
