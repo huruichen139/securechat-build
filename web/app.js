@@ -4450,7 +4450,19 @@ function openSettingsPage() {
             } catch (e) { toast('请求失败：' + e.message, 'error'); }
           });
         }},
-        { label: '登录设备管理', desc: '查看登录过的设备', icon: '机', fn: () => toast('设备管理开发中', 'info') },
+        { label: '登录设备管理', desc: '已授权的本地设备', icon: '机', fn: async () => {
+          try {
+            const res = await fetch(state.serverHost + '/api/passkey/list', { headers: { Authorization: 'Bearer ' + state.token } });
+            const data = await res.json().catch(() => ({}));
+            const creds = data.credentials || [];
+            if (!creds.length) { toast('暂无已授权设备', 'info'); return; }
+            const lines = creds.map(c => {
+              const d = c.created_at ? new Date(c.created_at).toLocaleDateString() : '';
+              return (c.device_name || '设备') + (d ? '（' + d + ' 授权）' : '');
+            }).join('\n');
+            window.alert('已授权设备：\n\n' + lines + '\n\n如需移除，请在 Passkey 页面管理。');
+          } catch (e) { toast('请求失败：' + e.message, 'error'); }
+        }},
       ]
     },
     {
