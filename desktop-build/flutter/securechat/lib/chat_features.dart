@@ -166,10 +166,15 @@ Future<void> showScheduleDialog(BuildContext ctx, SecureChatApi api, int peerId,
   if (pickedTime == null) return;
   timeCtrl.text = pickedTime.format(ctx);
   final scheduledDateTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
-  
+  if (!scheduledDateTime.isAfter(DateTime.now())) {
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('提醒时间必须晚于当前时间')));
+    return;
+  }
+
+  bool sending = false;
   await showDialog(
     context: ctx,
-    builder: (_) => AlertDialog(
+    builder: (_) => StatefulBuilder(builder: (dialogCtx, setDialogState) => AlertDialog(
       title: const Text('定时发送'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -188,33 +193,53 @@ Future<void> showScheduleDialog(BuildContext ctx, SecureChatApi api, int peerId,
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('取消')),
         TextButton(
-          onPressed: () async {
-            final scheduledAt = scheduledDateTime.millisecondsSinceEpoch;
-            final uri = Uri.parse('${api.baseUrl}/api/scheduled-messages');
-            final resp = await http.post(
-              uri,
-              headers: {
-                'Content-Type': 'application/json',
-                if (api.token != null) 'Authorization': 'Bearer ${api.token}',
-              },
-              body: json.encode({
-                'peerId': peerId,
-                'isGroup': isGroup,
-                'content': contentCtrl.text,
-                'kind': 'text',
-                'scheduledAt': scheduledAt,
-              }),
-            );
-            if (resp.statusCode == 200 && ctx.mounted) {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('定时发送已预约')));
+          onPressed: sending ? null : () async {
+            if (sending) return;
+            sending = true;
+            setDialogState(() {});
+            try {
+              final scheduledAt = scheduledDateTime.millisecondsSinceEpoch;
+              final uri = Uri.parse('${api.baseUrl}/api/scheduled-messages');
+              final resp = await http.post(
+                uri,
+                headers: {
+                  'Content-Type': 'application/json',
+                  if (api.token != null) 'Authorization': 'Bearer ${api.token}',
+                },
+                body: json.encode({
+                  'peerId': peerId,
+                  'isGroup': isGroup,
+                  'content': contentCtrl.text,
+                  'kind': 'text',
+                  'scheduledAt': scheduledAt,
+                }),
+              );
+              if (resp.statusCode == 200) {
+                if (dialogCtx.mounted) {
+                  Navigator.pop(dialogCtx);
+                  ScaffoldMessenger.of(dialogCtx).showSnackBar(const SnackBar(content: Text('定时发送已预约')));
+                }
+              } else {
+                sending = false;
+                setDialogState(() {});
+                if (dialogCtx.mounted) {
+                  ScaffoldMessenger.of(dialogCtx).showSnackBar(SnackBar(content: Text('预约失败（${resp.statusCode}）')));
+                }
+              }
+            } catch (e) {
+              sending = false;
+              setDialogState(() {});
+              if (dialogCtx.mounted) {
+                ScaffoldMessenger.of(dialogCtx).showSnackBar(SnackBar(content: Text('预约失败：$e')));
+              }
             }
           },
           child: const Text('确定'),
         ),
       ],
+    ),
     ),
   );
 }
@@ -237,13 +262,26 @@ Future<void> showBurnDialog(BuildContext ctx, Map<String, dynamic> msg, SecureCh
   final msgId = msg['id'];
   // 调用服务端 burn 接口
   final uri = Uri.parse('${api.baseUrl}/api/message/burn');
-  await http.post(uri, headers: {
-    'Content-Type': 'application/json',
-    if (api.token != null) 'Authorization': 'Bearer ${api.token}',
-  }, body: json.encode({
-    'messageId': msgId,
-    'duration': duration,
-  }));
+  try {
+    final resp = await http.post(uri, headers: {
+      'Content-Type': 'application/json',
+      if (api.token != null) 'Authorization': 'Bearer ${api.token}',
+    }, body: json.encode({
+      'messageId': msgId,
+      'duration': duration,
+    }));
+    if (resp.statusCode != 200) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('设置失败（${resp.statusCode}）')));
+      }
+      return;
+    }
+  } catch (e) {
+    if (ctx.mounted) {
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('设置失败：$e')));
+    }
+    return;
+  }
   
   if (ctx.mounted) {
     ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('已设置阅后即焚: $duration 秒后销毁')));

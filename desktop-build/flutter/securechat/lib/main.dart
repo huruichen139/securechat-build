@@ -2304,6 +2304,18 @@ class _ChatViewStateState extends State<_ChatView> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入有效金额')));
       return;
     }
+    if (isGroup && (count <= 0 || count > 1000)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('个数无效（1-1000）')));
+      return;
+    }
+    if (isGroup && amount < 0.01 * count) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('金额不足以拆分')));
+      return;
+    }
+    if (amount > 50000) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('单笔红包不能超过5万元')));
+      return;
+    }
     try {
       final r = await widget.api.redPacketSend(
         to: isGroup ? null : conv['id'] as int,
@@ -2831,24 +2843,37 @@ class _ChatViewStateState extends State<_ChatView> {
     );
     if (picked == null || picked.isEmpty || !mounted) return;
     final text = (msg['text'] ?? '').toString();
-    final content = text.isEmpty ? '转发消息' : text;
+    if (text.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('该消息不支持转发')));
+      return;
+    }
+    final content = text;
     int count = 0;
+    int failed = 0;
     for (final idx in picked) {
       final conv = conversations[idx];
       if (conv['id'].toString() == target.toString()) continue;
-      if (conv['kind'] == 'group') {
-        final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
-        _sentIds.add(gcmid);
-        socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
-      } else {
-        final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
-        _sentIds.add(cmid);
-        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt(conv['id'].toString(), content), 'clientMsgId': cmid, 'forwardedFrom': msg['id']}}));
+      try {
+        if (socket == null) {
+          failed++;
+          continue;
+        }
+        if (conv['kind'] == 'group') {
+          final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
+          _sentIds.add(gcmid);
+          socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
+        } else {
+          final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
+          _sentIds.add(cmid);
+          socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt(conv['id'].toString(), content), 'clientMsgId': cmid, 'forwardedFrom': msg['id']}}));
+        }
+        count++;
+      } catch (_) {
+        failed++;
       }
-      count++;
       await Future.delayed(const Duration(milliseconds: 50));
     }
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已转发到 $count 个会话')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已转发 $count 个会话${failed > 0 ? '，$failed 个失败' : ''}')));
   }
 
   /// 双击消息点赞：气泡旁弹出爱心动画
@@ -3500,8 +3525,9 @@ class _ChatViewStateState extends State<_ChatView> {
                 final emoji = _emojiList[i];
                 final text = input.text;
                 final sel = input.selection;
-                final start = sel.start >= 0 ? sel.start : text.length;
-                input.text = text.substring(0, start) + emoji + text.substring(start);
+                final start = (sel.start >= 0 && sel.start <= text.length) ? sel.start : text.length;
+                final end = (sel.end >= start && sel.end <= text.length) ? sel.end : start;
+                input.text = text.substring(0, start) + emoji + text.substring(end);
                 input.selection = TextSelection.collapsed(offset: start + emoji.length);
                 Navigator.pop(sheetCtx);
                 inputFocus.requestFocus();

@@ -111,7 +111,7 @@ class ChatExtService {
     try {
       final data = jsonDecode(content.substring('[合并转发]'.length));
       if (data is Map && data['items'] is List) {
-        return (data['items'] as List).cast<Map<String, dynamic>>();
+        return [for (final e in data['items'] as List) if (e is Map) Map<String, dynamic>.from(e)];
       }
     } catch (_) {}
     return const [];
