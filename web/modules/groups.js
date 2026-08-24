@@ -386,9 +386,13 @@
     let friends = [];
     try {
       const res = await fetch(HOST + '/api/friends', { headers: { 'Authorization': 'Bearer ' + token() } });
+      if (!res.ok) throw new Error('加载失败 ' + res.status);
       const d = await res.json();
       friends = d.friends || [];
-    } catch (e) { friends = []; }
+    } catch (e) {
+      friends = [];
+      try { showToast('好友列表加载失败：' + e.message, 'error'); } catch (_) {}
+    }
     // 通过闭包收集输入，避免依赖 modal 返回值
     let nameEl = null;
     let selUids = [];
@@ -472,9 +476,10 @@
         n2.textContent = (g.memberCount || 0) + ' 成员' + (g.muted ? ' · 免打扰' : '');
         info.appendChild(n1); info.appendChild(n2);
         row.appendChild(av); row.appendChild(info);
-        if (g.announcement) {
+        if (g.announcement && g.announcement.pinned) {
           const pin = document.createElement('span');
-          pin.textContent = ' 📌';
+          pin.textContent = '置顶公告';
+          pin.style.cssText = 'font-size:10px;color:#fa9d3b';
           row.appendChild(pin);
         }
         ul.appendChild(row);

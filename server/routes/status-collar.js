@@ -162,6 +162,12 @@ module.exports = function registerStatusCollar(app, db, auth) {
     const id = Number(req.params.id);
     const m = prepare('SELECT id,user_id AS userId,content AS content,images,created_at AS createdAt FROM moments WHERE id=?').get(id);
     if (!m) return deny(res, 404, '动态不存在');
+    if (m.userId !== me) {
+      const isFriend = !!prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?) )').get(me, m.userId, m.userId, me);
+      if (!isFriend) return deny(res, 403, '仅好友可查看');
+    }
+    const blk = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(me, m.userId, m.userId, me);
+    if (blk) return deny(res, 403, '无法查看');
     try { m.images = JSON.parse(m.images || '[]'); } catch (e) { m.images = []; }
     // 来源与 @
     const ex = prepare('SELECT source,mention FROM moment_extra WHERE moment_id=?').get(id) || {};
@@ -201,7 +207,14 @@ module.exports = function registerStatusCollar(app, db, auth) {
   app.post('/api/moments/ext/:id/reply', (req, res) => {
     const me = need(req, res); if (!me) return;
     const id = Number(req.params.id);
-    if (!prepare('SELECT id FROM moments WHERE id=?').get(id)) return deny(res, 404, '动态不存在');
+    const mm = prepare('SELECT id,user_id FROM moments WHERE id=?').get(id);
+    if (!mm) return deny(res, 404, '动态不存在');
+    if (mm.user_id !== me) {
+      const isFriend = !!prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?) )').get(me, mm.user_id, mm.user_id, me);
+      if (!isFriend) return deny(res, 403, '仅好友可互动');
+    }
+    const blk = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(me, mm.user_id, mm.user_id, me);
+    if (blk) return deny(res, 403, '无法互动');
     const { content, replyToId } = req.body || {};
     if (typeof content !== 'string' || !content.trim()) return deny(res, 400, '评论不能为空');
     prepare('INSERT INTO moment_comments(moment_id,user_id,reply_to_id,content,created_at) VALUES(?,?,?,?,?)')

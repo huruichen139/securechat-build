@@ -260,7 +260,13 @@ class _GroupRoomState extends State<_GroupRoom> {
   }
 
   Future<void> _invite() async {
-    final list = await _svc.friendPool();
+    final List<Map<String, dynamic>> list;
+    try {
+      list = await _svc.friendPool();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('好友加载失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+      return;
+    }
     final selected = <String>{};
     await showDialog(context: context, builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => AlertDialog(

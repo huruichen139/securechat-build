@@ -1374,13 +1374,27 @@ app.get('/api/moments', (req, res) => {
 });
 
 // 点赞/取消：POST /api/moments/:id/like { on:true|false }
-app.post('/api/moments/:id/like', (req, res) => {
-  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+// 朋友圈互动权限：仅好友可点赞/评论，且双方不在黑名单
+function momentInteractGuard(req, res, id) {
   const auth = req.headers.authorization || '';
   const payload = verifyToken(auth.replace('Bearer ', ''));
-  if (!payload) return res.status(401).json({ error: '未授权' });
+  if (!payload) { res.status(401).json({ error: '未授权' }); return null; }
+  const m = prepare('SELECT id,user_id FROM moments WHERE id=?').get(id);
+  if (!m) { res.status(404).json({ error: '动态不存在' }); return null; }
+  if (m.user_id !== payload.id) {
+    const isFriend = !!prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?))').get(payload.id, m.user_id, m.user_id, payload.id);
+    if (!isFriend) { res.status(403).json({ error: '仅好友可互动' }); return null; }
+  }
+  const blocked = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(payload.id, m.user_id, m.user_id, payload.id);
+  if (blocked) { res.status(403).json({ error: '无法互动' }); return null; }
+  return payload;
+}
+
+app.post('/api/moments/:id/like', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const id = parseInt(req.params.id, 10);
-  if (!prepare('SELECT id FROM moments WHERE id=?').get(id)) return res.status(404).json({ error: '动态不存在' });
+  const payload = momentInteractGuard(req, res, id);
+  if (!payload) return;
   const on = req.body && req.body.on !== false;
   if (on) prepare('INSERT OR IGNORE INTO moment_likes(moment_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
   else prepare('DELETE FROM moment_likes WHERE moment_id=? AND user_id=?').run(id, payload.id);
@@ -1391,11 +1405,9 @@ app.post('/api/moments/:id/like', (req, res) => {
 // 评论：POST /api/moments/:id/comment { content, replyToId? }
 app.post('/api/moments/:id/comment', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const auth = req.headers.authorization || '';
-  const payload = verifyToken(auth.replace('Bearer ', ''));
-  if (!payload) return res.status(401).json({ error: '未授权' });
   const id = parseInt(req.params.id, 10);
-  if (!prepare('SELECT id FROM moments WHERE id=?').get(id)) return res.status(404).json({ error: '动态不存在' });
+  const payload = momentInteractGuard(req, res, id);
+  if (!payload) return;
   const { content, replyToId } = req.body || {};
   if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '评论不能为空' });
   prepare('INSERT INTO moment_comments(moment_id,user_id,reply_to_id,content,created_at) VALUES(?,?,?,?,?)')

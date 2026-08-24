@@ -269,7 +269,9 @@ module.exports = function registerLifestyle(app, db, auth) {
     const rows = prepare(`SELECT n.*, u.username,u.nickname,u.avatar,u.uid FROM nearby_markers n
       LEFT JOIN users u ON u.id=n.user_id
       WHERE n.user_id<>? AND n.city=? AND n.last_seen>=?
-      ORDER BY n.last_seen DESC LIMIT 100`).all(id.id, city, cutoff);
+        AND n.user_id NOT IN (SELECT blocked_id FROM blocklist WHERE blocker_id=?)
+        AND n.user_id NOT IN (SELECT blocker_id FROM blocklist WHERE blocked_id=?)
+      ORDER BY n.last_seen DESC LIMIT 100`).all(id.id, city, cutoff, id.id, id.id);
     const list = rows.map(r => {
       const p = {
         userId: r.user_id, nickname: r.nickname, username: r.username, avatar: r.avatar, uid: r.uid,
@@ -292,6 +294,8 @@ module.exports = function registerLifestyle(app, db, auth) {
     const target = micrId(req.params.userId);
     if (!target || target === id.id) return deny(res, 400, '无效对象');
     if (!prepare('SELECT id FROM users WHERE id=?').get(target)) return deny(res, 404, '用户不存在');
+    const blk = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(id.id, target, target, id.id);
+    if (blk) return deny(res, 403, '无法打招呼');
     // 已是双向好友则不需要重复
     const both = prepare(`SELECT 1 FROM friends a JOIN friends b ON b.user_id=a.friend_id AND b.friend_id=a.user_id
       WHERE a.user_id=? AND a.friend_id=? AND a.status=1`).get(id.id, target);
@@ -326,7 +330,9 @@ module.exports = function registerLifestyle(app, db, auth) {
       SELECT s.user_id, u.username,u.nickname,u.avatar,u.uid,u.city
       FROM shake_sessions s LEFT JOIN users u ON u.id=s.user_id
       WHERE s.user_id<>? AND s.expires_at>?
-      GROUP BY s.user_id ORDER BY s.created_at DESC LIMIT 100`).all(id.id, Date.now());
+        AND s.user_id NOT IN (SELECT blocked_id FROM blocklist WHERE blocker_id=?)
+        AND s.user_id NOT IN (SELECT blocker_id FROM blocklist WHERE blocked_id=?)
+      GROUP BY s.user_id ORDER BY s.created_at DESC LIMIT 100`).all(id.id, Date.now(), id.id, id.id);
     const list = rows.map(r => ({
       userId: r.user_id, nickname: r.nickname, username: r.username, avatar: r.avatar, uid: r.uid, city: r.city || '',
     }));
@@ -346,6 +352,8 @@ module.exports = function registerLifestyle(app, db, auth) {
     const target = micrId(req.params.userId);
     if (!target || target === id.id) return deny(res, 400, '无效对象');
     if (!prepare('SELECT id FROM users WHERE id=?').get(target)) return deny(res, 404, '用户不存在');
+    const blk2 = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(id.id, target, target, id.id);
+    if (blk2) return deny(res, 403, '无法打招呼');
     const both = prepare(`SELECT 1 FROM friends a JOIN friends b ON b.user_id=a.friend_id AND b.friend_id=a.user_id
       WHERE a.user_id=? AND a.friend_id=? AND a.status=1`).get(id.id, target);
     if (both) return okay(res, { already: true, message: '你们已是好友' });
