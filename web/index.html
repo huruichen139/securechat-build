@@ -355,6 +355,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .hero-badge{box-shadow:0 4px 0 rgba(7,193,96,.25),0 10px 22px -8px rgba(7,193,96,.3)}
 .hero-badge:hover{transform:translateY(-2px) rotateX(8deg)}
 
+
+/* ===== 第四批动画：粒子+逐字波浪+渐变旋转 ===== */
+.particles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.particles i{position:absolute;bottom:-10px;border-radius:50%;background:radial-gradient(circle,rgba(7,193,96,.5),rgba(7,193,96,0) 70%);animation:particleUp linear infinite}
+@keyframes particleUp{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:.85}88%{opacity:.5}100%{transform:translateY(-92vh) scale(.4);opacity:0}}
+.hero h1 .ch{display:inline-block;opacity:0;transform:translateY(.5em) rotate(6deg);animation:chIn .5s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes chIn{to{opacity:1;transform:none}}
+.kicker{position:relative}
+.kicker::after{content:'';position:absolute;left:50%;bottom:-6px;width:0;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--brand),#3376ff);transform:translateX(-50%);transition:width .5s cubic-bezier(.22,1,.36,1)}
+.sec-head:hover .kicker::after{width:100%}
+.btn-main{background:linear-gradient(135deg,var(--brand),#00a854,#3376ff);background-size:220% 220%;animation:btnGrad 5s ease-in-out infinite}
+@keyframes btnGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.blob{will-change:transform}
+.mockup{animation:mockFloat 6s ease-in-out infinite}
+@keyframes mockFloat{0%,100%{translate:0 0}50%{translate:0 -10px}}
+.os-card .os-btn{transition:all .25s}
+.os-card:hover .os-btn{transform:translateY(2px)}
+.stat-c{position:relative;overflow:hidden}
+.stat-c::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--brand),#3376ff);transform:scaleX(0);transition:transform .4s cubic-bezier(.22,1,.36,1)}
+.stat-c:hover::before{transform:scaleX(1)}
+.sc-tag{position:relative;overflow:hidden}
+.sc-tag::after{content:'';position:absolute;bottom:0;left:0;width:0;height:1.5px;background:var(--brand);transition:width .3s}
+.sc-tag:hover::after{width:100%}
+@media (prefers-reduced-motion:reduce){.particles i,.hero h1 .ch,.btn-main,.mockup{animation:none!important}}
 @media(max-width:900px){
   .nav-links a.nl{display:none}
   .feat-grid{grid-template-columns:1fr 1fr}
@@ -390,7 +414,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 <!-- HERO -->
 <header class="hero">
   <div class="hero-glow"></div>
-  <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div>
+  <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div><div class="particles" id="particles"></div>
   <div style="position:relative">
     <div class="hero-badge" onclick="location.href='/chat'"><span class="dot"></span><span id="verBadge">最新版本已发布 · 立即体验</span></div>
     <h1>加密通信<br/><em>本该如此简单</em></h1>
@@ -735,6 +759,41 @@ document.querySelector('.nav-logo').addEventListener('click', function(){
   var m = document.querySelector('.logo-mark');
   m.classList.remove('spin'); void m.offsetWidth; m.classList.add('spin');
 });
+
+
+// 粒子生成
+(function(){
+  var box = document.getElementById('particles');
+  if(!box) return;
+  for(var i=0;i<22;i++){
+    var p = document.createElement('i');
+    var sz = 4 + Math.random()*10;
+    p.style.cssText = 'left:'+(Math.random()*100)+'%;width:'+sz+'px;height:'+sz+'px;animation-duration:'+(9+Math.random()*14)+'s;animation-delay:-'+(Math.random()*18)+'s';
+    box.appendChild(p);
+  }
+})();
+// 标题逐字波浪
+document.querySelectorAll('.hero h1').forEach(function(h){
+  var parts = h.innerHTML.split(/(<br\s*\/?>|<em>|<\/em>)/i);
+  var out = '', chIdx = 0;
+  parts.forEach(function(part){
+    if(/^<br/i.test(part) || /^<em>$/i.test(part) || /^<\/em>$/i.test(part)){ out += part; return; }
+    out += part.split('').map(function(ch){
+      if(ch === ' ') return ' ';
+      var d = (chIdx++ * 0.045);
+      return '<span class="ch" style="animation-delay:'+(0.15+d)+'s">'+ch+'</span>';
+    }).join('');
+  });
+  h.innerHTML = out;
+});
+// 光斑滚动视差
+var blobs = document.querySelectorAll('.blob');
+window.addEventListener('scroll', function(){
+  var y = window.scrollY;
+  blobs.forEach(function(b, i){
+    b.style.translate = '0 ' + (y * (0.06 + i*0.04)) + 'px';
+  });
+}, {passive:true});
 
 // nav shadow on scroll
 var nav = document.getElementById('nav');
