@@ -659,8 +659,13 @@ module.exports = function registerGroups(app, db, auth) {
     } catch (e) {
       return fail(res, 500, '编辑失败：' + ((e && e.message) || e));
     }
+    editHook && editHook({ groupId, id: msgId, from: msg.from_id, content: content.trim() });
     res.json({ ok: true, messageId: msgId, content: content.trim() });
   });
+
+  let editHook = null;
+  function setEditHook(fn) { editHook = fn || null; }
+  module.exports.attachGroupEdit = setEditHook;
 
   module.exports.attachGroupBroadcast = setBroadcastHook;
   module.exports.attachGroupRecall = setRecallHook;

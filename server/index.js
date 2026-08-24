@@ -4053,6 +4053,16 @@ function mountFeatureRoutes(app, db) {
       } catch (e) {}
     });
   } catch (e) { console.error('[groups] attach recall failed: ' + (e && e.message || e)); }
+  try {
+    require('./routes/groups').attachGroupEdit(({ groupId, id, from, content }) => {
+      try {
+        const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
+        for (const m of members) {
+          if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_MSG_EDIT, { messageId: id, groupId, from, content });
+        }
+      } catch (e) {}
+    });
+  } catch (e) { console.error('[groups] attach edit failed: ' + (e && e.message || e)); }
   rx('./chat-ext', [app, db, { sendToUser, onlineAny: onlineAny, P }]);
   rx('./routes/rtc', [app, db, apiUser]);
   rx('./routes/media', [app, db, apiUser]);

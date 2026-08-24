@@ -3778,6 +3778,7 @@ class _ContactsViewStateState extends State<ContactsView> {
             'kind': 'friend',
             'name': (f['nickname'] ?? f['username'] ?? '').toString(),
             'online': f['online'] == true,
+            'remark': (f['remark'] ?? '').toString(),
             'icon': Icons.person,
           });
         }
