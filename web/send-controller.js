@@ -6,7 +6,7 @@
   function encryptIfReady(peerId, text) {
     if (!peerId || !text) return text;
     if (window.SCE2EE) {
-      try { const e = window.SCE2EE.encryptFor(peerId, text); if (e && typeof e.then === 'function') { return e.then(ct => ct || text); } return e || text; } catch {}
+      try { const e = window.SCE2EE.encryptFor(peerId, text); if (e && typeof e.then === 'function') { return e.then(ct => { if (ct) return ct; if (!window.__e2eeWarned) { window.__e2eeWarned = true; try { toast('对方密钥不可用，本条消息未加密发送', 'warn'); } catch (_) {} } return text; }); } return e || text; } catch {}
     }
     return text;
   }

@@ -92,9 +92,14 @@ module.exports = function register(app, db, auth) {
   });
 
   // ========== 群投票 ==========
+  function memberOf(groupId, userId) {
+    return !!db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(groupId, userId);
+  }
+
   app.post('/api/groups/votes', requireAuth, (req, res) => {
     const { groupId, title, content, isAnonymous, allowChange } = req.body || {};
     if (!groupId || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
+    if (!memberOf(groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const now = Date.now();
     const result = db.run('INSERT INTO group_votes(group_id, title, content, created_by, is_anonymous, allow_change, created_at) VALUES(?,?,?,?,?,?,?)',
       [groupId, title, content || '', req.user.id, isAnonymous ? 1 : 0, allowChange ? 1 : 0, now]);
@@ -103,6 +108,7 @@ module.exports = function register(app, db, auth) {
   });
 
   app.get('/api/groups/votes/:groupId', requireAuth, (req, res) => {
+    if (!memberOf(req.params.groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const votes = db.prepare('SELECT * FROM group_votes WHERE group_id=? ORDER BY created_at DESC').all(req.params.groupId);
     const options = [];
     for (const v of votes) {
@@ -122,7 +128,11 @@ module.exports = function register(app, db, auth) {
     if (!optionIds || optionIds.length === 0) return res.status(400).json({ error: '请选择投票选项' });
     const vote = db.prepare('SELECT * FROM group_votes WHERE id=?').get(req.params.voteId);
     if (!vote) return res.status(404).json({ error: '投票不存在' });
+    if (!memberOf(vote.group_id, req.user.id)) return res.status(403).json({ error: '非群成员' });
     if (vote.ended) return res.status(400).json({ error: '投票已结束' });
+    const optRows = db.prepare('SELECT id FROM vote_options WHERE vote_id=?').all(vote.id);
+    const validOptIds = new Set(optRows.map(o => o.id));
+    for (const oid of optionIds) { if (!validOptIds.has(Number(oid))) return res.status(400).json({ error: '包含无效选项' }); }
     if (!vote.allow_change) {
       const existing = db.prepare('SELECT * FROM vote_votes WHERE vote_id=? AND user_id=?').get(vote.id, req.user.id);
       if (existing) return res.status(400).json({ error: '已投票，不可重复' });
@@ -148,6 +158,7 @@ module.exports = function register(app, db, auth) {
   app.post('/api/groups/todos', requireAuth, (req, res) => {
     const { groupId, title, description, assignedTo, dueAt } = req.body || {};
     if (!groupId || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
+    if (!memberOf(groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     db.run(
       'INSERT INTO group_todos(group_id, title, description, created_by, assigned_to, due_at, created_at) VALUES(?,?,?,?,?,?,?)',
       [groupId, title, description || '', req.user.id, assignedTo || null, dueAt || null, Date.now()]
@@ -156,6 +167,7 @@ module.exports = function register(app, db, auth) {
   });
 
   app.get('/api/groups/todos/:groupId', requireAuth, (req, res) => {
+    if (!memberOf(req.params.groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const rows = db.prepare('SELECT * FROM group_todos WHERE group_id=? ORDER BY status ASC, created_at DESC').all(req.params.groupId);
     res.json({ todos: rows });
   });
@@ -176,15 +188,27 @@ module.exports = function register(app, db, auth) {
   app.post('/api/message/burn', requireAuth, (req, res) => {
     const { messageId, duration } = req.body || {};
     if (!messageId || !duration) return res.status(400).json({ error: '参数缺失' });
+    const dur = parseInt(duration, 10);
+    if (!Number.isFinite(dur) || dur < 1 || dur > 86400) return res.status(400).json({ error: 'duration 无效' });
+    const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
+    const gmsg = msg ? null : db.prepare('SELECT * FROM group_messages WHERE id=?').get(messageId);
+    const row = msg || gmsg;
+    if (!row) return res.status(404).json({ error: '消息不存在' });
+    const uid = req.user.id;
+    let allowed = false;
+    if (msg) allowed = (row.from_id === uid || row.to_id === uid);
+    else {
+      allowed = (row.from_id === uid) || !!db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(row.group_id, uid);
+    }
+    if (!allowed) return res.status(403).json({ error: '无权操作该消息' });
     const now = Date.now();
     db.run(
       'INSERT OR REPLACE INTO message_timers(message_id, duration, started_at) VALUES(?,?,?)',
-      [messageId, duration, now]
+      [messageId, dur, now]
     );
-    // 调度销毁
     setTimeout(() => {
       destroyBurnMessage(messageId);
-    }, duration * 1000);
+    }, dur * 1000);
     res.json({ success: true });
   });
 
@@ -247,6 +271,7 @@ module.exports = function register(app, db, auth) {
   });
 
   app.get('/api/messages/pinned/:groupId', requireAuth, (req, res) => {
+    if (!memberOf(req.params.groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const rows = db.prepare('SELECT mm.*, gm.content, gm.created_at, u.nickname, u.avatar FROM group_message_meta mm JOIN group_messages gm ON mm.message_id=gm.id JOIN users u ON gm.from_id=u.id WHERE mm.pinned=1 AND gm.group_id=? ORDER BY mm.created_at ASC').all(req.params.groupId);
     res.json({ messages: rows });
   });
@@ -258,10 +283,11 @@ module.exports = function register(app, db, auth) {
     // 检查是否在撤回时间范围内（5分钟内）
     const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
     if (!msg) return res.status(404).json({ error: '消息不存在' });
+    if (msg.from_id !== req.user.id) return res.status(403).json({ error: '只能撤回自己的消息' });
     if (Date.now() - msg.created_at > 5 * 60 * 1000) {
       return res.status(400).json({ error: '超过5分钟无法撤回' });
     }
-    db.run('UPDATE messages SET recalled=1, recalled_reason=? WHERE id=?', [reason || '', messageId]);
+    db.run('UPDATE messages SET recalled=1 WHERE id=?', [messageId]);
     // 广播撤回
     broadcastRecall(messageId, msg.from_id, msg.to_id, reason);
     res.json({ success: true });
@@ -272,22 +298,22 @@ module.exports = function register(app, db, auth) {
     if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
     const msg = db.prepare('SELECT * FROM group_messages WHERE id=?').get(messageId);
     if (!msg) return res.status(404).json({ error: '消息不存在' });
+    if (msg.from_id !== req.user.id) return res.status(403).json({ error: '只能撤回自己的消息' });
     if (Date.now() - msg.created_at > 5 * 60 * 1000) {
       return res.status(400).json({ error: '超过5分钟无法撤回' });
     }
-    db.run('UPDATE group_messages SET recalled=1, recalled_reason=? WHERE id=?', [reason || '', messageId]);
-    broadcastGroupRecall(messageId, groupId, msg.from_id, reason);
+    db.run('UPDATE group_messages SET recalled=1 WHERE id=?', [messageId]);
+    broadcastGroupRecall(messageId, groupId || msg.group_id, msg.from_id, reason);
     res.json({ success: true });
   });
 
   // ========== 语音转文字 ==========
   app.post('/api/message/transcribe', requireAuth, (req, res) => {
     const { audioPath } = req.body || {};
-    if (!audioPath) return res.status(400).json({ error: '音频路径不能为空' });
-    // 调用本地 whisper 服务
+    if (!audioPath || typeof audioPath !== 'string' || audioPath.length > 500) return res.status(400).json({ error: '音频路径不能为空' });
     try {
-      const { execSync } = require('child_process');
-      const result = execSync(`python ${require('path').join(__dirname, '../stt_whisper.py')} "${audioPath}"`, { encoding: 'utf8' });
+      const { execFileSync } = require('child_process');
+      const result = execFileSync('python', [require('path').join(__dirname, '../stt_whisper.py'), String(audioPath)], { encoding: 'utf8', timeout: 30000 });
       res.json({ success: true, text: result.trim() });
     } catch (e) {
       res.status(500).json({ error: '转写失败: ' + e.message });

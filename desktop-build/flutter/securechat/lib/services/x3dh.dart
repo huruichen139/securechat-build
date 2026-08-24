@@ -85,11 +85,6 @@ Future<String?> getPeerIdentityPub(int peerId) async {
       identityPubCache[peerId] = idKey;
       return idKey;
     }
-    final spk = bundle['signedPreKey'];
-    if (spk is Map && spk['pubKey'] is String && (spk['pubKey'] as String).isNotEmpty) {
-      identityPubCache[peerId] = spk['pubKey'] as String;
-      return spk['pubKey'] as String;
-    }
   } catch (_) {}
   return null;
 }

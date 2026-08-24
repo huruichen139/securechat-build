@@ -44,7 +44,7 @@ class _AccountsPageState extends State<AccountsPage> {
 
   Future<void> _toggleFollow(Map<String, dynamic> a) async {
     final id = a['id'] as int;
-    final followed = a['followed'] == 1 || a['followed'] == true || a['followed'] != 0;
+    final followed = a['followed'] == 1 || a['followed'] == true;
     final newOn = !(followed);
     setState(() => a['followed'] = newOn ? 1 : 0);
     try {

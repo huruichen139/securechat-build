@@ -221,6 +221,7 @@
       closed = true;
       if (raf) cancelAnimationFrame(raf);
       if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+      try { video.srcObject = null; } catch (e) {}
     }
 
     function loop() {
@@ -248,6 +249,7 @@
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
           .then(function (s) {
+            if (closed) { try { s.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} return; }
             stream = s;
             video.srcObject = s;
             video.play().then(function () {

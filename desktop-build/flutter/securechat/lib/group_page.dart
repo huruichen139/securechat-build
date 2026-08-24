@@ -345,8 +345,12 @@ class _GroupRoomState extends State<_GroupRoom> {
       ],
     ));
     if (ok != true) return;
-    if (dissolve) await _svc.dissolve(widget.groupId);
-    else await _svc.leave(widget.groupId);
+    try {
+      if (dissolve) { await _svc.dissolve(widget.groupId); } else { await _svc.leave(widget.groupId); }
+    } catch (e) {
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：${e.toString().replaceFirst('Bad state: ', '')}'))); }
+      return;
+    }
     if (mounted) Navigator.of(context).pop(true);
   }
 
@@ -387,8 +391,9 @@ class _GroupRoomState extends State<_GroupRoom> {
           if (text.isEmpty) return;
           try {
             final cmid = 'gm${DateTime.now().microsecondsSinceEpoch}';
-            await _svc.sendMessage(widget.groupId, text, clientMsgId: cmid);
-            await _svc.replyMessage(widget.groupId, 0, replyTo: msgId);
+            final sent = await _svc.sendMessage(widget.groupId, text, clientMsgId: cmid);
+            final newId = (sent is Map) ? sent['id'] : null;
+            if (newId is int) { try { await _svc.replyMessage(widget.groupId, newId, replyTo: msgId); } catch (_) {} }
             await _load();
           }
           catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失败：$e'))); }

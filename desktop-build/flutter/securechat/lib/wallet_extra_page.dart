@@ -20,6 +20,14 @@ class WalletExtraPage extends StatefulWidget {
 }
 
 class _WalletExtraPageState extends State<WalletExtraPage> {
+  final _tempControllers = <TextEditingController>[];
+  TextEditingController _tc([String? text]) { final c = TextEditingController(text: text); _tempControllers.add(c); return c; }
+
+  @override
+  void dispose() { for (final c in _tempControllers) { c.dispose(); } super.dispose(); }
+
+  String _money(num v) => v.toStringAsFixed(2);
+
   SecureChatApi get api => widget.api;
   String get _base => (api.baseUrl.endsWith('/') ? api.baseUrl : '${api.baseUrl}/');
 
@@ -111,8 +119,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
 
   // ---------- 收款码生成 ----------
   Future<void> _makeReceiveCode() async {
-    final amtC = TextEditingController();
-    final rmC = TextEditingController();
+    final amtC = _tc();
+    final rmC = _tc();
     final doConfirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -181,7 +189,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
 
   // ---------- 扫码入口（粘贴 token，模拟 jsqr 解码跳转） ----------
   Future<void> _scanPaste() async {
-    final tkC = TextEditingController(text: _pasted ?? '');
+    final tkC = _tc(_pasted ?? '');
     final tok = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -205,8 +213,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       final saleType = info['type'];
       final who = saleType == 'pay' ? info['payer'] : info['receiver'];
       final whoName = (who is Map && who['nickname'] != null) ? '${who['nickname']}' : ((who is Map && who['username'] != null) ? '${who['username']}' : '对方');
-      final amtC = TextEditingController(text: saleType == 'receive' && info['amount'] != null ? '${info['amount']}' : '');
-      final rmC = TextEditingController();
+      final amtC = _tc(saleType == 'receive' && info['amount'] != null ? '${info['amount']}' : '');
+      final rmC = _tc();
       final doIt = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -233,7 +241,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
           : '/api/pay/code/receive/${Uri.encodeComponent(tok)}/confirm';
       final r = await _req('POST', path, body: {'amount': a, 'remark': rmC.text.trim()});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('成功，余额 ¥${(r['balance'] ?? 0)}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('成功，余额 ¥${_money((r['balance'] ?? 0) as num)}')));
       }
       await _reload();
     } catch (e) {
@@ -243,9 +251,9 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
 
   // ---------- 转账 ----------
   Future<void> _transfer() async {
-    final uidC = TextEditingController();
-    final amtC = TextEditingController();
-    final rmC = TextEditingController();
+    final uidC = _tc();
+    final amtC = _tc();
+    final rmC = _tc();
     final doIt = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -273,7 +281,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     try {
       final r = await api.transfer(uid, a, remark: rmC.text.trim());
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('转账成功，余额 ¥${r['balance']}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('转账成功，余额 ¥${_money((r['balance'] ?? 0) as num)}')));
       }
       await _reload();
     } catch (e) {
@@ -299,8 +307,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       initial: '${groups.first['id']}',
       controller: gController,
     );
-    final titleC = TextEditingController(text: '聚餐AA');
-    final amtC = TextEditingController();
+    final titleC = _tc('聚餐AA');
+    final amtC = _tc();
     final doIt = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -403,7 +411,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       initial: '${groups.first['id']}',
       controller: gController,
     );
-    final subC = TextEditingController(text: '周末聚会报名');
+    final subC = _tc('周末聚会报名');
     final doIt = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -518,14 +526,19 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     );
     final firstCat = cats.first as Map<String, dynamic>;
     final provController = _ValueDropdownController<String>();
+    final provs = (firstCat['providers'] as List?) ?? const [];
+    if (provs.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('该分类暂无缴费项目')));
+      return;
+    }
     final provSel = _ValueDropdown<String>(
       label: '机构',
-      options: ((firstCat['providers'] as List).map((p) => Dropdown(value: '$p', label: '$p'))).toList(),
+      options: provs.map((p) => Dropdown(value: '$p', label: '$p')).toList(),
       initial: null,
       controller: provController,
     );
-    final accC = TextEditingController();
-    final amtC = TextEditingController();
+    final accC = _tc();
+    final amtC = _tc();
     final doIt = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -556,7 +569,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     try {
       final r = await _req('POST', '/api/pay/life/pay', body: {'category': cat['key'], 'provider': prov, 'account': accC.text.trim(), 'amount': a});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('缴费成功，凭证 #${r['payment']?['id']}，余额 ¥${r['payment']?['balance']}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('缴费成功，凭证 #${r['payment']?['id']}，余额 ¥${_money((r['payment']?['balance'] ?? 0) as num)}')));
       }
       await _reload();
     } catch (e) {
@@ -674,7 +687,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
                 style: TextStyle(color: t.subText, fontSize: 12)),
           ]),
         ),
-        Text('${ined ? '+' : '-'}$amount',
+        Text('${ined ? '+' : '-'}${_money(amount)}',
             style: TextStyle(color: ined ? Ux.green : t.text, fontWeight: FontWeight.w700)),
       ]),
     );

@@ -218,6 +218,11 @@
 
   function renderRedBubble(m, mine) {
     var id = parseRedId(m.content);
+    function copyText(t) {
+      if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t);
+      var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta);
+    }
     var row = document.createElement('div');
     row.className = 'msg-row ' + (mine ? 'me' : 'other');
     row.setAttribute('data-id', m.id != null ? m.id : '');
@@ -226,7 +231,7 @@
     var fmt = window.fmtTime || function (t) { var d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
     row.innerHTML =
       '<div class="bubble rp-bubble" data-rp="' + esc(id) + '">' +
-        '<div class="rp-bubble-icon">' + (mine ? '🧧' : '🧧') + '</div>' +
+        '<div class="rp-bubble-icon">' + (mine ? '红包' : '红包') + '</div>' +
         '<div class="rp-bubble-body">' +
           '<div class="rp-bubble-title">微信红包</div>' +
           '<div class="rp-bubble-sub">' + (mine ? '查看领取详情' : '点击领取红包') + '</div>' +
@@ -235,7 +240,7 @@
       '<span class="time" title="' + esc(fullTime) + '">' + fmt(m.createdAt) + '</span>' +
       '<div class="message-actions"><button type="button" data-action="copy">复制</button></div>';
     row.querySelector('[data-action="copy"]').onclick = function () {
-      try { navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); } catch (e) { toast('复制失败', 'warn'); }
+      try { copyText(String(m.content || '')); toast('已复制', 'success', 1200); } catch (e) { toast('复制失败', 'warn'); }
     };
     row.querySelector('.rp-bubble').onclick = function () { openGrabDialog(id); };
     return row;
@@ -292,9 +297,9 @@
   } else {
     init();
   }
+  window.SecureChatRedpacket = { name: '红包', label: '红包', icon: '红包', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail };
 
-  window.SecureChatRedpacket = { name: '红包', label: '红包', icon: '🧧', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail };
   if (window.SecureChatExt && typeof window.SecureChatExt.registerFeature === 'function') {
-    window.SecureChatExt.registerFeature('redpacket', { name: '红包', label: '红包', icon: '🧧', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail });
+    window.SecureChatExt.registerFeature('redpacket', { name: '红包', label: '红包', icon: '红包', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail });
   }
 })();

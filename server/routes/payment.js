@@ -234,17 +234,23 @@ module.exports = function registerPayment(app, db, auth) {
   function doPay(fromId, toId, amount, remark, category, refId, cb, allowSelf) {
     if (!Number.isFinite(amount) || amount <= 0) return cb({ code: 400, message: '金额无效' });
     if (fromId === toId && !allowSelf) return cb({ code: 400, message: '不能转给自己' });
-    const my = ensureWallet(fromId);
-    if ((my.balance || 0) < amount) return cb({ code: 400, message: '余额不足' });
-    // 出账方
-    writeCharge(fromId, 'out', amount, toId, remark);
-    // 入账方
+    ensureWallet(fromId);
     ensureWallet(toId);
-    writeCharge(toId, 'in', amount, fromId, remark);
-    addBill(fromId, 'out', category, amount, toId, remark + '（转出）', category, refId || null);
-    addBill(toId, 'in', category, amount, fromId, remark + '（收入）', category, refId || null);
-    try { persist(); } catch (e) {}
-    cb(null, { ok: true, balance: balanceOf(fromId) });
+    const deb = prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=? AND balance>=?').run(amount, Date.now(), fromId, amount);
+    if (!deb.changes) return cb({ code: 400, message: '余额不足' });
+    try {
+      prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
+        .run(fromId, 'out', amount, toId || null, remark || '转账', Date.now());
+      writeCharge(toId, 'in', amount, fromId, remark);
+      addBill(fromId, 'out', category, amount, toId, remark + '（转出）', category, refId || null);
+      addBill(toId, 'in', category, amount, fromId, remark + '（收入）', category, refId || null);
+      try { persist(); } catch (e) {}
+      cb(null, { ok: true, balance: balanceOf(fromId) });
+    } catch (e) {
+      prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), fromId);
+      try { persist(); } catch (_) {}
+      cb({ code: 500, message: '支付失败已回滚' });
+    }
   }
 
   // ============ 收付款码 ============
@@ -680,10 +686,15 @@ module.exports = function registerPayment(app, db, auth) {
     if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
     const amount = Number(req.body?.amount);
     if (amount !== o.amount) return res.status(400).json({ error: '确认金额与订单金额不一致' });
+    const claim = prepare("UPDATE pay_orders SET payer_id=?,status='paid',paid_at=? WHERE id=? AND status='pending'").run(req.user.id, Date.now(), o.id);
+    if (!claim.changes) return res.status(409).json({ error: '订单已失效或已处理' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(o.merchant_id);
     doPay(req.user.id, merchant.user_id, amount, o.subject, 'gateway', o.id, (err, result) => {
-      if (err) return res.status(err.code || 400).json({ error: err.message });
-      prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), o.id);
+      if (err) {
+        prepare("UPDATE pay_orders SET status='pending',payer_id=NULL,paid_at=NULL WHERE id=? AND status='paid'").run(o.id);
+        persist();
+        return res.status(err.code || 400).json({ error: err.message });
+      }
       persist();
       // 触发 epaygw 懒同步：置网关订单 TRADE_SUCCESS 并通知商户（NewAPI 等）
       try {

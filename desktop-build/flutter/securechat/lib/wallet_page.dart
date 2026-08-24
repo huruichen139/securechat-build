@@ -128,6 +128,7 @@ class _WalletPageState extends State<WalletPage> {
   Future<void> _redeemWithCode(String code) async {
     try {
       final r = await widget.api.redeem(code);
+      if (!mounted) return;
       setState(() => _balance = (r['balance'] as num?)?.toDouble() ?? _balance);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换成功，+${r['value']}')));
@@ -170,6 +171,7 @@ class _WalletPageState extends State<WalletPage> {
     if (code == null || code.isEmpty) return;
     try {
       final r = await widget.api.redeem(code);
+      if (!mounted) return;
       setState(() => _balance = (r['balance'] as num?)?.toDouble() ?? _balance);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换成功，+${r['value']}')));
@@ -210,6 +212,7 @@ class _WalletPageState extends State<WalletPage> {
     }
     try {
       final r = await widget.api.transfer(toUid, amt, remark: remarkC.text.trim());
+      if (!mounted) return;
       setState(() => _balance = (r['balance'] as num?)?.toDouble() ?? _balance);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('转账成功')));

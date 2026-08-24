@@ -45,7 +45,7 @@ function signOf(params, key) {
 }
 
 function verifySign(params, sign) {
-  if (!sign) return true;
+  if (!sign) return false;
   const want = String(sign).toUpperCase();
   return signOf(params, getGwKey()).indexOf(want) >= 0;
 }
@@ -142,6 +142,7 @@ function notifyMerchant(o) {
 }
 
 function cashierHtml(o, baseUrl) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const qrSrc = baseUrl + '/epaygw/qrcode/' + encodeURIComponent(o.out_trade_no);
   const webCashier = baseUrl + '/api/pay/gateway/epay/cashier?order=' + encodeURIComponent(o.out_trade_no) + '&v=2';
   const deepLink = 'securechat://gateway/pay?order=' + encodeURIComponent(o.out_trade_no);
@@ -151,9 +152,9 @@ function cashierHtml(o, baseUrl) {
     '<div style="font-size:18px;font-weight:600;color:#222">SecureChat 收银台</div>' +
     '<div style="font-size:13px;color:#999;margin:6px 0 18px">订单金额将从 SecureChat 钱包扣除</div>' +
     '<div style="border:1px dashed #e0e0e0;border-radius:12px;padding:16px;margin:0 0 18px">' +
-    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>商户订单号</span><b style="color:#222">' + o.out_trade_no + '</b></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>商品</span><b style="color:#222">' + o.name + '</b></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>支付方式</span><b style="color:#222">' + o.type + '</b></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>商户订单号</span><b style="color:#222">' + esc(o.out_trade_no) + '</b></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>商品</span><b style="color:#222">' + esc(o.name) + '</b></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>支付方式</span><b style="color:#222">' + esc(o.type) + '</b></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0"><span>金额</span><b style="color:#e4393c;font-size:18px">¥' + o.money + '</b></div>' +
     '</div>' +
     '<div style="font-size:14px;font-weight:600;color:#222;margin:0 0 10px">选择支付方式（均需确认）</div>' +
@@ -365,13 +366,21 @@ module.exports = function (app, db, authMw) {
     return renderCashier(req, res, p);
   });
 
-  // EPay 设置接口
+  // EPay 设置接口（仅限持有 EPAYGW_ADMIN_KEY 的管理员访问）
+  function gwAdminAuth(req) {
+    const need = process.env.EPAYGW_ADMIN_KEY;
+    if (!need) return false;
+    const got = String(req.headers['x-admin-key'] || '');
+    return got.length > 0 && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(need));
+  }
   app.get('/epaygw/settings', (req, res) => {
+    if (!gwAdminAuth(req)) return res.status(403).json({ code: 0, msg: '禁止访问' });
     const key = getGwKey();
     res.json({ code: 1, data: { gatewayKey: key, merchantId: GATEWAY_MERCHANT_ID } });
   });
 
   app.post('/epaygw/settings', (req, res) => {
+    if (!gwAdminAuth(req)) return res.status(403).json({ code: 0, msg: '禁止访问' });
     const newKey = String(req.body && req.body.key || '');
     if (newKey.length < 4) return res.json({ code: 0, msg: '密钥不能为空' });
     _gwConfig.key = newKey;

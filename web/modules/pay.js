@@ -242,7 +242,7 @@
     img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:#fff';
     tip.textContent = '扫码后跳转 securechat://pay 解码确认';
     const acts = [countdown, info, img, tip];
-    modal(isPay ? '我的付款码 v1.53.0' : '收款码', (body) => {
+    const panel = modal(isPay ? '我的付款码 v1.53.0' : '收款码', (body) => {
       acts.forEach((a) => body.appendChild(a));
     }, (actsBox, close) => {
       const b = document.createElement('button');
@@ -251,6 +251,10 @@
       actsBox.appendChild(b);
     });
     start();
+    const obs = new MutationObserver(() => {
+      if (!document.body.contains(panel.mask)) { clearInterval(timer); obs.disconnect(); }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
   }
 
   // 扫码输入 token → 解码跳转 → 执行付款/收款
@@ -283,14 +287,15 @@
               go.className = 'btn-primary'; go.textContent = '确认' + (expectType === 'pay' ? '收款' : '付款');
               go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
               go.onclick = async () => {
-                const amt = parseFloat(amtF.inp.value);
-                if (isNaN(amt) || amt <= 0) { showToast('金额无效', 'warn'); return; }
+                if (go.disabled) return; go.disabled = true;
                 try {
+                  const amt = parseFloat(amtF.inp.value);
+                  if (isNaN(amt) || amt <= 0) { showToast('金额无效', 'warn'); return; }
                   if (expectType === 'pay') await Pay.chargeByPayCode(tk, amt, rm.inp.value.trim());
                   else await Pay.payByReceiveCode(tk, amt, rm.inp.value.trim());
                   showToast('交易成功', 'success');
                   close2(); close();
-                } catch (e) { showToast('失败：' + e.message, 'error'); }
+                } catch (e) { showToast('失败：' + e.message, 'error'); } finally { go.disabled = false; }
               };
               acts2.appendChild(go);
             });
@@ -311,13 +316,14 @@
         go.className = 'btn-primary'; go.textContent = '转账';
         go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
-          const uid = toUid.inp.value.trim(); const a = parseFloat(amt.inp.value);
-          if (!uid || isNaN(a) || a <= 0) { showToast('请填写 UID 和金额', 'warn'); return; }
+          if (go.disabled) return; go.disabled = true;
           try {
+            const uid = toUid.inp.value.trim(); const a = parseFloat(amt.inp.value);
+            if (!uid || isNaN(a) || a <= 0) { showToast('请填写 UID 和金额', 'warn'); return; }
             const r = await Pay.transfer(uid, a, rm.inp.value.trim());
             showToast('转账成功，余额 ¥' + r.balance, 'success');
             close();
-          } catch (e) { showToast('转账失败：' + e.message, 'error'); }
+          } catch (e) { showToast('转账失败：' + e.message, 'error'); } finally { go.disabled = false; }
         };
         acts.appendChild(go);
       });
@@ -336,14 +342,15 @@
         go.className = 'btn-primary'; go.textContent = '发起';
         go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
-          const gid = parseInt(gsel.sel.value, 10); const a = parseFloat(amt.inp.value);
-          if (!gid || !title.inp.value || isNaN(a) || a <= 0) { showToast('请填写完整', 'warn'); return; }
+          if (go.disabled) return; go.disabled = true;
           try {
+            const gid = parseInt(gsel.sel.value, 10); const a = parseFloat(amt.inp.value);
+            if (!gid || !title.inp.value || isNaN(a) || a <= 0) { showToast('请填写完整', 'warn'); return; }
             const r = await Pay.createCollect(gid, title.inp.value, a);
             showToast('已发起群收款', 'success');
             close();
             renderCollectDetail(r.collect.id, null);
-          } catch (e) { showToast('失败：' + e.message, 'error'); }
+          } catch (e) { showToast('失败：' + e.message, 'error'); } finally { go.disabled = false; }
         };
         acts.appendChild(go);
       });
@@ -499,15 +506,16 @@
       const go = document.createElement('button');
       go.className = 'btn-primary'; go.textContent = '确认缴费';
       go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
-      go.onclick = async () => {
-        const catKey = csel.sel.value; const prov = psel.sel.value; const acc = accountF.inp.value.trim(); const a = parseFloat(amtF.inp.value);
-        if (!catKey || !prov || !acc || isNaN(a) || a <= 0) { showToast('请填写完整信息', 'warn'); return; }
-        try {
-          const r = await Pay.lifePay(catKey, prov, acc, a);
-          showToast('缴费成功，凭证号 #' + r.payment.id + '，余额 ¥' + r.balance, 'success');
-          close();
-        } catch (e) { showToast('缴费失败：' + e.message, 'error'); }
-      };
+        go.onclick = async () => {
+          if (go.disabled) return; go.disabled = true;
+          try {
+            const catKey = csel.sel.value; const prov = psel.sel.value; const acc = accountF.inp.value.trim(); const a = parseFloat(amtF.inp.value);
+            if (!catKey || !prov || !acc || isNaN(a) || a <= 0) { showToast('请填写完整信息', 'warn'); return; }
+            const r = await Pay.lifePay(catKey, prov, acc, a);
+            showToast('缴费成功，凭证号 #' + r.payment.id + '，余额 ¥' + r.balance, 'success');
+            close();
+          } catch (e) { showToast('缴费失败：' + e.message, 'error'); } finally { go.disabled = false; }
+        };
       acts.appendChild(go);
     });
   }
@@ -615,7 +623,7 @@
 
   // 充值入口：三选一（兑换码/微信/支付宝）
   function rechargeEntry() {
-    modal('充值', (body) => {
+    const m = modal('充值', (body) => {
       body.style.cssText = 'padding:0';
       const options = [
         { label: '兑换码充值', desc: '输入兑换码兑换余额', icon: '\u5151', color: '#07c160', fn: redeemFlow },
@@ -636,7 +644,7 @@
         arrow.style.cssText = 'margin-left:auto;color:#ccc;font-size:16px';
         arrow.textContent = '\u203a';
         row.appendChild(ic); row.appendChild(info); row.appendChild(arrow);
-        row.onclick = () => { close(); opt.fn(); };
+        row.onclick = () => { m.close(); opt.fn(); };
         body.appendChild(row);
       });
     });
@@ -737,10 +745,12 @@
         go.className = 'btn-primary'; go.textContent = '兑换';
         go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
-          const c = code.inp.value.trim();
-          if (!c) { showToast('请输入兑换码', 'warn'); return; }
-          try { const r = await Pay.redeem(c); showToast('充值成功 +¥' + r.value + '，余额 ¥' + r.balance, 'success'); close(); }
-          catch (e) { showToast('兑换失败：' + e.message, 'error'); }
+          if (go.disabled) return; go.disabled = true;
+          try {
+            const c = code.inp.value.trim();
+            if (!c) { showToast('请输入兑换码', 'warn'); return; }
+            const r = await Pay.redeem(c); showToast('充值成功 +¥' + r.value + '，余额 ¥' + r.balance, 'success'); close();
+          } catch (e) { showToast('兑换失败：' + e.message, 'error'); } finally { go.disabled = false; }
         };
         acts.appendChild(go);
       });

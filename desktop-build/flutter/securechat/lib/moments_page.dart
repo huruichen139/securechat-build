@@ -44,9 +44,9 @@ class _MomentsPageState extends State<MomentsPage> {
   Future<void> _post() async {
     final text = _input.text.trim();
     if (text.isEmpty) return;
-    setState(() => _input.clear());
     try {
       await widget.api.postMoment(text, []);
+      setState(() => _input.clear());
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('发布成功')));
       await _reload();
     } catch (e) {

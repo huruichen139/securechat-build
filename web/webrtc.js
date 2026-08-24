@@ -115,7 +115,8 @@ function createRtc(ctx) {
   }
 
   async function onIce(peerId, candidate) {
-    const e = ensurePc(peerId);
+    const e = peers.get(peerId);
+    if (!e || !e.pc) return;
     if (!e.pc.remoteDescription) { e.pendingIce.push(candidate); return; }
     try { await e.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {}
   }

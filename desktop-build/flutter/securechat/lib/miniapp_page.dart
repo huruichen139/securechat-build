@@ -1,8 +1,7 @@
 // module: miniapp (worker batch5) —— 小程序开放平台：列表/发布/搜索/收藏/最近使用/打开
 // 依赖：services/securechat_api.dart、services/lifestyle_api.dart、widgets/app_scaffold.dart
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
@@ -112,14 +111,13 @@ class _MiniAppStorePageState extends State<MiniAppStorePage> {
     } catch (_) {
       // 记录使用失败不影响打开
     }
+    final u = Uri.tryParse(url);
+    if (u == null || (u.scheme != 'https' && u.scheme != 'http')) {
+      _snack('链接无效，仅支持 http/https');
+      return;
+    }
     try {
-      if (Platform.isWindows) {
-        Process.start('cmd', ['/c', 'start', '', url]);
-      } else if (Platform.isMacOS) {
-        Process.start('open', [url]);
-      } else {
-        Process.start('xdg-open', [url]);
-      }
+      await launchUrl(u, mode: LaunchMode.externalApplication);
     } catch (e) {
       _snack('无法打开：$e（网页端可用内嵌窗口打开）');
     }

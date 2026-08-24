@@ -128,7 +128,11 @@ class MediaService {
   /// 带鉴权下载媒体文件字节（供本地播放/保存）
   Future<List<int>> download(String url) async {
     final u = Uri.parse(absolute(url));
-    final r = await http.get(u, headers: {'Authorization': 'Bearer $_token'});
+    final baseHost = Uri.parse(_base).host;
+    final headers = <String, String>{
+      if (u.host == baseHost) 'Authorization': 'Bearer $_token',
+    };
+    final r = await http.get(u, headers: headers);
     if (r.statusCode < 200 || r.statusCode >= 300) {
       throw StateError('下载失败 (${r.statusCode})');
     }

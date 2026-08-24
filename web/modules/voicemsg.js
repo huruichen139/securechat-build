@@ -92,8 +92,8 @@
   function reset() {
     if (timer) { clearInterval(timer); timer = null; }
     recording = false;
-    recorder = null; chunks = []; blob = null; duration = 0;
     try { if (recorder && recorder.stream) recorder.stream.getTracks().forEach((t) => t.stop()); } catch (e) {}
+    recorder = null; chunks = []; blob = null; duration = 0;
   }
 
   // 上传 + 发送：把音频字节 POST 到 /api/files（发送给 to），然后以客户端消息方式发送文本 marker

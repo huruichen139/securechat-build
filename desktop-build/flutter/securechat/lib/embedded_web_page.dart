@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/app_config.dart';
 
@@ -37,7 +38,9 @@ class EmbeddedWebPage extends StatelessWidget {
               SizedBox(
                 width: 280,
                 child: FilledButton.icon(
-                  onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.platformDefault),
+                  onPressed: () async {
+                    try { await launchUrl(Uri.parse(url), mode: LaunchMode.platformDefault); } catch (_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('无法打开链接'))); }
+                  },
                   icon: const Icon(Icons.open_in_new, size: 18),
                   label: const Text('在浏览器中打开'),
                   style: FilledButton.styleFrom(backgroundColor: const Color(0xff07c160), padding: const EdgeInsets.symmetric(vertical: 12)),
@@ -52,7 +55,7 @@ class EmbeddedWebPage extends StatelessWidget {
                     content: TextField(controller: ctrl, readOnly: true, decoration: const InputDecoration(border: OutlineInputBorder())),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
-                      FilledButton(onPressed: () { ctrl.selection = TextSelection(baseOffset: 0, extentOffset: url.length); }, child: const Text('全选复制')),
+                      FilledButton(onPressed: () async { ctrl.selection = TextSelection(baseOffset: 0, extentOffset: url.length); await Clipboard.setData(ClipboardData(text: url)); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); Navigator.of(context).pop(); }, child: const Text('全选复制')),
                     ],
                   ));
                 },

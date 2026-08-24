@@ -17,16 +17,16 @@ import 'package:pointycastle/export.dart';
 // 工具
 // ============================================================
 
+import 'dart:math';
+
 SecureRandom _secureRandom() {
   final sr = FortunaRandom();
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final b = <int>[];
-  var v = now;
-  for (var i = 0; i < 32; i++) {
-    v = (v * 1103515245 + 12345) & 0xFFFFFFFF;
-    b.add((v ^ (v >> 11)) & 0xFF);
+  final os = Random.secure();
+  final b = Uint8List(32);
+  for (var i = 0; i < b.length; i++) {
+    b[i] = os.nextInt(256);
   }
-  sr.seed(KeyParameter(Uint8List.fromList(b)));
+  sr.seed(KeyParameter(b));
   return sr;
 }
 
@@ -360,10 +360,11 @@ String decryptMessage(RatchetState state, String b64) {
     state.recvN++;
   }
   final k = _kdfChain(state.recvChainKey!);
-  state.recvChainKey = k[0];
+  final nextChainKey = k[0];
   final messageKey = k[1];
-  state.recvN = n + 1;
   final plain = _aesGcmDecrypt(messageKey, iv, ctWithTag);
+  state.recvChainKey = nextChainKey;
+  state.recvN = n + 1;
   return utf8.decode(plain);
 }
 

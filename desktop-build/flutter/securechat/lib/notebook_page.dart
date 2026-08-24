@@ -43,9 +43,9 @@ class _NotebookPageState extends State<NotebookPage> {
   Future<void> _add() async {
     final text = _input.text.trim();
     if (text.isEmpty) return;
-    setState(() => _input.clear());
     try {
       await widget.api.addNote(text);
+      setState(() => _input.clear());
       await _reload();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败：$e')));

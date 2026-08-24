@@ -195,7 +195,18 @@ module.exports = function registerRedpacket(app, db, auth) {
     amount = Math.round(amount * 100) / 100;
     if (amount > pkt.remaining_amount) amount = pkt.remaining_amount;
 
-    prepare('INSERT INTO red_packet_grabs(packet_id,user_id,amount,created_at) VALUES(?,?,?,?)').run(id, me.id, amount, Date.now());
+    const dec = prepare('UPDATE red_packets SET remaining_count=remaining_count-1 WHERE id=? AND remaining_count>0 AND status=?').run(id, 'active');
+    if (!dec.changes) return res.status(400).json({ error: '红包已被抢完' });
+    try {
+      prepare('INSERT INTO red_packet_grabs(packet_id,user_id,amount,created_at) VALUES(?,?,?,?)').run(id, me.id, amount, Date.now());
+    } catch (e) {
+      prepare('UPDATE red_packets SET remaining_count=remaining_count+1 WHERE id=?').run(id);
+      if (String(e && e.message || e).includes('UNIQUE')) {
+        const g = prepare('SELECT * FROM red_packet_grabs WHERE packet_id=? AND user_id=?').get(id, me.id);
+        return res.json({ ok: true, already: true, amount: g ? g.amount : 0, myAmount: g ? g.amount : 0, balance: walletOf(me.id).balance });
+      }
+      throw e;
+    }
     prepare('UPDATE red_packets SET remaining_amount=?,remaining_count=?,status=? WHERE id=?')
       .run(Math.round((pkt.remaining_amount - amount) * 100) / 100, pkt.remaining_count - 1, (pkt.remaining_count - 1 <= 0) ? 'finished' : 'active', id);
 

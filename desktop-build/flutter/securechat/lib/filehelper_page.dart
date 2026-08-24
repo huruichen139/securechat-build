@@ -81,6 +81,9 @@ class _FilehelperPageState extends State<FilehelperPage> {
     _loadHistory();
   }
 
+  @override
+  void dispose() { _input.dispose(); super.dispose(); }
+
   Future<void> _loadHistory() async {
     setState(() => _loading = true);
     try {

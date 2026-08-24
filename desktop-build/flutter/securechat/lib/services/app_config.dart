@@ -108,10 +108,16 @@ class AppConfig extends ChangeNotifier {
     return load(sp);
   }
 
+  static T _enumAt<T extends Enum>(List<T> values, String? raw, T dflt) {
+    final i = int.tryParse(raw ?? '');
+    if (i == null || i < 0 || i >= values.length) return dflt;
+    return values[i];
+  }
+
   static AppConfig load(SharedPreferences sp) {
     final c = AppConfig(sp: sp)
-      ..mode = ThemeModeEx.values[int.tryParse(sp.getString(_kTheme) ?? '') ?? 0]
-      ..effect = WindowEffectKind.values[int.tryParse(sp.getString(_kEffect) ?? '') ?? 1]
+      ..mode = _enumAt(ThemeModeEx.values, sp.getString(_kTheme), ThemeModeEx.light)
+      ..effect = _enumAt(WindowEffectKind.values, sp.getString(_kEffect), WindowEffectKind.values[1])
       ..primary = Color(int.tryParse(sp.getString(_kPrimary) ?? '') ?? const Color(0xff07c160).toARGB32())
       ..fontScale = double.tryParse(sp.getString(_kFont) ?? '') ?? 1.0
       ..bgKind = int.tryParse(sp.getString(_kBgKind) ?? '') ?? 0
@@ -123,7 +129,7 @@ class AppConfig extends ChangeNotifier {
       ..showStatusbar = sp.getBool(_kShowStatusbar) ?? true
       ..haptic = sp.getBool(_kEnterHaptick) ?? false
       ..blurPanel = sp.getBool(_kBlurPanel) ?? false
-      ..bubbleStyle = BubbleStyle.values[int.tryParse(sp.getString(_kBubble) ?? '') ?? 0];
+      ..bubbleStyle = _enumAt(BubbleStyle.values, sp.getString(_kBubble), BubbleStyle.values[0]);
     return c;
   }
 

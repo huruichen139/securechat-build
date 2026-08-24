@@ -65,6 +65,7 @@ class _GatewayPayPageState extends State<GatewayPayPage> {
     setState(() { _busy = true; _status = null; });
     try {
       final order = await widget.api.gatewayOrder(widget.orderNo);
+      if (!mounted) return;
       setState(() => _order = (order['order'] ?? order) as Map<String, dynamic>);
       final r = await widget.api.gatewayAuthorizations();
       final list = (r['authorizations'] as List? ?? []);
@@ -78,6 +79,7 @@ class _GatewayPayPageState extends State<GatewayPayPage> {
           break;
         }
       }
+      if (!mounted) return;
       setState(() => _auth = auth);
       if (auth != null) {
         _authAmt.text = ((auth['maxAmount'] as num?)?.toDouble() ?? amount).toStringAsFixed(2);
@@ -85,6 +87,7 @@ class _GatewayPayPageState extends State<GatewayPayPage> {
         _authAmt.text = amount.toStringAsFixed(2);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _status = '加载订单失败：${e.toString().replaceFirst('Bad state: ', '')}');
     } finally {
       if (mounted) setState(() => _busy = false);
