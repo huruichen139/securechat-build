@@ -4419,7 +4419,37 @@ function openSettingsPage() {
             } catch (e) { toast('请求失败：' + e.message, 'error'); }
           });
         }},
-        { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑定', icon: '邮', fn: () => toast('邮箱绑定功能开发中', 'info') },
+        { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑定', icon: '邮', fn: async () => {
+          if (me && me.email) { toast('已绑定：' + me.email, 'info'); return; }
+          const email = window.prompt('输入要绑定的邮箱地址：', '') || '';
+          if (!email.trim()) return;
+          try {
+            const cr = await fetch(state.serverHost + '/api/email/code', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
+              body: JSON.stringify({ email: email.trim(), purpose: 'bind' })
+            });
+            const cd = await cr.json().catch(() => ({}));
+            if (!cr.ok) { toast(cd.error || '验证码发送失败', 'error'); return; }
+          } catch (e) { toast('请求失败：' + e.message, 'error'); return; }
+          toast('验证码已发送到邮箱', 'success');
+          openModal('绑定邮箱 - 输入验证码', [
+            { key: 'code', label: '邮箱验证码' }
+          ], async (out, close) => {
+            if (!out.code) { toast('请输入验证码', 'warn'); return; }
+            try {
+              const res = await fetch(state.serverHost + '/api/email/bind', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
+                body: JSON.stringify({ email: email.trim(), code: out.code })
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) { toast(data.error || '绑定失败', 'error'); return; }
+              close();
+              toast('邮箱绑定成功', 'success');
+            } catch (e) { toast('请求失败：' + e.message, 'error'); }
+          });
+        }},
         { label: '登录设备管理', desc: '查看登录过的设备', icon: '机', fn: () => toast('设备管理开发中', 'info') },
       ]
     },
