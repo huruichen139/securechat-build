@@ -1496,6 +1496,7 @@ function pickAvatar() {
         toast('头像已更新', 'success');
       } catch (e) { toast('上传失败：' + e.message, 'error'); }
     };
+    reader.onerror = () => toast('读取图片失败', 'error');
     reader.readAsDataURL(f);
   };
   inp.click();
@@ -2381,6 +2382,7 @@ async function openGroupProfile(groupId) {
 
 // 选择群 + 加载群历史
 async function selectGroup(groupId) {
+  saveCurrentDraft();
   state.activeGroup = groupId;
   state.activePeer = null;
   const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
@@ -2399,6 +2401,7 @@ async function selectGroup(groupId) {
     const data = await res.json();
     if (!res.ok) { $('messages').innerHTML = '<div style="color:#999;text-align:center">' + escapeHtml(data.error || '加载历史失败') + '</div>'; return; }
     state.groupMsgs[groupId] = data.messages || [];
+    if (state.activeGroup !== groupId) return;
     renderGroupMessages(data.messages || []);
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
@@ -2679,6 +2682,8 @@ function showFriendReqBar() {
   $('friendReqBar').style.display = 'flex';
 }
 $('acceptFriendBtn').onclick = async () => {
+  if (window.__frBusy) return; window.__frBusy = true;
+  try {
   const req = state.pendingReq[0];
   if (!req) { $('friendReqBar').style.display = 'none'; return; }
   try {
@@ -2697,8 +2702,11 @@ $('acceptFriendBtn').onclick = async () => {
   }
   showFriendReqBar();
   loadFriends();
+  } finally { window.__frBusy = false; }
 };
 $('rejectFriendBtn').onclick = async () => {
+  if (window.__frBusy) return; window.__frBusy = true;
+  try {
   const req = state.pendingReq[0];
   if (!req) { $('friendReqBar').style.display = 'none'; return; }
   try {
@@ -2716,10 +2724,12 @@ $('rejectFriendBtn').onclick = async () => {
     return;
   }
   showFriendReqBar();
+  } finally { window.__frBusy = false; }
 };
 
 // ============ 选择联系人 + 历史 ============
 async function selectPeer(peerId) {
+  saveCurrentDraft();
   state.activePeer = peerId;
   state.activeGroup = null;
   const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
@@ -4557,12 +4567,24 @@ function renderContactsPage() {
     </div>`;
   }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无新好友请求</div>';
   newFEl.querySelectorAll('[data-accept]').forEach(btn => {
-    btn.onclick = (e) => {
+    btn.onclick = async (e) => {
       e.stopPropagation();
       const uid = btn.dataset.accept;
-      state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
-      renderContactsPage();
-      loadFriends();
+      if (window.__frBusy) return; window.__frBusy = true;
+      try {
+        try {
+          const res = await fetch(state.serverHost + '/api/friend/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+            body: JSON.stringify({ friendId: uid })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        } catch (e) { toast('请求失败：' + e.message, 'error'); return; }
+        state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
+        renderContactsPage();
+        loadFriends();
+      } finally { window.__frBusy = false; }
     };
   });
   newFEl.querySelectorAll('[data-reject]').forEach(btn => {
