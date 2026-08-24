@@ -1193,6 +1193,20 @@ class _ChatViewStateState extends State<_ChatView> {
       _wsSub = socket!.stream.listen((event) async {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
+        if (type == 'auth_ok') {
+          // 重连成功后重新拉取会话列表与当前会话历史，补齐断线期间漏掉的消息
+          if (mounted) {
+            _loadData();
+            final conv = selConv;
+            if (conv != null) {
+              final id = conv['id'] as int?;
+              if (id != null) {
+                _openConversationById(id, isGroup: conv['kind'] == 'group', name: conv['name']?.toString() ?? selName ?? '');
+              }
+            }
+          }
+          return;
+        }
         if (type == 'msg') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;
