@@ -439,6 +439,7 @@ function init() {
   )`);
   try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_messages_client_msg_id skip: ' + e.message); }
   try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_group_messages_client_msg_id skip: ' + e.message); }
+  try { db.run("CREATE TABLE IF NOT EXISTS friend_remarks (user_id INTEGER NOT NULL, friend_id INTEGER NOT NULL, remark TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, friend_id))"); } catch (e) { console.warn('[db] friend_remarks skip: ' + e.message); }
   // 给缺 uid 的老数据补一个
   const missing = db.exec('SELECT id FROM users WHERE uid IS NULL');
   if (missing && missing.length) {

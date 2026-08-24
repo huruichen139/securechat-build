@@ -563,13 +563,6 @@ app.post('/api/friend/reject', (req, res) => {
 });
 
 // 好友备注：表 + 接口
-try { getDb().exec(`CREATE TABLE IF NOT EXISTS friend_remarks (
-  user_id INTEGER NOT NULL,
-  friend_id INTEGER NOT NULL,
-  remark TEXT NOT NULL DEFAULT '',
-  updated_at INTEGER NOT NULL,
-  PRIMARY KEY (user_id, friend_id)
-)`) } catch (e) { console.warn('[db] friend_remarks skip: ' + e.message) }
 
 // 设置好友备注：POST /api/friend/remark { friendId, remark }
 app.post('/api/friend/remark', (req, res) => {
