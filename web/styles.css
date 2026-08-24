@@ -2895,3 +2895,4 @@ body.dark-mode .skel-ava, body.dark-mode .skel-l1, body.dark-mode .skel-l2 { bac
 /* 联系人首字母分组吸顶 */
 .contact-group-label { position: sticky; top: 0; z-index: 3; backdrop-filter: blur(6px); }
 @media (prefers-reduced-motion: reduce) { .typing-anim i, .av-bounce, .hist-anim, .skel-row, .skel-ava, .skel-l1, .skel-l2, .dot.online::after { animation: none !important; } }
+.main.drag-over{outline:2px dashed #07c160;outline-offset:-4px;background:rgba(7,193,96,.05)}

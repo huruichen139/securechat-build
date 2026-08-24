@@ -8,6 +8,7 @@ import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'update_service.dart';
 import 'widgets/app_scaffold.dart';
+import 'main.dart';
 import 'widgets/ux.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -556,7 +557,10 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () async {
               await widget.api.clearSession();
               if (!mounted) return;
-              Navigator.of(context).popUntil((r) => r.isFirst);
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => LoginPage(config: config)),
+                (route) => false,
+              );
             },
           ),
         ],

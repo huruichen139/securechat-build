@@ -119,15 +119,23 @@ Future<String?> showQuickRepliesSheet(BuildContext ctx, SecureChatApi api) async
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: FilledButton(
               onPressed: () async {
-                final title = await showDialog<String>(context: ctx, builder: (_) => AlertDialog(
+                final titleCtrl = TextEditingController();
+                final contentCtrl = TextEditingController();
+                final confirmed = await showDialog<bool>(context: ctx, builder: (_) => AlertDialog(
                   title: const Text('添加快捷回复'),
-                  content: TextField(decoration: const InputDecoration(hintText: '标题')),
+                  content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: '标题')),
+                    const SizedBox(height: 8),
+                    TextField(controller: contentCtrl, decoration: const InputDecoration(hintText: '回复内容')),
+                  ]),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('确定')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定')),
                   ],
                 ));
-                // 简化实现，实际可完善
+                if (confirmed == true && titleCtrl.text.isNotEmpty && contentCtrl.text.isNotEmpty) {
+                  await QuickReplyManager.instance.addReply(titleCtrl.text, contentCtrl.text);
+                }
               },
               child: const Text('添加快捷回复'),
             ),

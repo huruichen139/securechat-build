@@ -523,7 +523,10 @@ class _ChatShellState extends State<ChatShell> {
     if (ok != true) return;
     await widget.api.clearSession();
     if (!mounted) return;
-    Navigator.of(context).popUntil((r) => r.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginPage(config: widget.config)),
+      (route) => false,
+    );
   }
 
   Widget _rail(AppConfig config) {
@@ -1483,8 +1486,8 @@ class _ChatViewStateState extends State<_ChatView> {
     if (ts == null || ts <= 0) return '';
     final diff = DateTime.now().millisecondsSinceEpoch - ts;
     if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return '\分钟前';
-    if (diff < 86400000) return '\小时前';
+    if (diff < 3600000) return '分钟前';
+    if (diff < 86400000) return '小时前';
     if (diff < 172800000) return '昨天';
     final d = DateTime.fromMillisecondsSinceEpoch(ts);
     return '${d.month}/${d.day}';
@@ -1760,7 +1763,7 @@ class _ChatViewStateState extends State<_ChatView> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.85), border: Border(top: BorderSide(color: t.div))),
           child: Row(children: [
-            GestureDetector(onTap: () { setState(() { final selectable = messages.where((m) => m['divider'] != true && m['dateSep'] != true).toList(); if (_selectedMsgs.length >= selectable.length) { _selectedMsgs.clear(); } else { _selectedMsgs.addAll(selectable.where((m) => !_selectedMsgs.any((s) => s['id'] == m['id']))); } }); }, child: Text('已选 / 条', style: TextStyle(color: t.text, fontSize: 13))),
+            GestureDetector(onTap: () { setState(() { final selectable = messages.where((m) => m['divider'] != true && m['dateSep'] != true).toList(); if (_selectedMsgs.length >= selectable.length) { _selectedMsgs.clear(); } else { _selectedMsgs.addAll(selectable.where((m) => !_selectedMsgs.any((s) => s['id'] == m['id']))); } }); }, child: Text('已选 ${_selectedMsgs.length} 条', style: TextStyle(color: t.text, fontSize: 13))),
             const Spacer(),
             IconButton(tooltip: '批量转发', onPressed: _selectedMsgs.isEmpty ? null : _batchForward, icon: Icon(Icons.forward, color: _selectedMsgs.isEmpty ? t.subText : _wechatGreen)),
             IconButton(tooltip: '批量收藏', onPressed: _selectedMsgs.isEmpty ? null : _batchFavorite, icon: Icon(Icons.star_outline, color: _selectedMsgs.isEmpty ? t.subText : Colors.amber)),
@@ -2477,7 +2480,7 @@ class _ChatViewStateState extends State<_ChatView> {
       builder: (_, v, __) => AlertDialog(content: Column(mainAxisSize: MainAxisSize.min, children: [
         CircularProgressIndicator(value: v > 0 ? null : null, color: const Color(0xff07c160)),
         const SizedBox(height: 12),
-        Text(v > 0 ? '下载中 %' : '下载中...', style: const TextStyle(fontSize: 13)),
+        Text(v > 0 ? '下载中 ${(v * 100).toStringAsFixed(0)}%' : '下载中...', style: const TextStyle(fontSize: 13)),
       ])),
     ));
     try {
@@ -2570,10 +2573,6 @@ class _ChatViewStateState extends State<_ChatView> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    if (conv['kind'] != 'friend') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('群聊暂不支持清空记录')));
-      return;
-    }
     try {
       await widget.api.deleteHistory(conv['id'] as int);
     } catch (e) {
@@ -2588,8 +2587,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   Future<void> _exportChat() async {
     final conv = selConv;
-    if (conv == null || conv['kind'] != 'friend') {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂仅支持导出单聊记录')));
+    if (conv == null) {
       return;
     }
     try {
@@ -2768,18 +2766,18 @@ class _ChatViewStateState extends State<_ChatView> {
       final conv = conversations[idx];
       if (conv['id'].toString() == target.toString()) continue;
       if (conv['kind'] == 'group') {
-        final gcmid = 'gf\$' + 'DateTime.now().microsecondsSinceEpoch';
+        final gcmid = 'gf${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(gcmid);
         socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': content, 'clientMsgId': gcmid, 'forwardedFrom': msg['id']}}));
       } else {
-        final cmid = 'ff\$' + 'DateTime.now().microsecondsSinceEpoch';
+        final cmid = 'ff${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(cmid);
         socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': conv['id'], 'content': await e2eeEncrypt(conv['id'].toString(), content), 'clientMsgId': cmid, 'forwardedFrom': msg['id']}}));
       }
       count++;
       await Future.delayed(const Duration(milliseconds: 50));
     }
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已转发到 \$' + 'count 个会话')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已转发到 $count 个会话')));
   }
 
   /// 双击消息点赞：气泡旁弹出爱心动画
@@ -3052,6 +3050,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   void _onContextMenu(int v, BuildContext ctx) {
     if (v == 0) _showCreateGroupDialog(ctx);
+    if (v == 1) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('音视频会议功能开发中'))); }
     if (v == 2) _showAddFriendDialog(ctx);
     if (v == 3) _showChatInfo(ctx);
     if (v == 4) _showMyCard(ctx);

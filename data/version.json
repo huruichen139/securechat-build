@@ -1,28 +1,42 @@
 {
-  "latest": "1.71.1",
+  "latest": "1.71.2",
   "downloads": {
     "windows": {
-      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.1/SecureChat-1.71.1-windows.exe",
-      "fileName": "SecureChat-1.71.1-windows.exe"
+      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.2/SecureChat-1.71.2-windows.exe",
+      "fileName": "SecureChat-1.71.2-windows.exe"
     },
     "windowsPortable": {
-      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.1/SecureChat-1.71.1-windows.zip",
-      "fileName": "SecureChat-1.71.1-windows.zip"
+      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.2/SecureChat-1.71.2-windows.zip",
+      "fileName": "SecureChat-1.71.2-windows.zip"
     },
     "android": {
-      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.1/SecureChat-1.71.1-android.apk",
-      "fileName": "SecureChat-1.71.1-android.apk"
+      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.2/SecureChat-1.71.2-android.apk",
+      "fileName": "SecureChat-1.71.2-android.apk"
     },
     "macos": {
-      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.1/SecureChat-1.71.1-macos.dmg",
-      "fileName": "SecureChat-1.71.1-macos.dmg"
+      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.2/SecureChat-1.71.2-macos.dmg",
+      "fileName": "SecureChat-1.71.2-macos.dmg"
     },
     "ios": {
-      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.1/SecureChat-1.71.1-ios.ipa",
-      "fileName": "SecureChat-1.71.1-ios.ipa"
+      "url": "https://gh-proxy.com/https://github.com/huruichen139/securechat-build/releases/download/v1.71.2/SecureChat-1.71.2-ios.ipa",
+      "fileName": "SecureChat-1.71.2-ios.ipa"
     }
   },
   "releaseNotes": [
+    {
+      "version": "1.71.2",
+      "date": "2026-08-24",
+      "changes": [
+        "修复通话挂断按钮无响应",
+        "修复退出登录无响应",
+        "修复拖拽上传不可用",
+        "EPay商户号切换10060",
+        "修复多选计数/转发/下载进度/时间显示等字符串插值bug",
+        "联系人详情页语音/视频通话入口",
+        "快捷回复添加功能修复",
+        "支持群聊清空记录和导出"
+      ]
+    },
     {
       "version": "1.71.1",
       "date": "2026-08-24",

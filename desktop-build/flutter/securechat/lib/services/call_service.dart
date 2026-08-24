@@ -175,7 +175,7 @@ class CallService extends ChangeNotifier {
     _end('已拒绝');
   }
 
-  Future<void> hangup() async {
+  void hangup() {
     if (status == CallStatus.idle || status == CallStatus.ended) return;
     _send('hangup', null);
     _end(status == CallStatus.connected ? '通话已结束' : null);
@@ -250,8 +250,8 @@ class CallService extends ChangeNotifier {
     localRenderer.srcObject = null;
     remoteRenderer.srcObject = null;
     if (!_disposed) {
-      localRenderer.dispose();
-      remoteRenderer.dispose();
+      try { localRenderer.dispose(); } catch (_) {}
+      try { remoteRenderer.dispose(); } catch (_) {}
     }
     peer?.close();
     peer = null;

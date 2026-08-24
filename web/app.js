@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.71.1';
+const PACKAGE_VERSION = '1.71.2';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -3854,6 +3854,24 @@ function sendAttachmentFile(f) {
     setTimeout(()=>$('fileBar').style.display='none',3000);
   }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
 }
+(function() {
+  var mainEl = document.querySelector('.main');
+  if (!mainEl) return;
+  ['dragenter','dragover','dragleave','drop'].forEach(function(evt) {
+    mainEl.addEventListener(evt, function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+  });
+  ['dragenter','dragover'].forEach(function(evt) {
+    mainEl.addEventListener(evt, function() { mainEl.classList.add('drag-over'); }, false);
+  });
+  ['dragleave','drop'].forEach(function(evt) {
+    mainEl.addEventListener(evt, function() { mainEl.classList.remove('drag-over'); }, false);
+  });
+  mainEl.addEventListener('drop', function(e) {
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) return;
+    for (var i = 0; i < files.length; i++) { sendAttachmentFile(files[i]); }
+  }, false);
+})();
 // 移动端输入栏"+"附件面板：相册 / 拍照 / 文件
 (function () {
   const plusBtn = $('plusIconBtn');

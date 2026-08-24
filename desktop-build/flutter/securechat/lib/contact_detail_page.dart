@@ -153,12 +153,14 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
                 Divider(height: 1, indent: 56, color: t.div),
                 _buildActionRow(t, Icons.call_outlined, '语音通话', () {
                   Navigator.pop(context);
-                  // TODO: initiate voice call
+                  final cb = widget.onOpenChat;
+                  if (cb != null) cb();
                 }),
                 Divider(height: 1, indent: 56, color: t.div),
                 _buildActionRow(t, Icons.videocam_outlined, '视频通话', () {
                   Navigator.pop(context);
-                  // TODO: initiate video call
+                  final cb = widget.onOpenChat;
+                  if (cb != null) cb();
                 }),
               ],
             ],
@@ -174,11 +176,11 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
           ),
           child: Column(
             children: [
-              _buildActionRow(t, Icons.photo_outlined, '朋友圈', null),
+              _buildActionRow(t, Icons.photo_outlined, '朋友圈', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('朋友圈功能开发中'))); }),
               Divider(height: 1, indent: 56, color: t.div),
-              _buildActionRow(t, Icons.label_outline, '设置备注和标签', null),
+              _buildActionRow(t, Icons.label_outline, '设置备注和标签', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('备注功能开发中'))); }),
               Divider(height: 1, indent: 56, color: t.div),
-              _buildActionRow(t, Icons.more_horiz, '更多', null),
+              _buildActionRow(t, Icons.more_horiz, '更多', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('更多选项开发中'))); }),
             ],
           ),
         ),
