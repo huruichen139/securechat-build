@@ -102,8 +102,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .sec-head p{margin-top:14px;font-size:16px;color:var(--text2);line-height:1.75}
 
 /* scroll reveal */
-.rv{opacity:0;transform:translateY(34px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
-.rv.in{opacity:1;transform:translateY(0)}
+.rv{animation:rvUp .7s cubic-bezier(.22,1,.36,1) both}
+@keyframes rvUp{0%{opacity:0;transform:translateY(34px)}100%{opacity:1;transform:none}}
 .rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}.rv.d4{transition-delay:.32s}.rv.d5{transition-delay:.4s}
 
 /* ===== FEATURES ===== */
@@ -266,12 +266,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .hero h1 em{background-size:200% 200%;animation:gradFlow 5s ease-in-out infinite}
 @keyframes gradFlow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 /* 18. 章节左右交替入场 */
-.sc-copy.rvL{opacity:0;transform:translateX(-60px);transition:all .8s cubic-bezier(.22,1,.36,1)}
-.sc-media.rvR{opacity:0;transform:translateX(60px);transition:all .8s .12s cubic-bezier(.22,1,.36,1)}
-.sc-copy.rvL.in,.sc-media.rvR.in{opacity:1;transform:none}
+.sc-copy.rvL{animation:slideL .8s cubic-bezier(.22,1,.36,1) both}
+.sc-media.rvR{animation:slideR .8s .12s cubic-bezier(.22,1,.36,1) both}
+@keyframes slideL{0%{opacity:0;transform:translateX(-60px)}100%{opacity:1;transform:none}}
+@keyframes slideR{0%{opacity:0;transform:translateX(60px)}100%{opacity:1;transform:none}}
 /* 19. 功能卡滚动波浪弹入 */
-.feat-card.pop{opacity:0;transform:translateY(40px) scale(.9) rotate(-2deg)}
-.feat-card.pop.in{opacity:1;transform:none;transition:all .6s cubic-bezier(.34,1.56,.64,1)}
+.feat-card.pop{animation:popIn .6s cubic-bezier(.34,1.56,.64,1) both}
+.feat-card.pop:nth-child(3n+1){animation-delay:.05s}
+.feat-card.pop:nth-child(3n+2){animation-delay:.15s}
+.feat-card.pop:nth-child(3n){animation-delay:.25s}
+@keyframes popIn{0%{opacity:0;transform:translateY(40px) scale(.9) rotate(-2deg)}100%{opacity:1;transform:none}}
 .feat-card.pop.in:nth-child(3n+1){transition-delay:.05s}
 .feat-card.pop.in:nth-child(3n+2){transition-delay:.15s}
 .feat-card.pop.in:nth-child(3n){transition-delay:.25s}
@@ -285,9 +289,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 /* 21. 悬浮芯片随滚动微旋转 */
 .float-chip{will-change:transform;transition:rotate .2s linear}
 /* 22. 下载卡弹跳入场 */
-.os-card.bounce-in{opacity:0;transform:scale(.7) translateY(30px);transition:all .65s cubic-bezier(.34,1.56,.64,1)}
-.os-card.bounce-in.in{opacity:1;transform:none}
-.os-card.bounce-in.d2.in{transition-delay:.12s}.os-card.bounce-in.d3.in{transition-delay:.24s}
+.os-card.bounce-in{animation:bounceIn .65s cubic-bezier(.34,1.56,.64,1) both}
+.os-card.bounce-in.d2{animation-delay:.12s}.os-card.bounce-in.d3{animation-delay:.24s}
+@keyframes bounceIn{0%{opacity:0;transform:scale(.7) translateY(30px)}100%{opacity:1;transform:none}}
 /* 23. 双向跑马灯第二行 */
 .ticker-wrap.two{padding-top:0;border-top:none}
 .ticker.rev{animation-direction:reverse;color:var(--text2)}
@@ -303,6 +307,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 /* 27. logo 点击旋转跳跃 */
 .logo-mark.spin{animation:logoSpin .7s cubic-bezier(.34,1.56,.64,1)}
 @keyframes logoSpin{to{transform:rotate(360deg) scale(1.15)}}
+
+/* ===== 3D 感强化 ===== */
+/* 全站 3D 透视基础 */
+.hero,.section,.showcase{perspective:1200px;transform-style:preserve-3d}
+/* 客户端 mockup：更强 3D 悬浮 + 底部倒影 */
+.mockup-stage{perspective:1600px}
+.mockup{transform:rotateX(10deg) rotateY(-4deg);box-shadow:0 50px 100px -20px rgba(20,24,40,.28),0 30px 60px -30px rgba(7,193,96,.18),inset 0 1px 0 rgba(255,255,255,.8)}
+.mockup::after{content:'';position:absolute;left:6%;right:6%;bottom:-34px;height:34px;background:linear-gradient(180deg,rgba(20,24,40,.14),transparent 80%);transform:rotateX(80deg);filter:blur(10px);border-radius:50%}
+/* 3D 分层悬浮芯片 */
+.float-chip{transform-style:preserve-3d;box-shadow:0 18px 36px rgba(20,24,40,.16),inset 0 1px 0 rgba(255,255,255,.9)}
+.float-chip:hover{transform:translateZ(40px) rotateX(-6deg) rotateY(6deg) scale(1.06);animation-play-state:paused;transition:transform .3s}
+/* 功能卡 3D 翻转按压 */
+.feat-card{transform-style:preserve-3d}
+.feat-card:hover{transform:translateY(-10px) rotateX(4deg) rotateY(-3deg) translateZ(24px)}
+.feat-ico{transform:translateZ(30px);box-shadow:0 8px 18px rgba(20,24,40,.12)}
+/* 3D 按钮：厚度 + 按压 */
+.btn-main{box-shadow:0 6px 0 var(--brand-dark),0 16px 30px rgba(7,193,96,.32);transform-style:preserve-3d}
+.btn-main:hover{transform:translateY(-3px);box-shadow:0 9px 0 var(--brand-dark),0 22px 44px rgba(7,193,96,.4)}
+.btn-main:active{transform:translateY(3px);box-shadow:0 2px 0 var(--brand-dark),0 8px 16px rgba(7,193,96,.3)}
+.btn-ghost{box-shadow:0 4px 0 var(--border2)}
+.btn-ghost:hover{transform:translateY(-3px);box-shadow:0 7px 0 var(--border2),0 16px 30px rgba(20,24,40,.1)}
+.btn-ghost:active{transform:translateY(2px);box-shadow:0 1px 0 var(--border2)}
+/* 手机 3D 双机悬浮 + 镜面反光 */
+.phone{box-shadow:0 40px 80px rgba(20,24,40,.32),inset 0 0 0 2px rgba(255,255,255,.06)}
+.phone::before{content:'';position:absolute;inset:0;border-radius:38px;background:linear-gradient(115deg,rgba(255,255,255,.22) 0%,transparent 28%,transparent 72%,rgba(255,255,255,.1) 100%);pointer-events:none;z-index:5}
+.phone-wrap{transform-style:preserve-3d}
+.phone-wrap:hover .phone{translate:0 -14px!important}
+/* 下载卡 3D 立体 */
+.os-card{transform-style:preserve-3d}
+.os-card:hover{transform:translateY(-10px) rotateX(6deg) translateZ(20px);box-shadow:0 30px 60px -12px rgba(7,193,96,.22)}
+.os-ic{transform:translateZ(34px);box-shadow:0 12px 26px rgba(20,24,40,.14)}
+/* 统计带 3D 浮起 */
+.stats-band{transform-style:preserve-3d;box-shadow:0 24px 50px -18px rgba(20,24,40,.16)}
+.stats-band:hover{transform:translateY(-4px) rotateX(1.5deg)}
+.stat-c{transition:transform .3s}
+.stat-c:hover{transform:translateZ(26px)}
+/* 跑马灯 3D 斜面 */
+.ticker-wrap{transform:rotateX(8deg);transform-origin:center;box-shadow:0 14px 34px -14px rgba(20,24,40,.14)}
+/* 导航 3D 悬浮 */
+.nav{transform-style:preserve-3d}
+.nav.scrolled{box-shadow:0 10px 34px -12px rgba(20,24,40,.16)}
+/* logo 3D 硬币感 */
+.logo-mark{box-shadow:0 3px 0 #047a3c,0 8px 16px rgba(7,193,96,.35);transform:translateZ(0)}
+.logo-mark:hover{transform:rotateX(18deg) rotateY(-18deg)}
+/* hero 徽章 3D */
+.hero-badge{box-shadow:0 4px 0 rgba(7,193,96,.25),0 10px 22px -8px rgba(7,193,96,.3)}
+.hero-badge:hover{transform:translateY(-2px) rotateX(8deg)}
 
 @media(max-width:900px){
   .nav-links a.nl{display:none}
@@ -418,12 +469,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 <!-- SHOWCASE: scroll-driven steps -->
 <section class="showcase" id="showcase">
   <div class="sc-step">
-    <div class="sc-copy rv">
+    <div class="sc-copy rvL">
       <h3>消息<em>秒达</em>，状态<em>尽知</em></h3>
       <p>输入状态实时提示、已读回执、撤回重编辑。对方正在打字你会第一时间知道，就像面对面交流一样自然。</p>
       <div class="sc-tags"><span class="sc-tag">正在输入提示</span><span class="sc-tag">已读回执</span><span class="sc-tag">引用回复</span><span class="sc-tag">消息撤回</span></div>
     </div>
-    <div class="sc-media rv d2 phone-wrap">
+    <div class="sc-media rvR phone-wrap">
       <div class="phone"><div class="screen">
         <div class="scr-head">李小明</div>
         <div class="scr-body">
@@ -439,12 +490,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
 
   <div class="sc-step flip">
-    <div class="sc-copy rv">
+    <div class="sc-copy rvL">
       <h3>高清通话，<em>点对点直连</em></h3>
       <p>语音视频走 WebRTC P2P 通道，不落服务器。弱网自动降级，全程加密。一键发起，接通即聊。</p>
       <div class="sc-tags"><span class="sc-tag">P2P 直连</span><span class="sc-tag">1080P 视频</span><span class="sc-tag">弱网优化</span><span class="sc-tag">通话加密</span></div>
     </div>
-    <div class="sc-media rv d2 phone-wrap">
+    <div class="sc-media rvR phone-wrap">
       <div class="phone"><div class="screen" style="background:#16181d">
         <div class="scr-head" style="background:transparent;color:#eee;border:none">语音通话 03:42</div>
         <div class="scr-body" style="align-items:center;justify-content:center;gap:18px">
@@ -468,12 +519,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
   </div>
 
   <div class="sc-step">
-    <div class="sc-copy rv">
+    <div class="sc-copy rvL">
       <h3>文件传输，<em>又快又稳</em></h3>
       <p>拖进窗口就能发，任意格式不限速。传输进度实时可见，断网重连自动续传，接收方一键保存。</p>
       <div class="sc-tags"><span class="sc-tag">断点续传</span><span class="sc-tag">进度可视化</span><span class="sc-tag">任意格式</span><span class="sc-tag">传输加密</span></div>
     </div>
-    <div class="sc-media rv d2 phone-wrap">
+    <div class="sc-media rvR phone-wrap">
       <div class="phone"><div class="screen">
         <div class="scr-head">文件传输</div>
         <div class="scr-body">
@@ -644,21 +695,7 @@ window.addEventListener('scroll', function(){
   lastY = y;
 }, {passive:true});
 
-// 18/19/20/22. scroll-triggered class additions
-document.querySelectorAll('.sc-copy').forEach(function(el){ el.classList.add('rvL'); io.observe(el); });
-document.querySelectorAll('.sc-media').forEach(function(el){ el.classList.add('rvR'); io.observe(el); });
-document.querySelectorAll('.feat-card').forEach(function(el){ el.classList.remove('rv','d1','d2','d3'); el.classList.add('pop'); });
-var ioPop = new IntersectionObserver(function(es){
-  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); ioPop.unobserve(e.target); } });
-},{threshold:.15});
-document.querySelectorAll('.feat-card.pop, .os-card.bounce-in').forEach(function(el){ ioPop.observe(el); });
-document.querySelectorAll('.os-card').forEach(function(el){ el.classList.add('bounce-in'); });
 
-// 20. stats sheen play
-var band = document.querySelector('.stats-band');
-if(band) new IntersectionObserver(function(es,obs){
-  es.forEach(function(e){ if(e.isIntersecting){ band.classList.add('play'); obs.disconnect(); } });
-},{threshold:.4}).observe(band);
 
 // 23. second reversed marquee row
 var tw = document.querySelector('.ticker-wrap');

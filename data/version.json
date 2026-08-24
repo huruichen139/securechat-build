@@ -1,7 +1,17 @@
 {
-  "current": "1.63.14",
-  "latest": "1.63.14",
+  "current": "1.70.0",
+  "latest": "1.70.0",
   "releaseNotes": [
+    {
+      "version": "1.70.0",
+      "date": "2026-08-24",
+      "notes": [
+        "全新官网发布页上线（/ 首页，/chat 网页版）",
+        "界面全面去AI味：棱角设计、白色主题首页、30+动画",
+        "修复：设置页退出登录无效、版本更新提示循环",
+        "聊天主界面动画增强：气泡入场/头像交互/在线呼吸等"
+      ]
+    },
     {
       "version": "1.63.14",
       "date": "2026-08-24",
@@ -222,21 +232,21 @@
       ]
     }
   ],
-  "updatedAt": 1787539220621,
+  "updatedAt": 1787543894216,
   "downloads": {
-    "windows": "/downloads/SecureChat-1.63.14-windows.exe",
+    "windows": "/downloads/SecureChat-1.70.0-windows.exe",
     "macos": "/downloads/SecureChat-1.63.9-macos.dmg",
     "android": "/downloads/SecureChat-1.63.11-android.apk",
     "harmony": "/downloads/SecureChat-1.54.0-harmony.hap",
     "ios": "/downloads/SecureChat-1.63.9-ios.ipa",
-    "windowsPortable": "/downloads/SecureChat-1.63.11-windows.zip"
+    "windowsPortable": "/downloads/SecureChat-1.70.0-windows.zip"
   },
   "downloadVersions": {
-    "windows": "1.63.14",
+    "windows": "1.70.0",
     "macos": "1.63.9",
     "android": "1.63.11",
     "harmony": "1.54.0",
     "ios": "1.63.9",
-    "windowsPortable": "1.63.11"
+    "windowsPortable": "1.70.0"
   }
 }
