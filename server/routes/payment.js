@@ -724,7 +724,7 @@ module.exports = function registerPayment(app, db, auth) {
         const sg = crypto.createHash('md5').update(qs + c.key).digest('hex').toUpperCase();
         http.get('http://127.0.0.1:' + (process.env.EPAY_HTTP_PORT || 8889) + '/epaygw/api.php?' + qs + '&sign=' + sg, (r) => { r.resume(); }).on('error', () => {});
       } catch (e) { console.error('[pay] trigger epaygw sync failed: ' + (e && e.message || e)); }
-      res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id)), balance: result.balance, callback: o.callback_url || null });
+      res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id)), balance: result.balance, callback: !!o.callback_url });
     }, true);
   });
 
@@ -882,8 +882,8 @@ module.exports = function registerPayment(app, db, auth) {
     if (order.status !== 'pending') return res.send('订单已处理');
     res.type('html').send(`<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>收银台</title></head>
 <body style="font-family:sans-serif;max-width:420px;margin:40px auto;text-align:center">
-<h2>收银台</h2><p>订单：${order.order_no}</p><p>金额：<b>¥${Number(order.amount).toFixed(2)}</b></p><p>说明：${order.subject}</p>
-<form method="post" action="/api/pay/gateway/epay/mock/pay"><input type="hidden" name="orderNo" value="${order.order_no}"><button style="font-size:18px;padding:12px 40px">确认支付</button></form>
+<h2>收银台</h2><p>订单：${escHtml(order.order_no)}</p><p>金额：<b>¥${Number(order.amount).toFixed(2)}</b></p><p>说明：${escHtml(order.subject)}</p>
+<form method="post" action="/api/pay/gateway/epay/mock/pay"><input type="hidden" name="orderNo" value="${escHtml(order.order_no)}"><button style="font-size:18px;padding:12px 40px">确认支付</button></form>
 <p style="color:#999;font-size:12px">支付将从 SecureChat 钱包扣款</p></body></html>`);
   });
 

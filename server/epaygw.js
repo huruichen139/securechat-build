@@ -56,6 +56,21 @@ function moneyFmt(v) {
   return n.toFixed(2);
 }
 
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function safeExternalUrl(u) {
+  try {
+    const parsed = new URL(String(u || ''));
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+    const h = parsed.hostname;
+    if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0|\[::1\])/.test(h)) return '';
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return '';
+    return parsed.toString();
+  } catch (e) { return ''; }
+}
+
 function createOrder(p) {
   const outTradeNo = String(p.out_trade_no || '').slice(0, 64);
   const now = Date.now();
@@ -66,8 +81,8 @@ function createOrder(p) {
     type: String(p.type || 'alipay'),
     name: String(p.name || '').slice(0, 64),
     money: moneyFmt(p.money),
-    notify_url: String(p.notify_url || '').slice(0, 512),
-    return_url: String(p.return_url || '').slice(0, 512),
+    notify_url: safeExternalUrl(p.notify_url).slice(0, 512),
+    return_url: safeExternalUrl(p.return_url).slice(0, 512),
     status: 'WAIT_BUYER_PAY',
     created_at: now,
     paid_at: 0
@@ -271,10 +286,11 @@ module.exports = function (app, db, authMw) {
         '<div style="font-size:13px;color:#999;margin-bottom:16px">请使用扫码扣款 / 网页端授权扣款 / 本地客户端直接扣款完成确认后再查看结果</div>' +
         '<a href="javascript:history.back()" style="display:block;background:#07c160;color:#fff;border-radius:8px;padding:12px 0;font-size:14px;text-decoration:none">返回收银台</a>'));
     }
-    const html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="refresh" content="1;url=' + o.return_url + '"></head>' +
+    const safeReturn = safeExternalUrl(o.return_url);
+    const html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">' + (safeReturn ? '<meta http-equiv="refresh" content="1;url=' + esc(safeReturn) + '">' : '') + '</head>' +
       '<body style="font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f2f3f5"><div style="background:#fff;border-radius:16px;padding:32px;text-align:center">' +
-      '<div style="font-size:40px">✅</div><div style="font-size:16px;font-weight:600;margin:10px 0 4px">支付成功</div>' +
-      '<div style="font-size:13px;color:#999">SecureChat 钱包已确认扣款 ¥' + o.money + '，正在跳转回商户…</div></div></body></html>';
+      '<div style="font-size:40px;color:#07c160;font-weight:700">&#10003;</div><div style="font-size:16px;font-weight:600;margin:10px 0 4px">支付成功</div>' +
+      '<div style="font-size:13px;color:#999">SecureChat 钱包已确认扣款 ¥' + esc(o.money) + (safeReturn ? '，正在跳转回商户…' : '，请返回商户页面') + '</div></div></body></html>';
     res.type('text/html; charset=utf-8').send(html);
   });
 
