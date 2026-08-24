@@ -177,6 +177,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .footer a{color:var(--text2);text-decoration:none;transition:color .2s}
 .footer a:hover{color:var(--brand)}
 
+/* ===== EXTRA ANIMATIONS ===== */
+.progress-top{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;background:linear-gradient(90deg,var(--brand),#3376ff);transition:width .1s linear;border-radius:0 2px 2px 0}
+.hero h1,.hero-sub,.hero-actions,.hero-note,.hero-badge{opacity:0;transform:translateY(26px);animation:heroIn .8s cubic-bezier(.22,1,.36,1) forwards}
+.hero-badge{animation-delay:.05s}.hero h1{animation-delay:.15s}.hero-sub{animation-delay:.3s}.hero-actions{animation-delay:.45s}.hero-note{animation-delay:.6s}
+@keyframes heroIn{to{opacity:1;transform:none}}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none;animation:blobMove 14s ease-in-out infinite alternate}
+.blob-1{width:340px;height:340px;background:rgba(7,193,96,.16);top:-60px;left:-120px}
+.blob-2{width:280px;height:280px;background:rgba(51,118,255,.13);top:120px;right:-100px;animation-delay:-4s}
+.blob-3{width:240px;height:240px;background:rgba(136,84,255,.1);bottom:-80px;left:30%;animation-delay:-8s}
+@keyframes blobMove{from{transform:translate(0,0) scale(1)}to{transform:translate(50px,-40px) scale(1.18)}}
+.ticker-wrap{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:#fff;padding:16px 0}
+.ticker{display:flex;gap:56px;width:max-content;animation:ticker 26s linear infinite;font-size:14px;font-weight:600;color:var(--text3);white-space:nowrap}
+.ticker b{color:var(--brand);font-weight:700;margin-right:10px}
+.ticker-wrap:hover .ticker{animation-play-state:paused}
+@keyframes ticker{to{transform:translateX(-50%)}}
+.feat-ico svg{display:block}
+.os-ic{width:64px;height:64px;margin:0 auto 12px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.os-w{background:rgba(51,118,255,.1);color:#3376ff}
+.os-m{background:rgba(23,24,28,.06);color:#17181c}
+.os-a{background:rgba(7,193,96,.1);color:#07c160}
+.os-i{background:rgba(136,84,255,.1);color:#8854ff}
+.os-z{background:rgba(255,148,62,.12);color:#f07800}
+.os-g{background:rgba(0,168,168,.1);color:#00a8a8}
+[data-tilt]{will-change:transform;transition:transform .18s ease-out}
+.ripple{position:absolute;border-radius:50%;background:rgba(7,193,96,.25);transform:scale(0);animation:rip .6s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(3);opacity:0}}
+.btn-main,.btn-open,.os-btn{position:relative;overflow:hidden}
+.mk-row.me:last-child .mk-bubble::after{content:'';display:inline-block;width:5px;height:11px;margin-left:3px;vertical-align:-1px;background:#333;animation:caret .9s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+
 @media(max-width:900px){
   .nav-links a.nl{display:none}
   .feat-grid{grid-template-columns:1fr 1fr}
@@ -195,6 +225,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 </style>
 </head>
 <body>
+<div class="progress-top" id="progressTop"></div>
 
 <nav class="nav" id="nav">
   <a href="/" class="nav-logo"><span class="logo-mark">S</span>SecureChat</a>
@@ -209,6 +240,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 <!-- HERO -->
 <header class="hero">
   <div class="hero-glow"></div>
+  <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div>
   <div style="position:relative">
     <div class="hero-badge" onclick="location.href='/chat'"><span class="dot"></span>v1.70 正式发布 · 立即体验</div>
     <h1>加密通信<br/><em>本该如此简单</em></h1>
@@ -259,12 +291,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
     <p>不是在普通聊天上贴一层加密，而是从协议层开始重新设计。每个字节离开设备之前就已完成加密。</p>
   </div>
   <div class="feat-grid">
-    <div class="feat-card rv d1"><div class="feat-ico fi-green">&#128274;</div><h3>端到端加密</h3><p>Signal 协议 + 前向保密。服务器被攻破也无法解密历史消息。</p></div>
-    <div class="feat-card rv d2"><div class="feat-ico fi-blue">&#9889;</div><h3>毫秒级送达</h3><p>WebSocket 长连接实时推送，多端同时在线消息无缝同步。</p></div>
-    <div class="feat-card rv d3"><div class="feat-ico fi-purple">&#127916;</div><h3>音视频通话</h3><p>WebRTC 点对点直连，媒体流不经过服务器，无法被监听。</p></div>
-    <div class="feat-card rv d1"><div class="feat-ico fi-orange">&#128206;</div><h3>加密文件传输</h3><p>任意格式、任意大小，传输全程加密，支持断点续传。</p></div>
-    <div class="feat-card rv d2"><div class="feat-ico fi-red">&#128101;</div><h3>群组聊天</h3><p>群消息同样端到端加密，群主可控成员权限与邀请链接。</p></div>
-    <div class="feat-card rv d3"><div class="feat-ico fi-teal">&#128187;</div><h3>六端全覆盖</h3><p>Windows / macOS / Android / iOS / 鸿蒙 / 网页版，随你切换。</p></div>
+    <div class="feat-card rv d1" data-tilt><div class="feat-ico fi-green"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div><h3>端到端加密</h3><p>Signal 协议 + 前向保密。服务器被攻破也无法解密历史消息。</p></div>
+    <div class="feat-card rv d2" data-tilt><div class="feat-ico fi-blue"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div><h3>毫秒级送达</h3><p>WebSocket 长连接实时推送，多端同时在线消息无缝同步。</p></div>
+    <div class="feat-card rv d3" data-tilt><div class="feat-ico fi-purple"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg></div><h3>音视频通话</h3><p>WebRTC 点对点直连，媒体流不经过服务器，无法被监听。</p></div>
+    <div class="feat-card rv d1" data-tilt><div class="feat-ico fi-orange"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg></div><h3>加密文件传输</h3><p>任意格式、任意大小，传输全程加密，支持断点续传。</p></div>
+    <div class="feat-card rv d2" data-tilt><div class="feat-ico fi-red"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.4 15c2.6.3 4.6 1.9 4.6 4.6"/></svg></div><h3>群组聊天</h3><p>群消息同样端到端加密，群主可控成员权限与邀请链接。</p></div>
+    <div class="feat-card rv d3" data-tilt><div class="feat-ico fi-teal"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>六端全覆盖</h3><p>Windows / macOS / Android / iOS / 鸿蒙 / 网页版，随你切换。</p></div>
   </div>
 
   <div class="stats-band rv" style="margin-top:70px">
@@ -274,6 +306,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
     <div class="stat-c"><div class="stat-n">&lt;50ms</div><div class="stat-l">平均消息延迟</div></div>
   </div>
 </section>
+
+<!-- TICKER -->
+<div class="ticker-wrap" aria-hidden="true">
+  <div class="ticker">
+    <span><b>Signal 协议</b>前向保密</span><span><b>零日志</b>服务器不留痕</span><span><b>WebRTC</b>点对点通话</span><span><b>多端同步</b>六平台覆盖</span><span><b>开源</b>代码可审计</span><span><b>毫秒级</b>消息送达</span>
+    <span><b>Signal 协议</b>前向保密</span><span><b>零日志</b>服务器不留痕</span><span><b>WebRTC</b>点对点通话</span><span><b>多端同步</b>六平台覆盖</span><span><b>开源</b>代码可审计</span><span><b>毫秒级</b>消息送达</span>
+  </div>
+</div>
 
 <!-- SHOWCASE: scroll-driven steps -->
 <section class="showcase" id="showcase">
@@ -324,9 +364,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
           </div>
           <style>@keyframes eq{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}</style>
           <div style="display:flex;gap:14px;margin-top:10px">
-            <span style="width:46px;height:46px;border-radius:50%;background:#2a2d35;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:17px">&#127911;</span>
-            <span style="width:46px;height:46px;border-radius:50%;background:#fa5151;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px">&#128379;</span>
-            <span style="width:46px;height:46px;border-radius:50%;background:#2a2d35;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:17px">&#128263;</span>
+            <span style="width:46px;height:46px;border-radius:50%;background:#2a2d35;display:flex;align-items:center;justify-content:center;color:#ccc"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v2"/></svg></span>
+            <span style="width:46px;height:46px;border-radius:50%;background:#fa5151;display:flex;align-items:center;justify-content:center;color:#fff"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="m12 9c-4 0-7.6 1.6-8 2l2 3c1-.5 2.5-.9 4-1v4h4v-4c1.5.1 3 .5 4 1l2-3c-.4-.4-4-2-8-2z"/></svg></span>
+            <span style="width:46px;height:46px;border-radius:50%;background:#2a2d35;display:flex;align-items:center;justify-content:center;color:#ccc"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a4 4 0 0 1-8 0V6a4 4 0 0 1 8 0z"/><path d="M12 3v3"/></svg></span>
           </div>
         </div>
       </div></div>
@@ -344,12 +384,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
         <div class="scr-head">文件传输</div>
         <div class="scr-body">
           <div class="scr-row me"><div class="scr-bub" style="min-width:170px;padding:12px">
-            <div style="display:flex;gap:8px;align-items:center"><span style="font-size:22px">&#128196;</span><div><b style="font-size:12px;display:block">季度报告.pdf</b><span style="font-size:10px;color:#999">24.6 MB</span></div></div>
+            <div style="display:flex;gap:8px;align-items:center"><span style="width:34px;height:34px;border-radius:8px;background:rgba(250,81,81,.12);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fa5151" stroke-width="2" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg></span><div><b style="font-size:12px;display:block">季度报告.pdf</b><span style="font-size:10px;color:#999">24.6 MB</span></div></div>
             <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:78%;height:100%;background:#07c160;border-radius:2px"></i></div>
             <div style="margin-top:4px;font-size:10px;color:#07c160">78% · 2.4MB/s</div>
           </div></div>
           <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub" style="min-width:170px;padding:12px">
-            <div style="display:flex;gap:8px;align-items:center"><span style="font-size:22px">&#127912;</span><div><b style="font-size:12px;display:block">设计方案.zip</b><span style="font-size:10px;color:#999">156 MB · 已完成</span></div></div>
+            <div style="display:flex;gap:8px;align-items:center"><span style="width:34px;height:34px;border-radius:8px;background:rgba(51,118,255,.1);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3376ff" stroke-width="2" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5m0 0 9-5"/></svg></span><div><b style="font-size:12px;display:block">设计方案.zip</b><span style="font-size:10px;color:#999">156 MB · 已完成</span></div></div>
             <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:100%;height:100%;background:#07c160;border-radius:2px"></i></div>
             <div style="margin-top:4px;font-size:10px;color:#07c160">&#10003; 已完成</div>
           </div></div>
@@ -369,12 +409,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
     <p>下载原生客户端，获得完整体验。所有版本均支持自动更新。</p>
   </div>
   <div class="os-grid">
-    <a class="os-card rv d1" onclick="go('windows')"><span class="os-ic">&#128421;</span><span class="os-name">Windows</span><span class="os-ver" id="vWin">获取中...</span><br/><span class="os-btn">下载安装包 &#8595;</span></a>
-    <a class="os-card rv d2" onclick="go('macos')"><span class="os-ic">&#63743;</span><span class="os-name">macOS</span><span class="os-ver" id="vMac">获取中...</span><br/><span class="os-btn">下载 DMG &#8595;</span></a>
-    <a class="os-card rv d3" onclick="go('android')"><span class="os-ic">&#129525;</span><span class="os-name">Android</span><span class="os-ver" id="vAnd">获取中...</span><br/><span class="os-btn">下载 APK &#8595;</span></a>
-    <a class="os-card rv d1" onclick="go('ios')"><span class="os-ic">&#128241;</span><span class="os-name">iOS</span><span class="os-ver" id="vIos">获取中...</span><br/><span class="os-btn">下载 IPA &#8595;</span></a>
-    <a class="os-card rv d2" onclick="go('windowsPortable')"><span class="os-ic">&#128230;</span><span class="os-name">Windows 便携版</span><span class="os-ver" id="vZip">免安装</span><br/><span class="os-btn">下载 ZIP &#8595;</span></a>
-    <a class="os-card rv d3" href="/chat"><span class="os-ic">&#127760;</span><span class="os-name">网页版</span><span class="os-ver">无需下载</span><br/><span class="os-btn">立即打开 &#8599;</span></a>
+    <a class="os-card rv d1" data-tilt onclick="go('windows')"><span class="os-ic os-w"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.2 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg></span><span class="os-name">Windows</span><span class="os-ver" id="vWin">获取中...</span><br/><span class="os-btn">下载安装包 &#8595;</span></a>
+    <a class="os-card rv d2" data-tilt onclick="go('macos')"><span class="os-ic os-m"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M16.6 12.9c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.86C6.7 7.4 5.2 8.3 4.4 9.7c-1.7 2.9-.4 7.2 1.2 9.5.8 1.2 1.7 2.4 3 2.4s1.7-.8 3.2-.8 1.9.8 3.2.8 2.2-1.2 3-2.3c.9-1.4 1.3-2.7 1.3-2.7s-2.6-1-2.7-3.7zM14.2 5.2c.7-.8 1.1-1.9 1-3-1 0-2.1.65-2.8 1.45-.6.7-1.2 1.85-1 2.9 1.1.1 2.2-.55 2.8-1.35z"/></svg></span><span class="os-name">macOS</span><span class="os-ver" id="vMac">获取中...</span><br/><span class="os-btn">下载 DMG &#8595;</span></a>
+    <a class="os-card rv d3" data-tilt onclick="go('android')"><span class="os-ic os-a"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M17.5 9c-.4-1.6-1.5-2.9-3-3.6l1-1.7a.4.4 0 1 0-.7-.4l-1 1.8A6.4 6.4 0 0 0 12 4.6c-.6 0-1.3.2-1.8.5l-1-1.8a.4.4 0 1 0-.7.4l1 1.7c-1.5.7-2.6 2-3 3.6zm-8-1.7a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6zm5 0a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6zM5 10h14v7a2 2 0 0 1-2 2v2.2a1.1 1.1 0 1 1-2.2 0V19H9.2v2.2a1.1 1.1 0 1 1-2.2 0V19a2 2 0 0 1-2-2zm-3 0a1.5 1.5 0 0 1 3 0v6a1.5 1.5 0 0 1-3 0zm19 0v6a1.5 1.5 0 0 1-3 0v-6a1.5 1.5 0 0 1 3 0z"/></svg></span><span class="os-name">Android</span><span class="os-ver" id="vAnd">获取中...</span><br/><span class="os-btn">下载 APK &#8595;</span></a>
+    <a class="os-card rv d1" data-tilt onclick="go('ios')"><span class="os-ic os-i"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span class="os-name">iOS</span><span class="os-ver" id="vIos">获取中...</span><br/><span class="os-btn">下载 IPA &#8595;</span></a>
+    <a class="os-card rv d2" data-tilt onclick="go('windowsPortable')"><span class="os-ic os-z"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5m0 0 9-5m-9 5v9"/></svg></span><span class="os-name">Windows 便携版</span><span class="os-ver" id="vZip">免安装</span><br/><span class="os-btn">下载 ZIP &#8595;</span></a>
+    <a class="os-card rv d3" data-tilt href="/chat"><span class="os-ic os-g"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg></span><span class="os-name">网页版</span><span class="os-ver">无需下载</span><br/><span class="os-btn">立即打开 &#8599;</span></a>
   </div>
 </section>
 
@@ -383,6 +423,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 </footer>
 
 <script>
+// scroll progress bar
+var ptop = document.getElementById('progressTop');
+window.addEventListener('scroll', function(){
+  var h = document.documentElement;
+  var p = h.scrollTop / (h.scrollHeight - h.clientHeight);
+  ptop.style.width = (p*100) + '%';
+}, {passive:true});
+
+// count-up stats
+function countUp(el){
+  var raw = el.textContent, target = parseFloat(raw.replace(/[^0-9.]/g,''));
+  if(isNaN(target)) return;
+  var prefix = raw.slice(0, raw.indexOf(String(target)));
+  var suffix = raw.slice(raw.indexOf(String(target)) + String(target).length);
+  var t0 = null, dur = 1200;
+  function step(t){
+    if(!t0) t0 = t;
+    var k = Math.min((t - t0)/dur, 1); k = 1 - Math.pow(1-k, 3);
+    el.textContent = prefix + (target*k).toFixed(target % 1 ? 1 : 0) + suffix;
+    if(k < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+var ioStats = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.querySelectorAll('.stat-n').forEach(countUp); ioStats.unobserve(e.target); } });
+},{threshold:.4});
+document.querySelectorAll('.stats-band').forEach(function(el){ ioStats.observe(el); });
+
+// card tilt on mouse
+document.querySelectorAll('[data-tilt]').forEach(function(card){
+  card.addEventListener('mousemove', function(e){
+    var r = card.getBoundingClientRect();
+    var x = (e.clientX - r.left)/r.width - .5;
+    var y = (e.clientY - r.top)/r.height - .5;
+    card.style.transform = 'perspective(700px) rotateY(' + (x*7) + 'deg) rotateX(' + (-y*7) + 'deg) translateY(-6px)';
+  });
+  card.addEventListener('mouseleave', function(){ card.style.transform = ''; });
+});
+
+// button ripple on click
+document.addEventListener('click', function(e){
+  var b = e.target.closest('.btn-main,.btn-open,.os-btn,.btn-ghost');
+  if(!b) return;
+  var r = b.getBoundingClientRect();
+  var d = Math.max(r.width, r.height);
+  var s = document.createElement('span');
+  s.className = 'ripple';
+  s.style.cssText = 'width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';
+  b.appendChild(s);
+  setTimeout(function(){ s.remove(); }, 650);
+});
+
 // nav shadow on scroll
 var nav = document.getElementById('nav');
 window.addEventListener('scroll', function(){
