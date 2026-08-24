@@ -432,6 +432,7 @@ class ChatShell extends StatefulWidget {
 
 class _ChatShellState extends State<ChatShell> {
   int _tab = 0;
+  int _currentTab = 0;
   final _chatViewState = GlobalKey<_ChatViewStateState>();
   final _contactsViewState = GlobalKey<_ContactsViewStateState>();
   ({int id, bool isGroup, String name})? _pendingOpen;
@@ -477,6 +478,30 @@ class _ChatShellState extends State<ChatShell> {
     return AnimatedBuilder(
       animation: config,
       builder: (context, _) {
+        final isMobile = Platform.isAndroid || Platform.isIOS || MediaQuery.of(context).size.width < 600;
+        if (isMobile) {
+          return AppScaffold(
+            config: config,
+            body: Scaffold(
+              body: <Widget>[
+                _ChatView(key: _chatViewState, api: widget.api, config: config, initialOpen: _pendingOpen, onOpenConsumed: () => _pendingOpen = null),
+                ContactsView(key: _contactsViewState, api: widget.api, config: config, onOpenChat: _openChatFromContacts),
+                DiscoverPage(api: widget.api, config: config, onOpenChat: _openChatFromContacts),
+                MePage(api: widget.api, config: config),
+              ][_currentTab],
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: _currentTab,
+                onDestinationSelected: (i) => setState(() => _currentTab = i),
+                destinations: const [
+                  NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: '微信'),
+                  NavigationDestination(icon: Icon(Icons.contacts_outlined), selectedIcon: Icon(Icons.contacts), label: '通讯录'),
+                  NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: '发现'),
+                  NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: '我'),
+                ],
+              ),
+            ),
+          );
+        }
         return AppScaffold(
           config: config,
           body: SafeArea(
@@ -1529,6 +1554,14 @@ class _ChatViewStateState extends State<_ChatView> {
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
+    final isMobile = Platform.isAndroid || Platform.isIOS || MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      if (selected < 0) {
+        return _leftPanel(config, isMobile: true);
+      } else {
+        return _chatArea(config, isMobile: true);
+      }
+    }
     return Row(children: [
       _leftPanel(config),
       VerticalDivider(width: 1, thickness: 1, color: config.theme.div),
@@ -1536,13 +1569,13 @@ class _ChatViewStateState extends State<_ChatView> {
     ]);
   }
 
-  Widget _leftPanel(AppConfig config) {
+  Widget _leftPanel(AppConfig config, {bool isMobile = false}) {
     final theme = config.theme;
     final items = conversations.where((c) =>
       _search.isEmpty || (c['name'] as String).toLowerCase().contains(_search.toLowerCase())
     ).toList();
     return Container(
-      width: 280,
+      width: isMobile ? double.infinity : 280,
       color: theme.panel,
       child: Column(children: [
         Padding(
@@ -1628,7 +1661,7 @@ class _ChatViewStateState extends State<_ChatView> {
     );
   }
 
-  Widget _chatArea(AppConfig config) {
+  Widget _chatArea(AppConfig config, {bool isMobile = false}) {
     final t = config.theme;
     final border = Border(bottom: BorderSide(color: t.div));
     final avatarBg = t.primary.withValues(alpha: t.isDark ? 0.28 : 0.14);
@@ -1636,6 +1669,7 @@ class _ChatViewStateState extends State<_ChatView> {
     final bgColor = convKey != null ? _chatBgColors[convKey] : null;
     return Column(children: [
       Container(height: 60, padding: const EdgeInsets.symmetric(horizontal: 20), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
+        if (isMobile) IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => selected = -1), color: t.text),
         CircleAvatar(backgroundColor: avatarBg, child: Icon(selConv?['icon'] ?? Icons.person, color: t.primary, size: 22)),
         const SizedBox(width: 10),
         Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1651,14 +1685,31 @@ class _ChatViewStateState extends State<_ChatView> {
         const Spacer(),
         if (selConv != null) ...[
           IconButton(tooltip: '搜索消息', onPressed: _toggleChatSearch, icon: Icon(Icons.search, color: _chatSearchVisible ? _wechatGreen : t.subText)),
-          IconButton(tooltip: _multiSelectMode ? '退出多选' : '多选消息', onPressed: _toggleMultiSelect, icon: Icon(_multiSelectMode ? Icons.close : Icons.checklist, color: _multiSelectMode ? _wechatGreen : t.subText)),
+          if (!isMobile) IconButton(tooltip: '多选消息', onPressed: _toggleMultiSelect, icon: Icon(_multiSelectMode ? Icons.close : Icons.checklist, color: _multiSelectMode ? _wechatGreen : t.subText)),
           IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
-          IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
-          if (selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
-           IconButton(tooltip: '清空聊天', onPressed: () => _clearConversation(), icon: Icon(Icons.delete_outline, color: t.subText)),
-           if (selConv!['kind'] == 'group') IconButton(tooltip: '群成员', onPressed: _showGroupMembers, icon: Icon(Icons.people_outline, color: t.subText)),
-          if (selConv!['kind'] == 'group') IconButton(tooltip: '群公告', onPressed: _showGroupAnnouncement, icon: Icon(Icons.campaign_outlined, color: t.subText)),
-          if (selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
+          if (!isMobile) IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
+          if (!isMobile && selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
+          PopupMenuButton<int>(
+            icon: Icon(Icons.more_horiz, color: t.subText),
+            onSelected: (v) {
+              if (v == 0) _toggleMultiSelect();
+              else if (v == 1) _startCall(true);
+              else if (v == 2) _poke();
+              else if (v == 3) _clearConversation();
+              else if (v == 4) _showGroupMembers();
+              else if (v == 5) _showGroupAnnouncement();
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 0, child: Text('多选')),
+              if (selConv!['kind'] == 'friend') const PopupMenuItem(value: 1, child: Text('视频通话')),
+              if (selConv!['kind'] == 'friend') const PopupMenuItem(value: 2, child: Text('拍一拍')),
+              const PopupMenuItem(value: 3, child: Text('清空聊天')),
+              if (selConv!['kind'] == 'group') const PopupMenuItem(value: 4, child: Text('群成员')),
+              if (selConv!['kind'] == 'group') const PopupMenuItem(value: 5, child: Text('群公告')),
+            ],
+          ),
+          if (!isMobile && selConv!['kind'] == 'group') IconButton(tooltip: '群公告', onPressed: _showGroupAnnouncement, icon: Icon(Icons.campaign_outlined, color: t.subText)),
+          if (!isMobile && selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
           PopupMenuButton<int>(
             icon: const Icon(Icons.more_horiz),
             onSelected: (v) => _onContextMenu(v, context),
@@ -2132,6 +2183,7 @@ class _ChatViewStateState extends State<_ChatView> {
     final conv = selConv;
     final canSend = conv != null;
     final t = widget.config.theme;
+    final isMobile = Platform.isAndroid || Platform.isIOS || MediaQuery.of(context).size.width < 600;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
@@ -2140,7 +2192,7 @@ class _ChatViewStateState extends State<_ChatView> {
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
         if (recording) ...[SizedBox(width: 6), _PulseIndicator(color: Colors.red), SizedBox(width: 4), Text((_recordingDuration ~/ 60).toString().padLeft(2, '0') + ':' + (_recordingDuration % 60).toString().padLeft(2, '0'), style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)), SizedBox(width: 4), Text('录音中...', style: TextStyle(color: Colors.red, fontSize: 12))],
         IconButton(tooltip: '更多', onPressed: () { if (mounted) setState(() => _morePanel = !_morePanel); }, icon: Icon(_morePanel ? Icons.close : Icons.add_circle_outline, color: t.text)),
-        IconButton(tooltip: '表情', onPressed: () => _showEmojiPicker(context), icon: Icon(Icons.emoji_emotions_outlined, color: t.text)),
+        if (!isMobile) IconButton(tooltip: '表情', onPressed: () => _showEmojiPicker(context), icon: Icon(Icons.emoji_emotions_outlined, color: t.text)),
         Expanded(child: TextField(
           controller: input,
           focusNode: inputFocus,
@@ -2151,9 +2203,9 @@ class _ChatViewStateState extends State<_ChatView> {
           decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
         )),
         const SizedBox(width: 8),
-        if (conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
-        IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
-        IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
+        if (!isMobile && conv != null && conv['kind'] == 'group') IconButton(tooltip: '@所有人', onPressed: () { input.text += '@所有人 '; inputFocus.requestFocus(); if (mounted) setState(() {}); }, icon: const Icon(Icons.alternate_email, size: 20)),
+        if (!isMobile) IconButton(tooltip: '快捷回复', onPressed: canSend ? () => _showQuickReplies() : null, icon: const Icon(Icons.short_text)),
+        if (!isMobile) IconButton(tooltip: '定时发送', onPressed: canSend ? () => _showScheduleDialog() : null, icon: const Icon(Icons.schedule)),
         SizedBox(height: 42, child: FilledButton(
           onPressed: canSend && input.text.isNotEmpty ? () => _sendText() : null,
           style: FilledButton.styleFrom(backgroundColor: input.text.isNotEmpty ? _wechatGreen : t.subText, foregroundColor: Colors.white),
@@ -2171,6 +2223,10 @@ class _ChatViewStateState extends State<_ChatView> {
             _moreCell(t, Icons.star_outline, '收藏', () { setState(() => _morePanel = false); Navigator.push(context, MaterialPageRoute(builder: (_) => FavoritesPage(api: widget.api, config: widget.config))); }),
             _moreCell(t, Icons.call_outlined, '语音通话', () { setState(() => _morePanel = false); _startCall(false); }),
             _moreCell(t, Icons.videocam_outlined, '视频通话', () { setState(() => _morePanel = false); _startCall(true); }),
+            _moreCell(t, Icons.short_text, '快捷回复', () { setState(() => _morePanel = false); _showQuickReplies(); }),
+            _moreCell(t, Icons.schedule, '定时发送', () { setState(() => _morePanel = false); _showScheduleDialog(); }),
+            if (isMobile) _moreCell(t, Icons.emoji_emotions_outlined, '表情', () { setState(() => _morePanel = false); _showEmojiPicker(context); }),
+            if (isMobile && conv != null && conv['kind'] == 'group') _moreCell(t, Icons.alternate_email, '@所有人', () { setState(() => _morePanel = false); input.text += '@所有人 '; inputFocus.requestFocus(); }),
           ]),
         ),
       ],

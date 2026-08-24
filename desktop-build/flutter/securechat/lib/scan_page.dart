@@ -120,24 +120,7 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
-    // 其它 http(s) URL → 打开网页
-    if (RegExp(r'^https?://', caseSensitive: false).hasMatch(text)) {
-      _status = '正在打开网页…';
-      try {
-        if (Platform.isWindows) {
-          Process.start('cmd', ['/c', 'start', '', text]);
-        } else if (Platform.isMacOS) {
-          Process.start('open', [text]);
-        } else {
-          Process.start('xdg-open', [text]);
-        }
-      } catch (e) {
-        _status = '打开失败：$e';
-      }
-      return;
-    }
-
-    _status = '未识别的二维码内容';
+    _status = '仅支持 SecureChat 二维码（好友码/登录码/支付码/小程序码）';
   }
 
   String? _queryParam(String raw, String key) {
@@ -181,7 +164,7 @@ class _ScanPageState extends State<ScanPage> {
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         const SizedBox(height: 8),
-        TextField(controller: _manualCtrl, maxLines: 3, decoration: const InputDecoration(hintText: '粘贴二维码内容（如 securechat://friend?uid=xxx 或网页链接）')),
+        TextField(controller: _manualCtrl, maxLines: 3, decoration: const InputDecoration(hintText: '粘贴二维码内容（如 securechat://friend?uid=xxx）')),
         if (_status != null) ...[
           const SizedBox(height: 12),
           Text(_status!, style: TextStyle(color: t.subText)),
