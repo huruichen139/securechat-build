@@ -207,6 +207,60 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .mk-row.me:last-child .mk-bubble::after{content:'';display:inline-block;width:5px;height:11px;margin-left:3px;vertical-align:-1px;background:#333;animation:caret .9s steps(1) infinite}
 @keyframes caret{50%{opacity:0}}
 
+/* ===== ANIMATION OVERDOSE ===== */
+/* 1. 光标跟随光晕 */
+.cursor-glow{position:fixed;width:340px;height:340px;border-radius:50%;pointer-events:none;z-index:1;background:radial-gradient(circle,rgba(7,193,96,.07),transparent 65%);transform:translate(-50%,-50%);transition:opacity .3s}
+/* 2. 背景动态网格 */
+.animated-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(7,193,96,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(7,193,96,.035) 1px,transparent 1px);background-size:56px 56px;animation:gridDrift 22s linear infinite}
+@keyframes gridDrift{to{background-position:56px 112px}}
+body>*:not(.animated-grid):not(.cursor-glow):not(.progress-top){position:relative;z-index:2}
+/* 3. 章节标题逐词浮现 */
+.sec-head h2 .w{display:inline-block;opacity:0;transform:translateY(.6em) rotate(4deg);transition:all .55s cubic-bezier(.22,1,.36,1)}
+.sec-head.in h2 .w{opacity:1;transform:none}
+/* 4. 手机滚动视差 */
+.phone{will-change:transform}
+/* 5. 桌面 mockup 气泡入场 */
+.mk-msgs .mk-row{opacity:0;transform:translateY(18px) scale(.95)}
+.mockup-stage.play .mk-row{animation:mkPop .55s cubic-bezier(.34,1.56,.64,1) forwards}
+.mockup-stage.play .mk-row:nth-child(1){animation-delay:.15s}.mockup-stage.play .mk-row:nth-child(2){animation-delay:.4s}.mockup-stage.play .mk-row:nth-child(3){animation-delay:.65s}.mockup-stage.play .mk-row:nth-child(4){animation-delay:.9s}.mockup-stage.play .mk-row:nth-child(5){animation-delay:1.15s}
+@keyframes mkPop{to{opacity:1;transform:none}}
+/* 6. 打字中三点 */
+.typing-dots{display:inline-flex;gap:3px;padding:10px 14px;background:#fff;border-radius:3px 12px 12px 12px;box-shadow:var(--shadow-s);margin-top:-24px;margin-left:36px;opacity:0}
+.mockup-stage.play .typing-dots{animation:mkPop .5s 1.45s cubic-bezier(.34,1.56,.64,1) forwards}
+.typing-dots i{width:5px;height:5px;border-radius:50%;background:#bbb;animation:tdot 1s ease-in-out infinite}
+.typing-dots i:nth-child(2){animation-delay:.18s}.typing-dots i:nth-child(3){animation-delay:.36s}
+@keyframes tdot{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-4px);opacity:1}}
+/* 7. 功能卡图标常驻微动 + hover 弹跳 */
+.feat-ico{animation:icoFloat 3.6s ease-in-out infinite}
+.feat-card:nth-child(2n) .feat-ico{animation-delay:-1.2s}
+.feat-card:nth-child(3n) .feat-ico{animation-delay:-2.3s}
+@keyframes icoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+/* 8. 下载卡扫光循环 */
+.os-card::before{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(7,193,96,.06),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
+.os-card:nth-child(2)::before{animation-delay:1.2s}.os-card:nth-child(3)::before{animation-delay:2.4s}.os-card:nth-child(4)::before{animation-delay:.6s}.os-card:nth-child(5)::before{animation-delay:1.8s}.os-card:nth-child(6)::before{animation-delay:3s}
+@keyframes sheen{0%,55%{left:-80%}90%,100%{left:140%}}
+/* 9. 统计带流光边框 */
+.stats-band{position:relative}
+.stats-band::after{content:'';position:absolute;inset:-1px;border-radius:17px;padding:1px;background:linear-gradient(120deg,rgba(7,193,96,.4),transparent 30%,transparent 70%,rgba(51,118,255,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;background-size:220% 220%;animation:borderFlow 6s linear infinite;pointer-events:none}
+@keyframes borderFlow{0%{background-position:0% 0}100%{background-position:200% 0}}
+/* 10. 徽章摇摆 */
+.hero-badge:hover .dot{animation:wiggle .5s ease-in-out infinite}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(20deg) scale(1.2)}75%{transform:rotate(-20deg) scale(1.2)}}
+/* 11. Logo 常驻呼吸 */
+.logo-mark{animation:logoBreath 4s ease-in-out infinite}
+@keyframes logoBreath{0%,100%{box-shadow:0 2px 8px rgba(7,193,96,.3)}50%{box-shadow:0 4px 18px rgba(7,193,96,.55)}}
+/* 12. 波浪分隔 */
+.wave-sep{display:block;width:100%;height:60px;color:var(--bg2)}
+/* 13. 跑马灯项 hover 跳起 */
+.ticker span{transition:all .2s;cursor:default}
+.ticker span:hover{color:var(--text);transform:translateY(-3px)}
+/* 14. 平台徽章波浪入场 */
+.platforms a{opacity:0;animation:heroIn .5s cubic-bezier(.34,1.56,.64,1) forwards}
+.platforms a:nth-child(1){animation-delay:.75s}.platforms a:nth-child(2){animation-delay:.83s}.platforms a:nth-child(3){animation-delay:.91s}.platforms a:nth-child(4){animation-delay:.99s}.platforms a:nth-child(5){animation-delay:1.07s}.platforms a:nth-child(6){animation-delay:1.15s}
+/* 15. 下载成功彩带 */
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:300;pointer-events:none;animation:confFall linear forwards}
+@keyframes confFall{to{transform:translateY(105vh) rotate(720deg);opacity:.6}}
+
 @media(max-width:900px){
   .nav-links a.nl{display:none}
   .feat-grid{grid-template-columns:1fr 1fr}
@@ -226,6 +280,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 </head>
 <body>
 <div class="progress-top" id="progressTop"></div>
+<div class="animated-grid"></div>
+<div class="cursor-glow" id="cursorGlow" style="opacity:0"></div>
 
 <nav class="nav" id="nav">
   <a href="/" class="nav-logo"><span class="logo-mark">S</span>SecureChat</a>
@@ -276,6 +332,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
           <div class="mk-inputbar"><div class="mk-tools"><span></span><span></span><span></span></div><div class="mk-send">发送</div></div>
         </div>
       </div>
+      <div class="typing-dots" style="position:absolute;bottom:70px;left:250px"><i></i><i></i><i></i></div>
     </div>
     <div class="float-chip chip-a"><div class="chip-ico" style="background:#07c160">&#10003;</div>已端到端加密</div>
     <div class="float-chip chip-b"><div class="chip-ico" style="background:#3376ff">&#9654;</div>语音视频通话</div>
@@ -467,6 +524,73 @@ document.addEventListener('click', function(e){
   s.style.cssText = 'width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';
   b.appendChild(s);
   setTimeout(function(){ s.remove(); }, 650);
+});
+
+// cursor glow follower
+var cg = document.getElementById('cursorGlow');
+document.addEventListener('mousemove', function(e){
+  if(window.innerWidth < 900){ cg.style.opacity = 0; return; }
+  cg.style.opacity = 1;
+  cg.style.left = e.clientX + 'px';
+  cg.style.top = e.clientY + 'px';
+});
+
+// split section titles into words for staggered reveal
+document.querySelectorAll('.sec-head h2').forEach(function(h){
+  h.innerHTML = h.innerHTML.split(/(<br\s*\/?>)/i).map(function(part){
+    if(/^<br/i.test(part)) return part;
+    return part.split(' ').map(function(w){
+      return w ? '<span class="w">' + w.replace(/&nbsp;/g,' ') + '</span>' : '';
+    }).join(' ');
+  }).join('');
+});
+document.querySelectorAll('.sec-head.rv').forEach(function(el){
+  var words = el.querySelectorAll('.w');
+  words.forEach(function(w,i){ w.style.transitionDelay = (0.06*i) + 's'; });
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ el.classList.add('in'); obs.disconnect(); } });
+  },{threshold:.3}).observe(el);
+});
+
+// desktop mockup bubbles play when visible
+var stage = document.querySelector('.mockup-stage');
+if(stage){
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ stage.classList.add('play'); obs.disconnect(); } });
+  },{threshold:.25}).observe(stage);
+}
+
+// phones scroll parallax (translate/rotate with scroll position)
+var phoneWraps = document.querySelectorAll('.phone-wrap');
+function phoneParallax(){
+  var vh = window.innerHeight;
+  phoneWraps.forEach(function(pw, i){
+    var r = pw.getBoundingClientRect();
+    var k = (r.top + r.height/2 - vh/2) / vh; // -1..1
+    var dir = pw.closest('.sc-step.flip') ? -1 : 1;
+    var ph = pw.querySelector('.phone');
+    if(ph && Math.abs(k) < 1.4){
+      ph.style.translate = '0 ' + (k * 34 * dir) + 'px';
+      ph.style.rotate = '0 ' + (dir*8 - k*6*dir) + 'deg';
+    }
+  });
+}
+window.addEventListener('scroll', phoneParallax, {passive:true});
+phoneParallax();
+
+// confetti burst when clicking a download card
+function confettiBurst(x, y){
+  var colors = ['#07c160','#3376ff','#8854ff','#ff943e','#fa5151','#00c8c8'];
+  for(var i=0;i<26;i++){
+    var c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.cssText = 'left:'+(x-5)+'px;background:'+colors[i%6]+';animation-duration:'+(1+Math.random()*1.2)+'s;border-radius:'+(Math.random()>.5?'50%':'2px');
+    document.body.appendChild(c);
+    setTimeout(function(cc){ return function(){ cc.remove(); }; }(c), 2400);
+  }
+}
+document.querySelectorAll('.os-card').forEach(function(card){
+  card.addEventListener('click', function(e){ confettiBurst(e.clientX, e.clientY); });
 });
 
 // nav shadow on scroll
