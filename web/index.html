@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -545,7 +544,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .plat-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
 .plat-dot{width:8px;height:8px;border-radius:50%;background:#07c160}
 
-</style>
+
+/* ============ Contacts Section ============ */
+.contacts-section{padding:100px 20px;background:#fff}
+.ct-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;max-width:1100px;margin:0 auto;align-items:center}
+.ct-features{list-style:none;padding:0;margin:0}
+.ct-features li{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px}
+.ctf-icon{width:40px;height:40px;border-radius:2px;background:#e6f9ee;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ctf-icon svg{width:20px;height:20px}
+.ctf-text strong{display:block;font-size:14px;color:#1a1a1a;margin-bottom:3px}
+.ctf-text span{font-size:13px;color:#888;line-height:1.5}
+
+/* ============ Discover Section ============ */
+.discover-section{padding:100px 20px;background:linear-gradient(180deg,#f7faf8 0%,#fff 100%)}
+.disc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.disc-card{background:#fff;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;transition:transform .3s,box-shadow .3s}
+.disc-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.dc-icon{width:48px;height:48px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.dc-icon svg{width:24px;height:24px}
+.disc-card h4{font-size:15px;font-weight:700;color:#1a1a1a;margin:0 0 8px;text-align:center}
+.disc-card p{font-size:13px;color:#666;line-height:1.6;margin:0;text-align:center}
+
+/* ============ My Profile Section ============ */
+.meprofile-section{padding:100px 20px;background:#fff}
+.me-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.me-card{background:#fafbfc;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;transition:transform .3s,box-shadow .3s}
+.me-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.mec-icon{width:48px;height:48px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.mec-icon svg{width:24px;height:24px}
+.me-card h4{font-size:15px;font-weight:700;color:#1a1a1a;margin:0 0 8px;text-align:center}
+.me-card p{font-size:13px;color:#666;line-height:1.6;margin:0;text-align:center}
+
+/* ============ Message Management Section ============ */
+.msgmgmt-section{padding:100px 20px;background:#fafbfc}
+.msg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.msg-card{background:#fff;border:1px solid #f0f0f0;border-radius:2px;padding:24px 20px;text-align:center;transition:transform .3s,box-shadow .3s}
+.msg-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.msgc-icon{width:44px;height:44px;border-radius:2px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
+.msgc-icon svg{width:22px;height:22px}
+.msg-card h4{font-size:14px;font-weight:700;color:#1a1a1a;margin:0 0 6px}
+.msg-card p{font-size:12px;color:#888;line-height:1.5;margin:0}<!DOCTYPE html>
+
+/* ============ Scroll Reveal for New Sections ============ */
+.disc-card,.me-card,.msg-card,.ct-features li,.cl-item{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.disc-card.in,.me-card.in,.msg-card.in,.ct-features li.in,.cl-item.in{opacity:1;transform:none}
+.disc-card:nth-child(2),.me-card:nth-child(2),.msg-card:nth-child(2){transition-delay:.1s}
+.disc-card:nth-child(3),.me-card:nth-child(3),.msg-card:nth-child(3){transition-delay:.2s}
+.disc-card:nth-child(4),.me-card:nth-child(4),.msg-card:nth-child(4){transition-delay:.3s}</style>
 </head>
 <body>
 <div class="progress-top" id="progressTop"></div>
@@ -1095,6 +1140,183 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 
 <footer class="footer">
   <p>SecureChat &copy; 2024-2026 &middot; <a href="/chat">网页版入口</a> &middot; <a href="https://github.com/huruichen139/securechat-build" target="_blank">GitHub</a></p>
+
+<!-- ====== CONTACTS TAB ====== -->
+<section class="section contacts-section" id="contacts-tab">
+  <div class="sec-head rv">
+    <span class="kicker">CONTACTS</span>
+    <h2>通讯录，<em>一目了然</em></h2>
+    <p>A-Z 字母索引、快速跳转、标签分组、联系人详情，找人只在弹指之间。</p>
+  </div>
+  <div class="ct-grid">
+    <div class="rvL">
+      <ul class="ct-features">
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="ctf-text"><strong>全局搜索</strong><span>按姓名、备注、手机号、微信号快速搜索，关键词高亮匹配</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div><div class="ctf-text"><strong>字母索引</strong><span>A-Z 侧边快速跳转条，一键定位到目标联系人</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div class="ctf-text"><strong>标签分组</strong><span>工作、家人、朋友自定义标签，按分组筛选联系人</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="ctf-text"><strong>联系人详情</strong><span>头像、昵称、地区、个性签名，一键发消息或音视频通话</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div><div class="ctf-text"><strong>面对面加好友</strong><span>输入四位数字即可添加，无需扫码</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="ctf-text"><strong>手机通讯录匹配</strong><span>读取通讯录自动匹配已注册用户，一键添加好友</span></div></li>
+      </ul>
+      <div style="margin-top:12px"><span class="badge-live">已上线</span> <span class="badge-beta">Beta</span></div>
+    </div>
+    <div class="rvR">
+      <div class="phone"><div class="screen">
+        <div class="scr-head">通讯录</div>
+        <div class="scr-body" style="padding:6px 10px">
+          <div style="background:#f5f5f5;border-radius:2px;padding:6px 8px;margin-bottom:10px;font-size:9px;color:#999">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#999" stroke-width="2" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> 搜索
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">新的朋友</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 0">
+            <div style="width:22px;height:22px;border-radius:2px;background:#f5a623;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700">F</div>
+            <div><span style="font-size:8px;color:#333;font-weight:600">新的朋友</span><br><span style="font-size:7px;color:#888">3条验证消息</span></div>
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">A</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#07c160;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
+            <div style="font-size:8px;color:#333">安迪</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#1fc784;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
+            <div style="font-size:8px;color:#333">阿杰</div>
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">B</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#f5a623;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">B</div>
+            <div style="font-size:8px;color:#333">白露</div>
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">C</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#31c178;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">C</div>
+            <div style="font-size:8px;color:#333">陈星</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#1976d2;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">C</div>
+            <div style="font-size:8px;color:#333">程前</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== DISCOVER TAB ====== -->
+<section class="section discover-section" id="discover-tab">
+  <div class="sec-head rv">
+    <span class="kicker">DISCOVER</span>
+    <h2>发现，<em>精彩不断</em></h2>
+    <p>朋友圈、扫一扫、附近的人、小程序... 每一个入口都连接着一个新世界。</p>
+  </div>
+  <div class="disc-grid">
+    <div class="disc-card rv d1">
+      <div class="dc-icon" style="background:#e6f9ee"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M4 4h16v16H4z" rx="2"/><circle cx="9" cy="9" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      <h4>朋友圈</h4>
+      <p>发布图文动态，AI 自动帮写文案，支持多图上传和隐私可见范围设置</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="disc-card rv d2">
+      <div class="dc-icon" style="background:#e3f2fd"><svg viewBox="0 0 24 24" fill="none" stroke="#1976d2" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01M7 12h.01M17 12h.01"/></svg></div>
+      <h4>扫一扫</h4>
+      <p>二维码、条形码扫描，拍照给 AI 识别，外文翻译、文字提取、内容总结</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="disc-card rv d3">
+      <div class="dc-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#f57c00" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <h4>附近的人</h4>
+      <p>基于位置发现 1 公里内用户，显示距离精确到米，支持打招呼和添加好友</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="disc-card rv d1">
+      <div class="dc-icon" style="background:#e0f2f1"><svg viewBox="0 0 24 24" fill="none" stroke="#00897b" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+      <h4>小程序</h4>
+      <p>轻应用商店，发布和使用小程序，支持搜索、收藏和最近使用</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== MY PROFILE ====== -->
+<section class="section meprofile-section" id="my-profile">
+  <div class="sec-head rv">
+    <span class="kicker">MY PROFILE</span>
+    <h2>我的，<em>不止于此</em></h2>
+    <p>个性装扮、亲密空间、收藏管理、钱包支付... 每一处细节都彰显你的个性。</p>
+  </div>
+  <div class="me-grid">
+    <div class="me-card rv d1">
+      <div class="mec-icon" style="background:#fce4ec"><svg viewBox="0 0 24 24" fill="none" stroke="#e91e63" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+      <h4>亲密空间</h4>
+      <p>情侣、闺蜜、挚友、死党四类关系绑定，专属私密记忆空间</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="me-card rv d2">
+      <div class="mec-icon" style="background:#f3e5f5"><svg viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <h4>个性装扮</h4>
+      <p>全局主题、聊天壁纸、气泡样式、头像挂件，简约/清新/潮流多种风格</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="me-card rv d3">
+      <div class="mec-icon" style="background:#e8eaf6"><svg viewBox="0 0 24 24" fill="none" stroke="#3f51b5" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+      <h4>收藏管理</h4>
+      <p>文字、图片、链接、文件分类收藏，支持标签、搜索和二次编辑</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="me-card rv d1">
+      <div class="mec-icon" style="background:#e8f5e9"><svg viewBox="0 0 24 24" fill="none" stroke="#388e3c" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      <h4>钱包支付</h4>
+      <p>余额查询、交易记录、收付款码、转账、红包，支持支付宝/微信充值</p>
+      <span class="badge-live">已上线</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== MESSAGE MANAGEMENT ====== -->
+<section class="section msgmgmt-section" id="msg-management">
+  <div class="sec-head rv">
+    <span class="kicker">MESSAGE MANAGEMENT</span>
+    <h2>消息管理，<em>面面俱到</em></h2>
+    <p>撤回、引用、编辑、多选、阅后即焚... 每一条消息都尽在掌控。</p>
+  </div>
+  <div class="msg-grid">
+    <div class="msg-card rv d1">
+      <div class="msgc-icon" style="background:#e6f9ee"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
+      <h4>消息撤回</h4>
+      <p>2分钟内可撤回，支持"重新编辑"原地修改后重发</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d2">
+      <div class="msgc-icon" style="background:#e3f2fd"><svg viewBox="0 0 24 24" fill="none" stroke="#1976d2" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></div>
+      <h4>引用回复</h4>
+      <p>长按消息选择引用，输入框自动引用原消息，对话脉络清晰可见</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d3">
+      <div class="msgc-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#f57c00" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <h4>原地编辑</h4>
+      <p>发错消息不用撤回，直接原地修改，对方看到的是更新后的内容</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="msg-card rv d1">
+      <div class="msgc-icon" style="background:#fce4ec"><svg viewBox="0 0 24 24" fill="none" stroke="#e91e63" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+      <h4>多选转发</h4>
+      <p>批量选择消息一键转发给多个好友，高效分享重要内容</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d2">
+      <div class="msgc-icon" style="background:#f3e5f5"><svg viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <h4>阅后即焚</h4>
+      <p>闪照和消失消息，阅读后自动删除，30秒/1分钟/5分钟可选</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d3">
+      <div class="msgc-icon" style="background:#e0f2f1"><svg viewBox="0 0 24 24" fill="none" stroke="#00897b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h4>双向删除</h4>
+      <p>一键删除与对方的全部聊天记录，双方同步清除不留痕迹</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+  </div>
+</section>
 </footer>
 
 <script>
@@ -1432,7 +1654,7 @@ var io = new IntersectionObserver(function(entries){
     if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
   });
 },{threshold:.12, rootMargin:'0px 0px -40px 0px'});
-document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
+document.querySelectorAll('.rv,.disc-card,.me-card,.msg-card,.ct-features li,.cl-item').forEach(function(el){ io.observe(el); });
 
 // hero parallax on mouse
 document.addEventListener('mousemove', function(e){
