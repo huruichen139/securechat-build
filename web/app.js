@@ -536,7 +536,15 @@ function tryRestore() {
   }
   fetch(state.serverHost + '/api/users', { headers: { 'Authorization': 'Bearer ' + state.token } })
     .then((res) => {
-      if (res.ok) { enterChat(); fetchAnnouncements(); }
+      if (res.ok) {
+        // 用服务端最新数据刷新本地资料（跨设备修改后避免陈旧昵称/头像）
+        res.json().then((j) => {
+          const myId = state.me && state.me.id;
+          const me = myId != null ? (j.users || []).find(u => u.id === myId) : null;
+          if (me) { state.me = Object.assign({}, state.me, me); try { localStorage.setItem('sc_me', JSON.stringify(state.me)); } catch (e) {} }
+          enterChat(); fetchAnnouncements();
+        }).catch(() => { enterChat(); fetchAnnouncements(); });
+      }
       else { localStorage.removeItem('sc_token'); localStorage.removeItem('sc_me'); state.token = null; state.me = null; }
     })
     .catch(() => { localStorage.removeItem('sc_token'); localStorage.removeItem('sc_me'); state.token = null; state.me = null; });
