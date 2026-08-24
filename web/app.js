@@ -4528,8 +4528,13 @@ function openSettingsPage() {
       title: '隐私',
       items: [
         { label: '黑名单', desc: '管理被屏蔽的用户', icon: '黑', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; renderBlocklistPage(); showMobilePage('blocklistPage'); } },
-        { label: '朋友圈设置', desc: '可见范围', icon: '圈', fn: () => toast('隐私设置开发中', 'info') },
-        { label: '添加我的方式', desc: '通过手机号/微信号搜索', icon: '搜', fn: () => toast('隐私设置开发中', 'info') },
+        { label: '朋友圈设置', desc: '不看谁/谁不看', icon: '圈', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; if (window.SecureChatMomentExt && window.SecureChatMomentExt.openFilterPanel) window.SecureChatMomentExt.openFilterPanel(); else toast('朋友圈模块未加载', 'warn'); } },
+        { label: '添加我的方式', desc: '通过ID搜索加好友', icon: '搜', fn: () => {
+          const cur = localStorage.sc_allowIdSearch !== '0';
+          localStorage.sc_allowIdSearch = cur ? '0' : '1';
+          toast(cur ? '已允许通过 ID 搜索添加' : '已禁止通过 ID 搜索添加', 'success');
+          openSettingsPage();
+        } },
       ]
     },
     {
