@@ -382,6 +382,23 @@ app.post('/api/password/reset', (req, res) => {
   res.json({ ok: true });
 });
 
+// 自助修改密码：POST /api/password/change { oldPassword, newPassword }
+app.post('/api/password/change', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { oldPassword, newPassword } = req.body || {};
+  if (!oldPassword || !newPassword) return res.status(400).json({ error: '参数缺失' });
+  if (String(newPassword).length < 6) return res.status(400).json({ error: '新密码至少6位' });
+  const user = prepare('SELECT id,password FROM users WHERE id=?').get(payload.id);
+  if (!user || !user.password) return res.status(400).json({ error: '账号未设置密码' });
+  if (!bcrypt.compareSync(String(oldPassword), user.password)) return res.status(403).json({ error: '原密码错误' });
+  const hash = bcrypt.hashSync(String(newPassword), 10);
+  prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, user.id);
+  logAudit(payload.id, 'password_change', null, 'user', '自助修改密码', clientIp(req));
+  res.json({ ok: true });
+});
+
 // 扫码登录（微信式）：未登录端（电脑）生成二维码 → 已登录端（手机）扫码确认 → 电脑端轮询后登录。
 // 已登录设备调用 create 时（网页「扫码登录授权」），直接绑定自身身份并置为 confirmed，兼容旧流程。
 app.post('/api/login/qr/create', (req, res) => {

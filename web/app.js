@@ -927,7 +927,7 @@ function openModal(title, fields, onOk) {
     w.className = 'field';
     w.innerHTML = '<label>' + escapeHtml(f.label) + '</label>';
     const inp = document.createElement('input');
-    inp.type = 'text'; inp.value = f.value || ''; inp.placeholder = f.placeholder || '';
+    inp.type = f.type === 'password' ? 'password' : 'text'; inp.value = f.value || ''; inp.placeholder = f.placeholder || '';
     f._el = inp;
     w.appendChild(inp);
     box.appendChild(w);
@@ -4398,7 +4398,27 @@ function openSettingsPage() {
     {
       title: '账号与安全',
       items: [
-        { label: '修改密码', desc: '登录密码管理', icon: '锁', fn: () => toast('密码修改功能开发中', 'info') },
+        { label: '修改密码', desc: '登录密码管理', icon: '锁', fn: () => {
+          openModal('修改密码', [
+            { key: 'oldPassword', label: '原密码', type: 'password' },
+            { key: 'newPassword', label: '新密码（至少6位）', type: 'password' }
+          ], async (out, close) => {
+            if (!out.oldPassword || !out.newPassword) { toast('请填写完整', 'warn'); return; }
+            if (String(out.newPassword).length < 6) { toast('新密码至少6位', 'warn'); return; }
+            try {
+              const res = await fetch(state.serverHost + '/api/password/change', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
+                body: JSON.stringify({ oldPassword: out.oldPassword, newPassword: out.newPassword })
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) { toast(data.error || '修改失败', 'error'); return; }
+              close();
+              toast('密码已修改，请重新登录', 'success');
+              setTimeout(() => logout(), 1200);
+            } catch (e) { toast('请求失败：' + e.message, 'error'); }
+          });
+        }},
         { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑定', icon: '邮', fn: () => toast('邮箱绑定功能开发中', 'info') },
         { label: '登录设备管理', desc: '查看登录过的设备', icon: '机', fn: () => toast('设备管理开发中', 'info') },
       ]
