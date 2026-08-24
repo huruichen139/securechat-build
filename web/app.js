@@ -1564,7 +1564,14 @@ async function checkMediaPermissionHint() {
   } catch (e) {}
 }
 
+let wsGen = 0;
 function connectWS() {
+  const gen = ++wsGen;
+  if (state.ws) {
+    const old = state.ws;
+    old.onclose = null; old.onmessage = null; old.onopen = null;
+    try { old.close(); } catch (e) {}
+  }
   const wsUrl = state.serverHost.replace(/^http/, 'ws') + '/ws';
   state.wsAuthed = false;
   state.ws = new WebSocket(wsUrl);
@@ -1575,10 +1582,11 @@ function connectWS() {
   };
   state.ws.onclose = () => {
     state.wsAuthed = false;
+    if (gen !== wsGen) return;
     const attempt = (state._wsReconnectAttempt || 0) + 1;
     state._wsReconnectAttempt = attempt;
     const delay = Math.min(2000 * Math.pow(2, Math.min(attempt - 1, 6)), 60000);
-    setTimeout(() => { if (state.me) connectWS(); }, delay);
+    setTimeout(() => { if (state.me && gen === wsGen) connectWS(); }, delay);
   };
 }
 
