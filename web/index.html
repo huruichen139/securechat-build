@@ -261,6 +261,52 @@ body>*:not(.animated-grid):not(.cursor-glow):not(.progress-top){position:relativ
 .confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:300;pointer-events:none;animation:confFall linear forwards}
 @keyframes confFall{to{transform:translateY(105vh) rotate(720deg);opacity:.6}}
 
+/* ===== ANIMATION OVERDOSE II ===== */
+/* 16. 导航随滚动方向隐藏/显现 */
+.nav{transition:transform .35s cubic-bezier(.22,1,.36,1)}
+.nav.hidden-nav{transform:translateY(-100%)}
+/* 17. Hero 标题渐变流光循环 */
+.hero h1 em{background-size:200% 200%;animation:gradFlow 5s ease-in-out infinite}
+@keyframes gradFlow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+/* 18. 章节左右交替入场 */
+.sc-copy.rvL{opacity:0;transform:translateX(-60px);transition:all .8s cubic-bezier(.22,1,.36,1)}
+.sc-media.rvR{opacity:0;transform:translateX(60px);transition:all .8s .12s cubic-bezier(.22,1,.36,1)}
+.sc-copy.rvL.in,.sc-media.rvR.in{opacity:1;transform:none}
+/* 19. 功能卡滚动波浪弹入 */
+.feat-card.pop{opacity:0;transform:translateY(40px) scale(.9) rotate(-2deg)}
+.feat-card.pop.in{opacity:1;transform:none;transition:all .6s cubic-bezier(.34,1.56,.64,1)}
+.feat-card.pop.in:nth-child(3n+1){transition-delay:.05s}
+.feat-card.pop.in:nth-child(3n+2){transition-delay:.15s}
+.feat-card.pop.in:nth-child(3n){transition-delay:.25s}
+/* 20. 统计数字流光扫过 */
+.stat-n{position:relative;overflow:hidden}
+.stats-band.play .stat-n::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55),transparent);animation:statSheen 2.4s ease-in-out infinite}
+.stats-band.play .stat-c:nth-child(2) .stat-n::after{animation-delay:.3s}
+.stats-band.play .stat-c:nth-child(3) .stat-n::after{animation-delay:.6s}
+.stats-band.play .stat-c:nth-child(4) .stat-n::after{animation-delay:.9s}
+@keyframes statSheen{0%{left:-100%}60%,100%{left:150%}}
+/* 21. 悬浮芯片随滚动微旋转 */
+.float-chip{will-change:transform;transition:rotate .2s linear}
+/* 22. 下载卡弹跳入场 */
+.os-card.bounce-in{opacity:0;transform:scale(.7) translateY(30px);transition:all .65s cubic-bezier(.34,1.56,.64,1)}
+.os-card.bounce-in.in{opacity:1;transform:none}
+.os-card.bounce-in.d2.in{transition-delay:.12s}.os-card.bounce-in.d3.in{transition-delay:.24s}
+/* 23. 双向跑马灯第二行 */
+.ticker-wrap.two{padding-top:0;border-top:none}
+.ticker.rev{animation-direction:reverse;color:var(--text2)}
+.ticker.rev b{color:#3376ff}
+/* 24. 手机消息无限循环播放 */
+.scr-body.looping .scr-row{animation:msgIn .5s cubic-bezier(.22,1,.36,1) both, msgFade 12s linear infinite}
+@keyframes msgFade{0%,88%{opacity:1}94%{opacity:0}100%{opacity:0}}
+/* 25. 鼠标磁性按钮 */
+.btn-main,.btn-ghost{will-change:transform}
+/* 26. 波浪分隔动画 */
+.wave-sep path{animation:waveShift 8s linear infinite}
+@keyframes waveShift{to{transform:translateX(-50%)}}
+/* 27. logo 点击旋转跳跃 */
+.logo-mark.spin{animation:logoSpin .7s cubic-bezier(.34,1.56,.64,1)}
+@keyframes logoSpin{to{transform:rotate(360deg) scale(1.15)}}
+
 @media(max-width:900px){
   .nav-links a.nl{display:none}
   .feat-grid{grid-template-columns:1fr 1fr}
@@ -591,6 +637,69 @@ function confettiBurst(x, y){
 }
 document.querySelectorAll('.os-card').forEach(function(card){
   card.addEventListener('click', function(e){ confettiBurst(e.clientX, e.clientY); });
+});
+
+// 16. nav hide on scroll down
+var lastY = 0;
+window.addEventListener('scroll', function(){
+  var y = window.scrollY;
+  nav.classList.toggle('hidden-nav', y > lastY && y > 200);
+  lastY = y;
+}, {passive:true});
+
+// 18/19/20/22. scroll-triggered class additions
+document.querySelectorAll('.sc-copy').forEach(function(el){ el.classList.add('rvL'); io.observe(el); });
+document.querySelectorAll('.sc-media').forEach(function(el){ el.classList.add('rvR'); io.observe(el); });
+document.querySelectorAll('.feat-card').forEach(function(el){ el.classList.remove('rv','d1','d2','d3'); el.classList.add('pop'); });
+var ioPop = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); ioPop.unobserve(e.target); } });
+},{threshold:.15});
+document.querySelectorAll('.feat-card.pop, .os-card.bounce-in').forEach(function(el){ ioPop.observe(el); });
+document.querySelectorAll('.os-card').forEach(function(el){ el.classList.add('bounce-in'); });
+
+// 20. stats sheen play
+var band = document.querySelector('.stats-band');
+if(band) new IntersectionObserver(function(es,obs){
+  es.forEach(function(e){ if(e.isIntersecting){ band.classList.add('play'); obs.disconnect(); } });
+},{threshold:.4}).observe(band);
+
+// 23. second reversed marquee row
+var tw = document.querySelector('.ticker-wrap');
+if(tw){
+  tw.classList.add('two');
+  var t2 = document.createElement('div');
+  t2.className = 'ticker rev';
+  t2.innerHTML = '<span><b>前向保密</b>每次会话独立密钥</span><span><b>零知识</b>服务器不可读</span><span><b>断点续传</b>文件传输</span><span><b>已读回执</b>消息状态</span><span><b>群组管理</b>权限可控</span><span><b>PWA</b>浏览器即客户端</span><span><b>前向保密</b>每次会话独立密钥</span><span><b>零知识</b>服务器不可读</span><span><b>断点续传</b>文件传输</span><span><b>已读回执</b>消息状态</span><span><b>群组管理</b>权限可控</span><span><b>PWA</b>浏览器即客户端</span>';
+  tw.appendChild(t2);
+}
+
+// 24. phone screens loop replay when visible
+document.querySelectorAll('.scr-body').forEach(function(sb){
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ sb.classList.add('looping'); obs.disconnect(); } });
+  },{threshold:.35}).observe(sb);
+});
+
+// 21. chips rotate with scroll
+var chips = document.querySelectorAll('.float-chip');
+window.addEventListener('scroll', function(){
+  chips.forEach(function(c,i){ c.style.rotate = (Math.sin(window.scrollY/300 + i*2) * 4) + 'deg'; });
+}, {passive:true});
+
+// 25. magnetic buttons
+document.querySelectorAll('.btn-main,.btn-ghost').forEach(function(b){
+  b.addEventListener('mousemove', function(e){
+    var r = b.getBoundingClientRect();
+    var x = (e.clientX-r.left-r.width/2)*.18, y = (e.clientY-r.top-r.height/2)*.28;
+    b.style.translate = x+'px '+y+'px';
+  });
+  b.addEventListener('mouseleave', function(){ b.style.translate='0px 0px'; });
+});
+
+// 27. logo spin on click
+document.querySelector('.nav-logo').addEventListener('click', function(){
+  var m = document.querySelector('.logo-mark');
+  m.classList.remove('spin'); void m.offsetWidth; m.classList.add('spin');
 });
 
 // nav shadow on scroll
