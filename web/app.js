@@ -1464,8 +1464,12 @@ function openFeedback() {
 function bgKey() { return 'sc_chatbg_' + (state.me && state.me.id || 'anon'); }
 function getChatBg() { return localStorage.getItem(bgKey()); }
 function setChatBg(uri) {
-  if (uri) localStorage.setItem(bgKey(), uri);
-  else localStorage.removeItem(bgKey());
+  if (uri) {
+    try { localStorage.setItem(bgKey(), uri); }
+    catch (e) { try { toast('背景图片过大，保存失败', 'warn'); } catch (_) {} return; }
+  } else {
+    try { localStorage.removeItem(bgKey()); } catch (e) {}
+  }
 }
 
 // 选择并上传头像
@@ -1567,15 +1571,16 @@ function connectWS() {
 function send(type, payload) {
   if (type !== P.C_AUTH && !state.wsAuthed) {
     state.outboundQueue.push({ type, payload });
+    if (state.outboundQueue.length > 200) state.outboundQueue.splice(0, state.outboundQueue.length - 200);
     return true;
   }
   if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-    state.ws.send(JSON.stringify({ type, payload }));
-    return true;
+    try { state.ws.send(JSON.stringify({ type, payload })); return true; } catch (e) {}
   }
   // 已认证但 socket 尚未就绪（重连窗口/正在 CONNECTING）：入队，重连后统一冲刷，避免静默丢弃。
   if (type !== P.C_AUTH) {
     state.outboundQueue.push({ type, payload });
+    if (state.outboundQueue.length > 200) state.outboundQueue.splice(0, state.outboundQueue.length - 200);
     return true;
   }
   return false;
@@ -1588,8 +1593,9 @@ function handleServer(data) {
       state.wsAuthed = true;
       state._wsReconnectAttempt = 0;
       while (state.outboundQueue.length && state.ws && state.ws.readyState === WebSocket.OPEN) {
-        const queued = state.outboundQueue.shift();
-        state.ws.send(JSON.stringify(queued));
+        const queued = state.outboundQueue[0];
+        try { state.ws.send(JSON.stringify(queued)); state.outboundQueue.shift(); }
+        catch (e) { break; }
       }
       checkMediaPermissionHint();
       break;
@@ -1607,9 +1613,10 @@ case P.S_MSG:
     case P.S_TYPING:
       if (state.activePeer === payload.from) {
         const tip = document.querySelector('.typing-tip') || makeTypingTip();
+        tip.dataset.peer = String(payload.from);
         tip.innerHTML = '对方正在输入<span class="typing-anim"><i></i><i></i><i></i></span>';
         clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => tip.textContent = '', 2000);
+        typingTimer = setTimeout(() => { if (tip.dataset.peer === String(state.activePeer)) tip.textContent = ''; }, 2000);
       }
       break;
     case P.S_ERROR: toast((payload && payload.error) || '服务器返回错误', 'error'); console.warn('server error', payload); break;
@@ -2363,6 +2370,7 @@ async function openGroupProfile(groupId) {
 async function selectGroup(groupId) {
   state.activeGroup = groupId;
   state.activePeer = null;
+  const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.groupUnread[groupId] = 0;
   send(P.C_GROUP_READ, { groupId });
@@ -2701,6 +2709,7 @@ $('rejectFriendBtn').onclick = async () => {
 async function selectPeer(peerId) {
   state.activePeer = peerId;
   state.activeGroup = null;
+  const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
   const annB = $('groupAnnounceBanner'); if (annB) annB.style.display = 'none';
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.unread[peerId] = 0;
@@ -3349,7 +3358,10 @@ function showMessageNotice(m, name) {
     stack.appendChild(item); setTimeout(() => item.remove(), 6500);
   }
   if ('Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from }); } catch {}
+    try {
+      const _nn = new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from });
+      _nn.onclick = function () { window.focus(); if (!m.groupId && m.from != null && state.activePeer !== m.from) { try { selectPeer(m.from); } catch (_) {} } };
+    } catch (_) {}
   }
   if (window.chatAPI) window.chatAPI.notify(name + ' 发来消息', text);
 }
@@ -3383,17 +3395,21 @@ async function onIncomingMsg(m) {
     return;
   }
   // 服务端会回显发送者自己的消息；自己的消息也必须渲染到当前会话。
-  if (m.from === state.me.id || state.activePeer === m.from) {
+  if ((m.from === state.me.id && m.to === state.activePeer) || state.activePeer === m.from) {
     appendMessage(m);
     if (m.from !== state.me.id) send(P.C_READ, { from: m.from });
   } else {
-    state.unread[m.from] = (state.unread[m.from] || 0) + 1;
-    const fromUser = state.friends.find(u => u.id === m.from);
+    const peerKey = (m.from === state.me.id) ? m.to : m.from;
+    if (peerKey != null) state.unread[peerKey] = (state.unread[peerKey] || 0) + 1;
+    const fromUser = state.friends.find(u => u.id === peerKey);
     const name = fromUser ? fromUser.nickname : '新消息';
     showMessageNotice(m, name);
   }
-  state.lastFrom[m.from] = m.content;
-  state.lastMsgTime[m.from] = m.createdAt || Date.now();
+  const convKey2 = (m.from === state.me.id) ? m.to : m.from;
+  if (convKey2 != null) {
+    state.lastFrom[convKey2] = m.content;
+    state.lastMsgTime[convKey2] = m.createdAt || Date.now();
+  }
   renderContacts();
 }
 
@@ -3886,7 +3902,7 @@ function sendAttachmentFile(f) {
     else send(P.C_MSG, { to: state.activePeer, content: meta, clientMsgId: cmid });
     $('fileText').textContent='已发送：'+f.name; setProgress(1);
     setTimeout(()=>$('fileBar').style.display='none',3000);
-  }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; toast('文件发送失败：' + e.message, 'error'); });
+  }).catch((e)=>{ $('fileText').textContent='发送失败：'+e.message; $('fileBar').style.display='none'; toast('文件发送失败：' + e.message, 'error'); });
 }
 (function() {
   var mainEl = document.querySelector('.main');
@@ -4928,7 +4944,22 @@ function openChatBgPicker() {
         var file = inp.files[0]; if (!file) return;
         if (file.size > 5*1024*1024) { toast('图片不能超过5MB', 'warn'); return; }
         var reader = new FileReader();
-        reader.onload = () => { applyChatBg(reader.result); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
+        reader.onload = () => {
+          var img = new Image();
+          img.onload = () => {
+            try {
+              var maxW = 1280, maxH = 1280;
+              var sc = Math.min(1, maxW / (img.width || 1), maxH / (img.height || 1));
+              var cv = document.createElement('canvas');
+              cv.width = Math.max(1, Math.round(img.width * sc)); cv.height = Math.max(1, Math.round(img.height * sc));
+              cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+              applyChatBg(cv.toDataURL('image/jpeg', 0.72));
+            } catch (e) { applyChatBg(reader.result); }
+            mask.remove(); toast('聊天背景已更新', 'success', 1200);
+          };
+          img.onerror = () => { applyChatBg(reader.result); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
+          img.src = reader.result;
+        };
         reader.readAsDataURL(file);
       };
       inp.click();
