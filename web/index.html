@@ -463,7 +463,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 <!-- HERO -->
 <header class="hero">
   <div class="hero-glow"></div>
-  <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div><div class="particles" id="particles"></div>
+  <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div><div class="particles" id="particles"></div><canvas id="net3d" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
   <div style="position:relative">
     <div class="hero-badge" onclick="location.href='/chat'"><span class="dot"></span><span id="verBadge">最新版本已发布 · 立即体验</span></div>
     <h1>加密通信<br/><em>本该如此简单</em></h1>
@@ -930,6 +930,82 @@ if(devStage){
     es.forEach(function(e){ if(e.isIntersecting){ devStage.classList.add('in','play'); obs.disconnect(); } });
   },{threshold:.25}).observe(devStage);
 }
+
+
+// ============ 3D 粒子网络：点连线+深度感 ============
+(function(){
+  var cv = document.getElementById('net3d');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = 0, H = 0, pts = [], mouse = {x:-9999, y:-9999};
+  var LINK = 130; // 连线距离阈值（线长相近的观感）
+  function resize(){
+    var r = cv.parentElement.getBoundingClientRect();
+    W = cv.width = r.width; H = cv.height = r.height;
+  }
+  function make(){
+    pts = [];
+    var n = Math.min(90, Math.floor(W * H / 16000));
+    for(var i=0;i<n;i++){
+      pts.push({
+        x: Math.random()*W, y: Math.random()*H,
+        z: Math.random(),            // 深度 0(远)..1(近)
+        vx: (Math.random()-.5)*.5, vy: (Math.random()-.5)*.5,
+        vz: (Math.random()-.5)*.004
+      });
+    }
+  }
+  function step(){
+    ctx.clearRect(0,0,W,H);
+    // 移动
+    for(var i=0;i<pts.length;i++){
+      var p = pts[i];
+      p.x += p.vx * (0.4 + p.z); p.y += p.vy * (0.4 + p.z); p.z += p.vz;
+      if(p.z > 1 || p.z < 0) p.vz *= -1;
+      if(p.x < 0 || p.x > W) p.vx *= -1;
+      if(p.y < 0 || p.y > H) p.vy *= -1;
+      // 鼠标斥力
+      var dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx*dx + dy*dy;
+      if(d2 < 120*120){ var d = Math.sqrt(d2)||1; p.x += dx/d * 1.6; p.y += dy/d * 1.6; }
+    }
+    // 连线（近者才连；线宽/透明度随深度）
+    for(var a=0;a<pts.length;a++){
+      var pa = pts[a];
+      for(var b=a+1;b<pts.length;b++){
+        var pb = pts[b];
+        var dx = pa.x-pb.x, dy = pa.y-pb.y, dd = Math.sqrt(dx*dx+dy*dy);
+        if(dd < LINK){
+          var depth = (pa.z + pb.z) / 2;
+          var alpha = (1 - dd/LINK) * (0.12 + depth*0.3);
+          ctx.strokeStyle = 'rgba(7,193,96,' + alpha.toFixed(3) + ')';
+          ctx.lineWidth = 0.5 + depth * 1.4;
+          ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+        }
+      }
+    }
+    // 画点（近大远小+光晕）
+    for(var k=0;k<pts.length;k++){
+      var q = pts[k];
+      var r = 1 + q.z * 2.6;
+      var grd = ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,r*3);
+      grd.addColorStop(0,'rgba(7,193,96,'+(0.35+q.z*0.55)+')');
+      grd.addColorStop(1,'rgba(7,193,96,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(q.x,q.y,r*3,0,6.284); ctx.fill();
+      ctx.fillStyle = 'rgba(7,193,96,'+(0.5+q.z*0.5)+')';
+      ctx.beginPath(); ctx.arc(q.x,q.y,r,0,6.284); ctx.fill();
+    }
+    requestAnimationFrame(step);
+  }
+  var hero = cv.closest('.hero') || document.body;
+  hero.addEventListener('mousemove', function(e){
+    var r = cv.getBoundingClientRect();
+    mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+  });
+  hero.addEventListener('mouseleave', function(){ mouse.x = -9999; mouse.y = -9999; });
+  window.addEventListener('resize', function(){ resize(); make(); });
+  resize(); make(); step();
+})();
 
 // nav shadow on scroll
 var nav = document.getElementById('nav');
