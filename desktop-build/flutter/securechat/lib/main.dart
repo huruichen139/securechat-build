@@ -1491,11 +1491,21 @@ class _ChatViewStateState extends State<_ChatView> {
       if (path == null) return;
       final durSecs = recStart > 0 ? ((DateTime.now().millisecondsSinceEpoch - recStart) / 1000).round().clamp(1, 3600) : 0;
       try {
-        final uploaded = await widget.api.uploadVoice(to, await File(path).readAsBytes(), 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a');
+        final bytes = await File(path).readAsBytes();
+        if (bytes.length > 100 * 1024 * 1024) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('文件超过100MB')));
+          return;
+        }
+        final uploaded = await widget.api.uploadVoice(to, bytes, 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a');
         final id = uploaded['id'];
         final vcmid = 'v${DateTime.now().microsecondsSinceEpoch}';
         _sentIds.add(vcmid);
-        socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id:$durSecs]', 'clientMsgId': vcmid}}));
+        final sink = socket?.sink;
+        if (sink == null) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未连接服务器')));
+          return;
+        }
+        sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': '[语音消息:$id:$durSecs]', 'clientMsgId': vcmid}}));
         setState(() => _appendMsg({'cmid': vcmid, 'voiceId': id, 'voiceDur': durSecs, 'mine': true, 'time': '现在', 'read': false}));
         _lastMsg['f$to'] = {'text': '[语音消息]', 'mine': true, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
         try {
@@ -1511,6 +1521,8 @@ class _ChatViewStateState extends State<_ChatView> {
         }
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音发送失败：$e')));
+      } finally {
+        try { File(path).deleteSync(); } catch (_) {}
       }
       return;
     }
@@ -1531,6 +1543,7 @@ class _ChatViewStateState extends State<_ChatView> {
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted || !recording) { t.cancel(); return; }
       final secs = ((DateTime.now().millisecondsSinceEpoch - _recordingStart) / 1000).round();
+      if (secs >= 60) { _toggleRecording(); return; }
       if (mounted) setState(() => _recordingDuration = secs);
     });
   }
@@ -1543,6 +1556,7 @@ class _ChatViewStateState extends State<_ChatView> {
     socket?.sink.close();
     calls?.dispose();
     voicePlayer?.dispose();
+    try { File(_lastVoiceTemp).deleteSync(); } catch (_) {}
     _recordingTimer?.cancel();
     recorder.dispose();
     input.removeListener(_onInputChanged);
@@ -2210,19 +2224,25 @@ class _ChatViewStateState extends State<_ChatView> {
     _voiceSub?.cancel();
     await voicePlayer?.dispose();
     final player = AudioPlayer();
+    voicePlayer = player;
     _voiceSub = player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => playingVoiceId = null);
     });
     try {
       final bytes = await widget.api.fetchFile(id);
+      if (voicePlayer != player) { try { player.dispose(); } catch (_) {} return; }
       final path = '${Directory.systemTemp.path}/securechat-voice-$id.m4a';
       await File(path).writeAsBytes(bytes);
+      if (voicePlayer != player) { try { File(path).deleteSync(); } catch (_) {} try { player.dispose(); } catch (_) {} return; }
+      try { File(_lastVoiceTemp).deleteSync(); } catch (_) {}
+      _lastVoiceTemp = path;
       _voicePosition = Duration.zero;
       _voiceDuration = await player.getDuration() ?? Duration.zero;
+      if (voicePlayer != player) { try { player.dispose(); } catch (_) {} return; }
       player.onPositionChanged.listen((pos) { if (mounted) setState(() => _voicePosition = pos); });
       player.onDurationChanged.listen((dur) { if (mounted) setState(() => _voiceDuration = dur); });
       await player.play(DeviceFileSource(path));
-      voicePlayer = player;
+      if (voicePlayer != player) { try { player.dispose(); } catch (_) {} return; }
       if (mounted) setState(() => playingVoiceId = id);
     } catch (e) {
       _voiceSub?.cancel();
@@ -2230,6 +2250,8 @@ class _ChatViewStateState extends State<_ChatView> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('语音播放失败：$e')));
     }
   }
+
+  String _lastVoiceTemp = '';
 
   Widget _composer() {
     final conv = selConv;
