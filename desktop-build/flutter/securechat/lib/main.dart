@@ -491,7 +491,10 @@ class _ChatShellState extends State<ChatShell> {
               ][_currentTab],
               bottomNavigationBar: NavigationBar(
                 selectedIndex: _currentTab,
-                onDestinationSelected: (i) => setState(() => _currentTab = i),
+                onDestinationSelected: (i) {
+                  setState(() => _currentTab = i);
+                  if (i == 1) { try { (_contactsViewState.currentState as dynamic)?.reload(); } catch (_) {} }
+                },
                 destinations: const [
                   NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: '微信'),
                   NavigationDestination(icon: Icon(Icons.contacts_outlined), selectedIcon: Icon(Icons.contacts), label: '通讯录'),
@@ -568,7 +571,10 @@ class _ChatShellState extends State<ChatShell> {
       return Tooltip(
         message: label,
         child: InkWell(
-          onTap: () => setState(() => _tab = idx),
+          onTap: () {
+            setState(() => _tab = idx);
+            if (idx == 1) { try { (_contactsViewState.currentState as dynamic)?.reload(); } catch (_) {} }
+          },
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(
             width: 54,
@@ -865,7 +871,8 @@ class _ChatViewStateState extends State<_ChatView> {
         await _openConversationById(pending.id, isGroup: pending.isGroup, name: pending.name);
         return;
       }
-      if (conversations.isNotEmpty) await _openConversation(0);
+      final isMobile = Platform.isAndroid || Platform.isIOS || MediaQuery.of(context).size.width < 600;
+      if (!isMobile && conversations.isNotEmpty) await _openConversation(0);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('加载会话失败：$e')));
     }
@@ -3681,6 +3688,8 @@ class _ContactsViewStateState extends State<ContactsView> {
     super.initState();
     _load();
   }
+
+  void reload() => _load();
 
   Future<void> _load() async {
     try {
