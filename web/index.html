@@ -298,7 +298,7 @@ body>*:not(.animated-grid):not(.cursor-glow):not(.progress-top){position:relativ
   <div class="hero-glow"></div>
   <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div>
   <div style="position:relative">
-    <div class="hero-badge" onclick="location.href='/chat'"><span class="dot"></span>v1.70 正式发布 · 立即体验</div>
+    <div class="hero-badge" onclick="location.href='/chat'"><span class="dot"></span><span id="verBadge">最新版本已发布 · 立即体验</span></div>
     <h1>加密通信<br/><em>本该如此简单</em></h1>
     <p class="hero-sub">端到端加密，消息只存在于你的设备。文字、语音、视频、文件 —— 一切都经过 Signal 协议加密，谁也看不到。</p>
     <div class="hero-actions">
@@ -626,8 +626,10 @@ function go(p){
 }
 fetch('/api/version').then(function(r){return r.json()}).then(function(d){
   var dv = d.downloadVersions || {};
+  var vb = document.getElementById('verBadge');
+  if(vb && d.latest && d.latest !== '1.0.0') vb.textContent = 'v' + d.latest + ' 正式发布 · 立即体验';
   function set(id,v){ var el=document.getElementById(id); if(el) el.textContent = v?('v'+v):'最新版'; }
-  set('vWin', dv.windows || dv.windowsPortable || '1.70.0');
+  set('vWin', dv.windows || dv.windowsPortable);
   set('vMac', dv.macos);
   set('vAnd', dv.android);
   set('vIos', dv.ios);

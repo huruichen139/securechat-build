@@ -4244,7 +4244,7 @@ function openSettingsPage() {
   const logoutBtn = document.createElement('button');
   logoutBtn.textContent = '退出登录';
   logoutBtn.style.cssText = 'width:100%;padding:12px;border:none;border-radius:12px;background:var(--surface,#fff);color:var(--danger,#fa5151);font-size:16px;font-weight:500;cursor:pointer;margin-top:8px;border:1px solid var(--border,#e5e5e5)';
-  logoutBtn.onclick = () => { if (confirm('确定退出登录？')) { localStorage.removeItem('token'); location.reload(); } };
+  logoutBtn.onclick = () => { if (confirm('确定退出登录？')) logout(); };
   content.appendChild(logoutBtn);
 }
 
