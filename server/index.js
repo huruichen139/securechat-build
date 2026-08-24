@@ -562,6 +562,35 @@ app.post('/api/friend/reject', (req, res) => {
   res.json({ ok: true });
 });
 
+// 好友备注：表 + 接口
+try { getDb().exec(`CREATE TABLE IF NOT EXISTS friend_remarks (
+  user_id INTEGER NOT NULL,
+  friend_id INTEGER NOT NULL,
+  remark TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, friend_id)
+)`) } catch (e) { console.warn('[db] friend_remarks skip: ' + e.message) }
+
+// 设置好友备注：POST /api/friend/remark { friendId, remark }
+app.post('/api/friend/remark', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = verifyToken((req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const friendId = parseInt((req.body || {}).friendId, 10);
+  const remark = String((req.body || {}).remark || '').trim().slice(0, 30);
+  if (!Number.isInteger(friendId)) return res.status(400).json({ error: '参数错误' });
+  const isFriend = prepare('SELECT 1 FROM friends WHERE user_id=? AND friend_id=? AND status=1').get(payload.id, friendId);
+  if (!isFriend) return res.status(403).json({ error: '仅可备注自己的好友' });
+  if (remark) {
+    prepare('INSERT INTO friend_remarks(user_id,friend_id,remark,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id,friend_id) DO UPDATE SET remark=excluded.remark, updated_at=excluded.updated_at')
+      .run(payload.id, friendId, remark, Date.now());
+  } else {
+    prepare('DELETE FROM friend_remarks WHERE user_id=? AND friend_id=?').run(payload.id, friendId);
+  }
+  persist();
+  res.json({ ok: true, friendId, remark });
+});
+
 // 我的好友列表：GET /api/friends
 app.get('/api/friends', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
@@ -569,11 +598,12 @@ app.get('/api/friends', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const rows = prepare(
-     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey,u.last_seen
+     `SELECT u.id,u.username,u.nickname,u.avatar,u.uid,u.email,u.country,u.province,u.city,u.extra,u.pubkey,u.last_seen,fr.remark AS remark
      FROM friends f JOIN users u ON u.id = f.friend_id
+     LEFT JOIN friend_remarks fr ON fr.user_id=? AND fr.friend_id=u.id
      WHERE f.user_id=? AND f.status=1 ORDER BY u.nickname`
-  ).all(payload.id);
-  res.json({ friends: rows.map(r => ({ ...publicUser(r), online: onlineHas(r.id) })) });
+  ).all(payload.id, payload.id);
+  res.json({ friends: rows.map(r => ({ ...publicUser(r), online: onlineHas(r.id), remark: r.remark || '' })) });
 });
 
 // 待处理好友请求列表：GET /api/friend/requests

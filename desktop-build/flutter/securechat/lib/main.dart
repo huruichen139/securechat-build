@@ -3999,6 +3999,7 @@ class _ContactsViewStateState extends State<ContactsView> {
                   userId: id,
                   name: name,
                   isGroup: isGroup,
+                  currentRemark: (item['remark'] as String?)?.isEmpty == false ? item['remark'] as String : null,
                   onOpenChat: () {
                     final cb = widget.onOpenChat;
                     if (cb != null) cb(id, isGroup, name);

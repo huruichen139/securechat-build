@@ -15,6 +15,7 @@ class ContactDetailPage extends StatefulWidget {
     required this.userId,
     required this.name,
     this.isGroup = false,
+    this.currentRemark,
     this.onOpenChat,
   });
 
@@ -23,6 +24,7 @@ class ContactDetailPage extends StatefulWidget {
   final int userId;
   final String name;
   final bool isGroup;
+  final String? currentRemark;
   final VoidCallback? onOpenChat;
 
   @override
@@ -178,7 +180,27 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
             children: [
               _buildActionRow(t, Icons.photo_outlined, '朋友圈', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('朋友圈功能开发中'))); }),
               Divider(height: 1, indent: 56, color: t.div),
-              _buildActionRow(t, Icons.label_outline, '设置备注和标签', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('备注功能开发中'))); }),
+              if (!widget.isGroup) _buildActionRow(t, Icons.label_outline, '设置备注和标签', () async {
+                final ctrl = TextEditingController(text: widget.currentRemark ?? '');
+                final remark = await showDialog<String>(
+                  context: context,
+                  builder: (d) => AlertDialog(
+                    title: const Text('设置备注'),
+                    content: TextField(controller: ctrl, autofocus: true, maxLength: 30, decoration: const InputDecoration(hintText: '输入备注名（留空清除）')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(d), child: const Text('取消')),
+                      FilledButton(onPressed: () => Navigator.pop(d, ctrl.text.trim()), child: const Text('保存')),
+                    ],
+                  ),
+                );
+                if (remark == null) return;
+                try {
+                  await widget.api.setFriendRemark(widget.userId, remark);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(remark.isEmpty ? '已清除备注' : '备注已设置为：$remark')));
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('设置失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+                }
+              }),
               Divider(height: 1, indent: 56, color: t.div),
               _buildActionRow(t, Icons.more_horiz, '更多', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('更多选项开发中'))); }),
             ],

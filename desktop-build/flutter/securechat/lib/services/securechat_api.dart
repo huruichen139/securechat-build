@@ -234,6 +234,10 @@ class SecureChatApi {
     return _json('POST', '/api/friend/add', body: {'friendUid': friendUid});
   }
 
+  Future<void> setFriendRemark(int friendId, String remark) async {
+    await _json('POST', '/api/friend/remark', body: {'friendId': friendId, 'remark': remark});
+  }
+
   Future<Map<String, dynamic>> uploadVoice(int to, List<int> bytes, String name) async {
     final uri = _uri('/api/files', {'to': '$to', 'name': name, 'mime': 'audio/m4a'});
     final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
