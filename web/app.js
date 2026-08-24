@@ -3382,7 +3382,7 @@ function showMessageNotice(m, name) {
     item.onclick = () => { if (state.activePeer !== m.from) selectPeer(m.from); item.remove(); };
     stack.appendChild(item); setTimeout(() => item.remove(), 6500);
   }
-  if ('Notification' in window && Notification.permission === 'granted') {
+  if ('Notification' in window && Notification.permission === 'granted' && localStorage.sc_notifyOff !== '1') {
     try {
       const _nn = new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from });
       _nn.onclick = function () { window.focus(); if (!m.groupId && m.from != null && state.activePeer !== m.from) { try { selectPeer(m.from); } catch (_) {} } };
@@ -4473,8 +4473,27 @@ function openSettingsPage() {
           toast('深色模式已' + (document.body.classList.contains('dark-mode') ? '开启' : '关闭'), 'success');
           openSettingsPage();
         }},
-        { label: '语言', desc: '简体中文', icon: '语', fn: () => toast('语言设置开发中', 'info') },
-        { label: '新消息通知', desc: '声音和振动', icon: '声', fn: () => toast('通知设置开发中', 'info') },
+        { label: '语言', desc: (window.SCI18N && window.SCI18N.locale) ? String(window.SCI18N.locale).toUpperCase() : 'ZH', icon: '语', fn: () => {
+          if (!window.SCI18N || !window.SCI18N.setLocale) { toast('语言包未加载', 'warn'); return; }
+          const codes = ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru', 'ar'];
+          const cur = codes.indexOf(String(window.SCI18N.locale));
+          const next = codes[(cur + 1) % codes.length];
+          window.SCI18N.setLocale(next);
+          toast('语言已切换：' + String(next).toUpperCase(), 'success');
+          openSettingsPage();
+        }},
+        { label: '新消息通知', desc: ('Notification' in window && Notification.permission === 'granted') ? '已开启' : '未开启', icon: '声', fn: () => {
+          if (!('Notification' in window)) { toast('当前环境不支持通知', 'warn'); return; }
+          if (Notification.permission === 'granted') {
+            localStorage.sc_notifyOff = localStorage.sc_notifyOff === '1' ? '' : '1';
+            toast(localStorage.sc_notifyOff === '1' ? '通知已关闭' : '通知已开启', 'success');
+            openSettingsPage();
+          } else if (Notification.permission === 'denied') {
+            toast('浏览器已禁止通知，请在地址栏权限中允许', 'warn');
+          } else {
+            Notification.requestPermission().then(p => { toast(p === 'granted' ? '通知已开启' : '未授权通知', p === 'granted' ? 'success' : 'warn'); openSettingsPage(); });
+          }
+        }},
       ]
     },
     {
