@@ -1192,6 +1192,7 @@ class _ChatViewStateState extends State<_ChatView> {
       socket = widget.api.connect();
       _wsSub?.cancel();
       _wsSub = socket!.stream.listen((event) async {
+        try {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
         if (type == 'auth_ok') {
@@ -1209,7 +1210,7 @@ class _ChatViewStateState extends State<_ChatView> {
           return;
         }
         if (type == 'msg') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final cmid = (p['clientMsgId'] ?? '').toString();
           // 自己发的消息：若本地已乐观插入，只补服务端 id，不再插入第二条；
@@ -1253,7 +1254,7 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           });
         } else if (type == 'msg_read') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final conv = selConv;
           final peerId = p['peerId'];
@@ -1268,7 +1269,7 @@ class _ChatViewStateState extends State<_ChatView> {
           if (last != null && last['mine'] == true) last['read'] = true;
           setState(() {});
         } else if (type == 'msg_recall') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final msgId = p['messageId'];
           if (msgId == null) return;
@@ -1288,7 +1289,7 @@ class _ChatViewStateState extends State<_ChatView> {
             _lastMsg.remove(convKey);
           }
         } else if (type == 'msg_edit') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final msgId = p['messageId'];
           final newContent = (p['content'] ?? '').toString();
@@ -1303,14 +1304,15 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           });
         } else if (type == 'group_msg_read') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final conv = selConv;
           final gid = p['groupId'];
           final uid = p['userId'];
           if (conv != null && conv['kind'] == 'group' && conv['id'] == gid && uid != myId) {
             final users = _groupReadUsers.putIfAbsent('g$gid', () => <int>{});
-            if (users.add(uid as int)) {
+            final uidInt = int.tryParse('$uid');
+            if (uidInt != null && users.add(uidInt)) {
               setState(() {
                 for (final m in messages) {
                   if (m['mine'] == true) {
@@ -1323,7 +1325,7 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           }
         } else if (type == 'group_msg') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final cmid = (p['clientMsgId'] ?? '').toString();
           if (cmid.isNotEmpty && _sentIds.contains(cmid)) {
@@ -1386,7 +1388,7 @@ class _ChatViewStateState extends State<_ChatView> {
             _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch};
           });
         } else if (type == 'user_list') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
           final users = (p['users'] as List?)?.cast<Map<String, dynamic>>() ?? [];
           setState(() {
@@ -1401,11 +1403,11 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           });
         } else if (type == 'signal') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           final service = calls ??= CallService(socket: socket!);
-          service.onSignal(p['from'] as int?, p['sub'] as String?, p['data']);
+          service.onSignal(int.tryParse('${p['from']}'), p['sub'] as String?, p['data']);
           if (service.status == CallStatus.ringing && mounted) {
-            final fromId = p['from'] as int?;
+            final fromId = int.tryParse('${p['from']}');
             String peerName = '对方';
             try {
               final info = await widget.api.userProfile(fromId!);
@@ -1414,12 +1416,12 @@ class _ChatViewStateState extends State<_ChatView> {
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: peerName, config: widget.config)));
           }
         } else if (type == 'poke') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           final nick = (p['fromNick'] ?? '某').toString();
           if (!mounted) return;
           try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$nick 拍了拍你'), duration: const Duration(seconds: 2))); } catch (_) {}
         } else if (type == 'friend_req') {
-          final p = (root['payload'] as Map).cast<String, dynamic>();
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           final fu = (p['fromUser'] as Map?)?.cast<String, dynamic>();
           if (fu != null && fu['id'] is int && mounted) {
             setState(() => gFriendReqs[fu['id'] as int] = fu);
@@ -1429,6 +1431,7 @@ class _ChatViewStateState extends State<_ChatView> {
         } else if (type == 'friend_list') {
           if (mounted) _loadData();
         }
+        } catch (e) { debugPrint('[ws] handler error: $e'); }
       }, onError: (_) {}, onDone: () {
         // WebSocket断开后指数退避重连
         if (!mounted) return;

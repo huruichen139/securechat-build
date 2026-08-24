@@ -3783,6 +3783,7 @@ wss.on('connection', (ws, req) => {
     if (type === P.C_MSG) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = payload || {};
+      if ((typeof to !== 'number' && typeof to !== 'string') || !/^\d+$/.test(String(to))) return send(ws, P.S_ERROR, { error: '目标无效' });
       const toId = Number(to);
       if (toId === undefined || !Number.isInteger(toId) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {

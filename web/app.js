@@ -1571,7 +1571,7 @@ function connectWS() {
   state.ws.onopen = () => state.ws.send(JSON.stringify({ type: P.C_AUTH, payload: { token: state.token } }));
   state.ws.onmessage = (ev) => {
     let data; try { data = JSON.parse(ev.data); } catch { return; }
-    handleServer(data);
+    try { handleServer(data); } catch (e) { console.warn('handleServer failed', e); }
   };
   state.ws.onclose = () => {
     state.wsAuthed = false;
@@ -1639,11 +1639,13 @@ case P.S_MSG:
       break;
     case P.S_MSG_EDIT: {
       if (!payload || payload.messageId == null) break;
+      const c = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
+      if (!c) break;
       const row = document.querySelector('.msg-row[data-id="' + String(payload.messageId).replace(/"/g, '\\"') + '"]');
       if (row) {
         const body = row.querySelector('.bubble .text') || row.querySelector('.bubble');
         if (body) {
-          body.textContent = payload.content;
+          body.textContent = c;
           const wrap = body.closest('.bubble-wrap') || body.parentElement;
           if (!row.querySelector('.edited-tag')) {
             const tag = document.createElement('span');
