@@ -44,12 +44,16 @@ class _CallPageState extends State<CallPage> {
     if (mounted) {
       setState(() {});
       final s = widget.service.status;
-      if ((s == CallStatus.idle || s == CallStatus.ended) && Navigator.of(context).canPop()) {
+      if ((s == CallStatus.idle || s == CallStatus.ended) && mounted) {
         final reason = widget.service.endReason;
-        Navigator.of(context).pop();
-        if (reason != null && reason.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason), duration: const Duration(seconds: 2)));
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+            if (reason != null && reason.isNotEmpty) {
+              try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason), duration: const Duration(seconds: 2))); } catch (_) {}
+            }
+          }
+        });
       }
     }
   }

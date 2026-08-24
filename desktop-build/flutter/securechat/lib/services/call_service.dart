@@ -240,28 +240,29 @@ class CallService extends ChangeNotifier {
     endReason = reason;
     status = CallStatus.ended;
     peerId = null;
-    for (final track in localStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      track.stop();
-    }
-    localStream?.dispose();
-    localStream = null;
-    remoteStream?.dispose();
-    remoteStream = null;
-    localRenderer.srcObject = null;
-    remoteRenderer.srcObject = null;
+    try {
+      for (final track in localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+        try { track.stop(); } catch (_) {}
+      }
+      try { localStream?.dispose(); } catch (_) {}
+      localStream = null;
+      try { remoteStream?.dispose(); } catch (_) {}
+      remoteStream = null;
+      try { localRenderer.srcObject = null; } catch (_) {}
+      try { remoteRenderer.srcObject = null; } catch (_) {}
+      if (!_disposed) {
+        try { localRenderer.dispose(); } catch (_) {}
+        try { remoteRenderer.dispose(); } catch (_) {}
+      }
+      try { peer?.close(); } catch (_) {}
+      peer = null;
+      _pendingCandidates.clear();
+      _remoteDescSet = false;
+      _connectedAt = null;
+      muted = false;
+      cameraOn = true;
+    } catch (_) {}
     if (!_disposed) {
-      try { localRenderer.dispose(); } catch (_) {}
-      try { remoteRenderer.dispose(); } catch (_) {}
-    }
-    peer?.close();
-    peer = null;
-    _pendingCandidates.clear();
-    _remoteDescSet = false;
-    _connectedAt = null;
-    muted = false;
-    cameraOn = true;
-    if (!_disposed) {
-      // 立即复位回 idle，保证挂断后可以立刻再次发起通话（不再需要等待延迟）
       status = CallStatus.idle;
       notifyListeners();
     }
