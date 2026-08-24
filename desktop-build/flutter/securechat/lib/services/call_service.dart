@@ -102,7 +102,17 @@ class CallService extends ChangeNotifier {
     }
     status = CallStatus.connecting;
     notifyListeners();
-    _setupPeer();
+    _setupPeer().then((_) => _createAndSendOffer());
+  }
+
+  Future<void> _createAndSendOffer() async {
+    try {
+      final p = peer;
+      if (p == null) return;
+      final offer = await p.createOffer();
+      await p.setLocalDescription(offer);
+      _send('offer', offer.toMap());
+    } catch (_) {}
   }
 
   Future<void> _setupPeer() async {
@@ -162,11 +172,6 @@ class CallService extends ChangeNotifier {
     _send('call_ack', {'accepted': true});
     notifyListeners();
     await _setupPeer();
-    try {
-      final answer = await peer!.createAnswer();
-      await peer!.setLocalDescription(answer);
-      _send('answer', answer.toMap());
-    } catch (_) {}
   }
 
   Future<void> decline() async {
@@ -183,9 +188,14 @@ class CallService extends ChangeNotifier {
 
   Future<void> _onOffer(Map<String, dynamic> payload) async {
     try {
+      if (peer == null) await _setupPeer();
+      if (peer == null) return;
       await peer!.setRemoteDescription(RTCSessionDescription(payload['sdp'] as String, payload['type'] as String));
       _remoteDescSet = true;
       await _flushCandidates();
+      final answer = await peer!.createAnswer();
+      await peer!.setLocalDescription(answer);
+      _send('answer', answer.toMap());
     } catch (_) {}
   }
 

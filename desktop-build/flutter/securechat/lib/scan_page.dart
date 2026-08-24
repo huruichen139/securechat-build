@@ -36,7 +36,19 @@ class _ScanPageState extends State<ScanPage> {
     final hasCam = !Platform.isWindows && !Platform.isLinux;
     if (hasCam) {
       _scannerCtrl = MobileScannerController(formats: const [BarcodeFormat.qrCode], facing: CameraFacing.back);
+      _scannerCtrl!.start().catchError((_) {});
     }
+  }
+
+  String? _lastCode;
+  DateTime? _lastCodeAt;
+
+  bool _isDuplicateScan(String code) {
+    final now = DateTime.now();
+    if (_lastCode == code && _lastCodeAt != null && now.difference(_lastCodeAt!).inSeconds < 3) return true;
+    _lastCode = code;
+    _lastCodeAt = now;
+    return false;
   }
 
   @override
@@ -195,7 +207,7 @@ class _ScanPageState extends State<ScanPage> {
         controller: _scannerCtrl,
         onDetect: (capture) {
           final v = capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
-          if (v != null) _handle(v);
+          if (v != null && !_isDuplicateScan(v)) _handle(v);
         },
       ),
       Align(

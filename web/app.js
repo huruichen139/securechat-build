@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.71.2';
+const PACKAGE_VERSION = '1.71.3';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -9,7 +9,7 @@ const P = {
   C_GROUP_MSG: 'group_msg', C_GROUP_READ: 'group_read',
   S_AUTH_OK: 'auth_ok', S_AUTH_FAIL: 'auth_fail', S_MSG: 'msg',
   S_USER_LIST: 'user_list', S_TYPING: 'typing', S_ERROR: 'error',
-  S_MSG_RECALL: 'msg_recall', S_MSG_READ: 'msg_read',
+  S_MSG_RECALL: 'msg_recall', S_MSG_READ: 'msg_read', S_MSG_EDIT: 'msg_edit',
   S_GROUP_MSG_READ: 'group_msg_read',
   S_SIGNAL: 'signal',
   S_FRIEND_REQ: 'friend_req', S_FRIEND_LIST: 'friend_list',
@@ -549,6 +549,13 @@ function logout() {
   state.myPrivJwk = null;
   if (window.SCE2EE) window.SCE2EE._cache = {};
   if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
+  state.wsAuthed = false;
+  state.activePeer = null; state.activeGroup = null;
+  state.friends.length = 0; state.groups.length = 0; state.users.length = 0;
+  for (const k in state.unread) delete state.unread[k];
+  for (const k in state.groupUnread) delete state.groupUnread[k];
+  for (const k in state.sentPlain) delete state.sentPlain[k];
+  const mb = $('messages'); if (mb) mb.innerHTML = '';
   if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
   // 清掉当前会话/联系人状态
   state.current = null;
@@ -1609,6 +1616,25 @@ case P.S_MSG:
     case P.S_MSG_RECALL:
       if (payload && payload.messageId) markRecalled(payload.messageId, false);
       break;
+    case P.S_MSG_EDIT: {
+      if (!payload || payload.messageId == null) break;
+      const row = document.querySelector('.msg-row[data-id="' + String(payload.messageId).replace(/"/g, '\\"') + '"]');
+      if (row) {
+        const body = row.querySelector('.bubble .text') || row.querySelector('.bubble');
+        if (body) {
+          body.textContent = payload.content;
+          const wrap = body.closest('.bubble-wrap') || body.parentElement;
+          if (!row.querySelector('.edited-tag')) {
+            const tag = document.createElement('span');
+            tag.className = 'edited-tag';
+            tag.textContent = '已编辑';
+            Object.assign(tag.style, { fontSize: '10px', opacity: '.55', marginLeft: '6px' });
+            wrap.appendChild(tag);
+          }
+        }
+      }
+      break;
+    }
     case P.S_MSG_READ:
       if (payload && (state.activePeer === payload.peerId)) markConversationRead();
       break;
@@ -2392,6 +2418,10 @@ function appendGroupMessage(m, prepend) {
   // 统一去重：同一条群消息（服务端 id 或 clientMsgId）只渲染一次
   const box0 = $('messages');
   if (box0) {
+    if (m.recalled === true && m.id != null) {
+      const r0 = box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]');
+      if (r0) { r0.querySelectorAll('.bubble').forEach(function(b){ b.innerHTML = '<i style="opacity:.5;font-size:12px">对方撤回了一条消息</i>'; }); return; }
+    }
     if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
     if (m.clientMsgId) {
       const local = box0.querySelector('.msg-row[data-cmid="' + String(m.clientMsgId).replace(/"/g, '\\"') + '"]');
@@ -3635,8 +3665,8 @@ function startCallTimeout() {
     callTimer = null;
     if (callPeer && !incomingCall) {
       toast('对方无响应，通话超时', 'warn');
-      closeCallBar();
       if (rtc && callPeer) rtc.hangup(callPeer);
+      closeCallBar();
     }
   }, 30000);
 }
@@ -3678,8 +3708,8 @@ function initRtc() {
     if (e.detail.state === 'failed') {
       clearCallTimer(); stopCallDuration();
       toast('通话连接失败：请确认双方网络可互通（NAT/防火墙限制）', 'error', 3000);
-      closeCallBar();
       if (rtc && callPeer) rtc.hangup(callPeer);
+      closeCallBar();
     }
     if (e.detail.state === 'closed') { clearCallTimer(); stopCallDuration(); closeCallBar(); }
     // disconnected：不立即关闭，等待恢复；超过 8s 仍 disconnected 则按失败处理
@@ -3703,7 +3733,11 @@ function initRtc() {
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {
     $('fileText').textContent = '已接收：' + e.detail.name; setProgress(1);
-    appendFileMsg(true, e.detail.name, e.detail.size, e.detail.url);
+    if (String(e.detail.url).startsWith('blob:')) {
+      const a = document.createElement('a'); a.href = e.detail.url; a.download = e.detail.name || 'file'; a.click();
+    } else {
+      appendFileMsg(true, e.detail.name, e.detail.size, e.detail.url);
+    }
     setTimeout(() => $('fileBar').style.display = 'none', 4000);
   });
 }

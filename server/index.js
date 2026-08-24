@@ -929,7 +929,7 @@ app.post('/api/messages/:id/edit', (req, res) => {
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const id = parseInt(req.params.id, 10);
-  const row = prepare('SELECT id,from_id,content,recalled FROM messages WHERE id=?').get(id);
+  const row = prepare('SELECT id,from_id,to_id,content,recalled FROM messages WHERE id=?').get(id);
   if (!row) return res.status(404).json({ error: '消息不存在' });
   if (row.from_id !== payload.id) return res.status(403).json({ error: '只能编辑自己发送的消息' });
   if (row.recalled) return res.status(400).json({ error: '已撤回的消息无法编辑' });
@@ -937,6 +937,7 @@ app.post('/api/messages/:id/edit', (req, res) => {
   if (!content || typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
   prepare('UPDATE messages SET content=? WHERE id=?').run(content.trim(), id);
   persist();
+  if (onlineAny(row.to_id)) sendToUser(row.to_id, P.S_MSG_EDIT, { messageId: id, from: row.from_id, to: row.to_id, content: content.trim() });
   res.json({ ok: true, messageId: id, content: content.trim() });
 });
 
@@ -3775,6 +3776,9 @@ wss.on('connection', (ws, req) => {
           return;
         }
       }
+      const blocked1 = prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, ws.uid);
+      const blocked2 = prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(ws.uid, toId);
+      if (blocked1 || blocked2) { send(ws, P.S_ERROR, { error: '无法发送（黑名单）' }); return; }
       // Cleartext path: from_id -> peer without E2EE. content 已被客户端加密为密文；服务端只存储/转发，不再加解密。
       const createdAt = Date.now();
       const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')

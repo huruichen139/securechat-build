@@ -1566,7 +1566,11 @@ class _ChatViewStateState extends State<_ChatView> {
       if (selected < 0) {
         return _leftPanel(config, isMobile: true);
       } else {
-        return _chatArea(config, isMobile: true);
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) { if (!didPop && mounted) setState(() => selected = -1); },
+          child: _chatArea(config, isMobile: true),
+        );
       }
     }
     return Row(children: [
