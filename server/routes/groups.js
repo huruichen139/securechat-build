@@ -77,6 +77,8 @@ function memberOf(groupId, userId) {
 function groupExists(groupId) {
   return p.get('SELECT id FROM groups WHERE id=?', groupId);
 }
+function blockedEither(a, b) { return !!p.get('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)', a, b, b, a); }
+function grantJoin(groupId, userId) { try { p.run('INSERT OR IGNORE INTO group_join_grants(group_id,user_id,created_at) VALUES(?,?,?)', groupId, userId, Date.now()); } catch (e) {} }
 
 function myGroups(userId) {
   const groups = p.all(
@@ -226,6 +228,7 @@ module.exports = function registerGroups(app, db, auth) {
       `);
     } catch (e) { /* 表已存在或异地库不可用，忽略 */ }
 
+  try { p.run('CREATE TABLE IF NOT EXISTS group_join_grants(group_id INTEGER, user_id INTEGER, created_at INTEGER, UNIQUE(group_id,user_id))'); } catch (e) {}
   const mw = (typeof auth === 'function') ? auth : defaultAuth;
 
   // ---------- 创建群：POST /api/groups { name, memberUids:[] } ----------
@@ -248,8 +251,10 @@ module.exports = function registerGroups(app, db, auth) {
         if (!uid || typeof uid !== 'string') continue;
         const target = p.get('SELECT id FROM users WHERE uid=? AND id<>?', uid, req.user.id);
         if (!target) { continue; }
+        if (blockedEither(target.id, req.user.id)) continue;
         if (memberOf(groupId, target.id)) { continue; }
         p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, now);
+        grantJoin(groupId, target.id);
         added.push(target.id);
       }
     }
@@ -298,10 +303,13 @@ module.exports = function registerGroups(app, db, auth) {
     if (Array.isArray(body.uids)) uids = body.uids;
     if (body.uid && typeof body.uid === 'string') uids.push(body.uid);
     const added = [];
+    const g = p.get('SELECT id, name, owner_id FROM groups WHERE id=?', groupId);
     for (const userId of userIds) {
       const target = p.get('SELECT id FROM users WHERE id=?', userId);
       if (!target || target.id === req.user.id || memberOf(groupId, target.id)) continue;
+      if (blockedEither(target.id, req.user.id) || blockedEither(target.id, g.owner_id)) continue;
       p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, Date.now());
+      grantJoin(groupId, target.id);
       added.push(target.id);
     }
     for (const uid of uids) {
@@ -309,15 +317,15 @@ module.exports = function registerGroups(app, db, auth) {
       const target = p.get('SELECT id FROM users WHERE uid=?', uid);
       if (!target) continue;
       if (target.id === req.user.id) continue;
+      if (blockedEither(target.id, req.user.id) || blockedEither(target.id, g.owner_id)) continue;
       if (memberOf(groupId, target.id)) continue;
       p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, Date.now());
+      grantJoin(groupId, target.id);
       added.push(target.id);
     }
     const intro = String(body.intro || '').trim().slice(0, 200);
     if (added.length && intro) {
-      const g = p.get('SELECT name FROM groups WHERE id=?', groupId);
-      const text = '邀请说明：' + intro;
-      p.run('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)', groupId, req.user.id, text, Date.now());
+      insertGroupMessage(groupId, req.user.id, '邀请说明：' + intro);
     }
     res.json({ ok: true, added, count: added.length });
   });
@@ -345,7 +353,10 @@ module.exports = function registerGroups(app, db, auth) {
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
     if (!g) return fail(res, 404, '群不存在');
     if (memberOf(groupId, req.user.id)) return fail(res, 400, '你已在此群');
+    const grant = p.get('SELECT 1 FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, req.user.id);
+    if (!grant) return fail(res, 403, '需要群主邀请才能加入');
     p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, req.user.id, Date.now());
+    p.run('DELETE FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, req.user.id);
     res.json({ ok: true, groupId });
   });
 
@@ -583,6 +594,8 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const msg = p.get('SELECT id, from_id FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
     if (!msg) return fail(res, 404, '消息不存在');
+    const gpin = p.get('SELECT owner_id FROM groups WHERE id=?', groupId);
+    if (!(req.user.id === (gpin && gpin.owner_id) || req.user.id === msg.from_id)) return fail(res, 403, '仅消息发送者或群主可操作');
     const pinned = !!(req.body && req.body.pinned);
     const now = Date.now();
     try {
@@ -598,6 +611,10 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId) || !Number.isInteger(msgId)) return fail(res, 400, '参数错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    const msg = p.get('SELECT id, from_id FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
+    if (!msg) return fail(res, 404, '消息不存在');
+    const greply = p.get('SELECT owner_id FROM groups WHERE id=?', groupId);
+    if (!(req.user.id === (greply && greply.owner_id) || req.user.id === msg.from_id)) return fail(res, 403, '仅消息发送者或群主可操作');
     const replyTo = Number((req.body || {}).replyTo) || null;
     const now = Date.now();
     try {

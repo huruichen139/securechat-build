@@ -482,7 +482,7 @@ app.get('/api/users', (req, res) => {
   const token = auth.replace('Bearer ', '');
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const users = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey FROM users WHERE id<>? ORDER BY nickname').all(payload.id);
+  const users = prepare('SELECT id,username,nickname,avatar,uid,pubkey FROM users WHERE id<>? ORDER BY nickname').all(payload.id);
   res.json({ users });
 });
 
@@ -852,9 +852,10 @@ app.get('/api/search/messages', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const q = String(req.query.q || '').trim();
   if (!q) return res.json({ messages: [] });
+  const qs = q.replace(/[\\%_]/g, '\\$&');
   const rows = prepare(`SELECT m.id,m.from_id,m.to_id,m.content,m.created_at FROM messages m
-    WHERE (m.from_id=? OR m.to_id=?) AND m.content LIKE ? ORDER BY m.created_at DESC LIMIT 50`)
-    .all(payload.id, payload.id, '%' + q + '%');
+    WHERE (m.from_id=? OR m.to_id=?) AND m.content LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 50`)
+    .all(payload.id, payload.id, '%' + qs + '%');
   const messages = rows.map(r => {
     const peerId = r.from_id === payload.id ? r.to_id : r.from_id;
     const peer = prepare('SELECT username,nickname FROM users WHERE id=?').get(peerId);
