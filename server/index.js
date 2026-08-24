@@ -3620,11 +3620,11 @@ function humanBytes(b) {
 }
 
 // ---------- 托管网页端静态资源 ----------
-// /downloads/* 托管安装包目录（server/downloads），不存在则 404；前端 download.html 会处理“暂未提供”情况。
+// /downloads/* 托管安装包目录（server/downloads），不存在则 404；前端 download.html 会处理"暂未提供"情况。
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 const webDir = process.env.WEB_DIR || path.join(__dirname, '..', 'web');
-// admin/download 页禁止缓存，避免更新后浏览器/SW 卡旧版
-app.get(['/admin.html', '/download.html', '/merchant.html', '/wallet-pay.html', '/index.html', '/'], (req, res, next) => {
+// admin/chat 页禁止缓存，避免更新后浏览器/SW 卡旧版
+app.get(['/admin.html', '/chat.html', '/merchant.html', '/wallet-pay.html', '/index.html', '/chat', '/'], (req, res, next) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
@@ -3634,6 +3634,7 @@ app.use(express.static(webDir, { setHeaders: (res, filePath) => {
   if (/\.css$/i.test(filePath)) { res.set('Content-Type', 'text/css; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
 }}));
 app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'index.html')); });
+app.get('/chat', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'chat.html')); });
 
 const CERT_PATH = process.env.CERT_PATH || path.join(process.cwd(), 'portable', 'le.crt');
 const KEY_PATH = process.env.KEY_PATH || path.join(process.cwd(), 'portable', 'le.key');
