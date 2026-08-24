@@ -379,6 +379,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .sc-tag::after{content:'';position:absolute;bottom:0;left:0;width:0;height:1.5px;background:var(--brand);transition:width .3s}
 .sc-tag:hover::after{width:100%}
 @media (prefers-reduced-motion:reduce){.particles i,.hero h1 .ch,.btn-main,.mockup{animation:none!important}}
+
+/* ===== 多设备全家福 + 加密流程 ===== */
+.device-stage{clip-path:inset(0 0 100% 0);transition:clip-path 1s cubic-bezier(.22,1,.36,1)}
+.device-stage.in{clip-path:inset(0 0 0% 0)}
+.device-stage{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:34px;padding:40px 20px 30px;perspective:1200px}
+.dev{position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.dev-screen{background:#0f1115;border-radius:10px;padding:6px;box-shadow:0 24px 50px -14px rgba(20,24,40,.3),inset 0 0 0 1.5px rgba(255,255,255,.08);position:relative;overflow:hidden}
+.dev-screen::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.13) 0%,transparent 30%);pointer-events:none}
+.dev-ui{display:flex;gap:5px;height:100%;background:#ededed;border-radius:5px;padding:7px}
+.du-side{width:26%;background:#e0e3e6;border-radius:3px}
+.du-chat{flex:1;background:#fff;border-radius:3px;padding:6px;display:flex;flex-direction:column;gap:5px}
+.du-chat b{display:block;height:5px;border-radius:3px;background:#d6dade}
+.dev-desktop .dev-screen{width:340px;height:200px}
+.dev-stand{width:14px;height:26px;background:linear-gradient(180deg,#2a2d33,#17191d);margin:0 auto}
+.dev-base{width:110px;height:7px;border-radius:4px;background:#17191d;margin:0 auto}
+.dev-laptop .dev-screen{width:250px;height:150px}
+.dev-keyboard{width:290px;height:9px;border-radius:4px 4px 8px 8px;background:linear-gradient(180deg,#2a2d33,#17191d);margin:2px auto 0}
+.dev-tablet .dev-screen{width:150px;height:196px;border-radius:14px}
+.dev-phone .dev-screen{width:96px;height:186px;border-radius:18px;padding:4px}
+.dev-phone .dev-ui{padding:5px;border-radius:12px}
+.dev:hover{transform:translateY(-12px) rotateX(4deg)}
+.dev-glow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:70%;height:26px;background:radial-gradient(ellipse,rgba(7,193,96,.2),transparent 70%);filter:blur(8px);animation:glowPulse 4s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{opacity:.6;width:70%}50%{opacity:1;width:82%}}
+/* 加密流程管道 */
+.pipe{display:flex;align-items:stretch;justify-content:center;gap:14px;flex-wrap:wrap;max-width:980px;margin:0 auto}
+.pipe-step{flex:1;min-width:170px;max-width:210px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px 18px;text-align:center;transition:all .35s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
+.pipe-step:hover{transform:translateY(-8px);box-shadow:var(--shadow-l);border-color:rgba(7,193,96,.35)}
+.pipe-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:14px;background:rgba(51,118,255,.09);color:#3376ff;display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.pipe-step:hover .pipe-ico{transform:scale(1.14) rotate(-6deg)}
+.pi-lock{background:rgba(7,193,96,.1);color:var(--brand)}
+.pi-server{background:rgba(255,148,62,.12);color:#f07800}
+.pi-unlock{background:rgba(136,84,255,.1);color:#8854ff}
+.pipe-step h4{font-size:15px;font-weight:700;margin-bottom:4px}
+.pipe-step p{font-size:13px;color:var(--text2)}
+.pipe-arrow{align-self:center;color:var(--text3);animation:arrowNudge 1.6s ease-in-out infinite}
+@keyframes arrowNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+/* 密文演示条 */
+.cipher-demo{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:44px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:22px 30px;max-width:760px;margin-left:auto;margin-right:auto;box-shadow:var(--shadow-s)}
+.cd-label{font-size:12.5px;font-weight:700;color:var(--text3);letter-spacing:.06em}
+.cd-text{font-size:20px;font-weight:800;color:var(--text)}
+.cd-arrow{font-size:22px;color:var(--brand);animation:arrowNudge 1.6s ease-in-out infinite}
+.cd-cipher{font-family:ui-monospace,Consolas,monospace;font-size:17px;font-weight:700;color:var(--brand);background:rgba(7,193,96,.08);padding:8px 16px;border-radius:8px;letter-spacing:.05em;min-width:150px;text-align:center}
+/* 图片式入场揭示 */
+.rv-img{clip-path:inset(0 0 100% 0);transition:clip-path .9s cubic-bezier(.22,1,.36,1)}
+.rv-img.in{clip-path:inset(0 0 0% 0)}
+@media(max-width:900px){.device-stage{gap:18px}.dev-desktop .dev-screen{width:220px;height:130px}.dev-laptop{display:none}}
 @media(max-width:900px){
   .nav-links a.nl{display:none}
   .feat-grid{grid-template-columns:1fr 1fr}
@@ -567,6 +613,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
         <div class="scr-foot"><div class="scr-field"></div></div>
       </div></div>
     </div>
+  </div>
+</section>
+
+
+<!-- DEVICES 全家福 -->
+<section class="section" id="devices" style="padding-bottom:60px">
+  <div class="sec-head rv">
+    <span class="kicker">Every Device</span>
+    <h2>一个账号<br/>全设备无缝接力</h2>
+    <p>电脑上打了一半的消息，手机上接着说。所有设备端到端加密同步。</p>
+  </div>
+  <div class="device-stage rv d1">
+    <div class="dev dev-desktop">
+      <div class="dev-screen">
+        <div class="dev-ui"><i class="du-side"></i><i class="du-chat"><b style="width:52%"></b><b style="width:38%;margin-left:auto;background:#95ec69"></b><b style="width:60%"></b><b style="width:30%;margin-left:auto;background:#95ec69"></b></i></div>
+      </div>
+      <div class="dev-stand"></div>
+      <div class="dev-base"></div>
+    </div>
+    <div class="dev dev-laptop">
+      <div class="dev-screen"><div class="dev-ui"><i class="du-side"></i><i class="du-chat"><b style="width:48%"></b><b style="width:34%;margin-left:auto;background:#95ec69"></b><b style="width:55%"></b></i></div></div>
+      <div class="dev-keyboard"></div>
+    </div>
+    <div class="dev dev-tablet">
+      <div class="dev-screen"><div class="dev-ui"><i class="du-chat" style="width:100%"><b style="width:60%"></b><b style="width:40%;margin-left:auto;background:#95ec69"></b><b style="width:66%"></b></i></div></div>
+    </div>
+    <div class="dev dev-phone">
+      <div class="dev-screen"><div class="dev-ui"><i class="du-chat" style="width:100%"><b style="width:70%"></b><b style="width:44%;margin-left:auto;background:#95ec69"></b><b style="width:58%"></b><b style="width:36%;margin-left:auto;background:#95ec69"></b></i></div></div>
+    </div>
+    <div class="dev-glow"></div>
+  </div>
+</div>
+
+<!-- 加密流程可视化 -->
+<section class="section" id="how" style="background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 50%,var(--bg) 100%)">
+  <div class="sec-head rv">
+    <span class="kicker">How It Works</span>
+    <h2>一条消息的<br/>加密之旅</h2>
+    <p>从你按下发送，到对方看见，全程密文传输，任何中间人都读不懂。</p>
+  </div>
+  <div class="pipe">
+    <div class="pipe-step rv d1">
+      <div class="pipe-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      <h4>你发送</h4><p>"明天见"</p>
+    </div>
+    <div class="pipe-arrow rv d2"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="pipe-step rv d2">
+      <div class="pipe-ico pi-lock"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <h4>设备加密</h4><p>Signal 协议加锁</p>
+    </div>
+    <div class="pipe-arrow rv d3"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="pipe-step rv d3">
+      <div class="pipe-ico pi-server"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></svg></div>
+      <h4>密文中转</h4><p>服务器只见过客</p>
+    </div>
+    <div class="pipe-arrow rv d4"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="pipe-step rv d4">
+      <div class="pipe-ico pi-unlock"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg></div>
+      <h4>对方解密</h4><p>"明天见"</p>
+    </div>
+  </div>
+  <div class="cipher-demo rv d2">
+    <div class="cd-label">明文</div>
+    <div class="cd-text">明天见</div>
+    <div class="cd-arrow">→</div>
+    <div class="cd-label">密文（服务器看到的）</div>
+    <div class="cd-cipher" id="cipherText">9f8a2c…e41b</div>
   </div>
 </section>
 
@@ -794,6 +907,26 @@ window.addEventListener('scroll', function(){
     b.style.translate = '0 ' + (y * (0.06 + i*0.04)) + 'px';
   });
 }, {passive:true});
+
+
+// 密文滚动演示（明文/密文轮换）
+(function(){
+  var el = document.getElementById('cipherText');
+  if(!el) return;
+  var chars = '0123456789abcdef';
+  setInterval(function(){
+    var out = '';
+    for(var i=0;i<12;i++){ out += Math.random() < .3 ? '…' : chars[Math.floor(Math.random()*16)]; }
+    el.textContent = out.slice(0,10) + '…' + out.slice(0,4);
+  }, 900);
+})();
+// 设备区图片揭示动画
+var devStage = document.querySelector('.device-stage');
+if(devStage){
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ devStage.classList.add('in','play'); obs.disconnect(); } });
+  },{threshold:.25}).observe(devStage);
+}
 
 // nav shadow on scroll
 var nav = document.getElementById('nav');
