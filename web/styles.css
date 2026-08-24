@@ -2862,3 +2862,36 @@ body.dark-mode .conv-menu-item:hover { background: #252525; }
 /* 深色模式适配 */
 body.dark-mode .like-heart { background: rgba(250,81,81,.16); }
 @media (prefers-reduced-motion: reduce) { .like-heart, .voice-bars span, .badge, .ripple-fx { animation: none !important; } }
+
+/* ===== 微信贴合+动画 第三批 ===== */
+/* 正在输入三点跳动 */
+.typing-anim { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+.typing-anim i { width: 4px; height: 4px; border-radius: 50%; background: #999; animation: tJump 1.2s ease-in-out infinite; }
+.typing-anim i:nth-child(2) { animation-delay: .15s; }
+.typing-anim i:nth-child(3) { animation-delay: .3s; }
+@keyframes tJump { 0%,60%,100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+/* 微信式日期分隔条（居中灰胶囊） */
+.day-divider.wx-divider { display: flex; align-items: center; justify-content: center; margin: 14px 0 10px; }
+.day-divider.wx-divider span, .day-divider.wx-divider { text-align: center; font-size: 12px; color: #fff; background: #d0d0d0; border-radius: 4px; padding: 2px 10px; width: max-content; margin-left: auto; margin-right: auto; }
+body.dark-mode .day-divider.wx-divider { background: #3a3a3a; color: #ccc; }
+/* 头像点击弹跳 */
+.av-bounce { animation: avBounce .55s cubic-bezier(.34,1.56,.64,1); }
+@keyframes avBounce { 0% { transform: scale(1); } 35% { transform: scale(1.14) rotate(-4deg); } 70% { transform: scale(.96) rotate(2deg); } 100% { transform: scale(1); } }
+/* 历史消息滚动渐入 */
+@keyframes histIn { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: none; } }
+.msg-row.hist-anim { animation: histIn .4s cubic-bezier(.22,1,.36,1) both; }
+/* 骨架屏 */
+.skel-row { display: flex; align-items: center; gap: 11px; padding: 12px 14px; }
+.skel-ava { width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(100deg, #eee 40%, #f6f6f6 50%, #eee 60%); background-size: 200% 100%; animation: skelShine 1.2s linear infinite; flex-shrink: 0; }
+.skel-lines { flex: 1; }
+.skel-l1 { height: 13px; width: 55%; border-radius: 4px; margin-bottom: 8px; background: linear-gradient(100deg, #eee 40%, #f6f6f6 50%, #eee 60%); background-size: 200% 100%; animation: skelShine 1.2s linear infinite; }
+.skel-l2 { height: 11px; width: 80%; border-radius: 4px; background: linear-gradient(100deg, #eee 40%, #f6f6f6 50%, #eee 60%); background-size: 200% 100%; animation: skelShine 1.2s linear infinite; }
+@keyframes skelShine { 0% { background-position: 120% 0; } 100% { background-position: -80% 0; } }
+body.dark-mode .skel-ava, body.dark-mode .skel-l1, body.dark-mode .skel-l2 { background: linear-gradient(100deg, #222 40%, #2c2c2c 50%, #222 60%); background-size: 200% 100%; }
+/* 在线状态点波纹扩散 */
+.dot.online { position: relative; }
+.dot.online::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid var(--primary); animation: onlineRipple 2s ease-out infinite; }
+@keyframes onlineRipple { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+/* 联系人首字母分组吸顶 */
+.contact-group-label { position: sticky; top: 0; z-index: 3; backdrop-filter: blur(6px); }
+@media (prefers-reduced-motion: reduce) { .typing-anim i, .av-bounce, .hist-anim, .skel-row, .skel-ava, .skel-l1, .skel-l2, .dot.online::after { animation: none !important; } }

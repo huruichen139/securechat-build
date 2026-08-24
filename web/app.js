@@ -1600,7 +1600,7 @@ case P.S_MSG:
     case P.S_TYPING:
       if (state.activePeer === payload.from) {
         const tip = document.querySelector('.typing-tip') || makeTypingTip();
-        tip.textContent = '对方正在输入...';
+        tip.innerHTML = '对方正在输入<span class="typing-anim"><i></i><i></i><i></i></span>';
         clearTimeout(typingTimer);
         typingTimer = setTimeout(() => tip.textContent = '', 2000);
       }
@@ -1724,6 +1724,13 @@ async function loadFriends() {
 function renderContacts() {
   updateUnreadBadge();
   try { if (state.activePeer) unremoveConv('u:' + state.activePeer); if (state.activeGroup) unremoveConv('g:' + state.activeGroup); } catch {}
+  // 骨架屏：无会话且未搜索时显示骨架条（仅首次）
+  const _list0 = $('contactList');
+  if (_list0 && !_list0.childElementCount && !state.friends.length && !state.groups.length && !$('search').value) {
+    _list0.innerHTML = Array.from({length: 5}, () => '<div class="skel-row"><div class="skel-ava"></div><div class="skel-lines"><div class="skel-l1"></div><div class="skel-l2"></div></div></div>').join('');
+    setTimeout(() => { if (_list0.querySelector('.skel-row')) _list0.innerHTML = ''; }, 1200);
+    return;
+  }
   const kw = $('search').value.trim().toLowerCase();
   const list = $('contactList');
   list.innerHTML = '';
@@ -3226,7 +3233,7 @@ function addDayDivider(ts) {
   const box = $('messages');
   if (!box) return;
   const div = document.createElement('div');
-  div.className = 'day-divider';
+  div.className = 'day-divider wx-divider';
   div.setAttribute('data-day', new Date(ts).toDateString());
   div.textContent = dayLabel(ts);
   box.appendChild(div);
@@ -5101,6 +5108,30 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
   };
 })();
+
+// ============ 头像点击弹跳 ============
+document.addEventListener('click', function(e){
+  const av = e.target.closest('.avatar, .my-avatar, .profile-avatar');
+  if(!av) return;
+  av.classList.remove('av-bounce');
+  void av.offsetWidth;
+  av.classList.add('av-bounce');
+  setTimeout(function(){ av.classList.remove('av-bounce'); }, 600);
+});
+
+// ============ 消息滚动渐入（新会话打开时） ============
+function animateHistoryRows() {
+  const box = document.getElementById('messages');
+  if (!box) return;
+  const rows = box.querySelectorAll('.msg-row:not(.hist-anim)');
+  rows.forEach((r, i) => {
+    if (rows.length > 60 && i < rows.length - 24) return;
+    r.classList.add('hist-anim');
+    r.style.animationDelay = Math.min(i * 0.03, 0.6) + 's';
+    r.addEventListener('animationend', () => { r.style.animationDelay = ''; }, { once: true });
+  });
+}
+const _origSelectPeer = typeof selectPeer === 'function' ? selectPeer : null;
 
 // ============ 全局按钮波纹（事件委托） ============
 document.addEventListener('click', function(e){
