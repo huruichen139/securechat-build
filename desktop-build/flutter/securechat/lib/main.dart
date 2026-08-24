@@ -13,6 +13,7 @@ import 'package:pointycastle/export.dart' as pc;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
 import 'chat_features.dart';
+import 'contact_detail_page.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'services/securechat_api.dart';
@@ -3676,10 +3677,23 @@ class _ContactsViewStateState extends State<ContactsView> {
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              final cb = widget.onOpenChat;
-              if (cb == null) return;
               final id = item['id'];
-              if (id is int) cb(id, item['kind'] == 'group', item['name'] as String);
+              if (id is! int) return;
+              final isGroup = item['kind'] == 'group';
+              final name = item['name'] as String;
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ContactDetailPage(
+                  api: SecureChatApi(),
+                  config: widget.config,
+                  userId: id,
+                  name: name,
+                  isGroup: isGroup,
+                  onOpenChat: () {
+                    final cb = widget.onOpenChat;
+                    if (cb != null) cb(id, isGroup, name);
+                  },
+                ),
+              ));
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

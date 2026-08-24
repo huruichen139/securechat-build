@@ -502,6 +502,16 @@ class SecureChatApi {
   /// 设置头像，需传 data URI（data:image/png;base64,...），服务端限制 256KB
   Future<Map<String, dynamic>> setAvatar(String dataUri) => _json('POST', '/api/avatar', body: {'avatar': dataUri});
 
+  /// 获取指定用户的资料（通过好友列表匹配）
+  Future<Map<String, dynamic>> userProfile(int userId) async {
+    final data = await _json('GET', '/api/users');
+    final users = data['users'] as List? ?? [];
+    for (final u in users) {
+      if (u is Map && u['id'] == userId) return Map<String, dynamic>.from(u);
+    }
+    return {};
+  }
+
   // ============ 全局消息搜索 ============
   /// 跨会话搜索我的消息，返回 [{id, content, createdAt, peerId, peerName}]
   Future<List<Map<String, dynamic>>> searchMessages(String query) async {
