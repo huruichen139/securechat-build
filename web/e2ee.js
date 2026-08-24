@@ -397,6 +397,7 @@
           if (!s) {
             s = await x3dhInitSender(k);
             if (!s) { console.warn('[E2EE] encryptFor(' + k + ') x3dhInitSender 返回 null，降级明文'); return null; }
+            s.ckS = null;
           }
           try {
             const ct = await encryptMessage(s, plain);
@@ -428,6 +429,11 @@
           } catch (e) {
             // 坏包不能清除已验证的会话；仅移除首条消息建立但认证失败的新会话（与客户端一致）。
             console.warn('[E2EE] 消息解密失败: peer=' + k, e && e.message);
+            const msg = String((e && e.message) || e);
+            if (msg.indexOf('序号过旧') >= 0 || msg.indexOf('已处理') >= 0) {
+              clearPeerSession(k);
+              return b64;
+            }
             if (!hadSession) clearPeerSession(k);
             return b64;
           }

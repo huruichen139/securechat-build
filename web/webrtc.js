@@ -101,6 +101,10 @@ function createRtc(ctx) {
       ctx.sendSignal(peerId, 'answer', { sdp: answer, kind: e.kind });
       return;
     }
+    if (e.pc.signalingState === 'have-local-offer') {
+      if (String(ctx.selfId()) > String(peerId)) return;
+      try { await e.pc.setLocalDescription({ type: 'rollback' }); } catch (_) {}
+    }
     e.pendingOffer = data.sdp;
     window.dispatchEvent(new CustomEvent('call-incoming', { detail: { from: peerId, kind: e.kind } }));
   }
@@ -108,6 +112,7 @@ function createRtc(ctx) {
   async function onAnswer(peerId, data) {
     const e = peers.get(peerId);
     if (!e || !e.pc) return;
+    if (e.pc.signalingState !== 'have-local-offer') return;
     await e.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     for (const candidate of e.pendingIce.splice(0)) {
       try { await e.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (err) {}

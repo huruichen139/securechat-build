@@ -35,8 +35,10 @@
   }
 
   // ---------- 复用 webrtc.js ----------
+  let wiredRtc = null;
   function ensureRtc() {
     if (rtc) return rtc;
+    if (window.rtc) { rtc = window.rtc; wireRtcEvents(); return rtc; }
     if (window.createRtc && u.wsCycleSend) {
       const sendSignal = function (peerId, sub, data) {
         const ok = u.wsCycleSend(sub, peerId, data);
@@ -81,7 +83,8 @@
 
   // ---------- 事件接线（webrtc.js 派发 CustomEvent）----------
   function wireRtcEvents() {
-    if (!rtc) return;
+    if (!rtc || wiredRtc === rtc) return;
+    wiredRtc = rtc;
     window.addEventListener('rtc-remote-stream', (e) => emit('remote-stream', e.detail));
     window.addEventListener('rtc-state', (e) => emit('state', e.detail));
     window.addEventListener('call-incoming', (e) => {
@@ -102,23 +105,27 @@
   }
 
   // 收到信令：检查 un-paired 的 REST 信令并交给 webrtc.js / 交互
-  function handleIncoming(s) {
+  async function handleIncoming(s) {
     const { from, sub, data } = s || {};
     if (sub === 'call') {
       incomingCall = { from, kind: data && data.kind };
-      if (rtc) rtc.handleSignal({ from, sub, data });
+      if (rtc) { try { await rtc.handleSignal({ from, sub, data }); } catch (e) {} }
       emit('incoming', { from, kind: incomingCall.kind });
       return;
     }
     if (sub === 'hangup') {
-      if (rtc) { try { rtc.handleSignal({ from, sub, data }); } catch (e) {} }
+      if (rtc) { try { await rtc.handleSignal({ from, sub, data }); } catch (e) {} }
       emit('remote-hangup', { from });
       reset();
       return;
     }
     // offer/answer/ice/call_ack/call_reject/peer_offline 直接交给 webrtc.js
     if (rtc) {
-      try { rtc.handleSignal({ from, sub, data }); } catch (e) {}
+      try { await rtc.handleSignal({ from, sub, data }); }
+      catch (e) {
+        try { toast('通话信令处理失败', 'warn'); } catch (_) {}
+        try { rtc.hangup(from); } catch (_) {}
+      }
     } else {
       emit(sub, { from, data });
     }
@@ -139,7 +146,13 @@
     else startPolling(); // WS 为主，rest 兜底（若 WS 断则轮询接管）
     const ok = await getAndAddLocal();
     if (ok) {
-      try { await rtc.startCall(peerId, callKind, localStream); } catch (e) { toast('发起通话失败：' + (e.message || e), 'error'); return false; }
+      try { await rtc.startCall(peerId, callKind, localStream); } catch (e) {
+        try { localStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {}
+        localStream = null;
+        try { rtc.hangup(peerId); } catch (_) {}
+        toast('发起通话失败：' + (e.message || e), 'error');
+        return false;
+      }
     }
     return ok;
   }
@@ -155,7 +168,13 @@
       callPeerId = peerId; callKind = incomingCall.kind;
       incomingCall = null;
       return true;
-    } catch (e) { toast('接听失败：' + (e.message || e), 'error'); return false; }
+    } catch (e) {
+      try { localStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {}
+      localStream = null;
+      try { rtc.hangup(peerId); } catch (_) {}
+      toast('接听失败：' + (e.message || e), 'error');
+      return false;
+    }
   }
 
   function rejectCall() {
