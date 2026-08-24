@@ -1231,10 +1231,22 @@
   }
 
   // ============ 本站网关密钥（易支付入站） ============
+  function gwAdminKey() {
+    let k = localStorage.getItem('sc_epaygw_admin_key') || '';
+    if (!k) {
+      k = window.prompt('请输入网关管理密钥（服务器环境变量 EPAYGW_ADMIN_KEY）', '') || '';
+      if (k) { try { localStorage.setItem('sc_epaygw_admin_key', k); } catch (e) {} }
+    }
+    return k;
+  }
+  function gwAdminHeaders() {
+    return { 'Content-Type': 'application/json', 'x-admin-key': gwAdminKey() };
+  }
   async function loadGatewayKey() {
     try {
-      const resp = await fetch(API + '/epaygw/settings');
+      const resp = await fetch(API + '/epaygw/settings', { headers: gwAdminHeaders() });
       const data = await resp.json().catch(() => ({}));
+      if (resp.status === 403) { el('gwKeyTip').textContent = '需要管理密钥（EPAYGW_ADMIN_KEY）'; return; }
       if (!resp.ok || data.code !== 1) { el('gwKeyTip').textContent = '加载失败'; return; }
       el('gwKeyCurrent').value = data.data.gatewayKey || '';
       el('gwKeyCurrent').type = 'password';
@@ -1248,7 +1260,7 @@
     try {
       const resp = await fetch(API + '/epaygw/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: gwAdminHeaders(),
         body: JSON.stringify({ key: v })
       });
       const data = await resp.json().catch(() => ({}));

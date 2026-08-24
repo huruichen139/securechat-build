@@ -482,7 +482,7 @@ app.get('/api/users', (req, res) => {
   const token = auth.replace('Bearer ', '');
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const users = prepare('SELECT id,username,nickname,avatar,uid,pubkey FROM users WHERE id<>? ORDER BY nickname').all(payload.id);
+  const users = prepare('SELECT id,username,nickname,avatar,uid,country,province,city,pubkey FROM users WHERE id<>? ORDER BY nickname').all(payload.id);
   res.json({ users });
 });
 

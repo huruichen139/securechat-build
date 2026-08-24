@@ -2159,7 +2159,7 @@ $('joinGroupBtn').onclick = () => {
         body: JSON.stringify({ groupId: parseInt(out.groupId, 10) })
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || '加群失败', 'error'); return; }
+      if (!res.ok) { toast(data.error || '加群失败（该群可能需要群主邀请）', 'error'); return; }
       loadFriends();
       toast('已加入群', 'success');
       const gtab = document.querySelector('.side-tab[data-side="groups"]');

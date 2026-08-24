@@ -219,6 +219,7 @@
   }
 
   const peerQueues = new Map();
+  const staleFailCount = new Map();
   function withPeerQueue(peerId, task) {
     const k = String(peerId);
     const previous = peerQueues.get(k) || Promise.resolve();
@@ -431,7 +432,10 @@
             console.warn('[E2EE] 消息解密失败: peer=' + k, e && e.message);
             const msg = String((e && e.message) || e);
             if (msg.indexOf('序号过旧') >= 0 || msg.indexOf('已处理') >= 0) {
-              clearPeerSession(k);
+              // 连续多次序号失败才重建会话（防死锁），偶发重复投递不清除有效会话
+              const c = (staleFailCount.get(k) || 0) + 1;
+              staleFailCount.set(k, c);
+              if (c >= 3) { clearPeerSession(k); staleFailCount.set(k, 0); }
               return b64;
             }
             if (!hadSession) clearPeerSession(k);
