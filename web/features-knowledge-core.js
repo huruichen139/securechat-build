@@ -193,7 +193,8 @@
     var cat = btn.getAttribute('data-cat');
     var idx = parseInt(btn.getAttribute('data-idx'), 10);
     if (act === 'copy') {
-      var e = cats[cat][idx];
+      var e = cats[cat] && cats[cat][idx];
+      if (!e) return;
       var parts = [];
       if (e.w) parts.push(e.w + (e.py ? '（' + e.py + '）' : ''));
       if (e.m) parts.push(e.m);

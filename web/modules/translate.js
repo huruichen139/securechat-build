@@ -61,7 +61,7 @@
     if (!text) return;
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:9998';
-    wrap.onmousedown = () => wrap.remove();
+    wrap.addEventListener('mousedown', function (e) { if (e.target === wrap) wrap.remove(); });
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:14px;min-width:260px;max-width:88vw;box-shadow:0 8px 30px rgba(0,0,0,.25);overflow:hidden;z-index:9999';
     const isZh = looksChinese(text);
