@@ -64,6 +64,7 @@
     }
 
     function pull() {
+      if (!host.isConnected) { clearInterval(pollTimer); pollTimer = null; return; }
       apiFetch('/api/shake/matches').then(function (d) {
         const list = d.matches || [];
         body.innerHTML = '<div class="shake-results">' +
@@ -127,15 +128,17 @@
       const d = Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz));
       if (now - lastT > 600 && d > 18) { lastT = now; trigger(); }
     }
-    if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
-      // iOS 需要权限；不强制（用户可用按钮），请求失败静默
-      try {
-        DeviceMotionEvent.requestPermission().then(function (r) {
-          if (r === 'granted') window.addEventListener('devicemotion', onMotion);
-        }).catch(function () {});
-      } catch (_) {}
-    } else {
-      window.addEventListener('devicemotion', onMotion);
+    if (!host._shakeMotionBound) {
+      host._shakeMotionBound = true;
+      if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+        try {
+          DeviceMotionEvent.requestPermission().then(function (r) {
+            if (r === 'granted') window.addEventListener('devicemotion', onMotion);
+          }).catch(function () {});
+        } catch (_) {}
+      } else {
+        window.addEventListener('devicemotion', onMotion);
+      }
     }
 
     // 卸载清理

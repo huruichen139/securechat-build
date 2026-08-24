@@ -107,7 +107,7 @@
   function sendEmoji(emoji) {
     var input = document.getElementById('desktopInput') || document.getElementById('input');
     if (input && input.style.display !== 'none') {
-      var pos = input.selectionStart || input.value.length;
+      var pos = (input.selectionStart == null) ? input.value.length : input.selectionStart;
       input.value = input.value.substring(0, pos) + emoji + input.value.substring(pos);
       input.focus();
       input.selectionStart = input.selectionEnd = pos + emoji.length;

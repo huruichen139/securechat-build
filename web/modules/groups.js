@@ -165,10 +165,12 @@
     box.appendChild(acts);
     mask.appendChild(box);
     document.body.appendChild(mask);
-    const close = () => mask.remove();
+    let onKey = null;
+    const close = () => { mask.remove(); if (onKey) document.removeEventListener('keydown', onKey); };
     x.onclick = close;
     mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-    document.addEventListener('keydown', function onKey(ev) { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } });
+    onKey = function (ev) { if (ev.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
     if (bodyFn) bodyFn(body);
     if (actionsFn) actionsFn(acts, close);
     if (!acts.children.length) {

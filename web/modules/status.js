@@ -143,7 +143,8 @@
   }
 
   function _statusCard(s, isSelf) {
-    const bg = s.bgUrl ? 'style="background-image:linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.35)),url(' + HOST + s.bgUrl + ');background-size:cover"' : 'style="background:#2a9d8f;color:#fff"';
+    const bgSafe = s.bgUrl && /^\/api\/media\//.test(String(s.bgUrl)) ? String(s.bgUrl).replace(/[^\w\-./]/g, '') : '';
+    const bg = bgSafe ? 'style="background-image:linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.35)),url(' + HOST + bgSafe + ');background-size:cover"' : 'style="background:#2a9d8f;color:#fff"';
     let html = '<div class="sc-status-card" ' + bg + '>';
     html += '<div class="sc-status-avatar">' + esc((s.user && (s.user.nickname || s.user.username) || '?').charAt(0)) + '</div>';
     html += '<div class="sc-status-icon-big">' + (s.icon || '😄') + '</div>';
@@ -175,6 +176,7 @@
   // 点看状态：留言互动
   function _openDetail(userId) {
     api('GET', '/api/status/' + userId + '/messages').then((data) => {
+      if (!data || !data.status) { toast('状态已过期', 'warn'); return; }
       const overlay = document.createElement('div');
       overlay.className = 'sc-status-overlay';
       overlay.innerHTML = '<div class="sc-status-modal">' +

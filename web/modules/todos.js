@@ -46,7 +46,7 @@
   function renderTodoPanel(container, todo) {
     container.innerHTML =
       '<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
-      '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc(todo.creator.nickname) + ' 发布 · ' + fmtDate(todo.createdAt) + '</div>' +
+      '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc((todo.creator && todo.creator.nickname) || '未知') + ' 发布 · ' + fmtDate(todo.createdAt) + '</div>' +
       '<div style="font-size:16px;font-weight:600;margin-bottom:10px">' + esc(todo.title) + '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
       '<div class="todo-bar" style="position:relative;flex:1;height:8px;background:#eee;border-radius:4px;overflow:hidden">' +

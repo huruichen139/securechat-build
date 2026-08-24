@@ -107,7 +107,7 @@
         card.onclick = function (e) {
           if (e.target.classList.contains('read-like')) return;
           var idx = Number(card.dataset.idx);
-          openArticle(feedList()[idx]);
+          openArticle(list[idx]);
         };
       });
       feed.querySelectorAll('.read-like').forEach(function (btn) {

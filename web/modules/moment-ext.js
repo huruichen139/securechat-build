@@ -95,6 +95,7 @@
     let d;
     try { d = await api('GET', '/api/moments/ext/detail/' + momentId); }
     catch (e) { toast(e.message, 'error'); return; }
+    if (!d.moment) { toast('动态不存在', 'warn'); return; }
     const m = d.moment;
     const overlay = document.createElement('div');
     overlay.className = 'sc-mext-overlay';
@@ -144,7 +145,7 @@
       try {
         await api('POST', '/api/moments/ext/' + m.id + '/reply', { content, replyToId: currentReplyTo || null });
         const nd = await api('GET', '/api/moments/ext/detail/' + m.id);
-        m.comments = nd.moment.comments;
+        m.comments = (nd.moment && nd.moment.comments) || [];
         renderComments();
         overlay.querySelector('#sc-mext-reply-input').value = '';
         currentReplyTo = null;

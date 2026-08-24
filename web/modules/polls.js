@@ -78,7 +78,7 @@
     const who = poll.anonymous ? '匿名投票' : '实名投票'; // 匿名不展示投票分布
     container.innerHTML =
       '<div class="polls-card" style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
-      '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc(poll.creator.nickname) + ' 发起的投票 · ' + (poll.multi ? '多选' : '单选') + ' · ' + who + ' · 截止 ' + esc(fmtDate(poll.deadline)) + '</div>' +
+      '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc((poll.creator && poll.creator.nickname) || '匿名') + ' 发起的投票 · ' + (poll.multi ? '多选' : '单选') + ' · ' + who + ' · 截止 ' + esc(fmtDate(poll.deadline)) + '</div>' +
       '<div style="font-size:16px;font-weight:600;margin-bottom:10px">' + esc(poll.title) + '</div>' +
       (poll.voted || over || poll.anonymous ? pieHTML(poll.options) : '') +
       renderOptions(poll, over) +
@@ -90,15 +90,16 @@
       el.onclick = async () => {
         if (poll.voted) { toast('你已投过票，可再做一次以改票', 'info'); return; }
         if (over) { toast('投票已结束', 'warn'); return; }
+        let fresh = poll;
         const id = Number(el.getAttribute('data-id'));
         if (poll.multi) {
           el.classList.toggle('polls-opt-on');
           const sel = Array.from(container.querySelectorAll('.polls-opt-on')).map((e) => Number(e.getAttribute('data-id')));
           if (!sel.length) return;
-          const fresh = await vote(poll.id, sel);
+          fresh = await vote(poll.id, sel);
           if (fresh) renderPollPanel(container, fresh);
         } else {
-          const fresh = await vote(poll.id, [id]);
+          fresh = await vote(poll.id, [id]);
           if (fresh) renderPollPanel(container, fresh);
         }
         emit('changed', fresh || poll);
@@ -221,7 +222,7 @@
     const isCreator = Number(s.creatorId) === Number(myId);
     container.innerHTML =
       '<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
-      '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc(s.creator.nickname) + ' 发起接龙 · ' + (s.status === 'open' ? '进行中' : '已结束') + '</div>' +
+      '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc((s.creator && s.creator.nickname) || '匿名') + ' 发起接龙 · ' + (s.status === 'open' ? '进行中' : '已结束') + '</div>' +
       '<div style="font-size:16px;font-weight:600;margin-bottom:10px">' + esc(s.title) + '</div>' +
       '<div style="font-size:12px;color:#888;margin-bottom:8px">已有 ' + s.count + ' 人报名</div>' +
       '<div style="display:flex;flex-direction:column;gap:4px">' + (s.entries || []).map((e) =>
