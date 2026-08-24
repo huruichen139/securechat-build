@@ -839,7 +839,7 @@ class _ChatViewStateState extends State<_ChatView> {
     } catch (_) {}
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool keepSelection = false}) async {
     try {
       final friends = await widget.api.friends();
       final groups = await widget.api.groups();
@@ -873,7 +873,7 @@ class _ChatViewStateState extends State<_ChatView> {
         return;
       }
       final isMobile = Platform.isAndroid || Platform.isIOS || MediaQuery.of(context).size.width < 600;
-      if (!isMobile && conversations.isNotEmpty) await _openConversation(0);
+      if (!keepSelection && !isMobile && conversations.isNotEmpty) await _openConversation(0);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('加载会话失败：$e')));
     }
@@ -1198,12 +1198,12 @@ class _ChatViewStateState extends State<_ChatView> {
         if (type == 'auth_ok') {
           // 重连成功后重新拉取会话列表与当前会话历史，补齐断线期间漏掉的消息
           if (mounted) {
-            _loadData();
             final conv = selConv;
+            await _loadData(keepSelection: true);
             if (conv != null) {
               final id = conv['id'] as int?;
               if (id != null) {
-                _openConversationById(id, isGroup: conv['kind'] == 'group', name: conv['name']?.toString() ?? selName ?? '');
+                await _openConversationById(id, isGroup: conv['kind'] == 'group', name: conv['name']?.toString() ?? selName ?? '');
               }
             }
           }
