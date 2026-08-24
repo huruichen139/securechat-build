@@ -343,6 +343,7 @@ module.exports = function registerGroups(app, db, auth) {
     p.run('DELETE FROM group_members WHERE group_id=? AND user_id=?', groupId, targetId);
     p.run('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, targetId);
     p.run('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?', groupId, targetId);
+    try { p.run('DELETE FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, targetId); } catch (e) {}
     res.json({ ok: true });
   });
 
@@ -391,6 +392,7 @@ module.exports = function registerGroups(app, db, auth) {
     const files = p.all('SELECT id,name FROM group_files WHERE group_id=?', groupId);
     for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id)); } catch (e) { /* 忽略 */ } }
     p.run('DELETE FROM group_files WHERE group_id=?', groupId);
+    try { p.run('DELETE FROM group_join_grants WHERE group_id=?', groupId); } catch (e) {}
     res.json({ ok: true });
   });
 

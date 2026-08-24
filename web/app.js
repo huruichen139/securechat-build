@@ -1466,10 +1466,11 @@ function getChatBg() { return localStorage.getItem(bgKey()); }
 function setChatBg(uri) {
   if (uri) {
     try { localStorage.setItem(bgKey(), uri); }
-    catch (e) { try { toast('背景图片过大，保存失败', 'warn'); } catch (_) {} return; }
+    catch (e) { try { toast('背景图片过大，保存失败', 'warn'); } catch (_) {} return false; }
   } else {
     try { localStorage.removeItem(bgKey()); } catch (e) {}
   }
+  return true;
 }
 
 // 选择并上传头像
@@ -1509,7 +1510,8 @@ function pickChatBg() {
     if (f.size > 4 * 1024 * 1024) { toast('背景图片过大（限4MB）', 'warn'); return; }
     const reader = new FileReader();
     reader.onload = () => {
-      setChatBg(reader.result);
+      const saved = setChatBg(reader.result);
+      if (saved === false) return;
       applyChatBg(reader.result);
       toast('背景已应用', 'success');
     };
@@ -1520,16 +1522,27 @@ function pickChatBg() {
 }
 function applyChatBg(uri) {
   const view = $('chatView');
-  if (!view) return;
-  if (uri) {
-    view.style.backgroundImage = 'url("' + CSS.escape(uri) + '")';
-    view.style.backgroundSize = 'cover';
-    view.style.backgroundPosition = 'center';
-    view.style.backgroundRepeat = 'no-repeat';
-  } else {
-    view.style.backgroundImage = 'none';
-    view.style.backgroundColor = '';
+  if (view) {
+    if (uri) {
+      view.style.backgroundImage = 'url("' + CSS.escape(uri) + '")';
+      view.style.backgroundSize = 'cover';
+      view.style.backgroundPosition = 'center';
+      view.style.backgroundRepeat = 'no-repeat';
+    } else {
+      view.style.backgroundImage = 'none';
+      view.style.backgroundColor = '';
+    }
   }
+  try {
+    if (uri && (uri.startsWith('data:') || uri.startsWith('http'))) {
+      document.documentElement.style.setProperty('--chat-bg', 'url(' + uri + ') center/cover no-repeat');
+    } else if (uri) {
+      document.documentElement.style.setProperty('--chat-bg', uri);
+    } else {
+      document.documentElement.style.removeProperty('--chat-bg');
+    }
+  } catch (e) {}
+  try { localStorage.setItem('chatBgColor_' + (state.me && state.me.id || 'anon'), uri || ''); } catch (e) {}
 }
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
 
@@ -4889,27 +4902,14 @@ const CHAT_BGS = [
   { name: '星空', color: 'linear-gradient(135deg, #0c0c1d, #1a1a3e)' },
   { name: '晚霞', color: 'linear-gradient(135deg, #fa709a, #fee140)' },
 ];
-function applyChatBg(color) {
-  const key = 'chatBgColor';
-  if (color) {
-    localStorage.setItem(key, color);
-    if (color.startsWith('data:') || color.startsWith('http')) {
-      document.documentElement.style.setProperty('--chat-bg', 'url(' + color + ') center/cover no-repeat');
-    } else {
-      document.documentElement.style.setProperty('--chat-bg', color);
-    }
-  } else {
-    localStorage.removeItem(key);
-    document.documentElement.style.removeProperty('--chat-bg');
-  }
-}
+function applyChatBgLegacy() { /* superseded */ }
 function initChatBg() {
   try {
-    const c = localStorage.getItem('chatBgColor');
+    const c = localStorage.getItem('chatBgColor_' + (state.me && state.me.id || 'anon')) || localStorage.getItem('chatBgColor');
     if (c) {
       if (c.startsWith('data:') || c.startsWith('http')) {
         document.documentElement.style.setProperty('--chat-bg', 'url(' + c + ') center/cover no-repeat');
-      } else {
+      } else if (c) {
         document.documentElement.style.setProperty('--chat-bg', c);
       }
     }

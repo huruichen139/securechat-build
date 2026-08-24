@@ -1272,6 +1272,21 @@ class _ChatViewStateState extends State<_ChatView> {
             final convKey = 'f';
             _lastMsg.remove(convKey);
           }
+        } else if (type == 'msg_edit') {
+          final p = (root['payload'] as Map).cast<String, dynamic>();
+          if (!mounted) return;
+          final msgId = p['messageId'];
+          final newContent = (p['content'] ?? '').toString();
+          if (msgId == null || newContent.isEmpty) return;
+          setState(() {
+            for (int i = messages.length - 1; i >= 0; i--) {
+              if (messages[i]['id'] == msgId) {
+                messages[i]['text'] = newContent;
+                messages[i]['edited'] = true;
+                break;
+              }
+            }
+          });
         } else if (type == 'group_msg_read') {
           final p = (root['payload'] as Map).cast<String, dynamic>();
           if (!mounted) return;

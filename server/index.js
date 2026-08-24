@@ -938,7 +938,9 @@ app.post('/api/messages/:id/edit', (req, res) => {
   if (!content || typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
   prepare('UPDATE messages SET content=? WHERE id=?').run(content.trim(), id);
   persist();
-  if (onlineAny(row.to_id)) sendToUser(row.to_id, P.S_MSG_EDIT, { messageId: id, from: row.from_id, to: row.to_id, content: content.trim() });
+  const editPayload = { messageId: id, from: row.from_id, to: row.to_id, content: content.trim() };
+  if (onlineAny(row.to_id)) sendToUser(row.to_id, P.S_MSG_EDIT, editPayload);
+  sendToUser(payload.id, P.S_MSG_EDIT, editPayload);
   res.json({ ok: true, messageId: id, content: content.trim() });
 });
 
