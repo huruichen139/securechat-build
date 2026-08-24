@@ -238,6 +238,10 @@ class VoicemsgService extends ChangeNotifier {
   @override
   void dispose() {
     _meter?.cancel();
+    if (isRecording) {
+      try { _recorder.stop(); } catch (_) {}
+      status = VoicemsgStatus.idle;
+    }
     _player?.dispose();
     _recorder.dispose();
     super.dispose();

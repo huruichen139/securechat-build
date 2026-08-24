@@ -7,7 +7,7 @@
 (function () {
   if (window.SecureChatExt) {
     // 幂等：避免重复注册
-    if (window.SecureChatExt.registerFeature) return;
+    if (window.SecureChatExt.chatExt) return;
   }
 
   // ============ 内置表情库 ============
@@ -552,8 +552,9 @@
     // 无 Vue 依赖；暴露网关让大文件挂载
   }
 
-  window.SecureChatExt = {
-    registerFeature: function (name, api) {
+  var __extBase = window.SecureChatExt || {};
+  window.SecureChatExt = Object.assign({}, __extBase, {
+    registerFeature: __extBase.registerFeature || function (name, api) {
       if (name === 'chat-ext') {
         // 简单合并扩展点
         if (api && typeof api === 'object') {
@@ -583,7 +584,7 @@
     // 便捷：让 app.js 无需改动即可接入聊天背景到头部
     activeTarget: activeTarget,
     applyBackgroundNow: function () { applyBackground(getBackground()); }
-  };
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

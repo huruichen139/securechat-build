@@ -4033,5 +4033,5 @@ function mountFeatureRoutes(app, db) {
 })();
 
 // 退出时保存一次
-process.on('SIGINT', () => { persist(); process.exit(0); });
-process.on('exit', () => { try { persist(); } catch {} });
+process.on('SIGINT', () => { persistNow(); process.exit(0); });
+process.on('exit', () => { try { persistNow(); } catch {} });

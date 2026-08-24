@@ -420,8 +420,8 @@ function init() {
   try {
     db.run('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0');
   } catch (e) { /* 列已存在 */ }
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_qq_openid ON users(qq_openid) WHERE qq_openid IS NOT NULL');
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id) WHERE github_id IS NOT NULL');
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_qq_openid ON users(qq_openid) WHERE qq_openid IS NOT NULL'); } catch (e) { console.warn('[db] idx_users_qq_openid skip: ' + e.message); }
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id) WHERE github_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_users_github_id skip: ' + e.message); }
   db.run(`CREATE TABLE IF NOT EXISTS passkey_credentials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -437,8 +437,8 @@ function init() {
     value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )`);
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(client_msg_id) WHERE client_msg_id IS NOT NULL');
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_messages_client_msg_id skip: ' + e.message); }
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_group_messages_client_msg_id skip: ' + e.message); }
   // 给缺 uid 的老数据补一个
   const missing = db.exec('SELECT id FROM users WHERE uid IS NULL');
   if (missing && missing.length) {
@@ -448,7 +448,7 @@ function init() {
       db.run('UPDATE users SET uid=? WHERE id=?', [code, id]);
     }
   }
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid ON users(uid) WHERE uid IS NOT NULL');
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid ON users(uid) WHERE uid IS NOT NULL'); } catch (e) { console.warn('[db] idx_users_uid skip: ' + e.message); }
   // 注：feedbacks 表由 worker D 负责正式建表，此处不重复创建。
   // /api/admin/overview 查询 feedbacks 时会做 try/catch 兜底，未建表则返回 []。
 
