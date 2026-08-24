@@ -200,7 +200,6 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       prepare('UPDATE polls SET status=\'closed\' WHERE id=?').run(poll.id);
       return deny(res, 400, '投票已截止');
     }
-    if (!poll.only_members && !inGroup(poll.group_id, payload.id)) return deny(res, 403, '仅群成员可投票');
     let optionIds = Array.isArray((req.body || {}).optionIds) ? (req.body.optionIds) : [];
     optionIds = optionIds.map(o => parseInt(o, 10)).filter(o => Number.isInteger(o));
     if (!optionIds.length) return deny(res, 400, '请选择选项');
@@ -463,6 +462,10 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       if (!inGroup(targetId, payload.id)) return deny(res, 403, '你不在此群');
     } else {
       targetType = 'direct';
+      if (targetId !== payload.id) {
+        const isFriend = prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?))').get(payload.id, targetId, targetId, payload.id);
+        if (!isFriend) return deny(res, 403, '只能提醒自己或好友');
+      }
     }
     const now = Date.now();
     const info = prepare('INSERT INTO reminders(user_id,target_type,target_id,at,content,fired,created_at) VALUES(?,?,?,?,?,?,?)')

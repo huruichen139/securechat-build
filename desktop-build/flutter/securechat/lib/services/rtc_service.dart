@@ -215,9 +215,7 @@ class RtcService extends ChangeNotifier {
   Future<void> startCall(int to, {required bool withVideo}) async {
     if (busy) return;
     if (withVideo && !_webrtcOk) {
-      endReason = '视频通话当前端不支持，请用网页端';
-      status = RtcCallStatus.ended;
-      notifyListeners();
+      _end('视频通话当前端不支持，请用网页端');
       return;
     }
     peerId = to;
@@ -342,11 +340,8 @@ class RtcService extends ChangeNotifier {
     if (!_webrtcOk) return;
     await _acquireLocal();
     try {
-      peer = await _buildPeer();
+      peer ??= await _buildPeer();
       await _flushCandidatesPending();
-      final answer = await peer!.createAnswer();
-      await peer!.setLocalDescription(answer);
-      _putSignal(peerId ?? -1, 'answer', answer.toMap());
     } catch (e) {
       _end('接听失败：$e');
     }
@@ -368,15 +363,20 @@ class RtcService extends ChangeNotifier {
   Future<void> _onOffer(Map<String, dynamic> payload) async {
     try {
       peer ??= await _buildPeer();
+      if (peer == null) return;
       await peer!.setRemoteDescription(
           RTCSessionDescription(payload['sdp'] as String, payload['type'] as String));
       _remoteDescSet = true;
       await _flushCandidatesPending();
+      final answer = await peer!.createAnswer();
+      await peer!.setLocalDescription(answer);
+      _putSignal(peerId ?? -1, 'answer', answer.toMap());
     } catch (_) {}
   }
 
   Future<void> _onAnswer(Map<String, dynamic> payload) async {
     try {
+      if (peer == null) return;
       await peer!.setRemoteDescription(
           RTCSessionDescription(payload['sdp'] as String, payload['type'] as String));
       _remoteDescSet = true;
