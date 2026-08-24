@@ -1723,6 +1723,7 @@ async function loadFriends() {
 
 function renderContacts() {
   updateUnreadBadge();
+  try { if (state.activePeer) unremoveConv('u:' + state.activePeer); if (state.activeGroup) unremoveConv('g:' + state.activeGroup); } catch {}
   const kw = $('search').value.trim().toLowerCase();
   const list = $('contactList');
   list.innerHTML = '';
@@ -1739,7 +1740,10 @@ function renderContacts() {
   const conversations = [];
   friends.forEach(u => conversations.push({ kind: 'user', item: u, key: 'u:' + u.id, time: state.lastMsgTime[u.id] || 0 }));
   groups.forEach(g => conversations.push({ kind: 'group', item: g, key: 'g:' + g.id, time: state.groupLastMsgTime[g.id] || 0 }));
-  conversations.sort((a, b) => Number(!!chatPrefs().pinned[b.key]) - Number(!!chatPrefs().pinned[a.key]) || b.time - a.time);
+  const _removed = removedConvList();
+  const _convFiltered = conversations.filter(c => !_removed.includes(c.key));
+  _convFiltered.sort((a, b) => Number(!!chatPrefs().pinned[b.key]) - Number(!!chatPrefs().pinned[a.key]) || b.time - a.time);
+  conversations.length = 0; conversations.push.apply(conversations, _convFiltered);
   if (count) count.textContent = conversations.length + ' 个会话';
   if (!conversations.length) {
     const tip = document.createElement('div');
@@ -1760,6 +1764,7 @@ function renderContacts() {
       const isMuted = !!chatPrefs().muted[c.key];
       div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
+      bindConvContextMenu(div, c.key, g.name || ('群 #' + g.id), () => selectGroup(g.id));
       list.appendChild(div);
       return;
     }
@@ -1782,6 +1787,7 @@ function renderContacts() {
       ${timeStr ? `<span class="chat-time">${timeStr}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}
       ${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
     div.onclick = () => selectPeer(u.id);
+    bindConvContextMenu(div, 'u:' + u.id, u.nickname, () => selectPeer(u.id));
     if (state.activePeer === u.id && unread) {
       state.unread[u.id] = 0;
       send(P.C_READ, { from: u.id });
@@ -1789,6 +1795,60 @@ function renderContacts() {
     list.appendChild(div);
   });
 }
+
+// ============ 会话右键菜单（微信式：置顶/免打扰/删除） ============
+let convMenuEl = null;
+function hideConvMenu() { if (convMenuEl) { convMenuEl.remove(); convMenuEl = null; } }
+function bindConvContextMenu(el, key, name, openFn) {
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    hideConvMenu();
+    const prefs = chatPrefs();
+    const isPinned = !!prefs.pinned[key];
+    const isMuted = !!prefs.muted[key];
+    convMenuEl = document.createElement('div');
+    convMenuEl.className = 'conv-context-menu';
+    const items = [
+      { label: isPinned ? '取消置顶' : '置顶聊天', fn: () => { togglePin(key); } },
+      { label: isMuted ? '开启消息提醒' : '消息免打扰', fn: () => { toggleMute(key); } },
+      { label: '标为未读', fn: () => { markConvUnread(key); } },
+      { label: '删除会话', danger: true, fn: () => { if (confirm('删除会话「' + name + '」？仅从列表移除，不删除聊天记录。')) { removeConvLocal(key); } } }
+    ];
+    convMenuEl.innerHTML = items.map((it, i) => '<div class="conv-menu-item' + (it.danger ? ' danger' : '') + '" data-i="' + i + '">' + it.label + '</div>').join('');
+    document.body.appendChild(convMenuEl);
+    const mw = 168, mh = items.length * 38 + 8;
+    let x = e.clientX, y = e.clientY;
+    if (x + mw > innerWidth - 8) x = innerWidth - mw - 8;
+    if (y + mh > innerHeight - 8) y = innerHeight - mh - 8;
+    convMenuEl.style.left = x + 'px';
+    convMenuEl.style.top = y + 'px';
+    convMenuEl.querySelectorAll('.conv-menu-item').forEach(node => {
+      node.onclick = () => { const it = items[Number(node.dataset.i)]; hideConvMenu(); if (it.fn) it.fn(); };
+    });
+  });
+}
+document.addEventListener('click', hideConvMenu);
+window.addEventListener('blur', hideConvMenu);
+
+// ============ 2. 消息气泡双击点赞动画 ============
+function bindBubbleLike(row) {
+  const bubble = row.querySelector('.bubble');
+  if (!bubble || row.dataset.likeBound) return;
+  row.dataset.likeBound = '1';
+  bubble.addEventListener('dblclick', (e) => {
+    const heart = document.createElement('div');
+    heart.className = 'like-heart';
+    heart.textContent = '赞';
+    const rect = bubble.getBoundingClientRect();
+    heart.style.left = (e.clientX - rect.left - 14) + 'px';
+    heart.style.top = (e.clientY - rect.top - 14) + 'px';
+    bubble.appendChild(heart);
+    setTimeout(() => heart.remove(), 900);
+  });
+}
+setInterval(() => {
+  document.querySelectorAll('#messages .msg-row').forEach(bindBubbleLike);
+}, 1500);
 
 // 通讯录目录渲染（微信式：群聊 + A-Z 好友，无时间/未读）
 function renderContactsDirectory() {
@@ -2651,6 +2711,49 @@ function renderMessages(msgs) {
   scrollToLatest();
 }
 
+// ============ 会话级操作（右键菜单用） ============
+function togglePin(key) {
+  const prefs = chatPrefs(); prefs.pinned[key] = !prefs.pinned[key]; saveChatPrefs(prefs);
+  refreshConversationButtons(); renderContacts();
+  const pid = peerIdFromConvKey(key); if (pid) syncChatSetting(pid, 'pinned', prefs.pinned[key]);
+  toast(prefs.pinned[key] ? '已置顶' : '已取消置顶', 'success', 1200);
+}
+function toggleMute(key) {
+  const prefs = chatPrefs(); prefs.muted[key] = !prefs.muted[key]; saveChatPrefs(prefs);
+  refreshConversationButtons(); renderContacts();
+  const pid = peerIdFromConvKey(key); if (pid) syncChatSetting(pid, 'muted', prefs.muted[key]);
+  toast(prefs.muted[key] ? '已开启免打扰' : '已开启消息提醒', 'success', 1200);
+}
+function markConvUnread(key) {
+  try {
+    const m = key.charAt(0) === 'u' ? state.unread : state.groupUnread;
+    const id = key.slice(2);
+    m[id] = Math.max(m[id] || 0, 1);
+    renderContacts(); updateUnreadBadge();
+  } catch {}
+}
+function removedConvList() {
+  try { return JSON.parse(localStorage.getItem('removedConvs_' + ((state.me && state.me.id) || 'guest')) || '[]'); } catch { return []; }
+}
+function removeConvLocal(key) {
+  try {
+    const arr = removedConvList();
+    if (!arr.includes(key)) arr.push(key);
+    localStorage.setItem('removedConvs_' + ((state.me && state.me.id) || 'guest'), JSON.stringify(arr));
+    renderContacts();
+    toast('会话已从列表移除', 'success', 1200);
+  } catch {}
+}
+// 新消息到达时恢复被移除的会话
+function unremoveConv(key) {
+  try {
+    const k = 'removedConvs_' + ((state.me && state.me.id) || 'guest');
+    const arr = JSON.parse(localStorage.getItem(k) || '[]');
+    const i = arr.indexOf(key);
+    if (i !== -1) { arr.splice(i, 1); localStorage.setItem(k, JSON.stringify(arr)); }
+  } catch {}
+}
+
 function refreshConversationButtons() {
   const key = activeConversationKey();
   const prefs = chatPrefs();
@@ -3319,7 +3422,25 @@ if (desktopInput) desktopInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
 });
 let typingSent = 0;
+// ============ 输入框字数统计 ============
+function updateCharCounter(el) {
+  const bar = document.getElementById('charCounter');
+  if (!bar) return;
+  const len = (el.value || '').length;
+  bar.textContent = len ? len + ' / 2000' : '';
+  bar.style.opacity = len ? '1' : '0';
+}
+function ensureCharCounter() {
+  if (document.getElementById('charCounter')) return;
+  const bar = document.createElement('span');
+  bar.id = 'charCounter';
+  bar.style.cssText = 'position:absolute;right:14px;bottom:8px;font-size:11px;color:#bbb;pointer-events:none;opacity:0;transition:opacity .2s';
+  const wrap = document.getElementById('chatDesktopComposer');
+  if (wrap) { wrap.style.position = 'relative'; wrap.appendChild(bar); }
+}
+ensureCharCounter();
 function autoGrow(el) {
+  updateCharCounter(el);
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
@@ -3330,6 +3451,34 @@ $('input').addEventListener('input', () => {
   if (!state.activePeer) return;
   const now = Date.now();
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
+});
+// ============ 粘贴图片直接发送 ============
+if (desktopInput) desktopInput.addEventListener('paste', (e) => {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for (const it of items) {
+    if (it.type && it.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = it.getAsFile();
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) { toast('图片过大（限 20MB）', 'warn', 1800); return; }
+      toast('已捕获剪贴板图片，正在发送...', 'info', 1500);
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const fi = document.getElementById('fileInput') || document.getElementById('fileBtn');
+      if (window.SecureChatFiles && window.SecureChatFiles.sendFileObj) { window.SecureChatFiles.sendFileObj(file); return; }
+      // 回退：触发文件按钮的常规流程
+      const inp = document.querySelector('input[type=file]');
+      if (inp) {
+        try {
+          const dt2 = new DataTransfer(); dt2.items.add(file); inp.files = dt2.files;
+          inp.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (err) { toast('该浏览器不支持粘贴发图，请用文件按钮', 'warn', 2000); }
+      } else {
+        toast('该浏览器不支持粘贴发图，请用文件按钮', 'warn', 2000);
+      }
+      return;
+    }
+  }
 });
 if (desktopInput) desktopInput.addEventListener('input', () => {
   autoGrow(desktopInput);
@@ -4952,3 +5101,16 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
   };
 })();
+
+// ============ 全局按钮波纹（事件委托） ============
+document.addEventListener('click', function(e){
+  const b = e.target.closest('.btn,.btn-cn,.add-btn,.tool,.send,.code-btn,.login-mode-btn,.head-tool');
+  if(!b) return;
+  const r = b.getBoundingClientRect();
+  const d = Math.max(r.width, r.height);
+  const el = document.createElement('span');
+  el.className = 'ripple-fx';
+  el.style.cssText = 'width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';
+  b.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 600);
+});

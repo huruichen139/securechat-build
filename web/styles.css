@@ -2822,3 +2822,43 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #555; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ===== 动画+功能增强 20260824晚 ===== */
+/* 会话右键菜单 */
+.conv-context-menu { position: fixed; z-index: 9996; min-width: 168px; background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; box-shadow: 0 12px 36px rgba(0,0,0,.14); overflow: hidden; padding: 4px 0; animation: rise .16s cubic-bezier(.22,1,.36,1) both; }
+.conv-menu-item { padding: 9px 16px; font-size: 13.5px; color: #191919; cursor: pointer; transition: background .1s; }
+.conv-menu-item:hover { background: #f5f5f5; }
+.conv-menu-item.danger { color: #fa5151; }
+body.dark-mode .conv-context-menu { background: #1a1a1a; border-color: #333; box-shadow: 0 12px 36px rgba(0,0,0,.5); }
+body.dark-mode .conv-menu-item { color: #e5e5e5; }
+body.dark-mode .conv-menu-item:hover { background: #252525; }
+/* 双击点赞动画 */
+.like-heart { position: absolute; z-index: 5; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fa5151; background: rgba(250,81,81,.1); border: 1px solid rgba(250,81,81,.3); border-radius: 50%; pointer-events: none; animation: likePop .9s cubic-bezier(.22,1,.36,1) both; }
+@keyframes likePop { 0% { opacity: 0; transform: scale(.4) translateY(0); } 25% { opacity: 1; transform: scale(1.25); } 55% { transform: scale(1) translateY(-14px); } 100% { opacity: 0; transform: scale(.85) translateY(-42px); } }
+/* 语音条波形播放动画 */
+.voice-bars span { animation: voiceWave 1s ease-in-out infinite; transform-origin: center; }
+.voice-bars span:nth-child(1) { animation-delay: 0s; height: 6px; }
+.voice-bars span:nth-child(2) { animation-delay: .12s; height: 12px; }
+.voice-bars span:nth-child(3) { animation-delay: .24s; height: 16px; }
+.voice-bars span:nth-child(4) { animation-delay: .36s; height: 10px; }
+.voice-bars span:nth-child(5) { animation-delay: .48s; height: 7px; }
+.voice-bars span:nth-child(6) { animation-delay: .6s; height: 13px; }
+@keyframes voiceWave { 0%,100% { transform: scaleY(.5); } 50% { transform: scaleY(1.25); } }
+/* 未读徽章呼吸 */
+.badge { animation: badgeBreath 2.2s ease-in-out infinite; }
+@keyframes badgeBreath { 0%,100% { box-shadow: 0 0 0 0 rgba(250,81,81,.35); } 50% { box-shadow: 0 0 0 5px rgba(250,81,81,0); } }
+/* 消息列表滚动 */
+.messages { scroll-behavior: smooth; overscroll-behavior: contain; }
+/* 新气泡Q弹入场 */
+@keyframes bubbleBounce { 0% { opacity: 0; transform: translateY(16px) scale(.85); } 60% { opacity: 1; transform: translateY(-4px) scale(1.03); } 100% { transform: translateY(0) scale(1); } }
+.msg-row.just-sent { animation-name: bubbleBounce; animation-duration: .45s; }
+/* 全局按钮波纹 */
+.btn, .btn-cn, .add-btn, .tool, .send, .code-btn, .login-mode-btn, .head-tool { position: relative; overflow: hidden; }
+.ripple-fx { position: absolute; border-radius: 50%; background: rgba(7,193,96,.22); transform: scale(0); animation: rippleGo .55s ease-out forwards; pointer-events: none; }
+@keyframes rippleGo { to { transform: scale(3.2); opacity: 0; } }
+/* 页面切换转场 */
+#chatView { animation: viewIn .3s cubic-bezier(.22,1,.36,1) both; }
+@keyframes viewIn { 0% { opacity: 0; transform: translateY(8px) scale(.995); } 100% { opacity: 1; transform: none; } }
+/* 深色模式适配 */
+body.dark-mode .like-heart { background: rgba(250,81,81,.16); }
+@media (prefers-reduced-motion: reduce) { .like-heart, .voice-bars span, .badge, .ripple-fx { animation: none !important; } }
