@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'services/app_config.dart';
 import 'services/lifestyle_api.dart';
@@ -133,22 +134,42 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
-    // 任意其他内容：直接显示扫描结果（不做限制）
+    // 任意其他内容：直接展示结果；URL提供打开按钮，可复制
     if (!mounted) return;
     _showRawResult(text);
   }
 
   void _showRawResult(String text) {
+    final isUrl = RegExp(r'^https?://', caseSensitive: false).hasMatch(text);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('扫码结果'),
+        title: Text(isUrl ? '扫码结果 - 链接' : '扫码结果'),
         content: SingleChildScrollView(child: SelectableText(text)),
         actions: [
+          if (isUrl)
+            FilledButton.icon(
+              onPressed: () async {
+                final uri = Uri.tryParse(text);
+                Navigator.of(ctx).pop();
+                if (uri != null && mounted) {
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('无法打开链接')));
+                  }
+                }
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('打开链接'),
+            ),
           TextButton(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: text));
-              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (ctx.mounted) {
+                Navigator.of(ctx).pop();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制')));
+              }
             },
             child: const Text('复制'),
           ),

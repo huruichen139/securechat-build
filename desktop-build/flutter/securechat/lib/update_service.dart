@@ -1,10 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.71.5';
+const kAppVersion = '1.71.6';
 
 class UpdateService {
   UpdateService({required this.api});
@@ -102,6 +103,8 @@ class UpdateService {
     }
   }
 
+  static const _installerChannel = MethodChannel('securechat/installer');
+
   /// 打开/启动下载到的安装包。
   Future<bool> launchInstaller(String path) async {
     try {
@@ -112,8 +115,19 @@ class UpdateService {
         final result = await Process.run('open', [path]);
         return result.exitCode == 0;
       } else if (Platform.isAndroid) {
-        await Process.run('am', ['start', '-a', 'android.intent.action.VIEW', '-d', 'file://$path', '-t', '*/*']);
-        return true;
+        // Android 7+ 必须经 FileProvider(content://) 安装；8+ 需未知来源权限
+        try {
+          final canInstall = await _installerChannel.invokeMethod<bool>('canInstall');
+          if (canInstall != true) {
+            await _installerChannel.invokeMethod('requestInstallPermission');
+            return false; // 用户授权后需再次点击更新
+          }
+          return await _installerChannel.invokeMethod<bool>('installApk', {'path': path}) ?? false;
+        } catch (_) {
+          // 通道不可用时退回旧方案（老系统可用）
+          await Process.run('am', ['start', '-a', 'android.intent.action.VIEW', '-d', 'file://$path', '-t', '*/*']);
+          return true;
+        }
       } else {
         return false;
       }
