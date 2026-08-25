@@ -240,7 +240,7 @@ module.exports = function registerGroups(app, db, auth) {
     let uidList = [];
     if ((req.body || {}).uid && typeof (req.body.uid) === 'string') uidList.push(req.body.uid);
     if (typeof (req.body || {}).inviteUid === 'string') uidList.push(req.body.inviteUid);
-    const allUids = (req.body && Array.isArray(req.body.uids)) ? req.body.uids : uidList.length ? uidList : memberUids;
+    const allUids = (req.body && Array.isArray(req.body.uids)) ? req.body.uids.slice(0, 500) : uidList.length ? uidList : memberUids.slice(0, 500);
     const now = Date.now();
     const info = p.run('INSERT INTO groups(name,owner_id,created_at) VALUES(?,?,?)', groupName, req.user.id, now);
     const groupId = info.lastInsertRowid;

@@ -1375,7 +1375,8 @@ app.post('/api/moments', (req, res) => {
   if (typeof content !== 'string' || !content.trim()) {
     return res.status(400).json({ error: '内容不能为空' });
   }
-  const img = Array.isArray(images) ? JSON.stringify(images.slice(0, 9)) : '[]';
+  if (content.length > 10000) return res.status(400).json({ error: '内容过长（限1万字）' });
+  const img = Array.isArray(images) ? JSON.stringify(images.slice(0, 9).map(s => String(s).slice(0, 500))) : '[]';
   const info = prepare('INSERT INTO moments(user_id,content,images,visibility,created_at) VALUES(?,?,?,?,?)')
     .run(payload.id, content.trim(), img, 'all', Date.now());
   persist();
@@ -1658,9 +1659,12 @@ app.post('/api/status', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const { text, icon, emoji } = req.body || {};
+  const stText = String(text || '').slice(0, 100);
+  const stIcon = String(icon || '').slice(0, 10);
+  const stEmoji = String(emoji || '').slice(0, 10);
   prepare('INSERT INTO user_status(user_id,text,icon,emoji,updated_at) VALUES(?,?,?,?,?) ' +
     'ON CONFLICT(user_id) DO UPDATE SET text=excluded.text,icon=excluded.icon,emoji=excluded.emoji,updated_at=excluded.updated_at')
-    .run(payload.id, text || '', icon || '', emoji || '', Date.now());
+    .run(payload.id, stText, stIcon, stEmoji, Date.now());
   persist();
   res.json({ ok: true });
 });
