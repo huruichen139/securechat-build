@@ -4156,10 +4156,38 @@ function mountFeatureRoutes(app, db) {
     persist, persistNow, getDb, genUid
   };
   mountFeatureRoutes(app, routeDb);
-  server.listen(PORT, '0.0.0.0', () => {
-    const proto = process.env.USE_HTTPS === '1' ? 'https' : 'http';
-    console.log(`[SecureChat] server running on ${proto}://0.0.0.0:${PORT} (ws: /ws)`);
-  });
+  // 强制HTTPS终极方案：公网端口做协议探测路由。
+  // 首字节0x16=TLS → 管道转发到内部TLS端口；否则 → 转发到内部HTTP重定向服务器（301到HTTPS）。
+  if (process.env.USE_HTTPS === '1') {
+    const httpRedirect = http.createServer((req, res) => {
+      const hostHdr = String(req.headers.host || '').split(':')[0] || 'mc.32768.top';
+      res.writeHead(301, { Location: 'https://' + hostHdr + ':' + PORT + (req.url || '/') });
+      res.end();
+    });
+    const net = require('net');
+    const TLS_INTERNAL = Number(process.env.TLS_INTERNAL_PORT || 18443);
+    const HTTP_INTERNAL = Number(process.env.HTTP_REDIRECT_PORT || 18080);
+    server.listen(TLS_INTERNAL, '127.0.0.1');
+    httpRedirect.listen(HTTP_INTERNAL, '127.0.0.1');
+    net.createServer((sock) => {
+      sock.once('data', (buf) => {
+        const isTls = buf[0] === 0x16;
+        const target = isTls ? TLS_INTERNAL : HTTP_INTERNAL;
+        const upstream = net.connect(target, '127.0.0.1', () => {
+          upstream.write(buf);
+          sock.pipe(upstream).pipe(sock);
+        });
+        upstream.on('error', () => { try { sock.destroy(); } catch (_) {} });
+        sock.on('error', () => { try { upstream.destroy(); } catch (_) {} });
+      });
+    }).listen(PORT, '0.0.0.0', () => {
+      console.log(`[SecureChat] server running on https://0.0.0.0:${PORT} (plain http -> 301 https) (ws: /ws)`);
+    });
+  } else {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`[SecureChat] server running on http://0.0.0.0:${PORT} (ws: /ws)`);
+    });
+  }
 })();
 
 // 退出时保存一次
