@@ -25,11 +25,11 @@ class UpdateService {
 
   bool isNewer(String latest, String current) => _cmpVersion(latest, current) > 0;
 
-  /// �?releaseNotes 提取「本次更新」的说明�?
+  /// 从 releaseNotes 提取「本次更新」的说明文本。
   /// releaseNotes 支持两种形态：
-  ///   �?数组 [{version, date, notes:[...]}, ...]：取最新版本（第一个）�?notes
-  ///   �?旧版字符串：直接返回
-  /// 客户端只展示本次更新的内容，避免把历史版本全部堆在更新弹窗里�?
+  ///   - 数组 [{version, date, notes:[...]}, ...]：取最新版本（第一个）的 notes
+  ///   - 旧版字符串：直接返回
+  /// 客户端只展示本次更新的内容，避免把历史版本全部堆在更新弹窗里。
   String _currentReleaseNotes(dynamic releaseNotes) {
     if (releaseNotes is List) {
       final head = releaseNotes.isNotEmpty ? releaseNotes.first : null;
@@ -41,7 +41,7 @@ class UpdateService {
         if (notes is String) return notes;
         // 兼容旧格式：{version, date, notes: "文本"}
       }
-      // 数组但首项不是预期结构：逐个版本拼接「vX: 说明�?
+      // 数组但首项不是预期结构：逐个版本拼接「vX: 说明」
       final lines = <String>[];
       for (final e in releaseNotes) {
         if (e is! Map) continue;
@@ -58,7 +58,7 @@ class UpdateService {
     return (releaseNotes ?? '').toString();
   }
 
-  /// 返回需要更新的信息；无更新或无法获取返�?null�?
+  /// 返回需要更新的信息；无更新或无法获取返回 null。
   Future<Map<String, dynamic>?> check() async {
     try {
       final data = await api.checkVersion();
@@ -75,7 +75,7 @@ class UpdateService {
     }
   }
 
-  /// 下载安装�?便携包，返回保存路径�?04 返回 null�?
+  /// 下载安装包/便携包，返回保存路径；404 返回 null。
   Future<String?> download(String relativePath, {void Function(int, int)? onProgress}) async {
     final uri = api.downloadUri(relativePath);
     final client = http.Client();
@@ -102,7 +102,7 @@ class UpdateService {
     }
   }
 
-  /// 打开/启动下载到的安装包�?
+  /// 打开/启动下载到的安装包。
   Future<bool> launchInstaller(String path) async {
     try {
       if (Platform.isWindows) {

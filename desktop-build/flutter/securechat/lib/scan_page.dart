@@ -5,6 +5,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'services/app_config.dart';
@@ -132,7 +133,29 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
-    _status = '仅支持 SecureChat 二维码（好友码/登录码/支付码/小程序码）';
+    // 任意其他内容：直接显示扫描结果（不做限制）
+    if (!mounted) return;
+    _showRawResult(text);
+  }
+
+  void _showRawResult(String text) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('扫码结果'),
+        content: SingleChildScrollView(child: SelectableText(text)),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: const Text('复制'),
+          ),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('关闭')),
+        ],
+      ),
+    );
   }
 
   String? _queryParam(String raw, String key) {

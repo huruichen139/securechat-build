@@ -1,6 +1,7 @@
 'use strict';
 
-// 客户端打包版本号；与服务�?/api/version.latest 比对，最新版后会弹更新浮层�?const PACKAGE_VERSION = '1.71.4';
+// 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
+const PACKAGE_VERSION = '1.71.4';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -32,8 +33,10 @@ let state = {
   lastMsgTime: {},
   groupLastMsg: {},
   groupLastMsgTime: {},
-  // E2EE：本账号私钥（JWK），登录成功后填�?  myPrivJwk: null,
-  // 已发送消息明文缓存：clientMsgId -> 明文，用于服务端回包替换密文显示原文�?  sentPlain: {},
+  // E2EE：本账号私钥（JWK），登录成功后填充
+  myPrivJwk: null,
+  // 已发送消息明文缓存：clientMsgId -> 明文，用于服务端回包替换密文显示原文字
+  sentPlain: {},
   // 本地已发送（乐观渲染）消息：clientMsgId -> true，用于去重服务端回显
   pendingLocal: {},
   // 群组
@@ -41,16 +44,21 @@ let state = {
   groups: [],
   activeGroup: null,
   groupUnread: {},
-  groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当�?历史�?};
+  groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当前/历史）
+};
 
-// 挂载�?window，供各独立模块（modules/*.js）读取全局登录�?当前会话�?// 这些模块此前依赖 window.state 但从未被赋值，导致 token/activePeer/activeGroup 全为�?�?功能失效�?window.P = P; window.state = state;
+// 挂载到 window，供各独立模块（modules/*.js）读取全局登录态/当前会话。
+// 这些模块此前依赖 window.state 但从未被赋值，导致 token/activePeer/activeGroup 全为空 → 功能失效。
+window.P = P; window.state = state;
 
 const $ = (id) => document.getElementById(id);
 
-// i18n 短名：拿不到字典或字典里尚未收录�?key 时，回退到原中文，避免硬编码外文�?function t(key, fallback) {
+// i18n 短名：拿不到字典或字典里尚未收录该 key 时，回退到原中文，避免硬编码外文。
+function t(key, fallback) {
   if (window.SCI18N && typeof SCI18N.t === 'function') {
     const v = SCI18N.t(key);
-    // SCI18N.t 在缺�?key 时会返回 key 本身；此时落�?fallback�?    if (v && v !== key) return v;
+    // SCI18N.t 在缺失 key 时会返回 key 本身；此时落到 fallback。
+    if (v && v !== key) return v;
   }
   return (fallback != null ? fallback : key);
 }
@@ -116,7 +124,7 @@ function saveCurrentDraft() {
   localStorage.setItem(draftStorageKey(), JSON.stringify(drafts));
   const hintId = isMobileChat ? 'draftState' : 'draftStateDesktop';
   const hint = document.getElementById(hintId);
-  if (hint) hint.textContent = value ? t('draftSaved','草稿已保�?) : t('draftAuto','草稿自动保存');
+  if (hint) hint.textContent = value ? t('draftSaved','草稿已保存') : t('draftAuto','草稿自动保存');
 }
 function restoreCurrentDraft() {
   const key = activeConversationKey();
@@ -127,20 +135,22 @@ function restoreCurrentDraft() {
   input.value = key ? (readDrafts()[key] || '') : '';
   const hintId = isMobileChat ? 'draftState' : 'draftStateDesktop';
   const hint = document.getElementById(hintId);
-  if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草�?) : t('draftAuto','草稿自动保存');
+  if (hint) hint.textContent = input.value ? t('draftRestored','已恢复草稿') : t('draftAuto','草稿自动保存');
 }
 
 // ============ 个人资料字段定义（≥100 项） ============
-// 独立列字段：nickname / country / province / city（不放进 extra）�?// 其它字段全部存入 extra（JSON 对象，扁�?key-value）�?const PROFILE_FIELDS = [
+// 独立列字段：nickname / country / province / city（不放进 extra）。
+// 其它字段全部存入 extra（JSON 对象，扁平 key-value）。
+const PROFILE_FIELDS = [
   { cat: '身份', items: [
-    { key: 'realname', label: '真实姓名', placeholder: '可不�? },
-    { key: 'englishName', label: '英文�? },
+    { key: 'realname', label: '真实姓名', placeholder: '可不填' },
+    { key: 'englishName', label: '英文名' },
     { key: 'alias', label: '别名 / 昵称' },
     { key: 'gender', label: '性别' },
-    { key: 'orientation', label: '性取�? },
+    { key: 'orientation', label: '性取向' },
     { key: 'marital', label: '婚姻状况' },
     { key: 'birthday', label: '生日', placeholder: 'YYYY-MM-DD' },
-    { key: 'bloodType', label: '血�? },
+    { key: 'bloodType', label: '血型' },
     { key: 'zodiac', label: '星座' },
     { key: 'chineseZodiac', label: '生肖' },
     { key: 'height', label: '身高(cm)' },
@@ -154,7 +164,7 @@ function restoreCurrentDraft() {
     { key: 'timezone', label: '时区' },
     { key: 'language', label: '母语' },
     { key: 'languages2', label: '其它语言' },
-    { key: 'district', label: '�?/ �? },
+    { key: 'district', label: '区 / 县' },
     { key: 'street', label: '街道 / 地址' },
     { key: 'village', label: '小区' },
     { key: 'zip', label: '邮编' },
@@ -170,13 +180,13 @@ function restoreCurrentDraft() {
     { key: 'industry', label: '行业' },
     { key: 'jobLevel', label: '职级' },
     { key: 'experience', label: '工作年限' },
-    { key: 'skills', label: '技能特�? },
-    { key: 'jobStatus', label: '在职状�? },
+    { key: 'skills', label: '技能特长' },
+    { key: 'jobStatus', label: '在职状态' },
     { key: 'salary', label: '薪资范围' },
     { key: 'gitHub', label: 'GitHub' },
   ] },
   { cat: '教育', items: [
-    { key: 'eduLevel', label: '最高学�? },
+    { key: 'eduLevel', label: '最高学历' },
     { key: 'school', label: '毕业院校' },
     { key: 'major', label: '专业' },
     { key: 'graduation', label: '毕业时间' },
@@ -190,7 +200,7 @@ function restoreCurrentDraft() {
     { key: 'advisor', label: '导师' },
   ] },
   { cat: '联系方式', items: [
-    { key: 'phone', label: '手机�? },
+    { key: 'phone', label: '手机号' },
     { key: 'tel', label: '座机' },
     { key: 'fax', label: '传真' },
     { key: 'qq', label: 'QQ' },
@@ -201,7 +211,7 @@ function restoreCurrentDraft() {
     { key: 'instagram', label: 'Instagram' },
     { key: 'discord', label: 'Discord' },
     { key: 'weibo', label: '微博' },
-    { key: 'bilibili', label: 'B �?ID' },
+    { key: 'bilibili', label: 'B 站 ID' },
     { key: 'zhihu', label: '知乎' },
     { key: 'website', label: '个人网站' },
     { key: 'blog', label: '博客' },
@@ -216,9 +226,9 @@ function restoreCurrentDraft() {
     { key: 'sportTeam', label: '主队 / 球队' },
     { key: 'game', label: '游戏' },
     { key: 'gameId', label: '游戏 ID' },
-    { key: 'travel', label: '常去旅行�? },
-    { key: 'food', label: '喜欢的食�? },
-    { key: 'drink', label: '喜欢的饮�? },
+    { key: 'travel', label: '常去旅行地' },
+    { key: 'food', label: '喜欢的食物' },
+    { key: 'drink', label: '喜欢的饮料' },
     { key: 'pet', label: '宠物' },
     { key: 'plant', label: '植物' },
     { key: 'photo', label: '摄影' },
@@ -229,18 +239,18 @@ function restoreCurrentDraft() {
     { key: 'anime', label: '动漫' },
   ] },
   { cat: '音乐/影视', items: [
-    { key: 'singer', label: '喜欢的歌�? },
-    { key: 'band', label: '喜欢的乐�? },
+    { key: 'singer', label: '喜欢的歌手' },
+    { key: 'band', label: '喜欢的乐队' },
     { key: 'song', label: '喜欢的歌' },
-    { key: 'album', label: '喜欢的专�? },
+    { key: 'album', label: '喜欢的专辑' },
     { key: 'musicType', label: '音乐类型' },
     { key: 'instrument', label: '乐器' },
-    { key: 'movie1', label: '喜欢的电�? },
-    { key: 'director', label: '喜欢的导�? },
-    { key: 'actor', label: '喜欢的演�? },
+    { key: 'movie1', label: '喜欢的电影' },
+    { key: 'director', label: '喜欢的导演' },
+    { key: 'actor', label: '喜欢的演员' },
     { key: 'actress', label: '喜欢的女演员' },
     { key: 'movieType', label: '电影类型' },
-    { key: 'tvShow', label: '追的�? },
+    { key: 'tvShow', label: '追的剧' },
     { key: 'show', label: '综艺节目' },
     { key: 'podcast', label: '听的播客' },
     { key: 'idol', label: '偶像' },
@@ -252,14 +262,14 @@ function restoreCurrentDraft() {
     { key: 'diet', label: '饮食偏好' },
     { key: 'religion', label: '宗教信仰' },
     { key: 'political', label: '政治倾向' },
-    { key: 'vehicle', label: '出行交�? },
+    { key: 'vehicle', label: '出行交通' },
     { key: 'house', label: '住房' },
     { key: 'salaryIdeal', label: '理想收入' },
     { key: 'fitness', label: '健身频率' },
-    { key: 'cooking', label: '是否会做�? },
+    { key: 'cooking', label: '是否会做饭' },
   ] },
   { cat: '价值观', items: [
-    { key: 'motto', label: '座右�? },
+    { key: 'motto', label: '座右铭' },
     { key: 'dream', label: '理想 / 梦想' },
     { key: 'religionPref', label: '择偶信仰倾向' },
     { key: 'value1', label: '最看重的事 1' },
@@ -269,11 +279,11 @@ function restoreCurrentDraft() {
     { key: 'idealHeight', label: '理想伴侣身高' },
     { key: 'idealJob', label: '理想伴侣职业' },
     { key: 'idealCharacter', label: '理想伴侣性格' },
-    { key: 'taboo', label: '不能接受�? },
+    { key: 'taboo', label: '不能接受的' },
   ] },
-  { cat: '个性签�?, items: [
-    { key: 'signature', label: '个性签�? },
-    { key: 'status', label: '状�? },
+  { cat: '个性签名', items: [
+    { key: 'signature', label: '个性签名' },
+    { key: 'status', label: '状态' },
     { key: 'intro', label: '自我介绍' },
     { key: 'nickname2', label: '其它昵称' },
     { key: 'tagline', label: '一句话标签' },
@@ -281,13 +291,14 @@ function restoreCurrentDraft() {
   ] },
 ];
 
-// 自定�?Toast 提示（替�?alert�?function toast(msg, kind /* info|success|error|warn */, ms) {
+// 自定义 Toast 提示（替代 alert）
+function toast(msg, kind /* info|success|error|warn */, ms) {
   kind = kind || 'info';
   ms = ms || 2200;
   const wrap = $('toastWrap');
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
-  const ico = { info: 'i', success: '�?, error: '!', warn: '!' }[kind] || 'i';
+  const ico = { info: 'i', success: '✓', error: '!', warn: '!' }[kind] || 'i';
   el.innerHTML = '<div class="ico">' + ico + '</div><div>' + escapeHtml(msg) + '</div>';
   wrap.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
@@ -299,9 +310,11 @@ function restoreCurrentDraft() {
 
 // ============ 登录/注册 ============
 let mode = 'login';
-let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效�?let qrLoginTimer = null;
+let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
+let qrLoginTimer = null;
 
-// 根据当前 mode �?loginMode 统一刷新登录/注册表单字段的显�?function applyLoginMode() {
+// 根据当前 mode 与 loginMode 统一刷新登录/注册表单字段的显隐
+function applyLoginMode() {
   const showReg = mode === 'register';
   $('nickname').style.display = showReg ? 'block' : 'none';
   $('customUid').style.display = showReg ? 'block' : 'none';
@@ -312,7 +325,8 @@ let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效�?let
   $('loginModeRow').style.display = showReg ? 'none' : 'flex';
   const useCode = !showReg && loginMode === 'code';
   const useQr = !showReg && loginMode === 'qr';
-  // 密码登录：用户名 + 密码；验证码登录：邮�?+ 验证码；扫码登录：表单内二维�?  const showPw = showReg || (!useCode && !useQr);
+  // 密码登录：用户名 + 密码；验证码登录：邮箱 + 验证码；扫码登录：表单内二维码
+  const showPw = showReg || (!useCode && !useQr);
   $('username').style.display = showPw ? 'block' : 'none';
   $('password').style.display = showPw ? 'block' : 'none';
   $('email').style.display = (showReg || useCode) ? 'block' : 'none';
@@ -326,8 +340,10 @@ let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效�?let
     clearInterval(qrLoginTimer);
     qrLoginTimer = null;
   }
-  // 密码登录时用户名输入�?placeholder 为「用户名或邮箱」；注册/验证码登录时为「用户名�?  $('username').placeholder = (showReg || useCode || useQr) ? t('username', '用户�?) : t('usernameOrEmail', '用户名或邮箱');
-  // 邮箱 placeholder：注册时提示「注册时填写」，登录验证码时提示「邮箱�?  $('email').placeholder = showReg ? t('email', '邮箱（注册时填写�?) : t('emailLogin', '邮箱');
+  // 密码登录时用户名输入框 placeholder 为「用户名或邮箱」；注册/验证码登录时为「用户名」
+  $('username').placeholder = (showReg || useCode || useQr) ? t('username', '用户名') : t('usernameOrEmail', '用户名或邮箱');
+  // 邮箱 placeholder：注册时提示「注册时填写」，登录验证码时提示「邮箱」
+  $('email').placeholder = showReg ? t('email', '邮箱（注册时填写）') : t('emailLogin', '邮箱');
   // 登录方式按钮高亮
   document.querySelectorAll('.login-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.loginMode === loginMode));
   $('authErr').textContent = '';
@@ -350,7 +366,8 @@ document.querySelectorAll('.login-mode-btn').forEach(b => {
   };
 });
 
-// 初始化登录页，首次打开时直接显示密码登�?验证码登录切换�?applyLoginMode();
+// 初始化登录页，首次打开时直接显示密码登录/验证码登录切换。
+applyLoginMode();
 
 $('authBtn').onclick = async () => {
   const username = $('username').value.trim();
@@ -364,13 +381,15 @@ $('authBtn').onclick = async () => {
   $('authErr').textContent = '';
   let endpoint, body;
   if (mode === 'register') {
-    // 注册：用户名 + 密码 + 邮箱 + 验证�?    if (!username || !password) { $('authErr').textContent = '请输入用户名和密�?; return; }
-    if (!email) { $('authErr').textContent = '请填写邮�?; return; }
+    // 注册：用户名 + 密码 + 邮箱 + 验证码
+    if (!username || !password) { $('authErr').textContent = '请输入用户名和密码'; return; }
+    if (!email) { $('authErr').textContent = '请填写邮箱'; return; }
     if (!code) { $('authErr').textContent = '请输入邮箱验证码'; return; }
     endpoint = '/api/register';
     body = { username, password, nickname, email, code, customUid: $('customUid').value.trim(), country, province, city };
   } else if (loginMode === 'code') {
-    // 登录-验证码：邮箱 + 验证�?    if (!email) { $('authErr').textContent = '请填写邮�?; return; }
+    // 登录-验证码：邮箱 + 验证码
+    if (!email) { $('authErr').textContent = '请填写邮箱'; return; }
     if (!code) { $('authErr').textContent = '请输入邮箱验证码'; return; }
     endpoint = '/api/login/code';
     body = { email, code };
@@ -378,14 +397,14 @@ $('authBtn').onclick = async () => {
     // 扫码登录：二维码在表单内渲染，authBtn 隐藏；此分支不应触发
     return;
   } else {
-    // 登录-密码：账号（用户名或邮箱�? 密码
+    // 登录-密码：账号（用户名或邮箱）+ 密码
     if (!username || !password) { $('authErr').textContent = '请输入用户名或邮箱和密码'; return; }
     endpoint = '/api/login';
     body = { account: username, password };
   }
   const btn = $('authBtn');
   btn.disabled = true;
-  btn.textContent = t('loggingIn', '登录中�?);
+  btn.textContent = t('loggingIn', '登录中…');
   try {
     const res = await fetch(state.serverHost + endpoint, {
       method: 'POST',
@@ -404,7 +423,7 @@ $('authBtn').onclick = async () => {
     $('authErr').textContent = '无法连接服务器：' + e.message;
   } finally {
     btn.disabled = false;
-    btn.textContent = mode === 'register' ? t('register', '注册') : (loginMode === 'code' ? t('codeLogin', '验证码登�?) : t('login', '登录'));
+    btn.textContent = mode === 'register' ? t('register', '注册') : (loginMode === 'code' ? t('codeLogin', '验证码登录') : t('login', '登录'));
   }
 };
 
@@ -416,9 +435,9 @@ async function setQrLogin() {
   try {
     const res = await fetch(state.serverHost + '/api/login/qr/create', { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '二维码生成失�?);
+    if (!res.ok) throw new Error(data.error || '二维码生成失败');
     if (img) { img.src = state.serverHost + '/api/login/qr/image?token=' + encodeURIComponent(data.token); img.style.display = 'block'; }
-    if (tip) tip.textContent = '请使用已登录�?SecureChat 手机端「扫一扫」扫描二维码登录，二维码 2 分钟内有效�?;
+    if (tip) tip.textContent = '请使用已登录的 SecureChat 手机端「扫一扫」扫描二维码登录，二维码 2 分钟内有效。';
     if ($('authErr')) $('authErr').textContent = '';
     let done = false;
     qrLoginTimer = setInterval(async () => {
@@ -440,18 +459,19 @@ async function setQrLogin() {
         }
       } catch (e) {}
     }, 2000);
-  } catch (e) { if (tip) tip.textContent = e.message || '二维码生成失�?; }
+  } catch (e) { if (tip) tip.textContent = e.message || '二维码生成失败'; }
 }
 
 const qrRegenBtnEl = $('qrRegenBtn');
 if (qrRegenBtnEl) qrRegenBtnEl.onclick = () => setQrLogin();
 
-// 发送邮箱验证码（注册用 purpose='register'；登录验证码登录�?purpose='login'�?let codeTimer = null;
+// 发送邮箱验证码（注册用 purpose='register'；登录验证码登录用 purpose='login'）
+let codeTimer = null;
 $('sendCodeBtn').onclick = async () => {
   const email = $('email').value.trim();
   if (!email) { $('authErr').textContent = '请先填写邮箱'; return; }
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { $('authErr').textContent = '邮箱格式错误'; return; }
-  // 根据当前状态决定验证码用途：注册 �?register；登�?验证码登�?�?login
+  // 根据当前状态决定验证码用途：注册 → register；登录+验证码登录 → login
   const purpose = mode === 'register' ? 'register' : 'login';
   $('sendCodeBtn').disabled = true;
   $('authErr').textContent = '正在发送验证码...';
@@ -461,10 +481,11 @@ $('sendCodeBtn').onclick = async () => {
       body: JSON.stringify({ email, purpose })
     });
     const data = await res.json();
-    if (!res.ok) { $('authErr').textContent = data.error || '发送失�?; $('sendCodeBtn').disabled = false; return; }
+    if (!res.ok) { $('authErr').textContent = data.error || '发送失败'; $('sendCodeBtn').disabled = false; return; }
     $('authErr').textContent = '';
-    toast('验证码已发送，请查收邮�?, 'success');
-    // 60s 倒计�?    let n = 60;
+    toast('验证码已发送，请查收邮箱', 'success');
+    // 60s 倒计时
+    let n = 60;
     $('sendCodeBtn').textContent = n + 's';
     if (codeTimer) clearInterval(codeTimer);
     codeTimer = setInterval(() => {
@@ -481,7 +502,7 @@ $('sendCodeBtn').onclick = async () => {
 
 $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('authBtn').click(); });
 
-// ---------- 自动检查更�?----------
+// ---------- 自动检查更新 ----------
 // 语义化版本比较：返回 -1/0/1
 function cmpVersion(a, b) {
   a = String(a || '0').split('.');
@@ -495,11 +516,13 @@ function cmpVersion(a, b) {
   }
   return 0;
 }
-// 更新提示仅展示在下载页（download.html 下方更新日志），web 端不再弹更新浮层�?async function checkUpdate() {
+// 更新提示仅展示在下载页（download.html 下方更新日志），web 端不再弹更新浮层。
+async function checkUpdate() {
   return;
 }
 
-// 自动恢复登录（先验证 token 再进聊天�?function tryRestore() {
+// 自动恢复登录（先验证 token 再进聊天）
+function tryRestore() {
   const savedToken = localStorage.getItem('sc_token');
   const savedMe = localStorage.getItem('sc_me');
   if (!savedToken || !savedMe) return;
@@ -514,7 +537,8 @@ function cmpVersion(a, b) {
   fetch(state.serverHost + '/api/users', { headers: { 'Authorization': 'Bearer ' + state.token } })
     .then((res) => {
       if (res.ok) {
-        // 用服务端最新数据刷新本地资料（跨设备修改后避免陈旧昵称/头像�?        res.json().then((j) => {
+        // 用服务端最新数据刷新本地资料（跨设备修改后避免陈旧昵称/头像）
+        res.json().then((j) => {
           const myId = state.me && state.me.id;
           const me = myId != null ? (j.users || []).find(u => u.id === myId) : null;
           if (me) { state.me = Object.assign({}, state.me, me); try { localStorage.setItem('sc_me', JSON.stringify(state.me)); } catch (e) {} }
@@ -541,14 +565,16 @@ function logout() {
   for (const k in state.sentPlain) delete state.sentPlain[k];
   const mb = $('messages'); if (mb) mb.innerHTML = '';
   if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
-  // 清掉当前会话/联系人状�?  state.current = null;
+  // 清掉当前会话/联系人状态
+  state.current = null;
   if (state.messages) state.messages = {};
-  // 切换回登录页并重置登录模�?  $('chatView').style.display = 'none';
+  // 切换回登录页并重置登录模式
+  $('chatView').style.display = 'none';
   $('authView').style.display = 'flex';
   mode = 'login';
   loginMode = 'password';
   try { applyLoginMode(); } catch {}
-  toast(t('logout', '已退出登�?), 'info');
+  toast(t('logout', '已退出登录'), 'info');
 }
 
 // ============ 进入聊天 ============
@@ -556,16 +582,19 @@ function enterChat() {
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
   renderMyInfo();
-  // 登录成功后立即上传身份公钥，避免对方只能复用旧会话导致无法解密�?  if (window.SCE2EE && typeof window.SCE2EE.ensureKeyPair === 'function') {
+  // 登录成功后立即上传身份公钥，避免对方只能复用旧会话导致无法解密。
+  if (window.SCE2EE && typeof window.SCE2EE.ensureKeyPair === 'function') {
     window.SCE2EE.ensureKeyPair().catch(() => {});
   }
-// 恢复该用户自定义聊天背景图（每个用户独立存储�?  applyChatBg(getChatBg());
+// 恢复该用户自定义聊天背景图（每个用户独立存储）
+  applyChatBg(getChatBg());
   applyMsgFont();
   connectWS();
   loadFriends();
   loadGroups();
   loadChatSettingsFromServer();
-  // E2EE 已停用：消息以明文发送，不再生成/上传密钥�?  // 移动端：登录后默认显示联系人列表（不自动进入聊天态）
+  // E2EE 已停用：消息以明文发送，不再生成/上传密钥。
+  // 移动端：登录后默认显示联系人列表（不自动进入聊天态）
   if (window.IS_MOBILE) {
     const cv = document.getElementById('chatView');
     if (cv) cv.classList.remove('mobile-chat-active');
@@ -576,7 +605,8 @@ function renderMyInfo() {
   const hasImg = state.me && state.me.avatar;
   const avHtml = hasImg ? '<img src="' + escapeHtml(state.me.avatar) + '">'
     : avatarChar(state.me.nickname);
-  // 地区：country/province/city 是独立列；若三者皆空，再尝试从 extra 取现住地（currentAddress / hometown�?  const c = (state.me && state.me.country) || '';
+  // 地区：country/province/city 是独立列；若三者皆空，再尝试从 extra 取现住地（currentAddress / hometown）
+  const c = (state.me && state.me.country) || '';
   const p = (state.me && state.me.province) || '';
   const ct = (state.me && state.me.city) || '';
   const regionParts = [c, p, ct].filter(Boolean);
@@ -590,30 +620,31 @@ function renderMyInfo() {
   if (regionText) {
     regionHtml = '<div class="my-id region-display" style="cursor:pointer" title="点击编辑资料">' + escapeHtml(regionText) + '</div>';
   } else {
-    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">地区：未设置，点“资料”填�?/div>';
+    regionHtml = '<div class="my-id" style="cursor:pointer" id="emptyRegionTip">地区：未设置，点“资料”填写</div>';
   }
   const dark = document.body.classList.contains('dark-mode');
   $('myInfo').innerHTML = '<div class="account-card">'
     + '<div class="account-main">'
-    + '<div class="avatar my-avatar" id="myAvatar" title="点击换头�?>' + avHtml + '</div>'
+    + '<div class="avatar my-avatar" id="myAvatar" title="点击换头像">' + avHtml + '</div>'
     + '<div class="account-copy"><div class="my-name">' + escapeHtml(state.me.nickname) + '</div>'
     + '<div class="my-id" id="myIdText" style="cursor:pointer" title="点击复制ID">ID: ' + (state.me.uid || '') + '</div></div>'
-    + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', '退出登�?)) + '">' + escapeHtml(t('logout', '退�?)) + '</button>'
+    + '<button class="account-exit" id="logoutBtn" title="' + escapeHtml(t('logout', '退出登录')) + '">' + escapeHtml(t('logout', '退出')) + '</button>'
     + '</div>'
     + '<div class="account-region">' + regionHtml + '</div>'
     + '<div class="account-toolbar">'
     + '<button class="account-tool" id="editProfileBtn">' + escapeHtml(t('profile', '资料')) + '</button>'
-    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '�?ID')) + '</button>'
+    + '<button class="account-tool" id="editUidBtn">' + escapeHtml(t('editUid', '改 ID')) + '</button>'
     + '<button class="account-tool" id="myCardBtn">' + escapeHtml(t('myCard', '名片')) + '</button>'
-    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', '扫一�?)) + '</button>'
+    + '<button class="account-tool" id="scanQrBtn">' + escapeHtml(t('scan', '扫一扫')) + '</button>'
     + '<button class="account-tool" id="bgBtn">' + escapeHtml(t('background', '背景')) + '</button>'
     + '<button class="account-tool" id="feedbackBtn">' + escapeHtml(t('feedback', '反馈')) + '</button>'
     + '<span class="theme-switch" role="group" aria-label="外观主题">'
-    + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', '�?)) + '</button>'
-    + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', '�?)) + '</button>'
+    + '<button class="theme-choice' + (!dark ? ' active' : '') + '" id="themeDayBtn">' + escapeHtml(t('light', '日')) + '</button>'
+    + '<button class="theme-choice' + (dark ? ' active' : '') + '" id="themeNightBtn">' + escapeHtml(t('dark', '夜')) + '</button>'
     + '</span></div>'
     + '</div>';
-  // 账户卡里若子标签后续加了 data-i18n，apply() 会兜底；这里再扫一次�?  if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
+  // 账户卡里若子标签后续加了 data-i18n，apply() 会兜底；这里再扫一次。
+  if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
   $('myAvatar').onclick = pickAvatar;
   $('bgBtn').onclick = pickChatBg;
   $('editUidBtn').onclick = editUid;
@@ -637,10 +668,10 @@ function renderMyInfo() {
   $('logoutBtn').onclick = logout;
   $('myIdText').onclick = () => {
     const uid = state.me && state.me.uid;
-    if (!uid) { toast('暂无ID可复�?, 'warn', 1000); return; }
+    if (!uid) { toast('暂无ID可复制', 'warn', 1000); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(String(uid))
-        .then(() => toast('ID 已复�?, 'success', 1000))
+        .then(() => toast('ID 已复制', 'success', 1000))
         .catch(() => toast('复制失败', 'error', 1000));
     } else {
       toast('当前浏览器不支持复制', 'warn', 1000);
@@ -650,7 +681,7 @@ function renderMyInfo() {
 
 // 展示我的名片（加好友二维码）
 function showMyCard() {
-  if (!state.me || !state.me.uid) { toast('暂无ID，无法生成名�?, 'warn', 1500); return; }
+  if (!state.me || !state.me.uid) { toast('暂无ID，无法生成名片', 'warn', 1500); return; }
   const uid = String(state.me.uid);
   const qrText = 'securechat://friend?uid=' + encodeURIComponent(uid);
   const imgUrl = state.serverHost + '/api/qrcode/render?text=' + encodeURIComponent(qrText) + '&w=300';
@@ -667,10 +698,10 @@ function showMyCard() {
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
   body.style.cssText = 'text-align:center;padding:6px 0 4px';
-  body.innerHTML = '<img src="' + imgUrl + '" alt="名片二维�? style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
+  body.innerHTML = '<img src="' + imgUrl + '" alt="名片二维码" style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
     + '<div style="margin-top:12px;font-size:14px;font-weight:600">' + escapeHtml(state.me.nickname) + '</div>'
     + '<div style="font-size:12px;color:#64748b;margin-top:3px">ID: ' + escapeHtml(uid) + '</div>'
-    + '<div style="margin-top:8px;font-size:12px;color:#64748b">让朋友用手机「扫一扫」添加我为好�?/div>';
+    + '<div style="margin-top:8px;font-size:12px;color:#64748b">让朋友用手机「扫一扫」添加我为好友</div>';
   box.appendChild(body);
   const acts = document.createElement('div');
   acts.className = 'modal-actions';
@@ -685,15 +716,17 @@ function showMyCard() {
   document.addEventListener('keydown', onKey);
 }
 
-// 从图像的 ImageData 解码二维码（jsQR 为同步纯前端解码，图片不上传�?function decodeQRFromImageData(imageData) {
-  if (typeof jsQR !== 'function') throw new Error('二维码解码库未加�?);
+// 从图像的 ImageData 解码二维码（jsQR 为同步纯前端解码，图片不上传）
+function decodeQRFromImageData(imageData) {
+  if (typeof jsQR !== 'function') throw new Error('二维码解码库未加载');
   const res = jsQR(imageData.data, imageData.width, imageData.height, {
     inversionAttempts: 'dontInvert'
   });
   return res ? res.data : null;
 }
 
-// 渲染图片�?canvas，返�?ImageData 和原始位�?function renderToImageData(img) {
+// 渲染图片到 canvas，返回 ImageData 和原始位图
+function renderToImageData(img) {
   const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
   const h = Math.max(1, Math.round(img.naturalHeight * scale));
@@ -705,37 +738,39 @@ function showMyCard() {
   return ctx.getImageData(0, 0, w, h);
 }
 
-// 处理扫描结果：好友码 �?加好友；登录�?�?确认登录
+// 处理扫描结果：好友码 → 加好友；登录码 → 确认登录
 async function handleScanText(text) {
   const raw = String(text || '').trim();
-  if (!raw) throw new Error('未识别到二维码内�?);
-  // 好友�?  let uid = null;
+  if (!raw) throw new Error('未识别到二维码内容');
+  // 好友码
+  let uid = null;
   try {
     const u = new URL(raw);
     if (u.protocol === 'securechat:' && (u.hostname === 'friend' || u.pathname.indexOf('/friend') === 0)) uid = u.searchParams.get('uid');
-  } catch (_) { /* �?URL 则尝试裸格式 */ }
+  } catch (_) { /* 非 URL 则尝试裸格式 */ }
   if (!uid && raw.startsWith('securechat://friend')) {
     const m = raw.match(/uid=(.+?)(&|$)/i);
     if (m) uid = m[1];
   }
   if (uid) {
-    const ok = await confirmOpen('扫一�?, '识别到好友二维码，ID�? + uid + '。确认发送好友请求？');
-    if (!ok) return '已取�?;
+    const ok = await confirmOpen('扫一扫', '识别到好友二维码，ID：' + uid + '。确认发送好友请求？');
+    if (!ok) return '已取消';
     const res = await fetch(state.serverHost + '/api/friend/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ friendUid: String(uid).trim() })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || '加好友失�?);
+    if (!res.ok) throw new Error(data.error || '加好友失败');
     return '好友请求已发送：' + ((data.friend && (data.friend.nickname || data.friend.username)) || uid);
   }
-  // 登录码：已登录设备扫码确认，目标设备即可登录为当前账�?  if (raw.startsWith('securechat://login')) {
+  // 登录码：已登录设备扫码确认，目标设备即可登录为当前账号
+  if (raw.startsWith('securechat://login')) {
     const m = raw.match(/token=(.+?)(&|$)/i);
     const token = m ? m[1] : null;
-    if (!token) throw new Error('登录二维码无�?);
-    const ok = await confirmOpen('扫一�?, '确认允许另一台设备登�?SecureChat 吗？');
-    if (!ok) return '已取�?;
+    if (!token) throw new Error('登录二维码无效');
+    const ok = await confirmOpen('扫一扫', '确认允许另一台设备登录 SecureChat 吗？');
+    if (!ok) return '已取消';
     const res = await fetch(state.serverHost + '/api/login/qr/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
@@ -743,12 +778,13 @@ async function handleScanText(text) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || '确认失败');
-    return '已确认，目标设备可登�?;
+    return '已确认，目标设备可登录';
   }
-  throw new Error('不是 SecureChat 二维�?);
+  throw new Error('不是 SecureChat 二维码');
 }
 
-// 确认弹窗（复�?openModal 风格�?function confirmOpen(title, message) {
+// 确认弹窗（复用 openModal 风格）
+function confirmOpen(title, message) {
   return new Promise((resolve) => {
     const mask = document.createElement('div');
     mask.className = 'modal-mask';
@@ -775,7 +811,7 @@ async function handleScanText(text) {
   });
 }
 
-// 打开扫一扫弹窗：支持选择图片 / 拖拽 / 粘贴剪贴板图片，前端�?jsQR 解码
+// 打开扫一扫弹窗：支持选择图片 / 拖拽 / 粘贴剪贴板图片，前端用 jsQR 解码
 function openQrScanner() {
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
@@ -783,7 +819,7 @@ function openQrScanner() {
   box.className = 'modal';
   const head = document.createElement('div');
   head.className = 'modal-head';
-  const h3 = document.createElement('h3'); h3.textContent = t('scan', '扫一�?);
+  const h3 = document.createElement('h3'); h3.textContent = t('scan', '扫一扫');
   const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
@@ -793,8 +829,8 @@ function openQrScanner() {
   const dropId = 'scanDrop_' + Date.now();
   drop.className = 'scan-drop'; drop.id = dropId;
   drop.innerHTML = '<div style="font-size:40px;opacity:.6">&#128269;</div>'
-    + '<div style="margin-top:8px;font-size:14px">选择或拖拽二维码图片到此�?/div>'
-    + '<div style="margin-top:4px;font-size:12px;color:#64748b">也支�?Ctrl+V 粘贴图片，图片仅在本机解�?/div>';
+    + '<div style="margin-top:8px;font-size:14px">选择或拖拽二维码图片到此处</div>'
+    + '<div style="margin-top:4px;font-size:12px;color:#64748b">也支持 Ctrl+V 粘贴图片，图片仅在本机解码</div>';
   const preview = document.createElement('img');
   preview.style.cssText = 'max-width:240px;max-height:240px;margin-top:12px;border-radius:10px;border:1px solid var(--border);display:none';
   const btnRow = document.createElement('div');
@@ -840,10 +876,10 @@ function openQrScanner() {
     try {
       const { data, url } = await renderFileToImageData(file);
       preview.src = url; preview.style.display = 'block';
-      status.textContent = '正在识别�?;
+      status.textContent = '正在识别…';
       const text = decodeQRFromImageData(data);
-      if (text === null) { status.textContent = '未识别到二维码，请换一张更清晰的图�?; return; }
-      status.textContent = '识别成功，处理中�?;
+      if (text === null) { status.textContent = '未识别到二维码，请换一张更清晰的图片'; return; }
+      status.textContent = '识别成功，处理中…';
       const result = await handleScanText(text);
       status.textContent = result || '处理完成';
     } catch (e) {
@@ -874,7 +910,8 @@ function openQrScanner() {
   });
 }
 
-// 通用模态弹窗（替代浏览�?prompt/confirm�?function openModal(title, fields, onOk) {
+// 通用模态弹窗（替代浏览器 prompt/confirm）
+function openModal(title, fields, onOk) {
   // fields: [{key, label, value, placeholder}]
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
@@ -921,15 +958,25 @@ function openQrScanner() {
     fields.forEach(f => out[f.key] = f._el.value.trim());
     onOk(out, close);
   };
-  // 点遮罩关�?  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  // 点遮罩关闭
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
   // ESC 关闭
   const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
-  // 自动聚焦第一�?  if (fields[0] && fields[0]._el) fields[0]._el.focus();
+  // 自动聚焦第一个
+  if (fields[0] && fields[0]._el) fields[0]._el.focus();
 }
 
-// ---------- 特性发现中心（更多功能入口�?---------
-// 聚合各业务模块（groups/chat-ext/rtc/media/lifestyle/payment/status-collar 等）�?// 入口到一个分类面板。所有模块都通过 window.SecureChatExt.registerFeature 登记�?// 这里统一�?SecureChatExt.getFeature(name) 取用，避免耦合具体模块的实现细节�?// 说明：feature.open 有两种形态—�?//   �?自带浮层（oa/videos/live/nearby/shake/scan/miniapp/groups/pay 等）：直�?feature.open()�?//   �?需要容器（status/favorites/moment-ext）：feature.open(containerEl)�?// openFeatureCenter 对前者调�?open()，对后者新�?modal 并把内容容器传给 feature.open(container)�?// 每个入口的渐变配色（135deg）：微信「发现」页风格彩色圆角方块�?const FEATURE_GRADS = [
+// ---------- 特性发现中心（更多功能入口）----------
+// 聚合各业务模块（groups/chat-ext/rtc/media/lifestyle/payment/status-collar 等）的
+// 入口到一个分类面板。所有模块都通过 window.SecureChatExt.registerFeature 登记，
+// 这里统一用 SecureChatExt.getFeature(name) 取用，避免耦合具体模块的实现细节。
+// 说明：feature.open 有两种形态——
+//   ① 自带浮层（oa/videos/live/nearby/shake/scan/miniapp/groups/pay 等）：直接 feature.open()；
+//   ② 需要容器（status/favorites/moment-ext）：feature.open(containerEl)。
+// openFeatureCenter 对前者调用 open()，对后者新建 modal 并把内容容器传给 feature.open(container)。
+// 每个入口的渐变配色（135deg）：微信「发现」页风格彩色圆角方块。
+const FEATURE_GRADS = [
   'linear-gradient(135deg,#07c160,#06ad56)',
   'linear-gradient(135deg,#10aeff,#0a7fe0)',
   'linear-gradient(135deg,#fa9d3b,#f97316)',
@@ -949,15 +996,16 @@ function featureGrad(i) {
 }
 function featureKey(label) {
   const keys = {
-    '群聊管理':'groups','投票接龙':'polls','群待�?:'todos','定时提醒':'remind','翻译':'translate','朋友圈增�?:'moments',
-    '看一�?:'read','搜一�?:'search','视频�?:'videos','公众�?:'oa','直播':'live','小程�?:'miniapp',
-    '相册':'album','卡包':'cards','表情':'stickers','购物':'shop','游戏':'games','红包':'redpacket','附近的人':'nearby','摇一�?:'shake','扫一�?:'scan','支付生活':'pay',
-    '我的状�?:'status','我的收藏':'favorites','收付款码':'payment','兑换码充�?:'redeem'
+    '群聊管理':'groups','投票接龙':'polls','群待办':'todos','定时提醒':'remind','翻译':'translate','朋友圈增强':'moments',
+    '看一看':'read','搜一搜':'search','视频号':'videos','公众号':'oa','直播':'live','小程序':'miniapp',
+    '相册':'album','卡包':'cards','表情':'stickers','购物':'shop','游戏':'games','红包':'redpacket','附近的人':'nearby','摇一摇':'shake','扫一扫':'scan','支付生活':'pay',
+    '我的状态':'status','我的收藏':'favorites','收付款码':'payment','兑换码充值':'redeem'
   };
   return keys[label] || 'feature';
 }
 
-// 「选择群」对话框：列出当前用户群列表，选定后回�?group。无群则提示先进入目标群聊�?function pickGroupDialog(title, onPick) {
+// 「选择群」对话框：列出当前用户群列表，选定后回调 group。无群则提示先进入目标群聊。
+function pickGroupDialog(title, onPick) {
   const get = (name) => window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(name);
   const groups = get('groups');
   const mask = document.createElement('div');
@@ -968,7 +1016,7 @@ function featureKey(label) {
   const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
-  h3.textContent = title || '选择�?;
+  h3.textContent = title || '选择群';
   const xBtn = document.createElement('button');
   xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.setAttribute('aria-label', '关闭');
   xBtn.innerHTML = '&times;';
@@ -993,7 +1041,7 @@ function featureKey(label) {
 
   const loading = document.createElement('div');
   loading.style.cssText = 'text-align:center;color:#999;padding:30px 0';
-  loading.textContent = '正在加载群列表�?;
+  loading.textContent = '正在加载群列表…';
   list.appendChild(loading);
 
   const load = () => {
@@ -1020,7 +1068,7 @@ function featureKey(label) {
         const info = document.createElement('div');
         info.style.cssText = 'flex:1;overflow:hidden';
         const n1 = document.createElement('div');
-        n1.textContent = g.displayName || g.name || ('�?#' + g.id);
+        n1.textContent = g.displayName || g.name || ('群 #' + g.id);
         n1.style.cssText = 'font-size:14px;font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         const n2 = document.createElement('div');
         n2.style.cssText = 'font-size:12px;color:#999';
@@ -1029,7 +1077,7 @@ function featureKey(label) {
         row.appendChild(av); row.appendChild(info);
         row.onclick = () => {
           close();
-          if (typeof onPick === 'function') { try { onPick(g); } catch (e) { console.error('[feature] 执行失败', e); toast('操作失败�? + (e && e.message || e), 'error'); } }
+          if (typeof onPick === 'function') { try { onPick(g); } catch (e) { console.error('[feature] 执行失败', e); toast('操作失败：' + (e && e.message || e), 'error'); } }
         };
         list.appendChild(row);
       });
@@ -1040,14 +1088,15 @@ function featureKey(label) {
   load();
 }
 
-// �?polls/todos 等群内工具选群后调用：�?loadByGroup �?openCreate�?function openGroupTool(name, openMethod) {
+// 供 polls/todos 等群内工具选群后调用：先 loadByGroup 再 openCreate。
+function openGroupTool(name, openMethod) {
   const get = (nm) => window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(nm);
   const feature = get(name);
   if (!feature) { toast('该功能组件未加载', 'warn'); return; }
-  pickGroupDialog('选定目标�?, async (g) => {
-    if (feature.loadByGroup) { try { await feature.loadByGroup(g.id); } catch (e) { /* loadByGroup 内部�?toast */ } }
+  pickGroupDialog('选定目标群', async (g) => {
+    if (feature.loadByGroup) { try { await feature.loadByGroup(g.id); } catch (e) { /* loadByGroup 内部已 toast */ } }
     const fn = feature[openMethod] || feature.openCreate;
-    if (typeof fn !== 'function') { toast('该功能暂未提供入�?, 'warn'); return; }
+    if (typeof fn !== 'function') { toast('该功能暂未提供入口', 'warn'); return; }
     fn(g.id);
   });
 }
@@ -1059,27 +1108,28 @@ function openFeatureCenter() {
   }
   const get = (name) => window.SecureChatExt.getFeature(name);
 
-  // 每个条目：{label, short, grad, open}，short 为图标方块内显示的完整短名（2-4 字），grad 为渐变配色索引�?  // 分类：社�?/ 内容 / 生活 / 工具
+  // 每个条目：{label, short, grad, open}，short 为图标方块内显示的完整短名（2-4 字），grad 为渐变配色索引。
+  // 分类：社区 / 内容 / 生活 / 工具
   const groups = [
     { id: 'community', label: '社区', items: [
       { label: '群聊管理', short: '群聊', grad: 0, open: () => openFeatureModalFrom(get('groups'), 'openManager') },
       { label: '投票接龙', short: '投票', grad: 1, open: () => openGroupTool('polls', 'openCreate') },
-      { label: '群待�?, short: '待办', grad: 2, open: () => openGroupTool('todos', 'openCreate') },
-      { label: '定时提醒', short: '提醒', grad: 3, open: () => pickGroupDialog('选定目标�?, (g) => {
+      { label: '群待办', short: '待办', grad: 2, open: () => openGroupTool('todos', 'openCreate') },
+      { label: '定时提醒', short: '提醒', grad: 3, open: () => pickGroupDialog('选定目标群', (g) => {
           const feature = get('remind');
           if (!feature || typeof feature.openCreate !== 'function') { toast('该功能组件未加载', 'warn'); return; }
           feature.openCreate({ targetType: 'group', targetId: g.id, defaultContent: '' });
         }) },
       { label: '翻译', short: '翻译', grad: 4, open: () => toast('请在聊天消息上右键（或长按）使用翻译', 'info') },
-      { label: '朋友圈增�?, short: '朋友�?, grad: 5, open: () => openContainerFeature(get('moment-ext'), '朋友圈管�?) },
+      { label: '朋友圈增强', short: '朋友圈', grad: 5, open: () => openContainerFeature(get('moment-ext'), '朋友圈管理') },
     ]},
     { id: 'content', label: '内容', items: [
-      { label: '看一�?, short: '看一�?, grad: 6, open: () => window.SecureChatRead && window.SecureChatRead.open() },
-      { label: '搜一�?, short: '搜一�?, grad: 7, open: () => window.SecureChatSearch && window.SecureChatSearch.open() },
-      { label: '视频�?, short: '视频�?, grad: 8, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
-      { label: '公众�?, short: '公众�?, grad: 9, open: () => window.SecureChatOa && window.SecureChatOa.open() },
+      { label: '看一看', short: '看一看', grad: 6, open: () => window.SecureChatRead && window.SecureChatRead.open() },
+      { label: '搜一搜', short: '搜一搜', grad: 7, open: () => window.SecureChatSearch && window.SecureChatSearch.open() },
+      { label: '视频号', short: '视频号', grad: 8, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
+      { label: '公众号', short: '公众号', grad: 9, open: () => window.SecureChatOa && window.SecureChatOa.open() },
       { label: '直播', short: '直播', grad: 10, open: () => window.SecureChatLive && window.SecureChatLive.open() },
-      { label: '小程�?, short: '小程�?, grad: 11, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
+      { label: '小程序', short: '小程序', grad: 11, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
     ]},
     { id: 'life', label: '生活', items: [
       { label: '相册', short: '相册', grad: 0, open: () => window.SecureChatAlbum && window.SecureChatAlbum.open() },
@@ -1089,19 +1139,19 @@ function openFeatureCenter() {
       { label: '游戏', short: '游戏', grad: 4, open: () => window.SecureChatGames && window.SecureChatGames.open() },
       { label: '红包', short: '红包', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
       { label: '附近的人', short: '附近', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
-      { label: '摇一�?, short: '摇一�?, grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
-      { label: '扫一�?, short: '扫一�?, grad: 5, mobileOnly: true, open: () => window.SecureChatScan && window.SecureChatScan.open() },
+      { label: '摇一摇', short: '摇一摇', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
+      { label: '扫一扫', short: '扫一扫', grad: 5, mobileOnly: true, open: () => window.SecureChatScan && window.SecureChatScan.open() },
       { label: '支付生活', short: '支付', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
 { id: 'tools', label: '工具', items: [
-      { label: '我的状�?, short: '状�?, grad: 2, open: () => openContainerFeature(get('status'), '我的状�?) },
+      { label: '我的状态', short: '状态', grad: 2, open: () => openContainerFeature(get('status'), '我的状态') },
       { label: '我的收藏', short: '收藏', grad: 3, open: () => openContainerFeature(get('favorites'), '我的收藏') },
-      { label: '收付款码', short: '收付�?, grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
-      { label: '兑换码充�?, short: '兑换', grad: 5, open: () => { const p = get('pay'); if (p && typeof p.redeemFlow === 'function') p.redeemFlow(); else toast('兑换功能未加�?, 'warn'); } },
-      { label: '知识库中�?, short: '知识�?, grad: 0, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter(); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '收付款码', short: '收付款', grad: 4, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
+      { label: '兑换码充值', short: '兑换', grad: 5, open: () => { const p = get('pay'); if (p && typeof p.redeemFlow === 'function') p.redeemFlow(); else toast('兑换功能未加载', 'warn'); } },
+      { label: '知识库中心', short: '知识库', grad: 0, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter(); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
       { label: '成语词典', short: '成语', grad: 1, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('idioms'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
-      { label: '唐诗三百�?, short: '唐诗', grad: 2, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('poems'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
-      { label: '歇后�?, short: '歇后�?, grad: 3, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('xiehouyu'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '唐诗三百首', short: '唐诗', grad: 2, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('poems'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
+      { label: '歇后语', short: '歇后语', grad: 3, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('xiehouyu'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
       { label: '笑话大全', short: '笑话', grad: 4, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('jokes'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
       { label: '名人名言', short: '名言', grad: 5, open: () => { if (window.openKnowledgeCenter) window.openKnowledgeCenter('quotes'); else toast('知识库模块未加载，请刷新重试', 'warn'); } },
     ]},
@@ -1162,7 +1212,7 @@ function openFeatureCenter() {
         '<span class="feature-label">' + escapeHtml(it.label) + '</span>';
       b.onclick = () => {
         mask.remove();
-        try { it.open(); } catch (e) { console.error('[feature] 打开失败 ' + it.label, e); toast('打开�? + it.label + '」失�?, 'error'); }
+        try { it.open(); } catch (e) { console.error('[feature] 打开失败 ' + it.label, e); toast('打开「' + it.label + '」失败', 'error'); }
       };
       grid.appendChild(b);
     });
@@ -1193,7 +1243,7 @@ function openFeatureCenter() {
   document.addEventListener('keydown', onKey);
 }
 
-// 打开「容器型」特性：为它新建一�?modal 容器并传�?feature.open(container)
+// 打开「容器型」特性：为它新建一个 modal 容器并传给 feature.open(container)
 function openContainerFeature(feature, title) {
   if (!feature || typeof feature.open !== 'function') { toast('该功能组件未加载', 'warn'); return; }
   const mask = document.createElement('div');
@@ -1218,15 +1268,17 @@ function openContainerFeature(feature, title) {
   mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
   const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
-  try { feature.open(host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败�? + (e && e.message || e), 'error'); }
+  try { feature.open(host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
 }
 
-// 打开「自带浮层」特性：feature[method] 为方法名（缺省用 open），且该方法可能接受容器参数�?function openFeatureModalFrom(feature, method, hint) {
-  if (!feature) { toast('该功能组件未加载' + (hint ? '�? + hint + '�? : ''), 'warn'); return; }
+// 打开「自带浮层」特性：feature[method] 为方法名（缺省用 open），且该方法可能接受容器参数。
+function openFeatureModalFrom(feature, method, hint) {
+  if (!feature) { toast('该功能组件未加载' + (hint ? '（' + hint + '）' : ''), 'warn'); return; }
   const call = feature[method] || feature.open || feature.homePanel;
-  if (typeof call !== 'function') { toast('该功能暂未提供入�?, 'warn'); return; }
+  if (typeof call !== 'function') { toast('该功能暂未提供入口', 'warn'); return; }
   try {
-    // 为需�?container 参数的方法（�?homePanel）自动创建容�?    if (method === 'homePanel' || method === 'mount' || method === 'open') {
+    // 为需要 container 参数的方法（如 homePanel）自动创建容器
+    if (method === 'homePanel' || method === 'mount' || method === 'open') {
       const mask = document.createElement('div'); mask.className = 'modal-mask';
       const box = document.createElement('div'); box.className = 'modal';
       box.style.cssText = 'width:min(620px,94vw);max-height:88vh;overflow:auto';
@@ -1243,16 +1295,19 @@ function openContainerFeature(feature, title) {
     } else {
       call();
     }
-  } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败�? + (e && e.message || e), 'error'); }
+  } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
 }
 
-// 编辑个人资料：滚�?modal，按 PROFILE_FIELDS 分类列出所有字段�?// nickname/country/province/city 走独立列；其余所有字段全部塞�?extra�?function editProfile() {
+// 编辑个人资料：滚动 modal，按 PROFILE_FIELDS 分类列出所有字段。
+// nickname/country/province/city 走独立列；其余所有字段全部塞进 extra。
+function editProfile() {
   if (!state.me) return;
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
   box.className = 'modal modal-scroll';
-  // 顶部带叉叉的标题�?  const head = document.createElement('div');
+  // 顶部带叉叉的标题栏
+  const head = document.createElement('div');
   head.className = 'modal-head';
   const h3 = document.createElement('h3');
   h3.textContent = '编辑个人资料';
@@ -1264,15 +1319,16 @@ function openContainerFeature(feature, title) {
   head.appendChild(h3);
   head.appendChild(xBtn);
   box.appendChild(head);
-  // 顶部第一个分类：身份信息（昵称独立列�?  const headCat = document.createElement('div');
+  // 顶部第一个分类：身份信息（昵称独立列）
+  const headCat = document.createElement('div');
   headCat.className = 'field-cat';
   headCat.textContent = '基本信息';
   box.appendChild(headCat);
   const builtIn = [
     { key: 'nickname', label: '昵称', value: state.me.nickname || '', placeholder: '你的昵称' },
     { key: 'country',  label: '国家 / 地区', value: state.me.country || '', placeholder: '如：中国' },
-    { key: 'province', label: '�?/ �?, value: state.me.province || '', placeholder: '可留�? },
-    { key: 'city',     label: '城市', value: state.me.city || '', placeholder: '可留�? }
+    { key: 'province', label: '省 / 州', value: state.me.province || '', placeholder: '可留空' },
+    { key: 'city',     label: '城市', value: state.me.city || '', placeholder: '可留空' }
   ];
   const builtInEls = {};
   builtIn.forEach(f => appendFieldRow(box, f.key, f.label, f.value, f.placeholder, builtInEls));
@@ -1350,20 +1406,21 @@ async function saveProfile(patch) {
     if (data.user) state.me = data.user;
     localStorage.setItem('sc_me', JSON.stringify(state.me));
     renderMyInfo();
-    toast('资料已更�?, 'success');
+    toast('资料已更新', 'success');
   } catch (e) {
-    toast('保存失败�? + e.message, 'error');
+    toast('保存失败：' + e.message, 'error');
   }
 }
 
-// 修改自定义ID（一个月只能改一次，后端控制�?function editUid() {
+// 修改自定义ID（一个月只能改一次，后端控制）
+function editUid() {
   if (!state.me) return;
   openModal('修改 ID', [{
-    key: 'uid', label: '新ID�?-16位字母数字）', value: state.me.uid || '', placeholder: 'xY7mK3n4'
+    key: 'uid', label: '新ID（4-16位字母数字）', value: state.me.uid || '', placeholder: 'xY7mK3n4'
   }], async (out, close) => {
     const uid = out.uid;
     if (!uid) { toast('ID 不能为空', 'warn', 1000); return; }
-    if (!/^[A-Za-z0-9]{4,16}$/.test(uid)) { toast('ID 需�?4-16 位字母数�?, 'warn', 1500); return; }
+    if (!/^[A-Za-z0-9]{4,16}$/.test(uid)) { toast('ID 需为 4-16 位字母数字', 'warn', 1500); return; }
     close();
     try {
       const res = await fetch(state.serverHost + '/api/uid', {
@@ -1377,22 +1434,22 @@ async function saveProfile(patch) {
       else state.me.uid = data.uid || uid;
       localStorage.setItem('sc_me', JSON.stringify(state.me));
       renderMyInfo();
-      toast('ID 已更�?, 'success');
+      toast('ID 已更新', 'success');
     } catch (e) {
-      toast('请求失败�? + e.message, 'error');
+      toast('请求失败：' + e.message, 'error');
     }
   });
 }
 
-// 反馈 / Bug 上报：弹�?modal，提交到 /api/feedback
+// 反馈 / Bug 上报：弹出 modal，提交到 /api/feedback
 function openFeedback() {
   if (!state.me) return;
   openModal('反馈 / Bug 上报', [
-    { key: 'kind', label: '类型（bug/suggestion/complaint/other�?, value: 'bug' },
+    { key: 'kind', label: '类型（bug/suggestion/complaint/other）', value: 'bug' },
     { key: 'content', label: '内容', placeholder: '详细描述（≥10字）' }
   ], async (out, close) => {
     if (!out.kind || !out.content || out.content.length < 10) {
-      toast('内容至少 10 �?, 'warn');
+      toast('内容至少 10 字', 'warn');
       return;
     }
     close();
@@ -1404,7 +1461,7 @@ function openFeedback() {
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || '提交失败', 'error'); return; }
-      toast('已提交，感谢反馈�?, 'success');
+      toast('已提交，感谢反馈！', 'success');
     } catch (e) {
       toast(e.message || '提交失败', 'error');
     }
@@ -1417,19 +1474,20 @@ function getChatBg() { return localStorage.getItem(bgKey()); }
 function setChatBg(uri) {
   if (uri) {
     try { localStorage.setItem(bgKey(), uri); }
-    catch (e) { try { toast('背景图片过大，保存失�?, 'warn'); } catch (_) {} return false; }
+    catch (e) { try { toast('背景图片过大，保存失败', 'warn'); } catch (_) {} return false; }
   } else {
     try { localStorage.removeItem(bgKey()); } catch (e) {}
   }
   return true;
 }
 
-// 选择并上传头�?function pickAvatar() {
+// 选择并上传头像
+function pickAvatar() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    if (f.size > 500 * 1024) { toast('头像图片过大（限500KB�?, 'warn'); return; }
+    if (f.size > 500 * 1024) { toast('头像图片过大（限500KB）', 'warn'); return; }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -1443,8 +1501,8 @@ function setChatBg(uri) {
         state.me.avatar = data.user.avatar;
         localStorage.setItem('sc_me', JSON.stringify(state.me));
         renderMyInfo();
-        toast('头像已更�?, 'success');
-      } catch (e) { toast('上传失败�? + e.message, 'error'); }
+        toast('头像已更新', 'success');
+      } catch (e) { toast('上传失败：' + e.message, 'error'); }
     };
     reader.onerror = () => toast('读取图片失败', 'error');
     reader.readAsDataURL(f);
@@ -1452,18 +1510,19 @@ function setChatBg(uri) {
   inp.click();
 }
 
-// 上传图片作为聊天界面背景（整�?chat-view�?function pickChatBg() {
+// 上传图片作为聊天界面背景（整个 chat-view）
+function pickChatBg() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
-    if (f.size > 4 * 1024 * 1024) { toast('背景图片过大（限4MB�?, 'warn'); return; }
+    if (f.size > 4 * 1024 * 1024) { toast('背景图片过大（限4MB）', 'warn'); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const saved = setChatBg(reader.result);
       if (saved === false) return;
       applyChatBg(reader.result);
-      toast('背景已应�?, 'success');
+      toast('背景已应用', 'success');
     };
     reader.onerror = () => toast('读取失败', 'error');
     reader.readAsDataURL(f);
@@ -1494,11 +1553,11 @@ function applyChatBg(uri) {
   } catch (e) {}
   try { localStorage.setItem('chatBgColor_' + (state.me && state.me.id || 'anon'), uri || ''); } catch (e) {}
 }
-function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背�?, 'info', 1000); }
+function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 
-// 登录后自检媒体权限，避�?点接听没反应"
+// 登录后自检媒体权限，避免"点接听没反应"
 async function checkMediaPermissionHint() {
   try {
     if (!navigator.permissions || !navigator.permissions.query) return;
@@ -1508,7 +1567,7 @@ async function checkMediaPermissionHint() {
     ]);
     const states = checks.map((c) => c.status === 'fulfilled' ? c.value : 'prompt');
     if (states.indexOf('denied') >= 0) {
-      toast('摄像�?麦克风权限已被拒绝：点击地址�?🔒 �?网站设置 �?允许"摄像�?麦克�?后即可通话', 'error', 6000);
+      toast('摄像头/麦克风权限已被拒绝：点击地址栏 🔒 → 网站设置 → 允许"摄像头/麦克风"后即可通话', 'error', 6000);
     }
   } catch (e) {}
 }
@@ -1548,7 +1607,8 @@ function send(type, payload) {
   if (state.ws && state.ws.readyState === WebSocket.OPEN) {
     try { state.ws.send(JSON.stringify({ type, payload })); return true; } catch (e) {}
   }
-  // 已认证但 socket 尚未就绪（重连窗�?正在 CONNECTING）：入队，重连后统一冲刷，避免静默丢弃�?  if (type !== P.C_AUTH) {
+  // 已认证但 socket 尚未就绪（重连窗口/正在 CONNECTING）：入队，重连后统一冲刷，避免静默丢弃。
+  if (type !== P.C_AUTH) {
     state.outboundQueue.push({ type, payload });
     if (state.outboundQueue.length > 200) state.outboundQueue.splice(0, state.outboundQueue.length - 200);
     return true;
@@ -1575,7 +1635,8 @@ function handleServer(data) {
       renderContacts();
       break;
 case P.S_MSG:
-      // 同一 peer 的棘轮操作在 e2ee.js 内串行；不可�?Promise.race，否则超时任务仍会后台覆盖状态�?      maybeDecryptLive(payload).catch(() => {})
+      // 同一 peer 的棘轮操作在 e2ee.js 内串行；不可用 Promise.race，否则超时任务仍会后台覆盖状态。
+      maybeDecryptLive(payload).catch(() => {})
         .then(() => onIncomingMsg(payload))
         .catch((e) => console.warn('msg render failed', e));
       break;
@@ -1588,7 +1649,7 @@ case P.S_MSG:
         typingTimer = setTimeout(() => { if (tip.dataset.peer === String(state.activePeer)) tip.textContent = ''; }, 2000);
       }
       break;
-    case P.S_ERROR: toast((payload && payload.error) || '服务器返回错�?, 'error'); console.warn('server error', payload); break;
+    case P.S_ERROR: toast((payload && payload.error) || '服务器返回错误', 'error'); console.warn('server error', payload); break;
     case P.S_MSG_RECALL:
       if (payload && payload.messageId) markRecalled(payload.messageId, false);
       break;
@@ -1605,7 +1666,7 @@ case P.S_MSG:
           if (!row.querySelector('.edited-tag')) {
             const tag = document.createElement('span');
             tag.className = 'edited-tag';
-            tag.textContent = '已编�?;
+            tag.textContent = '已编辑';
             Object.assign(tag.style, { fontSize: '10px', opacity: '.55', marginLeft: '6px' });
             wrap.appendChild(tag);
           }
@@ -1633,7 +1694,8 @@ case P.S_MSG:
     case P.S_GROUP_LIST:
       state.groups = payload.groups || [];
       renderContacts();
-      // 若当前选中的群还在列表里，刷新一下顶�?header 与在线状�?      if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {
+      // 若当前选中的群还在列表里，刷新一下顶部 header 与在线状态
+      if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {
         renderChatHeader();
       }
       break;
@@ -1659,7 +1721,8 @@ function showAnnouncement(ann, force) {
   shownAnnouncements.add(ann.id);
   const title = ann.title || '系统公告';
   const cls = announcementLevelClass(ann.level);
-  // 复用 toast 系统，但用更醒目的横�?  try {
+  // 复用 toast 系统，但用更醒目的横幅
+  try {
     const mask = document.createElement('div');
     mask.className = 'announcement-mask';
     mask.innerHTML =
@@ -1667,18 +1730,19 @@ function showAnnouncement(ann, force) {
       '<div class="announcement-badge">' + (ann.level === 'danger' ? '重要通知' : (ann.level === 'warning' ? '系统警告' : '系统公告')) + '</div>' +
       '<div class="announcement-title">' + escapeHtml(title) + '</div>' +
       '<div class="announcement-content">' + escapeHtml(ann.content || '').replace(/\n/g, '<br>') + '</div>' +
-      '<div class="announcement-actions"><button class="announcement-ok">知道�?/button></div>' +
+      '<div class="announcement-actions"><button class="announcement-ok">知道了</button></div>' +
       '</div>';
     document.body.appendChild(mask);
     const ok = mask.querySelector('.announcement-ok');
     ok.onclick = () => mask.remove();
     mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
   } catch (e) {
-    toast(title + '�? + ann.content, 'info');
+    toast(title + '：' + ann.content, 'info');
   }
 }
 
-// 登录后拉取未读公�?async function fetchAnnouncements() {
+// 登录后拉取未读公告
+async function fetchAnnouncements() {
   if (!state.token) return;
   try {
     const res = await fetch(state.serverHost + '/api/announcements', {
@@ -1752,11 +1816,11 @@ function renderContacts() {
   const _convFiltered = conversations.filter(c => !_removed.includes(c.key));
   _convFiltered.sort((a, b) => Number(!!chatPrefs().pinned[b.key]) - Number(!!chatPrefs().pinned[a.key]) || b.time - a.time);
   conversations.length = 0; conversations.push.apply(conversations, _convFiltered);
-  if (count) count.textContent = conversations.length + ' 个会�?;
+  if (count) count.textContent = conversations.length + ' 个会话';
   if (!conversations.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? '没有匹配的好友或群聊' : '还没有会话，添加好友或创建群聊开始聊�?;
+    tip.textContent = kw ? '没有匹配的好友或群聊' : '还没有会话，添加好友或创建群聊开始聊天';
     list.appendChild(tip);
     return;
   }
@@ -1770,9 +1834,9 @@ function renderContacts() {
       const lastTime = state.groupLastMsgTime[g.id] || 0;
       const isPinned = !!chatPrefs().pinned[c.key];
       const isMuted = !!chatPrefs().muted[c.key];
-      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('�?#' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
+      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
-      bindConvContextMenu(div, c.key, g.name || ('�?#' + g.id), () => selectGroup(g.id));
+      bindConvContextMenu(div, c.key, g.name || ('群 #' + g.id), () => selectGroup(g.id));
       list.appendChild(div);
       return;
     }
@@ -1804,7 +1868,7 @@ function renderContacts() {
   });
 }
 
-// ============ 会话右键菜单（微信式：置�?免打�?删除�?============
+// ============ 会话右键菜单（微信式：置顶/免打扰/删除） ============
 let convMenuEl = null;
 function hideConvMenu() { if (convMenuEl) { convMenuEl.remove(); convMenuEl = null; } }
 function bindConvContextMenu(el, key, name, openFn) {
@@ -1818,9 +1882,9 @@ function bindConvContextMenu(el, key, name, openFn) {
     convMenuEl.className = 'conv-context-menu';
     const items = [
       { label: isPinned ? '取消置顶' : '置顶聊天', fn: () => { togglePin(key); } },
-      { label: isMuted ? '开启消息提�? : '消息免打�?, fn: () => { toggleMute(key); } },
+      { label: isMuted ? '开启消息提醒' : '消息免打扰', fn: () => { toggleMute(key); } },
       { label: '标为未读', fn: () => { markConvUnread(key); } },
-      { label: '删除会话', danger: true, fn: () => { if (confirm('删除会话�? + name + '」？仅从列表移除，不删除聊天记录�?)) { removeConvLocal(key); } } }
+      { label: '删除会话', danger: true, fn: () => { if (confirm('删除会话「' + name + '」？仅从列表移除，不删除聊天记录。')) { removeConvLocal(key); } } }
     ];
     convMenuEl.innerHTML = items.map((it, i) => '<div class="conv-menu-item' + (it.danger ? ' danger' : '') + '" data-i="' + i + '">' + it.label + '</div>').join('');
     document.body.appendChild(convMenuEl);
@@ -1846,7 +1910,7 @@ function bindBubbleLike(row) {
   bubble.addEventListener('dblclick', (e) => {
     const heart = document.createElement('div');
     heart.className = 'like-heart';
-    heart.textContent = '�?;
+    heart.textContent = '赞';
     const rect = bubble.getBoundingClientRect();
     heart.style.left = (e.clientX - rect.left - 14) + 'px';
     heart.style.top = (e.clientY - rect.top - 14) + 'px';
@@ -1858,14 +1922,15 @@ setInterval(() => {
   document.querySelectorAll('#messages .msg-row').forEach(bindBubbleLike);
 }, 1500);
 
-// 通讯录目录渲染（微信式：群聊 + A-Z 好友，无时间/未读�?function renderContactsDirectory() {
+// 通讯录目录渲染（微信式：群聊 + A-Z 好友，无时间/未读）
+function renderContactsDirectory() {
   const kw = ($('search') && $('search').value.trim().toLowerCase()) || '';
   const list = $('contactList');
   if (!list) return;
   list.innerHTML = '';
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
-  const count = $('listCount'); if (count) count.textContent = state.friends.length + ' 位好�?;
+  const count = $('listCount'); if (count) count.textContent = state.friends.length + ' 位好友';
 
   const sections = [];
   // 群聊分组
@@ -1874,7 +1939,8 @@ setInterval(() => {
     || String(g.id).includes(kw)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   if (groups.length) sections.push({ title: '群聊', items: groups.map(g => ({ kind: 'group', g })) });
 
-  // 好友：按昵称首字母分�?  const friends = state.friends.filter(u => !kw
+  // 好友：按昵称首字母分组
+  const friends = state.friends.filter(u => !kw
     || (u.nickname || '').toLowerCase().includes(kw)
     || (u.username || '').toLowerCase().includes(kw)
     || String(u.id).includes(kw)).sort((a, b) => (a.nickname || '').localeCompare(b.nickname || '', 'zh'));
@@ -1890,7 +1956,7 @@ setInterval(() => {
   if (!sections.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? '没有匹配的联系人' : '还没有联系人，添加好友开始聊�?;
+    tip.textContent = kw ? '没有匹配的联系人' : '还没有联系人，添加好友开始聊天';
     list.appendChild(tip);
     return;
   }
@@ -1905,7 +1971,7 @@ setInterval(() => {
       if (item.kind === 'group') {
         const g = item.g;
         div.className = 'contact conversation-group';
-        div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('�?#' + g.id))}</div><div class="last">${(g.members || []).length} �?/div></div>`;
+        div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${(g.members || []).length} 人</div></div>`;
         div.onclick = () => selectGroup(g.id);
       } else {
         const u = item.u;
@@ -1933,7 +1999,7 @@ function renderGroupList() {
   if (!groups.length) {
     const tip = document.createElement('div');
     tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
-    tip.textContent = kw ? '没有匹配的群' : '还没有加入任何群，点�?创建�?�?加入�?';
+    tip.textContent = kw ? '没有匹配的群' : '还没有加入任何群，点击"创建群"或"加入群"';
     list.appendChild(tip);
     return;
   }
@@ -1944,7 +2010,7 @@ function renderGroupList() {
     const isOwner = state.me && g.ownerId === state.me.id;
     const ownerMark = isOwner ? ' (群主)' : '';
     const memberCnt = (g.members || []).length;
-    const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('成员 ' + memberCnt + ' �?);
+    const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('成员 ' + memberCnt + ' 人');
     const groupTime = state.groupLastMsgTime[g.id] ? fmtChatListTime(state.groupLastMsgTime[g.id]) : '';
     const isPinned = !!chatPrefs().pinned['g:' + g.id];
     const isMuted = !!chatPrefs().muted['g:' + g.id];
@@ -1976,20 +2042,23 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === tt));
     syncMobileNav(tt.dataset.side);
 
-    // 发现 tab：微信式发现页（朋友�?视频�?直播/扫一�?搜一�?看一�?附近/购物/游戏/小程�?AI�?    if (tt.dataset.side === 'ai') {
+    // 发现 tab：微信式发现页（朋友圈/视频号/直播/扫一扫/搜一搜/看一看/附近/购物/游戏/小程序/AI）
+    if (tt.dataset.side === 'ai') {
       showMobilePage('discoverPage');
       renderDiscoverPage();
       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
       return;
     }
 
-    // 更多功能 tab：打开特性发现中心（新增业务模块统一入口�?    if (tt.dataset.side === 'more') {
+    // 更多功能 tab：打开特性发现中心（新增业务模块统一入口）
+    if (tt.dataset.side === 'more') {
       tt.classList.remove('on'); // 不占据常驻高亮，点击即弹出后复归
       openFeatureCenter();
       return;
     }
 
-    // �?tab：微信式"�?页（资料 + 支付/收藏/相册/设置 + 下载 + 意见反馈�?    if (tt.dataset.side === 'downloads' || tt.dataset.side === 'dl') {
+    // 我 tab：微信式"我"页（资料 + 支付/收藏/相册/设置 + 下载 + 意见反馈）
+    if (tt.dataset.side === 'downloads' || tt.dataset.side === 'dl') {
       showMobilePage('mePage');
       renderMePage();
       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
@@ -2017,21 +2086,24 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // 通讯�?tab：微信式联系人目录（群聊 + 新好�?+ A-Z 好友�?    if (tt.dataset.side === 'contacts') {
+    // 通讯录 tab：微信式联系人目录（群聊 + 新好友 + A-Z 好友）
+    if (tt.dataset.side === 'contacts') {
       showMobilePage('contactsPage');
       renderContactsPage();
       if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
       return;
     }
 
-    // 切回好友/群组：恢�?.main 显示，隐�?AI/发现/�?通讯�?全屏�?    hideMobilePages();
+    // 切回好友/群组：恢复 .main 显示，隐藏 AI/发现/我/通讯录 全屏页
+    hideMobilePages();
     const aiView2 = $('aiView');
     if (aiView2) aiView2.style.display = 'none';
     const downloadView2 = $('downloadView');
     if (downloadView2) downloadView2.style.display = 'none';
     const main2 = document.querySelector('.main');
     if (main2) main2.style.display = 'flex';
-    // 移动端：切回好友/群组 tab，回到列表�?    if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
+    // 移动端：切回好友/群组 tab，回到列表态
+    if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
 
     const fs = $('friendsSide'); if (fs) fs.style.display = '';
     renderContacts();
@@ -2042,7 +2114,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
 (function initMobileBottomNav() {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
-  // 微信式底部导航：仅保�?4 个核�?Tab（微�?/ 通讯�?/ 发现 / 我）
+  // 微信式底部导航：仅保留 4 个核心 Tab（微信 / 通讯录 / 发现 / 我）
   const CORE_TABS = ['friends', 'contacts', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
     if (!CORE_TABS.includes(src.dataset.side)) return;
@@ -2070,8 +2142,9 @@ if (downloadBackBtn) downloadBackBtn.onclick = () => {
   if (tab) tab.click();
 };
 
-// 创建�?/ 加入�?$('createGroupBtn').onclick = () => {
-  openModal('创建�?, [{ key: 'name', label: '群名' }], async (out, close) => {
+// 创建群 / 加入群
+$('createGroupBtn').onclick = () => {
+  openModal('创建群', [{ key: 'name', label: '群名' }], async (out, close) => {
     if (!out.name) { toast('群名不能为空', 'warn', 1000); return; }
     close();
     try {
@@ -2087,15 +2160,15 @@ if (downloadBackBtn) downloadBackBtn.onclick = () => {
         if (!state.groups.some(x => Number(x.id) === Number(g.id))) state.groups.push(g);
       }
       renderContacts();
-      toast('群�? + (data.group && data.group.name) + '」已创建（ID: ' + (data.group && data.group.id) + '�?, 'success');
+      toast('群「' + (data.group && data.group.name) + '」已创建（ID: ' + (data.group && data.group.id) + '）', 'success');
       // 强制切到群组 tab
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
-    } catch (e) { toast('请求失败�? + e.message, 'error'); }
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
   });
 };
 $('joinGroupBtn').onclick = () => {
-  openModal('加入�?, [{ key: 'groupId', label: '�?ID（创建群成功后弹出的数字�?, placeholder: '示例�?' }], async (out, close) => {
+  openModal('加入群', [{ key: 'groupId', label: '群 ID（创建群成功后弹出的数字）', placeholder: '示例：1' }], async (out, close) => {
     if (!out.groupId) { toast('群ID不能为空', 'warn', 1000); return; }
     close();
     try {
@@ -2110,21 +2183,22 @@ $('joinGroupBtn').onclick = () => {
       toast('已加入群', 'success');
       const gtab = document.querySelector('.side-tab[data-side="groups"]');
       if (gtab) gtab.click();
-    } catch (e) { toast('请求失败�? + e.message, 'error'); }
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
   });
 };
 
-// 微信式邀请进群：好友搜索、多选、直接入群、附带邀请说明�?function openGroupInvitePicker() {
+// 微信式邀请进群：好友搜索、多选、直接入群、附带邀请说明。
+function openGroupInvitePicker() {
   if (!state.activeGroup) { toast('请先选择一个群', 'warn', 1000); return; }
   const mask = document.createElement('div'); mask.className = 'modal-mask';
   const box = document.createElement('div'); box.className = 'modal group-invite-modal';
-  box.innerHTML = '<div class="modal-head"><h3>邀请好友进�?/h3><button class="modal-x" type="button">&times;</button></div>' +
-    '<div class="group-invite-tip">选择好友后直接加入群聊，不需要对方申请�?/div>' +
-    '<input class="search group-invite-search" placeholder="搜索好友昵称、用户名�?ID" />' +
+  box.innerHTML = '<div class="modal-head"><h3>邀请好友进群</h3><button class="modal-x" type="button">&times;</button></div>' +
+    '<div class="group-invite-tip">选择好友后直接加入群聊，不需要对方申请。</div>' +
+    '<input class="search group-invite-search" placeholder="搜索好友昵称、用户名或 ID" />' +
     '<div class="group-invite-list"></div>' +
     '<label class="group-intro-label">邀请说明（可选）</label>' +
-    '<textarea class="group-intro" maxlength="200" placeholder="介绍一下这个群，或告诉朋友为什么邀请他�?></textarea>' +
-    '<div class="modal-actions"><button type="button" class="cancel">取消</button><button type="button" class="ok group-invite-submit">直接邀�?/button></div>';
+    '<textarea class="group-intro" maxlength="200" placeholder="介绍一下这个群，或告诉朋友为什么邀请他…"></textarea>' +
+    '<div class="modal-actions"><button type="button" class="cancel">取消</button><button type="button" class="ok group-invite-submit">直接邀请</button></div>';
   mask.appendChild(box); document.body.appendChild(mask);
   const close = () => mask.remove();
   box.querySelector('.modal-x').onclick = close;
@@ -2136,32 +2210,33 @@ $('joinGroupBtn').onclick = () => {
   const render = () => {
     const kw = search.value.trim().toLowerCase();
     const rows = state.friends.filter(u => !kw || [u.nickname, u.username, u.uid, u.id].some(v => String(v || '').toLowerCase().includes(kw)));
-    list.innerHTML = rows.length ? rows.map(u => '<label class="group-invite-user"><input type="checkbox" data-id="' + u.id + '"' + (selected.has(u.id) ? ' checked' : '') + '><span class="avatar">' + (u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(avatarChar(u.nickname))) + '</span><span class="group-invite-user-info"><b>' + escapeHtml(u.nickname || u.username) + '</b><small>ID: ' + escapeHtml(u.uid || u.id) + '</small></span></label>').join('') : '<div class="group-invite-empty">没有匹配的好�?/div>';
+    list.innerHTML = rows.length ? rows.map(u => '<label class="group-invite-user"><input type="checkbox" data-id="' + u.id + '"' + (selected.has(u.id) ? ' checked' : '') + '><span class="avatar">' + (u.avatar ? '<img src="' + escapeHtml(u.avatar) + '">' : escapeHtml(avatarChar(u.nickname))) + '</span><span class="group-invite-user-info"><b>' + escapeHtml(u.nickname || u.username) + '</b><small>ID: ' + escapeHtml(u.uid || u.id) + '</small></span></label>').join('') : '<div class="group-invite-empty">没有匹配的好友</div>';
     list.querySelectorAll('input').forEach(input => { input.onchange = () => input.checked ? selected.add(Number(input.dataset.id)) : selected.delete(Number(input.dataset.id)); });
   };
   search.oninput = render;
   render();
   box.querySelector('.group-invite-submit').onclick = async () => {
-    if (!selected.size) { toast('至少选择一位好�?, 'warn'); return; }
+    if (!selected.size) { toast('至少选择一位好友', 'warn'); return; }
     const btn = box.querySelector('.group-invite-submit'); btn.disabled = true;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token }, body: JSON.stringify({ userIds: Array.from(selected), intro: box.querySelector('.group-intro').value.trim() }) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '邀请失�?);
-      close(); await loadGroups(); toast('已直接邀�?' + (data.count || 0) + ' 位好友进�?, 'success');
-    } catch (e) { btn.disabled = false; toast(e.message || '邀请失�?, 'error'); }
+      if (!res.ok) throw new Error(data.error || '邀请失败');
+      close(); await loadGroups(); toast('已直接邀请 ' + (data.count || 0) + ' 位好友进群', 'success');
+    } catch (e) { btn.disabled = false; toast(e.message || '邀请失败', 'error'); }
   };
 }
 $('inviteGroupBtn').onclick = openGroupInvitePicker;
 
-// 统一渲染顶部 header（根据联系人/群而异�?function renderChatHeader() {
+// 统一渲染顶部 header（根据联系人/群而异）
+function renderChatHeader() {
   if (state.activeGroup) {
     const g = state.groups.find(x => x.id === state.activeGroup);
-    const name = g ? g.name : ('�?#' + state.activeGroup);
-    $('chatHeader').textContent = '群聊�? + name;
+    const name = g ? g.name : ('群 #' + state.activeGroup);
+    $('chatHeader').textContent = '群聊：' + name;
     $('chatHeader').onclick = () => openGroupProfile(state.activeGroup);
     const mt = document.getElementById('chatMobileTitle');
-    if (mt) { mt.textContent = '群聊�? + name; mt.onclick = () => openGroupProfile(state.activeGroup); }
+    if (mt) { mt.textContent = '群聊：' + name; mt.onclick = () => openGroupProfile(state.activeGroup); }
     $('inviteBar').style.display = '';
     return;
   }
@@ -2173,27 +2248,29 @@ $('inviteGroupBtn').onclick = openGroupInvitePicker;
     const mt = document.getElementById('chatMobileTitle');
     if (mt) { mt.textContent = name; mt.onclick = () => openPeerProfile(state.activePeer); }
   } else {
-    $('chatHeader').textContent = t('noConversation', '请选择联系�?);
+    $('chatHeader').textContent = t('noConversation', '请选择联系人');
     $('chatHeader').onclick = null;
   }
   $('inviteBar').style.display = 'none';
 }
 
-// 好友状态行：在�?或「上次在�?xxx前�?function peerStatusLabel(peer) {
+// 好友状态行：在线 或「上次在线 xxx前」
+function peerStatusLabel(peer) {
   if (!peer) return '离线';
   if (peer.online) return '在线';
   const ts = peer.lastSeen;
   if (!ts) return '离线';
   const diff = Date.now() - ts;
   if (diff < 60000) return '刚刚在线';
-  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前在�?;
-  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前在�?;
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前在线';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前在线';
   if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + ' 天前在线';
   const d = new Date(ts);
-  return (d.getMonth() + 1) + '�? + d.getDate() + '�?在线';
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 在线';
 }
 
-// 好友资料卡（点击聊天头部打开�?function openPeerProfile(peerId) {
+// 好友资料卡（点击聊天头部打开）
+function openPeerProfile(peerId) {
   const peer = state.friends.find(u => u.id === peerId);
   if (!peer) return;
   const blocked = blockedMap ? blockedMap.has(peer.id) : false;
@@ -2207,10 +2284,10 @@ $('inviteGroupBtn').onclick = openGroupInvitePicker;
         <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
         <div class="profile-id">微信号：${escapeHtml(peer.uid || '')} · ID: ${peer.id}</div>
         <div class="profile-online">${peer.online ? '<span class="dot online"></span> 在线' : escapeHtml(peerStatusLabel(peer))}</div>
-        ${region ? '<div class="profile-region">地区�? + escapeHtml(region) + '</div>' : ''}
+        ${region ? '<div class="profile-region">地区：' + escapeHtml(region) + '</div>' : ''}
       </div>
       <div class="profile-actions">
-        <button class="btn-cn" id="profileMsgBtn">发消�?/button>
+        <button class="btn-cn" id="profileMsgBtn">发消息</button>
         <button class="btn-cn gray" id="profileBlockBtn">${blocked ? '解除拉黑' : '拉黑'}</button>
       </div>
     </div>`;
@@ -2226,7 +2303,7 @@ $('inviteGroupBtn').onclick = openGroupInvitePicker;
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 
-// 群资料卡（点击群名打开：公�?成员/退出）
+// 群资料卡（点击群名打开：公告/成员/退出）
 async function openGroupProfile(groupId) {
   const g = state.groups.find(x => x.id === groupId);
   if (!g) return;
@@ -2247,10 +2324,10 @@ async function openGroupProfile(groupId) {
   mask.innerHTML = `
     <div class="profile-card">
       <div class="profile-head">
-        <div class="profile-avatar">${escapeHtml((g.name || '�?).charAt(0))}</div>
+        <div class="profile-avatar">${escapeHtml((g.name || '群').charAt(0))}</div>
         <div class="profile-name">${escapeHtml(g.name)}</div>
-        <div class="profile-id">${members.length} 名成�?/div>
-        ${announcement && announcement.content ? `<div class="profile-region" style="margin-top:6px;word-break:break-all">公告�?{escapeHtml(String(announcement.content).slice(0, 200))}${String(announcement.content).length > 200 ? '�? : ''}${isOwner ? '<button class="ann-edit-btn" type="button">编辑</button>' : ''}</div>` : (isOwner ? '<div class="profile-region" style="margin-top:6px">暂无公告<button class="ann-edit-btn" type="button">发布公告</button></div>' : '')}
+        <div class="profile-id">${members.length} 名成员</div>
+        ${announcement && announcement.content ? `<div class="profile-region" style="margin-top:6px;word-break:break-all">公告：${escapeHtml(String(announcement.content).slice(0, 200))}${String(announcement.content).length > 200 ? '…' : ''}${isOwner ? '<button class="ann-edit-btn" type="button">编辑</button>' : ''}</div>` : (isOwner ? '<div class="profile-region" style="margin-top:6px">暂无公告<button class="ann-edit-btn" type="button">发布公告</button></div>' : '')}
       </div>
       <div class="profile-members">
         ${members.length ? members.map(m => `<div class="profile-member" data-mid="${m.id}">
@@ -2259,8 +2336,8 @@ async function openGroupProfile(groupId) {
         </div>`).join('') : '<div style="padding:12px;color:#aaa;font-size:13px">暂无成员</div>'}
       </div>
       <div class="profile-actions">
-        <button class="btn-cn" id="groupInviteBtn">邀请成�?/button>
-        ${isOwner ? '<button class="btn-cn gray" id="groupDissolveBtn">解散群聊</button>' : '<button class="btn-cn gray" id="groupLeaveBtn">退出群�?/button>'}
+        <button class="btn-cn" id="groupInviteBtn">邀请成员</button>
+        ${isOwner ? '<button class="btn-cn gray" id="groupDissolveBtn">解散群聊</button>' : '<button class="btn-cn gray" id="groupLeaveBtn">退出群聊</button>'}
       </div>
     </div>`;
   document.body.appendChild(mask);
@@ -2270,9 +2347,9 @@ async function openGroupProfile(groupId) {
   const annEditBtn = mask.querySelector('.ann-edit-btn');
   if (annEditBtn) annEditBtn.onclick = async () => {
     const cur = announcement && announcement.content ? announcement.content : '';
-    const content = prompt('编辑群公告（2000 字以内）�?, cur);
+    const content = prompt('编辑群公告（2000 字以内）：', cur);
     if (content == null) return;
-    if (String(content).length > 2000) { toast('公告不能超过 2000 �?, 'error'); return; }
+    if (String(content).length > 2000) { toast('公告不能超过 2000 字', 'error'); return; }
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/announcement', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
@@ -2283,18 +2360,18 @@ async function openGroupProfile(groupId) {
       toast('群公告已更新', 'success', 1200);
       mask.remove();
       openGroupProfile(groupId);
-    } catch (e) { toast('发布失败�? + e.message, 'error'); }
+    } catch (e) { toast('发布失败：' + e.message, 'error'); }
   };
   mask.querySelector('#groupInviteBtn').onclick = () => { mask.remove(); const btn = $('inviteBtn'); if (btn) btn.click(); };
   const leaveBtn = mask.querySelector('#groupLeaveBtn');
   if (leaveBtn) leaveBtn.onclick = async () => {
-    if (!confirm('确定退出该群聊�?)) return;
+    if (!confirm('确定退出该群聊？')) return;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/leave', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '操作失败');
       mask.remove();
-      toast('已退出群�?, 'success', 1200);
+      toast('已退出群聊', 'success', 1200);
       state.groups = state.groups.filter(x => x.id !== groupId);
       const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
       state.activeGroup = null;
@@ -2304,24 +2381,25 @@ async function openGroupProfile(groupId) {
   };
   const dissolveBtn = mask.querySelector('#groupDissolveBtn');
   if (dissolveBtn) dissolveBtn.onclick = async () => {
-    if (!confirm('确定解散该群？所有成员将被移出，不可恢复�?)) return;
+    if (!confirm('确定解散该群？所有成员将被移出，不可恢复。')) return;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/dissolve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '操作失败');
       mask.remove();
-      toast('群聊已解�?, 'success', 1200);
+      toast('群聊已解散', 'success', 1200);
       state.groups = state.groups.filter(x => x.id !== groupId);
       const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
       state.activeGroup = null;
       renderChatHeader();
       renderContacts();
-    } catch (e) { toast('解散失败�? + e.message, 'error'); }
+    } catch (e) { toast('解散失败：' + e.message, 'error'); }
   };
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
 }
 
-// 选择�?+ 加载群历�?async function selectGroup(groupId) {
+// 选择群 + 加载群历史
+async function selectGroup(groupId) {
   saveCurrentDraft();
   state.activeGroup = groupId;
   state.activePeer = null;
@@ -2356,7 +2434,8 @@ async function openGroupProfile(groupId) {
   }
 }
 
-// 群公告横幅（进入群聊时显示，可关闭，本地记录已读�?function showGroupAnnounceBanner() {
+// 群公告横幅（进入群聊时显示，可关闭，本地记录已读）
+function showGroupAnnounceBanner() {
   const banner = $('groupAnnounceBanner');
   if (!banner) return;
   const g = state.groups.find(x => x.id === state.activeGroup);
@@ -2376,12 +2455,14 @@ function renderGroupMessages(msgs) {
   scrollToLatest();
 }
 
-// 群聊消息气泡（带昵称�?function appendGroupMessage(m, prepend) {
-  // 统一去重：同一条群消息（服务端 id �?clientMsgId）只渲染一�?  const box0 = $('messages');
+// 群聊消息气泡（带昵称）
+function appendGroupMessage(m, prepend) {
+  // 统一去重：同一条群消息（服务端 id 或 clientMsgId）只渲染一次
+  const box0 = $('messages');
   if (box0) {
     if (m.recalled === true && m.id != null) {
       const r0 = box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]');
-      if (r0) { r0.querySelectorAll('.bubble').forEach(function(b){ b.innerHTML = '<i style="opacity:.5;font-size:12px">对方撤回了一条消�?/i>'; }); return; }
+      if (r0) { r0.querySelectorAll('.bubble').forEach(function(b){ b.innerHTML = '<i style="opacity:.5;font-size:12px">对方撤回了一条消息</i>'; }); return; }
     }
     if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
     if (m.clientMsgId) {
@@ -2413,7 +2494,7 @@ function renderGroupMessages(msgs) {
         ${nameLine}
         <div class="bubble"><div class="voice-bubble">\u25B6${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
         <span class="time">${fmtTime(m.createdAt)}</span>
-        ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '�? : '已读') + '</span>' : ''}
+        ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       </div>`;
     if (b64) {
       const vb = row.querySelector('.voice-bubble');
@@ -2446,7 +2527,7 @@ function renderGroupMessages(msgs) {
     row.innerHTML = `<div class="avatar">${avHtml}</div>
       <div class="bubble-wrap">
         ${nameLine}
-        <div class="bubble recalled">${escapeHtml(fromName)}撤回了一条消�?/div>
+        <div class="bubble recalled">${escapeHtml(fromName)}撤回了一条消息</div>
       </div>`;
     box.appendChild(row);
     if (!prepend) box.scrollTop = box.scrollHeight;
@@ -2467,28 +2548,28 @@ function renderGroupMessages(msgs) {
     <div class="bubble-wrap">
       ${nameLine}
       ${quoteBlockHtml(m)}
-      ${m.forwardedFrom ? '<div class="fwd-tag">转发的消�?/div>' : ''}
+      ${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}
       <div class="bubble">${escapeHtml(m.content)}</div>
       <span class="time">${fmtTime(m.createdAt)}</span>
-      ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '�? : '已读') + '</span>' : ''}
+      ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
     </div>`;
   if (canGroupRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
   }
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复�?, 'success', 1200); }
+    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
     catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
-    if (m.id == null) { toast('无法引用该消�?, 'warn', 1200); return; }
+    if (m.id == null) { toast('无法引用该消息', 'warn', 1200); return; }
     setPendingReply(m.id);
-    toast('已选择引用，输入内容后发�?, 'success', 1500);
+    toast('已选择引用，输入内容后发送', 'success', 1500);
   };
   const fwdBtnG = row.querySelector('[data-action="forward"]');
-  if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('无法转发该消�?, 'warn', 1200); return; } openForwardPicker(m); };
+  if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   const delBtnG = row.querySelector('[data-action="del"]');
-  if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('无法删除该消�?, 'warn', 1200); return; } if (confirm('删除后仅在自己手机上消失，确定删除吗�?)) deleteMsgLocal(m.id); };
+  if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在自己手机上消失，确定删除吗？')) deleteMsgLocal(m.id); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
@@ -2509,7 +2590,7 @@ async function recallGroupMessage(id) {
     if (!res.ok) throw new Error(data.error || '撤回失败');
     markGroupRecalled(id);
   } catch (e) {
-    toast('撤回失败�? + e.message, 'error');
+    toast('撤回失败：' + e.message, 'error');
   }
 }
 function markGroupRecalled(id) {
@@ -2517,8 +2598,8 @@ function markGroupRecalled(id) {
   if (!row) return;
   const mine = row.classList.contains('me');
   const name = row.querySelector('.name');
-  const fromName = name ? name.textContent : (mine ? '�? : '对方');
-  row.innerHTML = '<div class="bubble recalled">' + escapeHtml(fromName) + '撤回了一条消�?/div>';
+  const fromName = name ? name.textContent : (mine ? '你' : '对方');
+  row.innerHTML = '<div class="bubble recalled">' + escapeHtml(fromName) + '撤回了一条消息</div>';
   const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
 }
 function onIncomingGroupMsg(payload) {
@@ -2530,13 +2611,14 @@ function onIncomingGroupMsg(payload) {
    	state.groupUnread[payload.groupId] = (state.groupUnread[payload.groupId] || 0) + 1;
     const fromName = (payload.fromUser && payload.fromUser.nickname) || ('用户' + payload.from);
     const g = state.groups.find(x => x.id === payload.groupId);
-    const gname = g ? g.name : ('�?' + payload.groupId);
+    const gname = g ? g.name : ('群#' + payload.groupId);
     showMessageNotice({ from: payload.from, content: payload.content }, gname + ' ' + fromName);
     renderContacts();
   }
 }
 
-// 群发送消息（E2E 加密：若会话已建立则先加密再发，失败自动降级明文�?async function sendCurrentGroup() {
+// 群发送消息（E2E 加密：若会话已建立则先加密再发，失败自动降级明文）
+async function sendCurrentGroup() {
   if (!state.activeGroup) return false;
   const cv = document.getElementById('chatView');
   const isMobileChat = cv && cv.classList.contains('mobile-chat-active');
@@ -2544,7 +2626,9 @@ function onIncomingGroupMsg(payload) {
   const text = input.value.trim();
   if (!text) return true;
   const gid = state.activeGroup;
-  // 群聊不能复用单聊�?peer E2EE 会话：groupId 不是用户公钥 ID�?  // 先使用群消息协议发送明文，避免把群 ID 当成用户 ID 导致发送失败�?  const reply = pendingReply || null;
+  // 群聊不能复用单聊的 peer E2EE 会话：groupId 不是用户公钥 ID。
+  // 先使用群消息协议发送明文，避免把群 ID 当成用户 ID 导致发送失败。
+  const reply = pendingReply || null;
   const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text, replyTo: reply });
   if (ok) {
     input.value = '';
@@ -2552,14 +2636,15 @@ function onIncomingGroupMsg(payload) {
     clearPendingReply();
     return true;
   }
-  // WS 不可用：�?REST 兜底（服务端已支�?POST /api/groups/:id/messages）�?  try {
+  // WS 不可用：走 REST 兜底（服务端已支持 POST /api/groups/:id/messages）。
+  try {
     const res = await fetch(state.serverHost + '/api/groups/' + gid + '/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
       body: JSON.stringify({ content: text, replyTo: reply })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '发送失�?);
+    if (!res.ok) throw new Error(data.error || '发送失败');
     input.value = '';
     saveCurrentDraft();
     clearPendingReply();
@@ -2577,7 +2662,8 @@ async function loadGroups() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    // 以成员关系为准，空群没有消息也必须保留在会话列表�?    state.groups = Array.isArray(data.groups) ? data.groups : [];
+    // 以成员关系为准，空群没有消息也必须保留在会话列表。
+    state.groups = Array.isArray(data.groups) ? data.groups : [];
     renderContacts();
   } catch (e) {}
 }
@@ -2589,7 +2675,7 @@ $('search').oninput = () => {
   else renderContacts();
 };
 
-// ============ 加好�?============
+// ============ 加好友 ============
 $('addFriendBtn').onclick = async () => {
   const fid = $('addFriendInput').value.trim();
   if (!fid) return;
@@ -2600,13 +2686,14 @@ $('addFriendBtn').onclick = async () => {
       body: JSON.stringify({ friendUid: fid })
     });
     const data = await res.json();
-    if (!res.ok) { toast(data.error || '加好友失�?, 'error'); return; }
+    if (!res.ok) { toast(data.error || '加好友失败', 'error'); return; }
     $('addFriendInput').value = '';
     toast('已发送好友请求，等待对方接受', 'success');
-  } catch (e) { toast('请求失败�? + e.message, 'error'); }
+  } catch (e) { toast('请求失败：' + e.message, 'error'); }
 };
 
-// 好友请求提示�?function showFriendReqBar() {
+// 好友请求提示条
+function showFriendReqBar() {
   const req = state.pendingReq[0];
   if (!req || !req.fromUser) { $('friendReqBar').style.display = 'none'; return; }
   $('friendReqText').textContent = req.fromUser.nickname + '（ID:' + req.fromUser.uid + '）请求加你为好友';
@@ -2627,7 +2714,7 @@ $('acceptFriendBtn').onclick = async () => {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     state.pendingReq.shift();
   } catch (e) {
-    toast('接受好友请求失败�? + e.message, 'error');
+    toast('接受好友请求失败：' + e.message, 'error');
     showFriendReqBar();
     return;
   }
@@ -2650,7 +2737,7 @@ $('rejectFriendBtn').onclick = async () => {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     state.pendingReq.shift();
   } catch (e) {
-    toast('拒绝好友请求失败�? + e.message, 'error');
+    toast('拒绝好友请求失败：' + e.message, 'error');
     showFriendReqBar();
     return;
   }
@@ -2658,7 +2745,7 @@ $('rejectFriendBtn').onclick = async () => {
   } finally { window.__frBusy = false; }
 };
 
-// ============ 选择联系�?+ 历史 ============
+// ============ 选择联系人 + 历史 ============
 async function selectPeer(peerId) {
   saveCurrentDraft();
   state.activePeer = peerId;
@@ -2668,7 +2755,8 @@ async function selectPeer(peerId) {
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.unread[peerId] = 0;
   loadCallReplays(peerId);
-  // E2EE：先初始化接收会话，确保后续消息能解�?  if (window.SCE2EE) {
+  // E2EE：先初始化接收会话，确保后续消息能解密
+  if (window.SCE2EE) {
     try { await window.SCE2EE.primeReceiver(peerId); } catch (e) { console.warn('[E2EE] primeReceiver failed', e); }
   }
   const peer = state.friends.find(u => u.id === peerId);
@@ -2684,7 +2772,8 @@ async function selectPeer(peerId) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     const msgs = data.messages || [];
-    // 历史密文不能用当前实时棘轮回放，否则会回滚会话状态；旧密文只显示安全占位�?    for (const m of msgs) {
+    // 历史密文不能用当前实时棘轮回放，否则会回滚会话状态；旧密文只显示安全占位。
+    for (const m of msgs) {
       if (window.SCE2EE && SCE2EE.isRatchetCipher(m.content)) m.content = '[加密消息，历史内容不可在此会话恢复]';
     }
     if (state.activePeer !== peerId) return;
@@ -2692,7 +2781,8 @@ async function selectPeer(peerId) {
   } catch (e) {
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
-  // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框�?  if (window.IS_MOBILE) showMobileChatView();
+  // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
+  if (window.IS_MOBILE) showMobileChatView();
   else {
     hideMobilePages(); setRailActive('friends'); setChatListVisible(true);
     const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
@@ -2713,13 +2803,13 @@ function togglePin(key) {
   const prefs = chatPrefs(); prefs.pinned[key] = !prefs.pinned[key]; saveChatPrefs(prefs);
   refreshConversationButtons(); renderContacts();
   const pid = peerIdFromConvKey(key); if (pid) syncChatSetting(pid, 'pinned', prefs.pinned[key]);
-  toast(prefs.pinned[key] ? '已置�? : '已取消置�?, 'success', 1200);
+  toast(prefs.pinned[key] ? '已置顶' : '已取消置顶', 'success', 1200);
 }
 function toggleMute(key) {
   const prefs = chatPrefs(); prefs.muted[key] = !prefs.muted[key]; saveChatPrefs(prefs);
   refreshConversationButtons(); renderContacts();
   const pid = peerIdFromConvKey(key); if (pid) syncChatSetting(pid, 'muted', prefs.muted[key]);
-  toast(prefs.muted[key] ? '已开启免打扰' : '已开启消息提�?, 'success', 1200);
+  toast(prefs.muted[key] ? '已开启免打扰' : '已开启消息提醒', 'success', 1200);
 }
 function markConvUnread(key) {
   try {
@@ -2755,14 +2845,14 @@ function refreshConversationButtons() {
   const key = activeConversationKey();
   const prefs = chatPrefs();
   const pin = $('pinChatBtn'); const mute = $('muteChatBtn');
-  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','已置�?) : t('pin','置顶'); }
-  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','已静�?) : t('mute','免打�?); }
+  if (pin) { pin.classList.toggle('active', !!prefs.pinned[key]); pin.textContent = prefs.pinned[key] ? t('pinned','已置顶') : t('pin','置顶'); }
+  if (mute) { mute.classList.toggle('active', !!prefs.muted[key]); mute.textContent = prefs.muted[key] ? t('muted','已静音') : t('mute','免打扰'); }
 }
 
 // 清空当前单聊聊天记录（桌面端「清空」按钮与移动端聊天更多菜单共用）
 async function clearActiveChatLog(btn) {
-  if (!state.activePeer) return toast('请先选择联系�?, 'warn', 1200);
-  if (!confirm('确定清空当前聊天记录吗？此操作不可恢复�?)) return;
+  if (!state.activePeer) return toast('请先选择联系人', 'warn', 1200);
+  if (!confirm('确定清空当前聊天记录吗？此操作不可恢复。')) return;
   if (btn) btn.disabled = true;
   try {
     const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
@@ -2771,8 +2861,8 @@ async function clearActiveChatLog(btn) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '清空失败');
     $('messages').innerHTML = '';
-    toast('当前聊天记录已清�?, 'success', 1500);
-  } catch (e) { toast('清空失败�? + e.message, 'error'); }
+    toast('当前聊天记录已清空', 'success', 1500);
+  } catch (e) { toast('清空失败：' + e.message, 'error'); }
   finally { if (btn) btn.disabled = false; }
 }
 
@@ -2781,7 +2871,8 @@ function wireConversationTools() {
   const clear = $('clearChatBtn');
   const searchBtn = $('messageSearchBtn'); const searchBar = $('messageSearchBar');
   const searchInput = $('messageSearchInput'); const searchClose = $('messageSearchClose');
-  // 移动端返回按钮：回到会话列表，并清空当前会话选中�?  const backBtn = $('backToListBtn');
+  // 移动端返回按钮：回到会话列表，并清空当前会话选中态
+  const backBtn = $('backToListBtn');
   if (backBtn) backBtn.onclick = () => {
     const cv = document.getElementById('chatView');
     if (cv) cv.classList.remove('mobile-chat-active');
@@ -2809,7 +2900,7 @@ function wireConversationTools() {
     const permission = await Notification.requestPermission();
     notify.classList.toggle('active', permission === 'granted');
     notify.textContent = permission === 'granted' ? t('notifyOn','通知已开') : t('notify','通知');
-    toast(permission === 'granted' ? '浏览器通知已开�? : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
+    toast(permission === 'granted' ? '浏览器通知已开启' : '未授予通知权限', permission === 'granted' ? 'success' : 'warn', 1500);
   };
   if (clear) clear.onclick = () => clearActiveChatLog(clear);
   let searchHits = []; let searchIdx = -1;
@@ -2846,7 +2937,8 @@ function wireConversationTools() {
   if (searchClose && searchBar) searchClose.onclick = () => { searchBar.style.display = 'none'; if (searchInput) searchInput.value = ''; applySearch(); };
 }
 
-// 欢迎工作台快捷入�?const welcomeAddBtn = $('welcomeAddBtn');
+// 欢迎工作台快捷入口
+const welcomeAddBtn = $('welcomeAddBtn');
 const welcomeGroupBtn = $('welcomeGroupBtn');
 const welcomeAiBtn = $('welcomeAiBtn');
 if (welcomeAddBtn) welcomeAddBtn.onclick = () => { const input = $('addFriendInput'); if (input) input.focus(); };
@@ -2861,13 +2953,16 @@ if (welcomeAiBtn) welcomeAiBtn.onclick = () => {
 };
 
 function appendMessage(m, prepend) {
-  // 统一去重：同一条消息（服务�?id �?clientMsgId）只渲染一次�?  // 乐观渲染的行 id �?'local-<clientMsgId>'，服务端回显到达时按 clientMsgId 命中同一行�?  const box0 = $('messages');
+  // 统一去重：同一条消息（服务端 id 或 clientMsgId）只渲染一次。
+  // 乐观渲染的行 id 为 'local-<clientMsgId>'，服务端回显到达时按 clientMsgId 命中同一行。
+  const box0 = $('messages');
   if (box0) {
     if (m.id != null && box0.querySelector('.msg-row[data-id="' + String(m.id).replace(/"/g, '\\"') + '"]')) return;
     if (m.clientMsgId) {
       const local = box0.querySelector('.msg-row[data-cmid="' + String(m.clientMsgId).replace(/"/g, '\\"') + '"]');
       if (local) {
-        // 已有本地乐观行：补上服务�?id，不再新增一�?        if (m.id != null) local.setAttribute('data-id', String(m.id));
+        // 已有本地乐观行：补上服务端 id，不再新增一行
+        if (m.id != null) local.setAttribute('data-id', String(m.id));
         return;
       }
     }
@@ -2888,7 +2983,8 @@ function appendMessage(m, prepend) {
     const mk = (d) => new Date(d).toDateString();
     const last = mb.lastElementChild;
     if (!last || !last.classList.contains('msg-row')) {
-      // 首个消息或上次是分隔条：判断是否需�?      const prevDivider = mb.querySelector('.day-divider:last-of-type');
+      // 首个消息或上次是分隔条：判断是否需要
+      const prevDivider = mb.querySelector('.day-divider:last-of-type');
       const prevDay = prevDivider ? prevDivider.getAttribute('data-day') : null;
       if (!prevDay || prevDay !== mk(m.createdAt)) addDayDivider(m.createdAt);
     } else {
@@ -2906,7 +3002,7 @@ function appendMessage(m, prepend) {
   if (m.createdAt) row.setAttribute('data-ts', String(m.createdAt));
   const fullTime = new Date(m.createdAt).toLocaleString();
   if (m.recalled) {
-    row.innerHTML = `<div class="bubble recalled">${mine ? '你撤回了一条消�? : '对方撤回了一条消�?}</div>`;
+    row.innerHTML = `<div class="bubble recalled">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>`;
     box.appendChild(row);
     if (!prepend) box.scrollTop = box.scrollHeight;
     return;
@@ -2914,26 +3010,26 @@ function appendMessage(m, prepend) {
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
   let readLabel = '';
   if (mine) {
-    if (m.groupId) readLabel = (m.readCount > 1) ? '已读 ' + m.readCount + '�? : '已读';
+    if (m.groupId) readLabel = (m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读';
     else readLabel = m.read ? '已读' : '未读';
   }
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消�?/div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + readLabel + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>`;
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + readLabel + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
   }
-  row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('无法删除该消�?, 'warn', 1200); return; } if (confirm('删除后仅在本端消失，确定删除吗？')) deleteMsgLocal(m.id); };
+  row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在本端消失，确定删除吗？')) deleteMsgLocal(m.id); };
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复�?, 'success', 1200); }
+    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
     catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
-    if (m.id == null) { toast('无法引用该消�?, 'warn', 1200); return; }
+    if (m.id == null) { toast('无法引用该消息', 'warn', 1200); return; }
     setPendingReply(m.id);
-    toast('已选择引用，输入内容后发�?, 'success', 1500);
+    toast('已选择引用，输入内容后发送', 'success', 1500);
   };
   const fwdBtn = row.querySelector('[data-action="forward"]');
-  if (fwdBtn) fwdBtn.onclick = () => { if (m.id == null) { toast('无法转发该消�?, 'warn', 1200); return; } openForwardPicker(m); };
+  if (fwdBtn) fwdBtn.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
@@ -2944,7 +3040,7 @@ function appendMessage(m, prepend) {
   if (!prepend) box.scrollTop = box.scrollHeight;
 }
 
-// ============ 消息本地删除（仅本端�?============
+// ============ 消息本地删除（仅本端） ============
 function isMsgDeleted(id) {
   if (id == null) return false;
   try { const s = localStorage.getItem('deletedMsgIds'); if (!s) return false; return JSON.parse(s).indexOf(String(id)) !== -1; } catch (e) { return false; }
@@ -2960,7 +3056,7 @@ function deleteMsgLocal(id) {
   const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
 }
 
-// ============ 消息转发（微信式�?============
+// ============ 消息转发（微信式） ============
 function openForwardPicker(msg) {
   const mask = document.createElement('div');
   mask.className = 'profile-mask';
@@ -3006,12 +3102,12 @@ function openForwardPicker(msg) {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || '转发失败');
         }
-        toast('已转�?, 'success', 1200);
+        toast('已转发', 'success', 1200);
         if (state.activePeer === id || state.activeGroup === id) {
           if (state.activePeer === id) selectPeer(id);
           else selectGroup(id);
         }
-      } catch (e) { toast('转发失败�? + e.message, 'error'); }
+      } catch (e) { toast('转发失败：' + e.message, 'error'); }
     };
   });
   mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
@@ -3035,7 +3131,7 @@ function renderReplyHint() {
     if (!hint) {
       hint = document.createElement('div');
       hint.className = 'reply-hint';
-      hint.innerHTML = '<span class="reply-hint-text">正在引用一条消�?/span><button type="button" class="reply-hint-cancel">取消</button>';
+      hint.innerHTML = '<span class="reply-hint-text">正在引用一条消息</span><button type="button" class="reply-hint-cancel">取消</button>';
       hint.querySelector('.reply-hint-cancel').onclick = () => clearPendingReply();
       const wrap = c.querySelector('.composer-input-wrap') || c;
       wrap.insertBefore(hint, wrap.firstChild);
@@ -3050,8 +3146,8 @@ function fmtTime(t) {
   return hh + ':' + mm;
 }
 
-// ============ 表情选择�?============
-const EMOJI_SET = ['😀','😁','😂','🤣','😊','😍','😘','😜','🤔','😴','🥳','😎','🤩','😭','😡','🥶','🤯','😇','🙃','😉','😺','👍','👎','👏','🙏','💪','🤝','✌️','👌','❤️','💔','💖','�?,'🎉','🔥','🌈','🍀','🎂','🍺','�?,'🐶','🐱','🐼','🦊','🌹','🍎','�?,'🚗','✈️','🌙','�?,'💤','💰','📱','💬','🔒','�?,'�?,'�?,'�?];
+// ============ 表情选择器 ============
+const EMOJI_SET = ['😀','😁','😂','🤣','😊','😍','😘','😜','🤔','😴','🥳','😎','🤩','😭','😡','🥶','🤯','😇','🙃','😉','😺','👍','👎','👏','🙏','💪','🤝','✌️','👌','❤️','💔','💖','✨','🎉','🔥','🌈','🍀','🎂','🍺','☕','🐶','🐱','🐼','🦊','🌹','🍎','⚽','🚗','✈️','🌙','⭐','💤','💰','📱','💬','🔒','✅','❌','❓','❗'];
 function toggleEmojiPanel() {
   const existing = document.getElementById('emojiPanel');
   if (existing) { existing.remove(); return; }
@@ -3079,9 +3175,10 @@ function toggleEmojiPanel() {
   if (emojiBtn) emojiBtn.onclick = toggleEmojiPanel;
 })();
 
-// ============ 表情选择�?END ============
+// ============ 表情选择器 END ============
 
-// 引用块：渲染被引用消息的原文，点击滚动定�?function quoteBlockHtml(m) {
+// 引用块：渲染被引用消息的原文，点击滚动定位
+function quoteBlockHtml(m) {
   if (!m.replyTo) return '';
   let text = m.replyContent;
   if (m.replyRecalled) text = '[消息已撤回]';
@@ -3097,7 +3194,7 @@ function bindQuoteClicks(row) {
     qb.onclick = () => {
       const t = document.querySelector('.msg-row[data-id="' + qb.dataset.reply + '"]');
       if (t) t.scrollIntoView({ block: 'center' });
-      else toast('原文不在当前加载范围�?, 'warn', 1200);
+      else toast('原文不在当前加载范围内', 'warn', 1200);
     };
   });
 }
@@ -3178,7 +3275,7 @@ function markRecalled(msgId, mine) {
   const row = document.querySelector('.msg-row[data-id="' + String(msgId).replace(/"/g, '\\"') + '"]');
   if (!row) return;
   const bubbles = row.querySelectorAll('.bubble');
-  bubbles.forEach(b => { b.textContent = mine ? '你撤回了一条消�? : '对方撤回了一条消�?; b.classList.add('recalled'); });
+  bubbles.forEach(b => { b.textContent = mine ? '你撤回了一条消息' : '对方撤回了一条消息'; b.classList.add('recalled'); });
   const actions = row.querySelector('.message-actions');
   if (actions) actions.style.display = 'none';
 }
@@ -3192,9 +3289,9 @@ function markGroupConversationRead(userId) {
   if (userId == null) return;
   document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
     const cur = el.textContent;
-    const m = /^已读 (\d+)�?/.exec(cur);
-    if (m) el.textContent = '已读 ' + (Number(m[1]) + 1) + '�?;
-    else if (cur === '已读') el.textContent = '已读 2�?;
+    const m = /^已读 (\d+)人$/.exec(cur);
+    if (m) el.textContent = '已读 ' + (Number(m[1]) + 1) + '人';
+    else if (cur === '已读') el.textContent = '已读 2人';
   });
 }
 
@@ -3210,7 +3307,7 @@ function dayLabel(ts) {
   if (diff === 2) return '前天';
   const w = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   if (diff < 7) return w[d.getDay()];
-  return (d.getMonth() + 1) + '�? + d.getDate() + '�?;
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日';
 }
 function addDayDivider(ts) {
   const box = $('messages');
@@ -3292,28 +3389,29 @@ function stopCallRingtone() {
   if (callRingtoneTimer) { clearInterval(callRingtoneTimer); callRingtoneTimer = null; }
 }
 function showMessageNotice(m, name) {
-  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文�? : String(m.content || '').slice(0, 240);
+  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文件' : String(m.content || '').slice(0, 240);
   playMessageNoticeSound();
   const stack = $('messageNoticeStack');
   if (stack) {
     const item = document.createElement('div'); item.className = 'message-notice';
-    item.innerHTML = '<strong>' + escapeHtml(name || '新消�?) + '</strong><span>' + escapeHtml(text || '收到新消�?) + '</span>';
+    item.innerHTML = '<strong>' + escapeHtml(name || '新消息') + '</strong><span>' + escapeHtml(text || '收到新消息') + '</span>';
     item.onclick = () => { if (state.activePeer !== m.from) selectPeer(m.from); item.remove(); };
     stack.appendChild(item); setTimeout(() => item.remove(), 6500);
   }
   if ('Notification' in window && Notification.permission === 'granted' && localStorage.sc_notifyOff !== '1') {
     try {
-      const _nn = new Notification(name || '新消�?, { body: text || '收到新消�?, tag: 'securechat-' + m.from });
+      const _nn = new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from });
       _nn.onclick = function () { window.focus(); if (!m.groupId && m.from != null && state.activePeer !== m.from) { try { selectPeer(m.from); } catch (_) {} } };
     } catch (_) {}
   }
   if (window.chatAPI) window.chatAPI.notify(name + ' 发来消息', text);
 }
 
-// ============ 收消�?============
-// 实时回包：若是其它端发的 0x02 双棘轮密文，先做 E2E 解密再进入展示逻辑�?async function maybeDecryptLive(m) {
+// ============ 收消息 ============
+// 实时回包：若是其它端发的 0x02 双棘轮密文，先做 E2E 解密再进入展示逻辑。
+async function maybeDecryptLive(m) {
   if (!m || typeof m.content !== 'string') return;
-  if (m.from === state.me.id) return; // 自己发的（回声）�?sentPlain 替换，不重复解密
+  if (m.from === state.me.id) return; // 自己发的（回声）由 sentPlain 替换，不重复解密
   if (!window.SCE2EE || !SCE2EE.isRatchetCipher(m.content)) return;
   try {
     const plain = await SCE2EE.decryptFrom(m.from, m.content);
@@ -3323,26 +3421,29 @@ function showMessageNotice(m, name) {
   } catch {}
 }
 async function onIncomingMsg(m) {
-  // 明文模式：不再做 E2EE 解密，直接显示原文�?  if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
+  // 明文模式：不再做 E2EE 解密，直接显示原文。
+  if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
     m.content = state.sentPlain[m.clientMsgId];
     delete state.sentPlain[m.clientMsgId];
   }
   if (m.from === state.me.id && m.clientMsgId && state.pendingLocal[m.clientMsgId]) {
     delete state.pendingLocal[m.clientMsgId];
-    // 已乐观渲染过：仅补服务端 id（appendMessage 内部�?data-cmid 命中并回填），不新增�?    appendMessage(m);
+    // 已乐观渲染过：仅补服务端 id（appendMessage 内部按 data-cmid 命中并回填），不新增行
+    appendMessage(m);
     state.lastFrom[m.from] = m.content;
     state.lastMsgTime[m.from] = m.createdAt || Date.now();
     renderContacts();
     return;
   }
-  // 服务端会回显发送者自己的消息；自己的消息也必须渲染到当前会话�?  if ((m.from === state.me.id && m.to === state.activePeer) || state.activePeer === m.from) {
+  // 服务端会回显发送者自己的消息；自己的消息也必须渲染到当前会话。
+  if ((m.from === state.me.id && m.to === state.activePeer) || state.activePeer === m.from) {
     appendMessage(m);
     if (m.from !== state.me.id) send(P.C_READ, { from: m.from });
   } else {
     const peerKey = (m.from === state.me.id) ? m.to : m.from;
     if (peerKey != null) state.unread[peerKey] = (state.unread[peerKey] || 0) + 1;
     const fromUser = state.friends.find(u => u.id === peerKey);
-    const name = fromUser ? fromUser.nickname : '新消�?;
+    const name = fromUser ? fromUser.nickname : '新消息';
     showMessageNotice(m, name);
   }
   const convKey2 = (m.from === state.me.id) ? m.to : m.from;
@@ -3353,8 +3454,10 @@ async function onIncomingMsg(m) {
   renderContacts();
 }
 
-// ============ 发�?============
-// 明文模式：不再做端到端加密，消息原文入库，以支持历史检索与聊天回放�?// 保留函数签名，避免改动所有调用点�?async function _e2eeSendContent(peerId, text) {
+// ============ 发送 ============
+// 明文模式：不再做端到端加密，消息原文入库，以支持历史检索与聊天回放。
+// 保留函数签名，避免改动所有调用点。
+async function _e2eeSendContent(peerId, text) {
   return text;
 }
 function sendCurrent() {
@@ -3369,7 +3472,8 @@ function sendCurrent() {
   state.pendingLocal[clientMsgId] = true;
   input.value = '';
   saveCurrentDraft();
-  // UI 先展示明文；实际存储走加密内�?  const localCreatedAt = Date.now();
+  // UI 先展示明文；实际存储走加密内容
+  const localCreatedAt = Date.now();
   state.lastFrom[peerId] = text;
   state.lastMsgTime[peerId] = localCreatedAt;
   appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId }, false);
@@ -3381,9 +3485,9 @@ function sendCurrent() {
       body: JSON.stringify(payload)
     }).then(async (res) => {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '发送失�?);
+      if (!res.ok) throw new Error(data.error || '发送失败');
       delete state.pendingLocal[clientMsgId];
-    }).catch((e) => toast('消息保存失败�? + e.message, 'error'));
+    }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
   }).catch(() => {
     // 加密失败降级明文
     const payload = { to: peerId, content: text, clientMsgId };
@@ -3393,15 +3497,16 @@ function sendCurrent() {
       body: JSON.stringify(payload)
     }).then(async (res) => {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '发送失�?);
+      if (!res.ok) throw new Error(data.error || '发送失败');
       delete state.pendingLocal[clientMsgId];
-    }).catch((e) => toast('消息保存失败�? + e.message, 'error'));
+    }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
   });
 }
 
 $('sendBtn').type = 'button';
 $('sendBtn').onclick = (event) => { event.preventDefault(); sendCurrent(); };
-// 桌面端发送按�?const desktopSendBtnEl = document.getElementById('desktopSendBtn');
+// 桌面端发送按钮
+const desktopSendBtnEl = document.getElementById('desktopSendBtn');
 if (desktopSendBtnEl) { desktopSendBtnEl.type = 'button'; desktopSendBtnEl.onclick = (event) => { event.preventDefault(); sendCurrent(); }; }
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
@@ -3411,7 +3516,7 @@ if (desktopInput) desktopInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
 });
 let typingSent = 0;
-// ============ 输入框字数统�?============
+// ============ 输入框字数统计 ============
 function updateCharCounter(el) {
   const bar = document.getElementById('charCounter');
   if (!bar) return;
@@ -3441,7 +3546,7 @@ $('input').addEventListener('input', () => {
   const now = Date.now();
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
 });
-// ============ 粘贴图片直接发�?============
+// ============ 粘贴图片直接发送 ============
 if (desktopInput) desktopInput.addEventListener('paste', (e) => {
   const items = (e.clipboardData && e.clipboardData.items) || [];
   for (const it of items) {
@@ -3449,8 +3554,8 @@ if (desktopInput) desktopInput.addEventListener('paste', (e) => {
       e.preventDefault();
       const file = it.getAsFile();
       if (!file) return;
-      if (file.size > 20 * 1024 * 1024) { toast('图片过大（限 20MB�?, 'warn', 1800); return; }
-      toast('已捕获剪贴板图片，正在发�?..', 'info', 1500);
+      if (file.size > 20 * 1024 * 1024) { toast('图片过大（限 20MB）', 'warn', 1800); return; }
+      toast('已捕获剪贴板图片，正在发送...', 'info', 1500);
       const dt = new DataTransfer();
       dt.items.add(file);
       const fi = document.getElementById('fileInput') || document.getElementById('fileBtn');
@@ -3478,18 +3583,20 @@ if (desktopInput) desktopInput.addEventListener('input', () => {
   if (now - typingSent > 2000) { send(P.C_TYPING, { to: state.activePeer }); typingSent = now; }
 });
 
-// 本地主题切换，不影响账号和聊天数�?const themeToggle = $('themeToggle');
+// 本地主题切换，不影响账号和聊天数据
+const themeToggle = $('themeToggle');
 const savedTheme = localStorage.getItem('sc_theme');
 if (savedTheme === 'dark') document.body.classList.add('dark-mode');
 if (themeToggle) themeToggle.onclick = () => {
   const dark = document.body.classList.toggle('dark-mode');
   localStorage.setItem('sc_theme', dark ? 'dark' : 'light');
-  themeToggle.textContent = dark ? t('light', '�?) : t('dark', '�?);
+  themeToggle.textContent = dark ? t('light', '日') : t('dark', '夜');
 };
-if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', '�?);
+if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', '日');
 
 // ============ 语言切换浮层 ============
-// 点击侧边栏底�?localeToggle 弹出语言选择菜单；选择后交�?SCI18N.setLocale�?const localeToggle = $('localeToggle');
+// 点击侧边栏底部 localeToggle 弹出语言选择菜单；选择后交给 SCI18N.setLocale。
+const localeToggle = $('localeToggle');
 let localeMenu = null;
 function closeLocaleMenu() {
   if (localeMenu && localeMenu.parentNode) localeMenu.parentNode.removeChild(localeMenu);
@@ -3516,24 +3623,27 @@ function openLocaleMenu() {
     };
     menu.appendChild(item);
   });
-  // 定位交给 CSS�?locale-menu fixed 定位到屏幕左下、rail 底部上方）�?  // 关键：加 .open class 才会�?display:none 变为 flex，菜单才可见�?  menu.classList.add('open');
+  // 定位交给 CSS（.locale-menu fixed 定位到屏幕左下、rail 底部上方）。
+  // 关键：加 .open class 才会把 display:none 变为 flex，菜单才可见。
+  menu.classList.add('open');
   document.body.appendChild(menu);
   localeMenu = menu;
   document.addEventListener('keydown', onLocaleMenuEsc, true);
 }
 if (localeToggle) localeToggle.onclick = (e) => { e.stopPropagation(); openLocaleMenu(); };
-// 点击浮层外关�?document.addEventListener('click', (e) => {
+// 点击浮层外关闭
+document.addEventListener('click', (e) => {
   if (!localeMenu) return;
   if (localeMenu.contains(e.target) || e.target === localeToggle) return;
   closeLocaleMenu();
 });
-// 切换语言后：重新渲染账户�?/ 重新翻译静�?DOM / 同步主题按钮文案
+// 切换语言后：重新渲染账户卡 / 重新翻译静态 DOM / 同步主题按钮文案
 document.addEventListener('sc-locale-change', () => {
   if (state.me) renderMyInfo();
   // 刷新 chatHeader 静态文案（如“请选择联系人”）
-  if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', '请选择联系�?);
+  if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', '请选择联系人');
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply();
-  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', '�?) : t('dark', '�?);
+  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', '日') : t('dark', '夜');
 });
 
 window.addEventListener('focus', () => { if (window.chatAPI) window.chatAPI.stopFlash(); });
@@ -3545,7 +3655,7 @@ function escapeHtml(s) {
   }[c]));
 }
 
-// ============ WebRTC：文�?/ 语音 / 视频 ============
+// ============ WebRTC：文件 / 语音 / 视频 ============
 let rtc, callPeer = null, callKind = null, incomingCall = null, localStream = null;
 let pendingRemoteStream = null;
 let callRecorder = null, callRecordChunks = [], callRecordStartedAt = 0;
@@ -3583,7 +3693,7 @@ function startCallRecording(remoteStream) {
       const peerId = callPeer;
       fetch(state.serverHost + '/api/call-recordings?to=' + encodeURIComponent(peerId) + '&kind=' + encodeURIComponent(kind), { method: 'POST', body: blob, headers: { 'Content-Type': 'video/webm', 'Authorization': 'Bearer ' + state.token } })
         .then(() => loadCallReplays(peerId))
-        .catch((e) => toast('回放上传失败�? + e.message, 'error'));
+        .catch((e) => toast('回放上传失败：' + e.message, 'error'));
       callRecorder = null; callRecordChunks = [];
     };
     callRecorder.start(1000);
@@ -3593,15 +3703,17 @@ function stopCallRecording() {
   if (callRecorder && callRecorder.state !== 'inactive') callRecorder.stop();
 }
 
-// 通话超时/恢复/远端画面显示（顶层函数，�?initRtc 事件与通话按钮共用�?let callTimer = null;
+// 通话超时/恢复/远端画面显示（顶层函数，供 initRtc 事件与通话按钮共用）
+let callTimer = null;
 function clearCallTimer() { if (callTimer) { clearTimeout(callTimer); callTimer = null; } }
 function startCallTimer() {
-  // 若已有计时器或已接通则不重�?  if (callTimer) return;
+  // 若已有计时器或已接通则不重复
+  if (callTimer) return;
   callTimer = setTimeout(() => {
     callTimer = null;
     // 8 秒后仍未恢复则关闭通话
     closeCallBar();
-    toast('网络连接中断，通话已结�?, 'warn');
+    toast('网络连接中断，通话已结束', 'warn');
   }, 8000);
 }
 function startCallTimeout() {
@@ -3616,15 +3728,19 @@ function startCallTimeout() {
   }, 30000);
 }
 function maybeShowRemote(peerId) {
-  // 显示规则：必须已"接�?——incomingCall=null（已接听，从来电状态过渡）
-  // 且当�?callPeer = �?peer；或主动呼出方无需"接听"动作，对方一搭上就显�?  if (!pendingRemoteStream) return;
+  // 显示规则：必须已"接通"——incomingCall=null（已接听，从来电状态过渡）
+  // 且当前 callPeer = 该 peer；或主动呼出方无需"接听"动作，对方一搭上就显示
+  if (!pendingRemoteStream) return;
   if (!callPeer) return;
   // 主呼方：incomingCall 一直为 null 即可显示
-  // 被呼方：必须 incomingCall=null（已 acceptIncomingCall 清空�?  if (incomingCall) return; // 还在待接�?  const v = $('remoteVideo');
+  // 被呼方：必须 incomingCall=null（已 acceptIncomingCall 清空）
+  if (incomingCall) return; // 还在待接听
+  const v = $('remoteVideo');
   if (!v) return;
   v.srcObject = pendingRemoteStream;
   v.style.display = '';
-  // WebView 默认禁止无手势自动播放，必须显式 play()，否则接通后无声/无画�?  try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  // WebView 默认禁止无手势自动播放，必须显式 play()，否则接通后无声/无画面
+  try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
   if (callKind === 'video') $('callBar').classList.add('with-video');
   $('callBar').style.display = 'flex';
   showCallDuration();
@@ -3653,24 +3769,24 @@ function initRtc() {
       closeCallBar();
     }
     if (e.detail.state === 'closed') { clearCallTimer(); stopCallDuration(); closeCallBar(); }
-    // disconnected：不立即关闭，等待恢复；超过 8s �?disconnected 则按失败处理
+    // disconnected：不立即关闭，等待恢复；超过 8s 仍 disconnected 则按失败处理
     if (e.detail.state === 'disconnected') startCallTimer();
   });
   window.addEventListener('call-incoming', (e) => {
     clearCallTimer();
     startCallRingtone();
     incomingCall = { from: e.detail.from, kind: e.detail.kind };
-    $('callText').textContent = (e.detail.kind === 'video' ? '视频' : '语音') + '来电（来自用�?' + e.detail.from + '�?;
+    $('callText').textContent = (e.detail.kind === 'video' ? '视频' : '语音') + '来电（来自用户 ' + e.detail.from + '）';
     $('acceptCallBtn').style.display = ''; $('rejectCallBtn').style.display = ''; $('hangupBtn').style.display = 'none';
     $('callBar').classList.remove('with-video'); $('callBar').style.display = 'flex';
     callTimer = setTimeout(() => {
       if (incomingCall) rejectIncomingCall();
     }, 30000);
   });
-  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('对方已拒�?, 'warn'); closeCallBar(); });
-  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('对方不在�?, 'warn'); closeCallBar(); });
-  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('对方已挂�?, 'info'); closeCallBar(); });
-  window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收�? + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
+  window.addEventListener('call-rejected', () => { stopCallRingtone(); toast('对方已拒绝', 'warn'); closeCallBar(); });
+  window.addEventListener('peer-offline', () => { stopCallRingtone(); toast('对方不在线', 'warn'); closeCallBar(); });
+  window.addEventListener('remote-hangup', () => { stopCallRingtone(); toast('对方已挂断', 'info'); closeCallBar(); });
+  window.addEventListener('file-start', (e) => { $('fileBar').style.display = ''; $('fileText').textContent = '接收：' + e.detail.name + ' (' + humanSize(e.detail.size) + ')'; setProgress(0); });
   window.addEventListener('file-progress', (e) => setProgress(e.detail.received / e.detail.size));
   window.addEventListener('file-done', (e) => {
     $('fileText').textContent = '已接收：' + e.detail.name; setProgress(1);
@@ -3696,17 +3812,18 @@ async function loadMiniPrograms() {
       item.type = 'button'; item.className = 'mini-program-item';
       item.innerHTML = '<strong>' + escapeHtml(program.name) + '</strong><span>v' + escapeHtml(program.version) + '</span>';
       item.onclick = () => {
-        if (!String(program.entry).startsWith('/mini-programs/')) return toast('小程序入口不受信�?, 'error');
+        if (!String(program.entry).startsWith('/mini-programs/')) return toast('小程序入口不受信任', 'error');
         window.open(state.serverHost + program.entry, '_blank', 'noopener');
       };
       list.appendChild(item);
     });
-  } catch (e) { list.textContent = '小程序暂不可�?; }
+  } catch (e) { list.textContent = '小程序暂不可用'; }
 }
 function setProgress(r) { $('fileProgress').style.width = Math.round(r * 100) + '%'; }
 function humanSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1)+' KB'; if (b < 1073741824) return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }
 
-// 通话时长计时（接通后显示 通话�?MM:SS�?let durationTimer = null;
+// 通话时长计时（接通后显示 通话中 MM:SS）
+let durationTimer = null;
 let callStartAt = 0;
 function showCallDuration() {
   if (durationTimer) return;
@@ -3716,14 +3833,15 @@ function showCallDuration() {
     const s = Math.floor((Date.now() - callStartAt) / 1000);
     const mm = String(Math.floor(s / 60)).padStart(2, '0');
     const ss = String(s % 60).padStart(2, '0');
-    $('callText').textContent = '通话�?' + mm + ':' + ss;
+    $('callText').textContent = '通话中 ' + mm + ':' + ss;
   }, 1000);
 }
 function stopCallDuration() {
   if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
 }
 
-// 释放本地媒体设备（每次发�?接听/挂断前调用，防止"Device in use"�?function releaseLocalMedia() {
+// 释放本地媒体设备（每次发起/接听/挂断前调用，防止"Device in use"）
+function releaseLocalMedia() {
   if (localStream) {
     try { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); } catch (e) {}
     localStream = null;
@@ -3739,7 +3857,7 @@ function stopCallDuration() {
 
 function startOutgoingCall(kind) {
   stopCallRingtone();
-  if (!state.activePeer) return toast('请先选择联系�?, 'warn');
+  if (!state.activePeer) return toast('请先选择联系人', 'warn');
   // 若正在通话或设备被占用，先彻底释放
   releaseLocalMedia();
   if (rtc && callPeer) rtc.hangup(callPeer);
@@ -3748,13 +3866,13 @@ function startOutgoingCall(kind) {
   $('callText').textContent = '正在呼叫(' + (kind==='video'?'视频':'语音') + ')...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   $('callBar').style.display = 'flex';
-  if (!window.getLocalStream) return toast('WebRTC 不可�?, 'error');
+  if (!window.getLocalStream) return toast('WebRTC 不可用', 'error');
   window.getLocalStream(kind).then((s) => {
     localStream = s;
     const v = $('localVideo'); if (v && kind==='video') v.srcObject = s;
     rtc.startCall(callPeer, kind, s);
     startCallTimeout();
-  }).catch((e) => { toast('无法获取媒体�?+e.message, 'error'); closeCallBar(); });
+  }).catch((e) => { toast('无法获取媒体：'+e.message, 'error'); closeCallBar(); });
 }
 async function acceptIncomingCall() {
   if (!incomingCall) {
@@ -3765,12 +3883,12 @@ async function acceptIncomingCall() {
   clearCallTimer();
   const pendingCall = incomingCall;
   callPeer = pendingCall.from; callKind = pendingCall.kind;
-  $('callText').textContent = '通话�?..';
+  $('callText').textContent = '通话中...';
   $('acceptCallBtn').style.display='none'; $('rejectCallBtn').style.display='none'; $('hangupBtn').style.display='';
   try {
-    if (!window.getLocalStream) throw new Error('WebRTC 不可�?);
-    $('callText').textContent = '正在请求麦克�?摄像头权�?..';
-    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('浏览器权限请求超时，请允许摄像头和麦克风权限后重�?)), 12000));
+    if (!window.getLocalStream) throw new Error('WebRTC 不可用');
+    $('callText').textContent = '正在请求麦克风/摄像头权限...';
+    const mediaTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('浏览器权限请求超时，请允许摄像头和麦克风权限后重试')), 12000));
     localStream = await Promise.race([window.getLocalStream(callKind), mediaTimeout]);
     incomingCall = null;
     const v=$('localVideo'); if (v && callKind==='video') v.srcObject=localStream;
@@ -3780,9 +3898,9 @@ async function acceptIncomingCall() {
     incomingCall = pendingCall;
     const code = e && e.code;
     const isPerm = code === 'PERMISSION' || code === 'NOT_SUPPORTED' || /NotAllowed|Permission|denied|拒绝|安全/i.test(String(e && e.message || e && e.name || ''));
-    $('callText').textContent = isPerm ? '需要摄像头/麦克风权限才能接�? : '接听失败，请重试';
+    $('callText').textContent = isPerm ? '需要摄像头/麦克风权限才能接听' : '接听失败，请重试';
     $('acceptCallBtn').style.display=''; $('rejectCallBtn').style.display=''; $('hangupBtn').style.display='none';
-    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点�?🔒 �?网站设置 �?允许"摄像�?麦克�?，然后重新接�? : '无法获取媒体�?) + (e.message || e.name || ''), 'error', 5000);
+    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点击 🔒 → 网站设置 → 允许"摄像头/麦克风"，然后重新接听' : '无法获取媒体：') + (e.message || e.name || ''), 'error', 5000);
     clearCallTimer();
     callTimer = setTimeout(() => { if (incomingCall === pendingCall) rejectIncomingCall(); }, 30000);
   }
@@ -3801,12 +3919,13 @@ function closeCallBar() {
   callPeer=null; callKind=null; incomingCall=null;
 }
 $('fileBtn').onclick = () => {
-  if (!state.activePeer && !state.activeGroup) return toast('请先选择联系�?, 'warn');
+  if (!state.activePeer && !state.activeGroup) return toast('请先选择联系人', 'warn');
   const inp = document.createElement('input'); inp.type='file'; inp.onchange = () => { const f = inp.files[0]; if (f) sendAttachmentFile(f); }; inp.click();
 };
-// 统一附件发送：单聊/群聊通用（桌面文件按�?/ 移动�?+"面板共用�?function sendAttachmentFile(f) {
+// 统一附件发送：单聊/群聊通用（桌面文件按钮 / 移动端"+"面板共用）
+function sendAttachmentFile(f) {
   if (!f) return;
-  if (!state.activePeer && !state.activeGroup) return toast('请先选择联系�?, 'warn');
+  if (!state.activePeer && !state.activeGroup) return toast('请先选择联系人', 'warn');
   $('fileBar').style.display=''; $('fileText').textContent='发送：'+f.name+' ('+humanSize(f.size)+')'; setProgress(0);
   const upload = state.activeGroup
     ? fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/files?name=' + encodeURIComponent(f.name) + '&mime=' + encodeURIComponent(f.type || 'application/octet-stream'), {
@@ -3844,7 +3963,7 @@ $('fileBtn').onclick = () => {
     for (var i = 0; i < files.length; i++) { sendAttachmentFile(files[i]); }
   }, false);
 })();
-// 移动端输入栏"+"附件面板：相�?/ 拍照 / 文件
+// 移动端输入栏"+"附件面板：相册 / 拍照 / 文件
 (function () {
   const plusBtn = $('plusIconBtn');
   if (!plusBtn) return;
@@ -3856,7 +3975,7 @@ $('fileBtn').onclick = () => {
     const p = document.createElement('div');
     p.id = 'plusPanel';
     p.className = 'plus-panel';
-    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">🖼�?/div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">📷</div><span>拍照</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">📎</div><span>文件</span></div>';
+    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">🖼️</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">📷</div><span>拍照</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">📎</div><span>文件</span></div>';
     host.appendChild(p);
     p.querySelectorAll('.plus-item').forEach(el => {
       el.onclick = () => {
@@ -3871,7 +3990,7 @@ $('fileBtn').onclick = () => {
     });
   };
 })();
-// 进入会话后强制滚动到最新消息（双保险：渲染�?+ 图片异步加载后）
+// 进入会话后强制滚动到最新消息（双保险：渲染后 + 图片异步加载后）
 function scrollToLatest() {
   const box = $('messages');
   if (!box) return;
@@ -3884,7 +4003,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
   const isImage = mime && String(mime).startsWith('image/');
   if (isImage) {
-    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">�?/div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">图</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const img = row.querySelector('.file-image');
     fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
       .then(r => { if (!r.ok) throw new Error('加载失败'); return r.blob(); })
@@ -3892,7 +4011,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
       .catch(() => { img.alt = '加载失败'; });
     img.onclick = () => openImagePreview(img.src, name, fileId, isGroup);
   } else {
-    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">�?/div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const download = row.querySelector('.file-download');
     if (download) download.onclick = async () => {
       download.disabled = true;
@@ -3905,7 +4024,8 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
   }
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 }
-// 图片全屏预览（微信式）：点击遮罩关闭，底部提供下�?function openImagePreview(src, name, fileId, isGroup) {
+// 图片全屏预览（微信式）：点击遮罩关闭，底部提供下载
+function openImagePreview(src, name, fileId, isGroup) {
   if (!src) { toast('图片尚未加载完成', 'warn', 1200); return; }
   const mask = document.createElement('div');
   mask.className = 'img-preview-mask';
@@ -3919,7 +4039,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
       const res = await fetch(state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } });
       if (!res.ok) throw new Error('下载失败');
       const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      toast('已开始下�?, 'success', 1200);
+      toast('已开始下载', 'success', 1200);
     } catch (e) { toast(e.message, 'error'); } finally { dl.disabled = false; }
   };
   document.body.appendChild(mask);
@@ -3946,7 +4066,7 @@ const VOICE_PREFIX = '__VOICE__';
 
 async function startVoiceRec() {
   if (recState) return;
-  if (!state.activePeer) { toast('请先选择联系�?, 'warn'); return; }
+  if (!state.activePeer) { toast('请先选择联系人', 'warn'); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mr = new MediaRecorder(stream);
@@ -3988,7 +4108,7 @@ async function startVoiceRec() {
       if (s >= 60) stopVoiceRec();
     }, 100);
   } catch (e) {
-    toast('无法访问麦克�? ' + e.message, 'error');
+    toast('无法访问麦克风: ' + e.message, 'error');
   }
 }
 
@@ -4005,23 +4125,27 @@ function stopVoiceRec(cancel) {
   document.dispatchEvent(new Event('recrecstate'));
 }
 
-// 点击语音按钮 = 开始录音；再点�?= 发�?(function bindVoiceButton() {
+// 点击语音按钮 = 开始录音；再点击 = 发送
+(function bindVoiceButton() {
   const btn = $('voiceBtn');
   btn.addEventListener('click', () => {
     if (recState) {
-      stopVoiceRec(false); // 再点一�?= 发�?    } else {
+      stopVoiceRec(false); // 再点一次 = 发送
+    } else {
       startVoiceRec();
     }
   });
 })();
 
-// 浏览器语音转文字：使�?Web Speech API，识别结果写入普通消息输入框�?// Chrome / Edge 支持较好；不支持时给出清晰提示，不影响语音消息功能�?(function bindSpeechToText() {
+// 浏览器语音转文字：使用 Web Speech API，识别结果写入普通消息输入框。
+// Chrome / Edge 支持较好；不支持时给出清晰提示，不影响语音消息功能。
+(function bindSpeechToText() {
   const btn = $('speechBtn');
   if (!btn) return;
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Recognition) {
-    btn.title = '当前浏览器不支持语音转文�?;
-    btn.onclick = () => toast('当前浏览器不支持语音转文字，请使用最新版 Chrome �?Edge', 'warn', 2200);
+    btn.title = '当前浏览器不支持语音转文字';
+    btn.onclick = () => toast('当前浏览器不支持语音转文字，请使用最新版 Chrome 或 Edge', 'warn', 2200);
     return;
   }
   let recognition = null;
@@ -4057,15 +4181,15 @@ function stopVoiceRec(cancel) {
     recognition.onend = () => {
       active = false;
       btn.classList.remove('transcribing');
-      btn.textContent = t('transcribe','转文�?);
+      btn.textContent = t('transcribe','转文字');
       saveCurrentDraft();
     };
     try { recognition.start(); toast('开始语音转文字，再次点击可停止', 'info', 1400); }
-    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','转文�?); }
+    catch { active = false; btn.classList.remove('transcribing'); btn.textContent = t('transcribe','转文字'); }
   };
 })();
 
-// 发�?收到语音气泡
+// 发送/收到语音气泡
 function appendVoiceMsg(mine, durationSec, b64) {
   const box = $('messages');
   const row = document.createElement('div');
@@ -4091,11 +4215,11 @@ function appendVoiceMsg(mine, durationSec, b64) {
       audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = orig; };
     };
     const ts = document.createElement('span');
-    ts.textContent = '转文�?;
+    ts.textContent = '转文字';
     ts.style.cssText = 'margin-left:10px;font-size:12px;color:var(--accent,#07c160);cursor:pointer;user-select:none;';
     ts.onclick = async function () {
       if (ts._loading) return;
-      ts._loading = true; const origTxt = ts.textContent; ts.textContent = '转写中�?;
+      ts._loading = true; const origTxt = ts.textContent; ts.textContent = '转写中…';
       try {
         const r = await fetch(state.serverHost + '/api/stt', {
           method: 'POST',
@@ -4105,13 +4229,13 @@ function appendVoiceMsg(mine, durationSec, b64) {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || '转写失败');
         const text = (d.text || '').trim();
-        ts.textContent = '转文�?;
+        ts.textContent = '转文字';
         ts._loading = false;
         let out = row.querySelector('.voice-transcript');
         if (!out) { out = document.createElement('div'); out.className = 'voice-transcript'; out.style.cssText = 'margin-top:6px;padding:8px 10px;background:var(--bg,#f5f5f5);border-radius:8px;font-size:13px;white-space:pre-wrap;word-break:break-word;color:var(--text,#222);'; row.querySelector('.bubble').appendChild(out); }
         out.textContent = text;
       } catch (e) {
-        ts.textContent = '转文�?; ts._loading = false;
+        ts.textContent = '转文字'; ts._loading = false;
         toast('转文字失败：' + e.message, 'error', 2000);
       }
     };
@@ -4119,7 +4243,7 @@ function appendVoiceMsg(mine, durationSec, b64) {
   }
 }
 
-// �?onIncomingMsg / renderMessages 里识别并特殊处理 voice
+// 在 onIncomingMsg / renderMessages 里识别并特殊处理 voice
 const _orig_onIncomingMsg = onIncomingMsg;
 onIncomingMsg = function (m) {
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
@@ -4133,7 +4257,7 @@ onIncomingMsg = function (m) {
     } else {
       state.unread[m.from] = (state.unread[m.from] || 0) + 1;
       const fromUser = state.friends.find(u => u.id === m.from);
-      if (window.chatAPI) window.chatAPI.notify((fromUser ? fromUser.nickname : '新消�?) + ' 发来语音', '');
+      if (window.chatAPI) window.chatAPI.notify((fromUser ? fromUser.nickname : '新消息') + ' 发来语音', '');
     }
     state.lastFrom[m.from] = '[语音]';
     renderContacts();
@@ -4142,7 +4266,8 @@ onIncomingMsg = function (m) {
   _orig_onIncomingMsg(m);
 };
 
-// 历史：识别语音消息格式，B做显示（�?b64 不能播但显示时长�?const _orig_appendMessage = appendMessage;
+// 历史：识别语音消息格式，B做显示（无 b64 不能播但显示时长）
+const _orig_appendMessage = appendMessage;
 appendMessage = function (m, prepend) {
   if (typeof m.content === 'string' && m.content.startsWith(VOICE_PREFIX)) {
     const rest = m.content.slice(VOICE_PREFIX.length);
@@ -4212,15 +4337,15 @@ function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
   const items = [
-    { name: '朋友�?, icon: '朋友�?, action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
-    { name: '视频�?, icon: '视频', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
-    { name: '看一�?, icon: '�?, action: () => { if (window.SecureChatRead) window.SecureChatRead.open(); else toast('看一看功能开发中', 'info'); } },
-    { name: '搜一�?, icon: '�?, action: () => { if (window.SecureChatSearch) window.SecureChatSearch.open(); else toast('搜一搜功能开发中', 'info'); } },
+    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
+    { name: '视频号', icon: '视频', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
+    { name: '看一看', icon: '看', action: () => { if (window.SecureChatRead) window.SecureChatRead.open(); else toast('看一看功能开发中', 'info'); } },
+    { name: '搜一搜', icon: '搜', action: () => { if (window.SecureChatSearch) window.SecureChatSearch.open(); else toast('搜一搜功能开发中', 'info'); } },
     { name: '直播', icon: '直播', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('直播功能开发中', 'info'); } },
-    { name: '附近', icon: '�?, action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
-    { name: '购物', icon: '�?, action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('购物功能开发中', 'info'); } },
-    { name: '游戏', icon: '�?, action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('游戏功能开发中', 'info'); } },
-    { name: '小程�?, icon: '�?, action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
+    { name: '附近', icon: '附', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
+    { name: '购物', icon: '购', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('购物功能开发中', 'info'); } },
+    { name: '游戏', icon: '游', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('游戏功能开发中', 'info'); } },
+    { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
     { name: 'AI 助手', icon: 'AI', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); } },
   ];
   // 分组：顶部常用，中间小程序区
@@ -4230,7 +4355,7 @@ function renderDiscoverPage() {
     <div class="wx-discover-item" data-idx="${i}">
       <div class="wx-discover-icon">${it.icon}</div>
       <div class="wx-discover-name">${it.name}</div>
-      <span class="wx-discover-arrow">�?/span>
+      <span class="wx-discover-arrow">›</span>
     </div>`;
   list.innerHTML = `
     <div class="wx-group">${group1.map((it, i) => itemHtml(it, i)).join('')}</div>
@@ -4287,15 +4412,15 @@ function openSettingsPage() {
   // 设置分组
   const groups = [
     {
-      title: '账号与安�?,
+      title: '账号与安全',
       items: [
-        { label: '修改密码', desc: '登录密码管理', icon: '�?, fn: () => {
+        { label: '修改密码', desc: '登录密码管理', icon: '锁', fn: () => {
           openModal('修改密码', [
-            { key: 'oldPassword', label: '原密�?, type: 'password' },
+            { key: 'oldPassword', label: '原密码', type: 'password' },
             { key: 'newPassword', label: '新密码（至少6位）', type: 'password' }
           ], async (out, close) => {
-            if (!out.oldPassword || !out.newPassword) { toast('请填写完�?, 'warn'); return; }
-            if (String(out.newPassword).length < 6) { toast('新密码至�?�?, 'warn'); return; }
+            if (!out.oldPassword || !out.newPassword) { toast('请填写完整', 'warn'); return; }
+            if (String(out.newPassword).length < 6) { toast('新密码至少6位', 'warn'); return; }
             try {
               const res = await fetch(state.serverHost + '/api/password/change', {
                 method: 'POST',
@@ -4305,14 +4430,14 @@ function openSettingsPage() {
               const data = await res.json().catch(() => ({}));
               if (!res.ok) { toast(data.error || '修改失败', 'error'); return; }
               close();
-              toast('密码已修改，请重新登�?, 'success');
+              toast('密码已修改，请重新登录', 'success');
               setTimeout(() => logout(), 1200);
-            } catch (e) { toast('请求失败�? + e.message, 'error'); }
+            } catch (e) { toast('请求失败：' + e.message, 'error'); }
           });
         }},
-        { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑�?, icon: '�?, fn: async () => {
+        { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑定', icon: '邮', fn: async () => {
           if (me && me.email) { toast('已绑定：' + me.email, 'info'); return; }
-          const email = window.prompt('输入要绑定的邮箱地址�?, '') || '';
+          const email = window.prompt('输入要绑定的邮箱地址：', '') || '';
           if (!email.trim()) return;
           try {
             const cr = await fetch(state.serverHost + '/api/email/code', {
@@ -4321,11 +4446,11 @@ function openSettingsPage() {
               body: JSON.stringify({ email: email.trim(), purpose: 'bind' })
             });
             const cd = await cr.json().catch(() => ({}));
-            if (!cr.ok) { toast(cd.error || '验证码发送失�?, 'error'); return; }
-          } catch (e) { toast('请求失败�? + e.message, 'error'); return; }
+            if (!cr.ok) { toast(cd.error || '验证码发送失败', 'error'); return; }
+          } catch (e) { toast('请求失败：' + e.message, 'error'); return; }
           toast('验证码已发送到邮箱', 'success');
-          openModal('绑定邮箱 - 输入验证�?, [
-            { key: 'code', label: '邮箱验证�? }
+          openModal('绑定邮箱 - 输入验证码', [
+            { key: 'code', label: '邮箱验证码' }
           ], async (out, close) => {
             if (!out.code) { toast('请输入验证码', 'warn'); return; }
             try {
@@ -4338,45 +4463,45 @@ function openSettingsPage() {
               if (!res.ok) { toast(data.error || '绑定失败', 'error'); return; }
               close();
               toast('邮箱绑定成功', 'success');
-            } catch (e) { toast('请求失败�? + e.message, 'error'); }
+            } catch (e) { toast('请求失败：' + e.message, 'error'); }
           });
         }},
-        { label: '登录设备管理', desc: '已授权的本地设备', icon: '�?, fn: async () => {
+        { label: '登录设备管理', desc: '已授权的本地设备', icon: '机', fn: async () => {
           try {
             const res = await fetch(state.serverHost + '/api/passkey/list', { headers: { Authorization: 'Bearer ' + state.token } });
             const data = await res.json().catch(() => ({}));
             const creds = data.credentials || [];
-            if (!creds.length) { toast('暂无已授权设�?, 'info'); return; }
+            if (!creds.length) { toast('暂无已授权设备', 'info'); return; }
             const lines = creds.map(c => {
               const d = c.created_at ? new Date(c.created_at).toLocaleDateString() : '';
-              return (c.device_name || '设备') + (d ? '�? + d + ' 授权�? : '');
+              return (c.device_name || '设备') + (d ? '（' + d + ' 授权）' : '');
             }).join('\n');
-            window.alert('已授权设备：\n\n' + lines + '\n\n如需移除，请�?Passkey 页面管理�?);
-          } catch (e) { toast('请求失败�? + e.message, 'error'); }
+            window.alert('已授权设备：\n\n' + lines + '\n\n如需移除，请在 Passkey 页面管理。');
+          } catch (e) { toast('请求失败：' + e.message, 'error'); }
         }},
       ]
     },
     {
       title: '通用',
       items: [
-        { label: '聊天背景', desc: '设置聊天界面背景', icon: '�?, fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; pickChatBg(); } },
-        { label: '字体大小', desc: localStorage.chatFontSize || '默认', icon: '�?, fn: () => {
-          const sizes = ['默认', '�?, '�?, '�?, '特大'];
+        { label: '聊天背景', desc: '设置聊天界面背景', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; pickChatBg(); } },
+        { label: '字体大小', desc: localStorage.chatFontSize || '默认', icon: '字', fn: () => {
+          const sizes = ['默认', '小', '中', '大', '特大'];
           const cur = sizes.indexOf(localStorage.chatFontSize || '默认');
           const next = (cur + 1) % sizes.length;
           localStorage.chatFontSize = sizes[next];
-          const base = { '默认': 15, '�?: 13, '�?: 15, '�?: 17, '特大': 19 };
+          const base = { '默认': 15, '小': 13, '中': 15, '大': 17, '特大': 19 };
           document.documentElement.style.fontSize = (base[sizes[next]] || 15) + 'px';
-          toast('字体已设�? + sizes[next], 'success');
+          toast('字体已设为' + sizes[next], 'success');
           openSettingsPage();
         }},
-        { label: '深色模式', desc: document.body.classList.contains('dark-mode') ? '已开�? : '已关�?, icon: '�?, fn: () => {
+        { label: '深色模式', desc: document.body.classList.contains('dark-mode') ? '已开启' : '已关闭', icon: '暗', fn: () => {
           document.body.classList.toggle('dark-mode');
           localStorage.darkMode = document.body.classList.contains('dark-mode') ? '1' : '0';
-          toast('深色模式�? + (document.body.classList.contains('dark-mode') ? '开�? : '关闭'), 'success');
+          toast('深色模式已' + (document.body.classList.contains('dark-mode') ? '开启' : '关闭'), 'success');
           openSettingsPage();
         }},
-        { label: '语言', desc: (window.SCI18N && window.SCI18N.locale) ? String(window.SCI18N.locale).toUpperCase() : 'ZH', icon: '�?, fn: () => {
+        { label: '语言', desc: (window.SCI18N && window.SCI18N.locale) ? String(window.SCI18N.locale).toUpperCase() : 'ZH', icon: '语', fn: () => {
           if (!window.SCI18N || !window.SCI18N.setLocale) { toast('语言包未加载', 'warn'); return; }
           const codes = ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru', 'ar'];
           const cur = codes.indexOf(String(window.SCI18N.locale));
@@ -4385,16 +4510,16 @@ function openSettingsPage() {
           toast('语言已切换：' + String(next).toUpperCase(), 'success');
           openSettingsPage();
         }},
-        { label: '新消息通知', desc: ('Notification' in window && Notification.permission === 'granted') ? '已开�? : '未开�?, icon: '�?, fn: () => {
+        { label: '新消息通知', desc: ('Notification' in window && Notification.permission === 'granted') ? '已开启' : '未开启', icon: '声', fn: () => {
           if (!('Notification' in window)) { toast('当前环境不支持通知', 'warn'); return; }
           if (Notification.permission === 'granted') {
             localStorage.sc_notifyOff = localStorage.sc_notifyOff === '1' ? '' : '1';
-            toast(localStorage.sc_notifyOff === '1' ? '通知已关�? : '通知已开�?, 'success');
+            toast(localStorage.sc_notifyOff === '1' ? '通知已关闭' : '通知已开启', 'success');
             openSettingsPage();
           } else if (Notification.permission === 'denied') {
             toast('浏览器已禁止通知，请在地址栏权限中允许', 'warn');
           } else {
-            Notification.requestPermission().then(p => { toast(p === 'granted' ? '通知已开�? : '未授权通知', p === 'granted' ? 'success' : 'warn'); openSettingsPage(); });
+            Notification.requestPermission().then(p => { toast(p === 'granted' ? '通知已开启' : '未授权通知', p === 'granted' ? 'success' : 'warn'); openSettingsPage(); });
           }
         }},
       ]
@@ -4402,9 +4527,9 @@ function openSettingsPage() {
     {
       title: '隐私',
       items: [
-        { label: '黑名�?, desc: '管理被屏蔽的用户', icon: '�?, fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; renderBlocklistPage(); showMobilePage('blocklistPage'); } },
-        { label: '朋友圈设�?, desc: '不看�?谁不�?, icon: '�?, fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; if (window.SecureChatMomentExt && window.SecureChatMomentExt.openFilterPanel) window.SecureChatMomentExt.openFilterPanel(); else toast('朋友圈模块未加载', 'warn'); } },
-        { label: '添加我的方式', desc: '通过ID搜索加好�?, icon: '�?, fn: () => {
+        { label: '黑名单', desc: '管理被屏蔽的用户', icon: '黑', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; renderBlocklistPage(); showMobilePage('blocklistPage'); } },
+        { label: '朋友圈设置', desc: '不看谁/谁不看', icon: '圈', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; if (window.SecureChatMomentExt && window.SecureChatMomentExt.openFilterPanel) window.SecureChatMomentExt.openFilterPanel(); else toast('朋友圈模块未加载', 'warn'); } },
+        { label: '添加我的方式', desc: '通过ID搜索加好友', icon: '搜', fn: () => {
           const cur = localStorage.sc_allowIdSearch !== '0';
           localStorage.sc_allowIdSearch = cur ? '0' : '1';
           toast(cur ? '已允许通过 ID 搜索添加' : '已禁止通过 ID 搜索添加', 'success');
@@ -4413,12 +4538,12 @@ function openSettingsPage() {
       ]
     },
     {
-      title: '帮助与反�?,
+      title: '帮助与反馈',
       items: [
-        { label: '意见反馈', desc: '提交问题或建�?, icon: '�?, fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
-        { label: '关于我们', desc: 'SecureChat v1.70.0', icon: '�?, fn: () => {
+        { label: '意见反馈', desc: '提交问题或建议', icon: '反', fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
+        { label: '关于我们', desc: 'SecureChat v1.70.0', icon: '关', fn: () => {
           modal('关于 SecureChat', (body) => {
-            body.innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊�?/div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本�?.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快�?- 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>';
+            body.innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>';
             const ghBtn = body.querySelector('#aboutGithubBtn');
             if (ghBtn) ghBtn.onclick = () => window.open('https://github.com/huruichen139/securechat-build', '_blank');
           });
@@ -4466,8 +4591,9 @@ function openSettingsPage() {
     content.appendChild(section);
   });
 
-  // 退出登录按�?  const logoutBtn = document.createElement('button');
-  logoutBtn.textContent = '退出登�?;
+  // 退出登录按钮
+  const logoutBtn = document.createElement('button');
+  logoutBtn.textContent = '退出登录';
   logoutBtn.style.cssText = 'width:100%;padding:12px;border:none;border-radius:12px;background:var(--surface,#fff);color:var(--danger,#fa5151);font-size:16px;font-weight:500;cursor:pointer;margin-top:8px;border:1px solid var(--border,#e5e5e5)';
   logoutBtn.onclick = () => { if (confirm('确定退出登录？')) logout(); };
   content.appendChild(logoutBtn);
@@ -4479,7 +4605,7 @@ function renderMePage() {
   if (!header) return;
   const hasImg = state.me.avatar;
   const avHtml = hasImg ? `<img src="${escapeHtml(state.me.avatar)}">` : avatarChar(state.me.nickname);
-  const qrHtml = '<span class="me-qr" id="meQrBtn" title="扫一�?><span class="wx-ico-sm">�?/span></span>';
+  const qrHtml = '<span class="me-qr" id="meQrBtn" title="扫一扫"><span class="wx-ico-sm">扫</span></span>';
   header.innerHTML = `
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
@@ -4489,7 +4615,8 @@ function renderMePage() {
     ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
   if (qrBtn) qrBtn.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); openQrScanner(); };
-  // 头部（我的名片）点击 �?展示名片二维�?  header.onclick = () => showMyCard();
+  // 头部（我的名片）点击 → 展示名片二维码
+  header.onclick = () => showMyCard();
   header.style.cursor = 'pointer';
   header.title = '我的名片';
 
@@ -4501,17 +4628,17 @@ const services = [
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
       else toast('支付功能开发中', 'info');
     } },
-    { name: '收藏', icon: '�?, action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
-    { name: '相册', icon: '�?, action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
-    { name: '卡包', icon: '�?, action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
-    { name: '表情', icon: '�?, action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
-    { name: '黑名�?, icon: '�?, action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
-    { name: '更多功能', icon: '�?, action: () => openFeatureCenter() },
-    { name: '下载', icon: '�?, action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
-    { name: '意见反馈', icon: '�?, action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
-    { name: '设置', icon: '�?, action: () => openSettingsPage() },
+    { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
+    { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
+    { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
+    { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
+    { name: '黑名单', icon: '黑', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
+    { name: '更多功能', icon: '更', action: () => openFeatureCenter() },
+    { name: '下载', icon: '下', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
+    { name: '意见反馈', icon: '反', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
+    { name: '设置', icon: '设', action: () => openSettingsPage() },
   ];
-  // 微信式分组：第一�?支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
+  // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
   svc.innerHTML = `
     <div class="wx-me-group">${services.slice(0, 2).map((s, i) => meItemHtml(s, i)).join('')}</div>
     <div class="wx-me-group">${services.slice(2, 5).map((s, i) => meItemHtml(s, i + 2)).join('')}</div>
@@ -4519,7 +4646,7 @@ const services = [
   svc.querySelectorAll('.wx-me-item').forEach((el, i) => { el.onclick = services[Number(el.dataset.si)].action; });
 }
 function meItemHtml(s, i) {
-  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">�?/span></div>`;
+  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">›</span></div>`;
 }
 
 // 通讯录页渲染
@@ -4530,7 +4657,8 @@ function renderContactsPage() {
   const alpEl = document.getElementById('contactsAlphabetSection');
   if (!newFEl || !grpEl || !alpEl) return;
 
-  // 新好友（pending requests�?  newFEl.innerHTML = state.pendingReq.length ? state.pendingReq.map(r => {
+  // 新好友（pending requests）
+  newFEl.innerHTML = state.pendingReq.length ? state.pendingReq.map(r => {
     const u = r.fromUser || {};
     return `<div class="contact" data-uid="${r.from}">
       <div class="avatar">${escapeHtml(u.avatar) ? '<img src="'+escapeHtml(u.avatar)+'">' : avatarChar(u.nickname)}</div>
@@ -4541,7 +4669,7 @@ function renderContactsPage() {
       <button class="btn-cn" style="padding:4px 10px;font-size:12px;margin-right:4px" data-accept="${r.from}">接受</button>
       <button class="btn-cn gray" style="padding:4px 10px;font-size:12px" data-reject="${r.from}">拒绝</button>
     </div>`;
-  }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无新好友请�?/div>';
+  }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无新好友请求</div>';
   newFEl.querySelectorAll('[data-accept]').forEach(btn => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -4556,7 +4684,7 @@ function renderContactsPage() {
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-        } catch (e) { toast('请求失败�? + e.message, 'error'); return; }
+        } catch (e) { toast('请求失败：' + e.message, 'error'); return; }
         state.pendingReq = state.pendingReq.filter(r => String(r.from) !== uid);
         renderContactsPage();
         loadFriends();
@@ -4571,11 +4699,13 @@ function renderContactsPage() {
       renderContactsPage();
     };
   });
-  // 新好友行整行点击 �?打开与该用户的聊�?  newFEl.querySelectorAll('[data-uid]').forEach(el => {
+  // 新好友行整行点击 → 打开与该用户的聊天
+  newFEl.querySelectorAll('[data-uid]').forEach(el => {
     el.onclick = () => selectPeer(parseInt(el.dataset.uid));
   });
 
-  // 朋友�?  const friendGroups = state.groups.filter(g => {
+  // 朋友群
+  const friendGroups = state.groups.filter(g => {
     const m = (g.members || []);
     return m.some(mid => state.friends.some(f => f.id === mid));
   });
@@ -4586,7 +4716,7 @@ function renderContactsPage() {
         <div class="name">${escapeHtml(g.name)}</div>
         <div class="last">${(g.members || []).length} 成员</div>
       </div>
-    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无朋友�?/div>';
+    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无朋友群</div>';
   grpEl.querySelectorAll('[data-gid]').forEach(btn => {
     btn.onclick = () => { const gid = parseInt(btn.dataset.gid); if (gid) selectGroup(gid); };
   });
@@ -4634,19 +4764,22 @@ function renderContactsPage() {
       };
     });
   }
-  // 标签 / 公众号占位行：点击给出明确提示，不做死按�?  const lbl = document.getElementById('contactLabelsItem');
+  // 标签 / 公众号占位行：点击给出明确提示，不做死按钮
+  const lbl = document.getElementById('contactLabelsItem');
   if (lbl) lbl.onclick = () => toast('标签功能开发中', 'info');
   const oa = document.getElementById('contactOAItem');
   if (oa) oa.onclick = () => { if (window.SecureChatOa && window.SecureChatOa.open) window.SecureChatOa.open(); else toast('公众号功能开发中', 'info'); };
-  // 搜索框输�?�?实时过滤重渲�?  const sInput = document.getElementById('contactsSearch');
+  // 搜索框输入 → 实时过滤重渲染
+  const sInput = document.getElementById('contactsSearch');
   if (sInput) sInput.oninput = () => renderContactsPage();
 }
 
-// 侧边�?Tab 高亮：rail 按钮 + 移动端底部导航同�?function setRailActive(side) {
+// 侧边栏 Tab 高亮：rail 按钮 + 移动端底部导航同步
+function setRailActive(side) {
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === side));
   if (typeof syncMobileNav === 'function') syncMobileNav(side);
 }
-// 侧边�?微信"tab 未读总数角标（免打扰会话不计入）
+// 侧边栏"微信"tab 未读总数角标（免打扰会话不计入）
 function updateUnreadBadge() {
   const prefs = chatPrefs();
   const total = Object.keys(state.unread || {}).reduce((a, k) => a + (prefs.muted['u:' + k] ? 0 : (state.unread[k] || 0)), 0)
@@ -4662,11 +4795,13 @@ function updateUnreadBadge() {
   badge.style.display = total > 0 ? 'flex' : 'none';
   badge.textContent = total > 99 ? '99+' : String(total);
 }
-// 桌面端：聊天人列表只在点�?微信"时显�?function setChatListVisible(show) {
+// 桌面端：聊天人列表只在点击"微信"时显示
+function setChatListVisible(show) {
   document.documentElement.classList.toggle('chat-list-hidden', !show);
 }
-// 侧边�?Tab �?微信式页面路由（全端通用�?(function initWechatMobileNav() {
-  // 发现 tab �?微信式发现页
+// 侧边栏 Tab → 微信式页面路由（全端通用）
+(function initWechatMobileNav() {
+  // 发现 tab → 微信式发现页
   const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
   if (discoverTab) {
     discoverTab.onclick = (e) => {
@@ -4677,7 +4812,8 @@ function updateUnreadBadge() {
       showMobilePage('discoverPage');
     };
   }
-  // �?tab �?我的�?  const meTab = document.querySelector('.sidebar-rail .side-tab[data-side="downloads"]');
+  // 我 tab → 我的页
+  const meTab = document.querySelector('.sidebar-rail .side-tab[data-side="downloads"]');
   if (meTab) {
     meTab.onclick = (e) => {
       e.stopPropagation();
@@ -4687,7 +4823,7 @@ function updateUnreadBadge() {
       showMobilePage('mePage');
     };
   }
-  // 通讯�?tab �?通讯录页
+  // 通讯录 tab → 通讯录页
   const contactsTab = document.querySelector('.sidebar-rail .side-tab[data-side="contacts"]');
   if (contactsTab) {
     contactsTab.onclick = (e) => {
@@ -4698,7 +4834,8 @@ function updateUnreadBadge() {
       showMobilePage('contactsPage');
     };
   }
-  // 微信 tab �?切回聊天主界面（桌面端同时显示聊天人列表�?  const friendsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
+  // 微信 tab → 切回聊天主界面（桌面端同时显示聊天人列表）
+  const friendsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
   if (friendsTab) {
     friendsTab.onclick = (e) => {
       e.stopPropagation();
@@ -4714,7 +4851,8 @@ function updateUnreadBadge() {
       if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
     };
   }
-  // 返回按钮（发现页 / 我的�?/ 通讯录页�?  const pages = [
+  // 返回按钮（发现页 / 我的页 / 通讯录页）
+  const pages = [
     { id: 'discoverPage', tab: 'ai' },
     { id: 'mePage', tab: 'downloads' },
     { id: 'contactsPage', tab: 'friends' },
@@ -4735,7 +4873,8 @@ function updateUnreadBadge() {
       };
     }
   });
-  // 通讯录返�?  const contactsBackBtn = document.getElementById('contactsBackBtn');
+  // 通讯录返回
+  const contactsBackBtn = document.getElementById('contactsBackBtn');
   if (contactsBackBtn) {
     contactsBackBtn.onclick = () => {
       const tab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
@@ -4758,7 +4897,7 @@ function updateUnreadBadge() {
       renderContacts();
     };
   }
-  // 更多按钮（聊天头部）�?弹出菜单：拉�?/ 黑名�?/ 更多功能
+  // 更多按钮（聊天头部）→ 弹出菜单：拉黑 / 黑名单 / 更多功能
   const chatMobileMoreBtn = document.getElementById('chatMobileMoreBtn');
   if (chatMobileMoreBtn) {
     chatMobileMoreBtn.onclick = (e) => {
@@ -4766,7 +4905,7 @@ function updateUnreadBadge() {
       openChatMoreMenu(chatMobileMoreBtn);
     };
   }
-  // 桌面端聊天头�?�?按钮
+  // 桌面端聊天头部"⋯"按钮
   const chatHeaderMoreBtn = document.getElementById('chatHeaderMoreBtn');
   if (chatHeaderMoreBtn) {
     chatHeaderMoreBtn.onclick = (e) => {
@@ -4774,7 +4913,7 @@ function updateUnreadBadge() {
       openChatMoreMenu(chatHeaderMoreBtn);
     };
   }
-  // 语音图标 �?触发录音
+  // 语音图标 → 触发录音
   const voiceIconBtn = document.getElementById('voiceIconBtn');
   if (voiceIconBtn) {
     voiceIconBtn.onclick = () => {
@@ -4782,21 +4921,23 @@ function updateUnreadBadge() {
       if (realBtn) realBtn.click();
     };
   }
-  // 黑名单页返回 �?�?�?�?  const blocklistBackBtn = document.getElementById('blocklistBackBtn');
+  // 黑名单页返回 → 回"我"页
+  const blocklistBackBtn = document.getElementById('blocklistBackBtn');
   if (blocklistBackBtn) {
     blocklistBackBtn.onclick = () => {
       const tab = document.querySelector('.sidebar-rail .side-tab[data-side="downloads"]');
       if (tab) tab.click();
     };
   }
-  // 默认打开聊天界面（聊天列表可见）；切到发�?�?通讯录时隐藏，点"微信"再显�?  setChatListVisible(true);
+  // 默认打开聊天界面（聊天列表可见）；切到发现/我/通讯录时隐藏，点"微信"再显示
+  setChatListVisible(true);
 })();
 
 tryRestore();
 checkUpdate();
 wireConversationTools();
 
-// ============ 拉黑（黑名单�?===========
+// ============ 拉黑（黑名单）============
 let blockedMap = null; // Map: id -> user
 async function loadBlocklist(force) {
   if (!force && blockedMap !== null) return blockedMap;
@@ -4823,7 +4964,7 @@ async function toggleBlock(peerId, onDone) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '操作失败');
     if (action === 'block') bl.set(peerId, { id: peerId }); else bl.delete(peerId);
-    toast(action === 'block' ? '已拉黑该联系�? : '已解除拉�?, 'success');
+    toast(action === 'block' ? '已拉黑该联系人' : '已解除拉黑', 'success');
     if (typeof onDone === 'function') onDone();
   } catch (e) {
     toast(((e && e.message) || '操作失败'), 'error');
@@ -4845,14 +4986,14 @@ function openChatMoreMenu(anchor) {
     const muted = !!prefs.muted[key];
     items.push({ label: '导出聊天记录', onClick: () => { hideChatMoreMenu(); exportChatLog(); } });
     items.push({ label: pinned ? '取消置顶' : '置顶会话', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.pinned[key] = !p.pinned[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
-    items.push({ label: muted ? '恢复提醒' : '免打�?, onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.muted[key] = !p.muted[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
+    items.push({ label: muted ? '恢复提醒' : '免打扰', onClick: () => { hideChatMoreMenu(); const p = chatPrefs(); p.muted[key] = !p.muted[key]; saveChatPrefs(p); refreshConversationButtons(); renderContacts(); } });
   }
   if (state.activePeer) {
     items.push({ label: '清空聊天记录', danger: true, onClick: () => { hideChatMoreMenu(); clearActiveChatLog(); } });
   }
-  items.push({ label: '黑名单管�?, onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
+  items.push({ label: '黑名单管理', onClick: () => { hideChatMoreMenu(); renderBlocklistPage(); showMobilePage('blocklistPage'); } });
   items.push({ label: '更多功能', onClick: () => { hideChatMoreMenu(); openFeatureCenter(); } });
-  items.push({ label: '消息字体�? + msgFontLabel(), onClick: () => { hideChatMoreMenu(); cycleMsgFont(); } });
+  items.push({ label: '消息字体：' + msgFontLabel(), onClick: () => { hideChatMoreMenu(); cycleMsgFont(); } });
   items.push({ label: '聊天背景', onClick: () => { hideChatMoreMenu(); openChatBgPicker(); } });
   if (!items.length) return;
   chatMoreMenu = document.createElement('div');
@@ -4879,8 +5020,8 @@ const CHAT_BGS = [
   { name: '暖橙', color: '#f5e6d3' },
   { name: '淡蓝', color: '#dbe9f7' },
   { name: '雾紫', color: '#e6e0f0' },
-  { name: '樱花�?, color: '#fce4ec' },
-  { name: '薄荷�?, color: '#e0f2f1' },
+  { name: '樱花粉', color: '#fce4ec' },
+  { name: '薄荷绿', color: '#e0f2f1' },
   { name: '日落', color: 'linear-gradient(135deg, #ffecd2, #fcb69f)' },
   { name: '极光', color: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)' },
   { name: '森林', color: 'linear-gradient(135deg, #d4fc79, #96e6a1)' },
@@ -4918,7 +5059,7 @@ function openChatBgPicker() {
     '</div></div></div>';
   document.body.appendChild(mask);
   mask.querySelectorAll('.chat-bg-item').forEach(el => {
-    el.onclick = () => { applyChatBg(el.dataset.c); mask.remove(); toast('聊天背景已更�?, 'success', 1200); };
+    el.onclick = () => { applyChatBg(el.dataset.c); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
   });
   var uploadBtn = mask.querySelector('#bgUploadBtn');
   if (uploadBtn) {
@@ -4940,9 +5081,9 @@ function openChatBgPicker() {
               cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
               applyChatBg(cv.toDataURL('image/jpeg', 0.72));
             } catch (e) { applyChatBg(reader.result); }
-            mask.remove(); toast('聊天背景已更�?, 'success', 1200);
+            mask.remove(); toast('聊天背景已更新', 'success', 1200);
           };
-          img.onerror = () => { applyChatBg(reader.result); mask.remove(); toast('聊天背景已更�?, 'success', 1200); };
+          img.onerror = () => { applyChatBg(reader.result); mask.remove(); toast('聊天背景已更新', 'success', 1200); };
           img.src = reader.result;
         };
         reader.readAsDataURL(file);
@@ -4979,15 +5120,15 @@ async function exportChatLog() {
     }
     if (!msgs.length) { toast('暂无聊天记录', 'info'); return; }
     const nameOf = (id) => {
-      if (id === state.me.id) return state.me.nickname || '�?;
+      if (id === state.me.id) return state.me.nickname || '我';
       const f = state.friends.find(u => u.id === id);
       return f ? (f.nickname || f.username) : ('用户 ' + id);
     };
-    const lines = ['SecureChat 聊天记录导出', '会话�? + title, '时间�? + new Date().toLocaleString(), '�?' + msgs.length + ' 条消�?, '----------------------------------------', ''];
+    const lines = ['SecureChat 聊天记录导出', '会话：' + title, '时间：' + new Date().toLocaleString(), '共 ' + msgs.length + ' 条消息', '----------------------------------------', ''];
     msgs.forEach(m => {
       const who = nameOf(m.from);
       const ts = new Date(m.createdAt).toLocaleString();
-      let body = m.recalled ? (m.from === state.me.id ? '你撤回了一条消�? : '对方撤回了一条消�?) : String(m.content || '').replace(/\r?\n/g, '\n    ');
+      let body = m.recalled ? (m.from === state.me.id ? '你撤回了一条消息' : '对方撤回了一条消息') : String(m.content || '').replace(/\r?\n/g, '\n    ');
       lines.push('[' + ts + '] ' + who + ': ' + body);
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
@@ -4996,14 +5137,14 @@ async function exportChatLog() {
     a.download = 'SecureChat-' + title.replace(/[\\/:*?"<>|]/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.txt';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    toast('聊天记录已导�?, 'success');
+    toast('聊天记录已导出', 'success');
   } catch (e) {
-    toast('导出失败�? + ((e && e.message) || e), 'error');
+    toast('导出失败：' + ((e && e.message) || e), 'error');
   }
 }
 function msgFontLabel() {
   const s = localStorage.getItem('sc_msg_font') || 'm';
-  return s === 's' ? '�? : (s === 'l' ? '�? : '�?);
+  return s === 's' ? '小' : (s === 'l' ? '大' : '中');
 }
 function applyMsgFont() {
   const s = localStorage.getItem('sc_msg_font') || 'm';
@@ -5016,14 +5157,14 @@ function cycleMsgFont() {
   const next = cur === 's' ? 'm' : (cur === 'm' ? 'l' : 's');
   localStorage.setItem('sc_msg_font', next);
   applyMsgFont();
-  toast('消息字体�? + msgFontLabel(), 'info', 1200);
+  toast('消息字体：' + msgFontLabel(), 'info', 1200);
 }
 async function renderBlocklistPage() {
   const list = document.getElementById('blocklistList');
   if (!list) return;
-  list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">加载中�?/div>';
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">加载中…</div>';
   const bl = await loadBlocklist(true);
-  if (!bl.size) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">暂无黑名�?/div>'; return; }
+  if (!bl.size) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#999">暂无黑名单</div>'; return; }
   list.innerHTML = [...bl.values()].map(u => '<div class="contact" style="display:flex;align-items:center;padding:10px 14px;background:#fff">' +
     '<div class="avatar">' + (escapeHtml(u.avatar) ? '<img src="' + escapeHtml(u.avatar) + '">' : avatarChar(u.nickname || u.username)) + '</div>' +
     '<div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(u.nickname || u.username) + '</div>' +
@@ -5034,13 +5175,16 @@ async function renderBlocklistPage() {
   });
 }
 
-// i18n 兜底：i18n.js �?DOMContentLoaded 时已自行 apply() 一次；
-// 这里再补一次，覆盖 app.js �?DOMContentLoaded 之前或之后执行的场景，确保静�?DOM 译好�?if (window.SCI18N && typeof SCI18N.apply === 'function') {
+// i18n 兜底：i18n.js 在 DOMContentLoaded 时已自行 apply() 一次；
+// 这里再补一次，覆盖 app.js 在 DOMContentLoaded 之前或之后执行的场景，确保静态 DOM 译好。
+if (window.SCI18N && typeof SCI18N.apply === 'function') {
   const _applyI18n = () => SCI18N.apply();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _applyI18n, { once: true });
   else _applyI18n();
 }
-// E2EE 握手预热：登录后立即初始�?identity key 并上�?prekey bundle�?// 确保收到第一�?Flutter 密文时能够立即解密�?(function initE2EEOnLogin() {
+// E2EE 握手预热：登录后立即初始化 identity key 并上传 prekey bundle，
+// 确保收到第一条 Flutter 密文时能够立即解密。
+(function initE2EEOnLogin() {
   function warmup() {
     if (window.SCE2EE && state && state.me) {
       window.SCE2EE.ensureKeyPair().catch(() => {});
@@ -5051,7 +5195,7 @@ async function renderBlocklistPage() {
 })();
 
 
-// ============ 管理后台：余额兑换码生成与管�?============
+// ============ 管理后台：余额兑换码生成与管理 ============
 (function initAdminPanel() {
   const adminEntry = $('adminEntry');
   if (!adminEntry) return;
@@ -5075,7 +5219,7 @@ async function renderBlocklistPage() {
     if (window.IS_MOBILE) document.getElementById('chatView').classList.remove('mobile-chat-active');
   }
   adminEntry.onclick = () => {
-    if (!isAdminUser()) { toast('无管理权�?, 'warn'); return; }
+    if (!isAdminUser()) { toast('无管理权限', 'warn'); return; }
     // 切换 admin tab 高亮
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === adminEntry));
     syncMobileNav('admin');
@@ -5092,13 +5236,14 @@ async function renderBlocklistPage() {
     else { document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === 'friends')); syncMobileNav('friends'); }
     hideAdminView();
   };
-  // 生成兑换�?  const adminIssueBtn = $('adminIssueBtn');
+  // 生成兑换码
+  const adminIssueBtn = $('adminIssueBtn');
   if (adminIssueBtn) {
     adminIssueBtn.onclick = async () => {
       const value = parseFloat($('adminRedeemValue').value);
       const count = Math.min(parseInt($('adminRedeemCount').value) || 1, 500);
-      if (!value || value <= 0) { toast('请输入有效面�?, 'warn'); return; }
-      adminIssueBtn.disabled = true; adminIssueBtn.textContent = '生成�?..';
+      if (!value || value <= 0) { toast('请输入有效面值', 'warn'); return; }
+      adminIssueBtn.disabled = true; adminIssueBtn.textContent = '生成中...';
       try {
         const res = await fetch(state.serverHost + '/api/admin/redeem/issue', {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
@@ -5110,13 +5255,13 @@ async function renderBlocklistPage() {
         const list = $('adminCodeList');
         list.innerHTML = (data.codes || []).map(c => '<span class="admin-code-item" title="点击复制">' + escapeHtml(c) + '</span>').join('');
         list.querySelectorAll('.admin-code-item').forEach(el => {
-          el.onclick = () => { navigator.clipboard.writeText(el.textContent).then(() => toast('已复�? ' + el.textContent, 'success', 1200)); };
+          el.onclick = () => { navigator.clipboard.writeText(el.textContent).then(() => toast('已复制: ' + el.textContent, 'success', 1200)); };
         });
         $('adminIssueResult').style.display = '';
         toast('成功生成 ' + data.count + ' 个兑换码', 'success');
         loadAdminCodes('');
-      } catch (e) { toast('生成失败�? + e.message, 'error'); }
-      finally { adminIssueBtn.disabled = false; adminIssueBtn.textContent = '生成兑换�?; }
+      } catch (e) { toast('生成失败：' + e.message, 'error'); }
+      finally { adminIssueBtn.disabled = false; adminIssueBtn.textContent = '生成兑换码'; }
     };
   }
   // 复制全部
@@ -5134,7 +5279,7 @@ async function renderBlocklistPage() {
       navigator.clipboard.writeText(codes).then(() => toast('已复制全部兑换码', 'success'));
     };
   }
-  // 兑换码列�?tab 切换
+  // 兑换码列表 tab 切换
   document.querySelectorAll('.admin-tab').forEach(tab => {
     tab.onclick = () => {
       document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('on'));
@@ -5142,10 +5287,11 @@ async function renderBlocklistPage() {
       loadAdminCodes(tab.dataset.claimed);
     };
   });
-  // 加载兑换码列�?  window.loadAdminCodes = async function(claimed) {
+  // 加载兑换码列表
+  window.loadAdminCodes = async function(claimed) {
     const tbl = $('adminCodeTable');
     if (!tbl) return;
-    tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">加载�?..</div>';
+    tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">加载中...</div>';
     try {
       const res = await fetch(state.serverHost + '/api/admin/redeem' + (claimed !== undefined && claimed !== '' ? '?claimed=' + claimed : ''), {
         headers: { 'Authorization': 'Bearer ' + state.token }
@@ -5153,22 +5299,22 @@ async function renderBlocklistPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '加载失败');
       const codes = data.codes || [];
-      if (!codes.length) { tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">暂无兑换�?/div>'; return; }
+      if (!codes.length) { tbl.innerHTML = '<div style="padding:20px;color:#999;text-align:center">暂无兑换码</div>'; return; }
       tbl.innerHTML = codes.map(c => {
         const claimedAt = c.claimed_at ? new Date(c.claimed_at).toLocaleString() : '-';
         const statusCls = c.claimed_by ? 'used' : 'unused';
-        const statusText = c.claimed_by ? '已使�? : '未使�?;
-        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #07c160;color:#07c160;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + c.value + '�?/span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
+        const statusText = c.claimed_by ? '已使用' : '未使用';
+        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #07c160;color:#07c160;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + c.value + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
       }).join('');
       tbl.querySelectorAll('.admin-code-copy').forEach(btn => {
         btn.onclick = () => {
           const code = btn.dataset.code;
-          const done = () => { const o = btn.textContent; btn.textContent = '�?; setTimeout(() => { btn.textContent = o; }, 1200); };
+          const done = () => { const o = btn.textContent; btn.textContent = '✓'; setTimeout(() => { btn.textContent = o; }, 1200); };
           if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => adminFallbackCopy(code, done));
           else adminFallbackCopy(code, done);
         };
       });
-    } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败�? + escapeHtml(e.message) + '</div>'; }
+    } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
   };
 })();
 

@@ -14,6 +14,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
 import 'chat_features.dart';
 import 'contact_detail_page.dart';
+import 'scan_page.dart';
+import 'wallet_page.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'services/securechat_api.dart';
@@ -1632,6 +1634,48 @@ class _ChatViewStateState extends State<_ChatView> {
     ]);
   }
 
+  PopupMenuItem<int> _plusItem(int v, IconData ic, String label) {
+    return PopupMenuItem<int>(
+      value: v,
+      height: 44,
+      child: Row(children: [
+        Icon(ic, size: 20, color: Colors.white),
+        const SizedBox(width: 12),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
+      ]),
+    );
+  }
+
+  void _showPlusMenu(BuildContext ctx) {
+    final RenderBox btn = ctx.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox;
+    final pos = btn.localToGlobal(Offset(btn.size.width - 4, btn.size.height + 6), ancestor: overlay);
+    showMenu<int>(
+      context: ctx,
+      position: RelativeRect.fromLTRB(pos.dx, pos.dy, overlay.size.width - pos.dx - 4, 0),
+      color: const Color(0xff2c2c2c),
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      items: [
+        _plusItem(0, Icons.payments_outlined, '收付款'),
+        if (Platform.isAndroid || Platform.isIOS) _plusItem(1, Icons.center_focus_weak, '扫一扫'),
+        _plusItem(2, Icons.person_add_alt_1, '添加朋友'),
+        _plusItem(3, Icons.group_add, '发起群聊'),
+      ],
+    ).then((v) {
+      if (v == null || !mounted) return;
+      if (v == 0) {
+        Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config)));
+      } else if (v == 1) {
+        Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => ScanPage(api: widget.api, config: widget.config)));
+      } else if (v == 2) {
+        _showAddFriendDialog(ctx);
+      } else if (v == 3) {
+        _showCreateGroupDialog(ctx);
+      }
+    });
+  }
+
   Widget _leftPanel(AppConfig config, {bool isMobile = false}) {
     final theme = config.theme;
     final items = conversations.where((c) =>
@@ -1647,7 +1691,8 @@ class _ChatViewStateState extends State<_ChatView> {
             CircleAvatar(radius: 20, backgroundColor: config.primary, child: Text('S', style: TextStyle(color: theme.onAccent, fontWeight: FontWeight.bold, fontSize: 14))),
             const SizedBox(width: 10),
             Expanded(child: Text('微信', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
-         IconButton(tooltip: '全部已读', onPressed: () { setState(() => _unread.clear()); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
+          IconButton(tooltip: '全部已读', onPressed: () { setState(() => _unread.clear()); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
+          if (isMobile) Builder(builder: (btnCtx) => IconButton(tooltip: '附加功能', onPressed: () => _showPlusMenu(btnCtx), icon: const Icon(Icons.add, size: 24), color: theme.text)),
           ]),
         ),
         Padding(
@@ -3958,7 +4003,7 @@ class _ContactsViewStateState extends State<ContactsView> {
 
   Widget _contactSection(String title, List<Map<String, dynamic>> list, AppTheme t) {
     if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    // Group by first letter
+    // Group by first letter, flatten into [sectionTitle, letterHeader, row...]
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (final item in list) {
       final name = (item['name'] as String?) ?? '';
@@ -3966,76 +4011,72 @@ class _ContactsViewStateState extends State<ContactsView> {
       grouped.putIfAbsent(letter, () => []).add(item);
     }
     final sortedKeys = grouped.keys.toList()..sort();
+    final entries = <Map<String, dynamic>>[];
+    for (final letter in sortedKeys) {
+      entries.add({'__header': letter});
+      entries.addAll(grouped[letter]!);
+    }
     return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        if (index == 0) {
-          return Container(
-            margin: const EdgeInsets.only(top: 12, left: 16, right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: t.div, borderRadius: BorderRadius.circular(6)),
-            child: Text(title, style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
-          );
-        }
-        int flatIdx = index - 1;
-        String? currentLetter;
-        int itemIdx = 0;
-        for (final letter in sortedKeys) {
-          final items = grouped[letter]!;
-          if (flatIdx < items.length) {
-            currentLetter = letter;
-            itemIdx = flatIdx;
-            break;
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index == 0) {
+            return Container(
+              margin: const EdgeInsets.only(top: 12, left: 16, right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: t.div, borderRadius: BorderRadius.circular(6)),
+              child: Text(title, style: TextStyle(color: t.subText, fontSize: 12, fontWeight: FontWeight.w600)),
+            );
           }
-          flatIdx -= items.length;
-          flatIdx -= 1; // header
-        }
-        if (currentLetter == null) return null;
-        final items = grouped[currentLetter]!;
-        if (itemIdx == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 4),
-            child: Text(currentLetter, style: TextStyle(color: _wechatGreen, fontSize: 13, fontWeight: FontWeight.w700)),
-          );
-        }
-        final item = items[itemIdx];
-        final name = item['name'] as String;
-        final icon = item['icon'] as IconData;
-        final online = item['online'] as bool?;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              final id = item['id'];
-              if (id is! int) return;
-              final isGroup = item['kind'] == 'group';
-              final name = item['name'] as String;
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ContactDetailPage(
-                  api: SecureChatApi(),
-                  config: widget.config,
-                  userId: id,
-                  name: name,
-                  isGroup: isGroup,
-                  currentRemark: (item['remark'] as String?)?.isEmpty == false ? item['remark'] as String : null,
-                  onOpenChat: () {
-                    final cb = widget.onOpenChat;
-                    if (cb != null) cb(id, isGroup, name);
-                  },
-                ),
-              ));
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(children: [
-                CircleAvatar(radius: 20, backgroundColor: t.primary.withValues(alpha: 0.14), child: Icon(icon, color: _wechatGreen, size: 20)),
-                const SizedBox(width: 12),
-                Expanded(child: Text(name, style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w500))),
-                if (online == true) Container(width: 8, height: 8, decoration: const BoxDecoration(color: _wechatGreen, shape: BoxShape.circle)),
-              ]),
+          if (index - 1 >= entries.length) return null;
+          final entry = entries[index - 1];
+          final headerLetter = entry['__header'];
+          if (headerLetter is String) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 4),
+              child: Text(headerLetter, style: TextStyle(color: _wechatGreen, fontSize: 13, fontWeight: FontWeight.w700)),
+            );
+          }
+          final item = entry;
+          final name = item['name'] as String;
+          final icon = item['icon'] as IconData;
+          final online = item['online'] as bool?;
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                final id = item['id'];
+                if (id is! int) return;
+                final isGroup = item['kind'] == 'group';
+                final name = item['name'] as String;
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ContactDetailPage(
+                    api: SecureChatApi(),
+                    config: widget.config,
+                    userId: id,
+                    name: name,
+                    isGroup: isGroup,
+                    currentRemark: (item['remark'] as String?)?.isEmpty == false ? item['remark'] as String : null,
+                    onOpenChat: () {
+                      final cb = widget.onOpenChat;
+                      if (cb != null) cb(id, isGroup, name);
+                    },
+                  ),
+                ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(children: [
+                  CircleAvatar(radius: 20, backgroundColor: t.primary.withValues(alpha: 0.14), child: Icon(icon, color: _wechatGreen, size: 20)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(name, style: TextStyle(color: t.text, fontSize: 15, fontWeight: FontWeight.w500))),
+                  if (online == true) Container(width: 8, height: 8, decoration: const BoxDecoration(color: _wechatGreen, shape: BoxShape.circle)),
+                ]),
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+        childCount: entries.length + 1,
+      ),
     );
   }
 }

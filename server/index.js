@@ -103,6 +103,30 @@ function parseExtra(s){ try { return JSON.parse(s || '{}') || {}; } catch { retu
 
 const app = express();
 
+// ---------- 强制HTTPS：TLS启用时，非本地明文访问一律301跳转到HTTPS ----------
+// 本地回环豁免（epaygw/Cloudreve等本机服务回调走127.0.0.1的HTTP端口，不能被重定向破坏）
+let __tlsEnabled = null;
+app.use((req, res, next) => {
+  if (__tlsEnabled === null) {
+    const certPath = process.env.CERT_PATH || path.join(process.cwd(), 'portable', 'le.crt');
+    const keyPath = process.env.KEY_PATH || path.join(process.cwd(), 'portable', 'le.key');
+    const pfxPath = process.env.PFX_PATH || path.join(process.cwd(), 'portable', 'le.pfx');
+    __tlsEnabled = process.env.USE_HTTPS === '1' &&
+      ((fs.existsSync(certPath) && fs.existsSync(keyPath)) || fs.existsSync(pfxPath));
+  }
+  if (!__tlsEnabled) return next();
+  const xf = String(req.headers['x-forwarded-proto'] || '').toLowerCase();
+  if (req.secure || xf === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    return next();
+  }
+  const ra = (req.socket && req.socket.remoteAddress) || '';
+  if (ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1') return next();
+  const hostHdr = String(req.headers.host || '');
+  const host = hostHdr.split(':')[0] || 'mc.32768.top';
+  return res.redirect(301, 'https://' + host + ':8888' + req.originalUrl);
+});
+
 // ---------- CORS：允许网页端独立部署（不同域名）访问 API ----------
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -188,6 +212,11 @@ function codeAttemptsExceeded(email) {
   return false;
 }
 function recordCodeFail(email) {
+  // 防膨胀：超过5000条时先清理过期项
+  if (codeAttemptFail.size > 5000) {
+    const now = Date.now();
+    for (const [k, v] of codeAttemptFail) if (now - v.first > 10 * 60 * 1000) codeAttemptFail.delete(k);
+  }
   const k = codeAttemptKey(email);
   const v = codeAttemptFail.get(k);
   if (!v || Date.now() - v.first > 10 * 60 * 1000) codeAttemptFail.set(k, { count: 1, first: Date.now() });
