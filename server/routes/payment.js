@@ -152,6 +152,7 @@ module.exports = function registerPayment(app, db, auth) {
   function saveEpayConfig(c) {
     const value = JSON.stringify({
       enabled: !!c.enabled,
+      sandbox: !!c.sandbox,
       baseUrl: String(c.baseUrl || '').trim(),
       gatewayUrl: String(c.gatewayUrl || '').trim(),
       gatewayId: String(c.gatewayId || '').trim(),
