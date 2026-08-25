@@ -145,8 +145,8 @@ function insertGroupMessage(groupId, fromId, content, clientMsgId) {
   if (clientMsgId) {
     try {
       const existing = p.get(
-        'SELECT id, group_id, from_id, content, created_at FROM group_messages WHERE client_msg_id=?',
-        clientMsgId);
+        'SELECT id, group_id, from_id, content, created_at FROM group_messages WHERE client_msg_id=? AND from_id=? AND group_id=?',
+        clientMsgId, fromId, groupId);
       if (existing) {
         return { id: existing.id, groupId: existing.group_id, from: existing.from_id, content: existing.content, createdAt: existing.created_at, clientMsgId };
       }
