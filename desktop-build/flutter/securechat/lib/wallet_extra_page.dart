@@ -118,46 +118,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
 
   String? _pasted;
 
-  // ---------- 收款码生成 ----------
-  Future<void> _makeReceiveCode() async {
-    final amtC = _tc();
-    final rmC = _tc();
-    final doConfirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('生成收款码'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: amtC, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '固定金额（留空为任意）')),
-          const SizedBox(height: 10),
-          TextField(controller: rmC, decoration: const InputDecoration(hintText: '备注（可选）')),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('生成')),
-        ],
-      ),
-    );
-    if (doConfirm != true) return;
-    double? amt;
-    final a = double.tryParse(amtC.text.trim());
-    if (amtC.text.trim().isNotEmpty) {
-      if (a == null || a <= 0) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('金额无效')));
-        return;
-      }
-      amt = a;
-    }
-    try {
-      final r = await _req('POST', '/api/pay/code/receive', body: {'amount': amt, 'remark': rmC.text.trim()});
-      final token = (r['code'] as Map<String, dynamic>?)?['token'] ?? '';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('收款码已生成，可截图或分享')));
-        await _showCodeView('receive', token, r['qrText']?.toString() ?? 'securechat://pay?token=$token');
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('生成失败：${_err(e)}')));
-    }
-  }
+  // ---------- 付款码 ----------
+  String _err(Object e) => e.toString().replaceFirst('Bad state: ', '');
 
   Future<void> _showCodeView(String type, String token, String qrText) async {
     final t = widget.config.theme;
@@ -175,9 +137,6 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     ));
   }
 
-  String _err(Object e) => e.toString().replaceFirst('Bad state: ', '');
-
-  // ---------- 付款码 ----------
   Future<void> _makePayCode() async {
     try {
       final r = await _req('POST', '/api/pay/code/pay');
@@ -584,8 +543,8 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     final t = cfg.theme;
     final entries = <(IconData, String, VoidCallback)>[
       (Icons.swap_horiz, '转账', _transfer),
-      (Icons.qr_code_2, '收款码', _makeReceiveCode),
-      (Icons.qr_code, '付款码', _makePayCode),
+      (Icons.real_estate_agent, '我的收款码', _myPersonalQr),
+      (Icons.qr_code, '站内付款码', _makePayCode),
       (Icons.center_focus_weak, '扫码支付', _scanPaste),
       (Icons.groups, '群收款', _groupCollect),
       (Icons.view_list, '群接龙', _groupSolection),
