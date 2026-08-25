@@ -123,12 +123,18 @@
     loadRemote(tabsEl, render);
   }
 
+  function safeUrl(u) {
+    var s = String(u || '').trim();
+    return /^https?:\/\//i.test(s) ? s : '';
+  }
+
   function openArticle(a) {
     var mask = document.createElement('div');
     mask.className = 'modal-mask';
     var box = document.createElement('div');
     box.className = 'modal read-article';
     box.style.cssText = 'width:min(680px,94vw);max-height:88vh;overflow:auto';
+    var aUrl = safeUrl(a.url);
     box.innerHTML =
       '<div class="read-article-head">' +
         '<span class="read-article-cat">' + esc(a.cat) + '</span>' +
@@ -137,7 +143,7 @@
       '<h2 class="read-article-title">' + esc(a.title) + '</h2>' +
       '<div class="read-article-meta">' + esc(a.src || '') + ' · ' + esc(a.time || '') + (a.read ? ' · ' + esc(a.read) + '阅读' : '') + '</div>' +
       '<div class="read-article-body">' + esc(a.summary) + '</div>' +
-      (a.url ? '<div class="read-article-body" style="margin-top:14px"><a href="' + esc(a.url) + '" target="_blank" rel="noopener" style="color:#1989fa;text-decoration:none">打开原文 ↗</a></div>' : '') +
+      (aUrl ? '<div class="read-article-body" style="margin-top:14px"><a href="' + esc(aUrl) + '" target="_blank" rel="noopener noreferrer" style="color:#1989fa;text-decoration:none">打开原文 ↗</a></div>' : '') +
       (!a.url ? '<div class="read-article-body" style="color:#888;margin-top:12px">这是 SecureChat 看一看频道精选资讯演示内容。更多精彩内容正在路上。</div>' : '');
     mask.appendChild(box);
     document.body.appendChild(mask);
