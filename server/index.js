@@ -1663,6 +1663,9 @@ app.post('/api/videos', (req, res) => {
   const { title, cover, content } = req.body || {};
   const t = String(title || '').trim();
   if (!t) return res.status(400).json({ error: '标题不能为空' });
+  if (t.length > 120) return res.status(400).json({ error: '标题过长（限120字）' });
+  if (String(cover || '').length > 2048) return res.status(400).json({ error: '封面地址过长' });
+  if (String(content || '').length > 20000) return res.status(400).json({ error: '内容过长（限2万字）' });
   prepare('INSERT INTO videos(user_id,title,cover,content,created_at) VALUES(?,?,?,?,?)')
     .run(payload.id, t, String(cover || ''), String(content || ''), Date.now());
   persist();
@@ -1694,12 +1697,9 @@ app.post('/api/videos/:id/like', (req, res) => {
   if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
   const on = req.body && req.body.on !== false;
   if (on) {
-    const already = prepare('SELECT 1 FROM video_likes WHERE video_id=? AND user_id=?').get(id, payload.id);
-    if (!already) {
-      prepare('INSERT INTO video_likes(video_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
-      prepare('UPDATE videos SET likes=likes+1 WHERE id=?').run(id);
-    }
-  } else { prepare('DELETE FROM video_likes WHERE video_id=? AND user_id=?').run(id, payload.id); prepare('UPDATE videos SET likes=MAX(0,likes-1) WHERE id=?').run(id); }
+    const r = prepare('INSERT OR IGNORE INTO video_likes(video_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
+    if (r.changes > 0) prepare('UPDATE videos SET likes=likes+1 WHERE id=?').run(id);
+  } else { const d = prepare('DELETE FROM video_likes WHERE video_id=? AND user_id=?').run(id, payload.id); if (d.changes > 0) prepare('UPDATE videos SET likes=MAX(0,likes-1) WHERE id=?').run(id); }
   persist();
   res.json({ ok: true, liked: on });
 });
@@ -1712,6 +1712,7 @@ app.post('/api/videos/:id/comment', (req, res) => {
   if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
   const content = String((req.body || {}).content || '').trim();
   if (!content) return res.status(400).json({ error: '评论不能为空' });
+  if (content.length > 1000) return res.status(400).json({ error: '评论过长（限1000字）' });
   prepare('INSERT INTO video_comments(video_id,user_id,content,created_at) VALUES(?,?,?,?)').run(id, payload.id, content, Date.now());
   persist();
   res.json({ ok: true });
