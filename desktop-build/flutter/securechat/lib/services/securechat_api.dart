@@ -407,6 +407,17 @@ class SecureChatApi {
     return ((data['txn'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  // 个人真实收款码（支付宝/微信）
+  Future<List<Map<String, dynamic>>> personalQrList() async {
+    final data = await _json('GET', '/api/pay/personal-qr');
+    return ((data['codes'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+  Future<Map<String, dynamic>> personalQrSave({required String type, required String image, required int maxUses, String note = ''}) =>
+      _json('POST', '/api/pay/personal-qr', body: {'type': type, 'image': image, 'maxUses': maxUses, 'note': note});
+  Future<Map<String, dynamic>> personalQrUse(int id) => _json('POST', '/api/pay/personal-qr/$id/use', body: {});
+  Future<void> personalQrReset(int id) => _json('POST', '/api/pay/personal-qr/$id/reset', body: {});
+  Future<void> personalQrDelete(int id) => _json('DELETE', '/api/pay/personal-qr/$id');
+
   // 在线充值（EPay 真实支付）：返回 payUrl 跳转支付
   Future<Map<String, dynamic>> walletRecharge(double amount, {String type = 'alipay'}) =>
       _json('POST', '/api/wallet/recharge', body: {'amount': amount, 'type': type});

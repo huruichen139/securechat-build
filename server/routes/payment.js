@@ -958,5 +958,73 @@ module.exports = function registerPayment(app, db, auth) {
     });
   });
 
+  // ============ 个人真实收款码（支付宝/微信）============
+  // 用户上传自己的真实收款二维码图片，可设使用次数（-1=无上限），展示/保存/删除。
+  try { prepare("CREATE TABLE IF NOT EXISTS personal_qr (\n" +
+    " id INTEGER PRIMARY KEY AUTOINCREMENT,\n" +
+    " user_id INTEGER NOT NULL,\n" +
+    " type TEXT NOT NULL DEFAULT 'alipay',\n" +
+    " image TEXT NOT NULL,\n" +
+    " note TEXT DEFAULT '',\n" +
+    " max_uses INTEGER NOT NULL DEFAULT -1,\n" +
+    " used_count INTEGER NOT NULL DEFAULT 0,\n" +
+    " created_at INTEGER NOT NULL\n)") .run(); } catch (e) {}
+
+  function personalQrPublic(r) {
+    return { id: r.id, type: r.type, image: r.image, note: r.note || '', maxUses: r.max_uses, usedCount: r.used_count, exhausted: r.max_uses >= 0 && r.used_count >= r.max_uses, createdAt: r.created_at };
+  }
+
+  app.get('/api/pay/personal-qr', mw, (req, res) => {
+    const rows = prepare('SELECT * FROM personal_qr WHERE user_id=? ORDER BY created_at DESC LIMIT 10').all(req.user.id);
+    res.json({ codes: rows.map(personalQrPublic) });
+  });
+
+  // 保存/更新：同一类型覆盖旧码
+  app.post('/api/pay/personal-qr', mw, (req, res) => {
+    const b = req.body || {};
+    const type = ['alipay', 'wxpay'].includes(b.type) ? b.type : 'alipay';
+    const image = typeof b.image === 'string' ? b.image.trim() : '';
+    if (!image.startsWith('data:image/') || image.length > 600 * 1024) return res.status(400).json({ error: '图片无效或过大（限600KB，请用截图data-uri）' });
+    const maxUses = Number(b.maxUses);
+    const mu = Number.isFinite(maxUses) ? Math.trunc(maxUses) : -1;
+    const note = String(b.note || '').slice(0, 60);
+    const old = prepare('SELECT id FROM personal_qr WHERE user_id=? AND type=?').get(req.user.id, type);
+    if (old) {
+      prepare('UPDATE personal_qr SET image=?,note=?,max_uses=?,used_count=0 WHERE id=?').run(image, note, mu, old.id);
+    } else {
+      prepare('INSERT INTO personal_qr(user_id,type,image,note,max_uses,used_count,created_at) VALUES(?,?,?,?,?,0,?)')
+        .run(req.user.id, type, image, note, mu, Date.now());
+    }
+    persist();
+    const row = prepare('SELECT * FROM personal_qr WHERE user_id=? AND type=?').get(req.user.id, type);
+    res.json({ ok: true, code: personalQrPublic(row) });
+  });
+
+  // 被扫一次：次数+1（达到上限后拒绝再计）
+  app.post('/api/pay/personal-qr/:id/use', mw, (req, res) => {
+    const row = prepare('SELECT * FROM personal_qr WHERE id=? AND user_id=?').get(parseInt(req.params.id, 10), req.user.id);
+    if (!row) return res.status(404).json({ error: '收款码不存在' });
+    if (row.max_uses >= 0 && row.used_count >= row.max_uses) return res.status(409).json({ error: '已达使用次数上限' });
+    prepare('UPDATE personal_qr SET used_count=used_count+1 WHERE id=?').run(row.id);
+    persist();
+    res.json({ ok: true, code: personalQrPublic(prepare('SELECT * FROM personal_qr WHERE id=?').get(row.id)) });
+  });
+
+  // 重置次数
+  app.post('/api/pay/personal-qr/:id/reset', mw, (req, res) => {
+    const row = prepare('SELECT id FROM personal_qr WHERE id=? AND user_id=?').get(parseInt(req.params.id, 10), req.user.id);
+    if (!row) return res.status(404).json({ error: '收款码不存在' });
+    prepare('UPDATE personal_qr SET used_count=0 WHERE id=?').run(row.id);
+    persist();
+    res.json({ ok: true });
+  });
+
+  app.delete('/api/pay/personal-qr/:id', mw, (req, res) => {
+    const info = prepare('DELETE FROM personal_qr WHERE id=? AND user_id=?').run(parseInt(req.params.id, 10), req.user.id);
+    if (!info.changes) return res.status(404).json({ error: '收款码不存在' });
+    persist();
+    res.json({ ok: true });
+  });
+
   return { ok: true, routes: ['/api/pay/*'] };
 };

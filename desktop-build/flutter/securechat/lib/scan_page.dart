@@ -134,8 +134,21 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
-    // 任意其他内容：直接展示结果；URL提供打开按钮，可复制
+    // 任意其他内容：链接直接跳转，其余展示结果
     if (!mounted) return;
+    final isUrl = RegExp(r'^https?://', caseSensitive: false).hasMatch(text);
+    if (isUrl) {
+      setState(() { _busy = true; _status = '正在打开链接…'; });
+      final uri = Uri.tryParse(text);
+      try {
+        await launchUrl(uri!, mode: LaunchMode.externalApplication);
+        _status = '已打开链接';
+      } catch (_) {
+        _status = '无法打开链接';
+      }
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
     _showRawResult(text);
   }
 

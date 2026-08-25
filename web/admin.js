@@ -1295,7 +1295,7 @@
         if (target === 'ips') loadBannedIps();
         if (target === 'sensitive') loadSensitiveWords();
         if (target === 'audit') loadAuditLogs();
-        if (target === 'replay') loadReplayConversations();
+        if (target === 'replay') { loadReplayConversations(); loadAdminCallReplays(); }
         if (target !== 'replay') stopReplay();   // 离开分区就停掉回放定时器
         if (target === 'merchants') loadMerchants();
         if (target === 'epay') { loadEpayConfig(); loadGatewayKey(); }
@@ -1452,6 +1452,58 @@
   document.querySelectorAll('.admin-nav-item').forEach(btn => {
     if (btn.dataset.adminSection === 'redeem') {
       btn.addEventListener('click', () => loadRedeemCodes(redeemClaimedFilter));
+    }
+  });
+
+  // ============ 通话回放（语音/视频，管理员全量） ============
+  async function loadAdminCallReplays() {
+    const btn = el('callReplayLoadBtn');
+    const box = el('callReplayList');
+    const hint = el('callReplayHint');
+    if (!btn || !box) return;
+    const token = getToken();
+    if (!token) return;
+    btn.disabled = true;
+    btn.textContent = '加载中...';
+    try {
+      const resp = await fetch(API + '/api/call-recordings?all=1', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || resp.status);
+      const list = data.recordings || [];
+      hint.textContent = '共 ' + list.length + ' 条';
+      if (!list.length) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#999">还没有任何通话回放</div>'; return; }
+      const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+      box.innerHTML = list.map(r => {
+        const kindBadge = r.kind === 'video'
+          ? '<span class="admin-badge online">视频通话</span>'
+          : '<span class="admin-badge">语音通话</span>';
+        const fromName = escapeHtml(r.fromNickname || r.fromUsername || ('用户' + r.fromId));
+        const toName = escapeHtml(r.toNickname || r.toUsername || ('用户' + r.toId));
+        const when = new Date(r.createdAt).toLocaleString();
+        // 媒体直接内联播放：视频用 video 标签，语音用 audio 标签
+        const player = r.kind === 'video'
+          ? `<video controls preload="none" src="${API}/api/call-recordings/${r.id}" style="width:100%;max-width:420px;border-radius:8px;background:#000;margin-top:6px"></video>`
+          : `<audio controls preload="none" src="${API}/api/call-recordings/${r.id}" style="width:100%;max-width:420px;margin-top:6px"></audio>`;
+        return `<div style="border:1px solid #e5e5e5;border-radius:10px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${kindBadge}
+            <b>${fromName}</b><span style="color:#999">→</span><b>${toName}</b>
+            <span style="color:#888;font-size:12px">${when}</span>
+            <span style="color:#aaa;font-size:12px">${fmtSize(r.size)}</span>
+          </div>
+          ${player}
+        </div>`;
+      }).join('');
+    } catch (e) {
+      box.innerHTML = '<div style="padding:16px;color:#c0392b">加载失败：' + escapeHtml(e.message) + '</div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '加载全部通话回放';
+    }
+  }
+  document.querySelectorAll('.admin-nav-item').forEach(btn => {
+    if (btn.dataset.adminSection === 'replay') {
+      btn.addEventListener('click', () => loadAdminCallReplays());
     }
   });
 })();

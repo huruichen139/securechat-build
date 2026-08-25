@@ -1247,6 +1247,16 @@ app.get('/api/call-recordings', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
+  // 管理员可查看全部用户的通话回放
+  const me = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
+  const adminOk = !!me && !!me.email && String(process.env.ADMIN_EMAILS || '').toLowerCase().split(',').includes(me.email.toLowerCase()) && req.query.all === '1';
+  if (adminOk) {
+    const rows = prepare(`SELECT r.id,r.from_id AS fromId,r.to_id AS toId,r.kind,r.size,r.created_at AS createdAt,
+      uf.username AS fromUsername,uf.nickname AS fromNickname,ut.username AS toUsername,ut.nickname AS toNickname
+      FROM call_recordings r LEFT JOIN users uf ON uf.id=r.from_id LEFT JOIN users ut ON ut.id=r.to_id
+      ORDER BY r.created_at DESC LIMIT 500`).all();
+    return res.json({ recordings: rows, admin: true });
+  }
   const peerId = req.query.peer ? parseInt(req.query.peer, 10) : null;
   const rows = peerId
     ? prepare('SELECT id,from_id AS fromId,to_id AS toId,kind,size,created_at AS createdAt FROM call_recordings WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY created_at DESC').all(payload.id, peerId, peerId, payload.id)
@@ -1288,7 +1298,12 @@ app.get('/api/call-recordings/:id', (req, res) => {
   try {
     liveRef = prepare('SELECT 1 FROM live_rooms WHERE replay_url=? OR replay_url LIKE ?').get('/api/call-recordings/' + req.params.id, '/api/call-recordings/' + req.params.id + '%');
   } catch (e) { /* live_rooms 未建表（直播模块未挂载）时视为无引用 */ }
-  if (row.from_id !== payload.id && row.to_id !== payload.id && !liveRef) return res.status(404).json({ error: '回放不存在' });
+  if (row.from_id !== payload.id && row.to_id !== payload.id && !liveRef) {
+    // 管理员可查看所有回放
+    const meA = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
+    const adminOk = !!meA && !!meA.email && String(process.env.ADMIN_EMAILS || '').toLowerCase().split(',').includes(meA.email.toLowerCase());
+    if (!adminOk) return res.status(404).json({ error: '回放不存在' });
+  }
   if (!fs.existsSync(row.path)) return res.status(404).json({ error: '回放不存在' });
   res.setHeader('Content-Type', row.kind === 'audio' ? 'audio/webm' : 'video/webm');
   fs.createReadStream(row.path).pipe(res);

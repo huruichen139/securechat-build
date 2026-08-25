@@ -4,6 +4,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 
 import 'services/securechat_api.dart';
@@ -590,6 +591,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       (Icons.view_list, '群接龙', _groupSolection),
       (Icons.redeem, '充值', _redeem),
       (Icons.home_work, '缴费充值', _lifePay),
+      (Icons.real_estate_agent, '我的收款码', _myPersonalQr),
     ];
     return Scaffold(
       backgroundColor: t.bg,
@@ -646,8 +648,14 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     );
   }
 
-  Widget _balanceCard(AppConfig cfg) {
-    final t = cfg.theme;
+  // ============ 我的真实收款码（支付宝/微信）============
+  Future<void> _myPersonalQr() async {
+    final cfg = widget.config as AppConfig;
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => _PersonalQrPage(api: widget.api, config: cfg)));
+    if (mounted) setState(() {});
+  }
+
+  Widget _balanceCard(AppConfig cfg) {    final t = cfg.theme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -790,4 +798,163 @@ class _ValueDropdownState<T> extends State<_ValueDropdown<T>> {
 // 可变引用，用于在弹窗关闭后读取下拉框当前值
 class _ValueDropdownController<T> {
   T? value;
+}
+
+// ============ 我的真实收款码（支付宝/微信收款二维码）============
+// 上传自己的真实收款码截图保存到服务器，可设置使用次数（-1=无上限），
+// 全屏查看、被扫一次计数、重置、删除。
+class _PersonalQrPage extends StatefulWidget {
+  const _PersonalQrPage({required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<_PersonalQrPage> createState() => _PersonalQrPageState();
+}
+
+class _PersonalQrPageState extends State<_PersonalQrPage> {
+  List<Map<String, dynamic>> _codes = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final list = await widget.api.personalQrList();
+      if (!mounted) return;
+      setState(() { _codes = list; _loading = false; _error = null; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Bad state: ', ''); });
+    }
+  }
+
+  Future<void> _upload(String type) async {
+    final picked = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+    if (picked == null || picked.files.isEmpty || picked.files.first.bytes == null) return;
+    final b64 = 'data:image/png;base64,' + base64Encode(picked.files.first.bytes!);
+    // 次数设置：-1 无上限，或正整数
+    int maxUses = -1;
+    final ctrl = TextEditingController(text: '-1');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(type == 'alipay' ? '设置支付宝收款码次数' : '设置微信收款码次数'),
+        content: TextField(controller: ctrl, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: '-1 表示无上限，或输入次数如 10')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('确定')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    maxUses = int.tryParse(ctrl.text.trim()) ?? -1;
+    try {
+      await widget.api.personalQrSave(type: type, image: b64, maxUses: maxUses);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('收款码已保存')));
+        _load();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
+  }
+
+  Future<void> _view(Map<String, dynamic> code) async {
+    final exhausted = code['exhausted'] == true;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(code['type'] == 'alipay' ? '支付宝收款码' : '微信收款码', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              if (exhausted)
+                const Padding(padding: EdgeInsets.all(24), child: Text('已达到使用次数上限', style: TextStyle(color: Colors.red)))
+              else
+                InteractiveViewer(child: Image.memory(base64Decode((code['image'] as String).split(',').last), width: 280, fit: BoxFit.contain)),
+              const SizedBox(height: 6),
+              Text('已用 ${code['usedCount']} / ${code['maxUses'] < 0 ? '无限' : code['maxUses']}', style: const TextStyle(color: Colors.black54, fontSize: 12)),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            TextButton.icon(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: Colors.white), label: const Text('关闭', style: TextStyle(color: Colors.white))),
+            TextButton.icon(
+              onPressed: () async {
+                try { await widget.api.personalQrUse((code['id'] as num).toInt()); if (ctx.mounted) Navigator.pop(ctx); _load(); } catch (_) {}
+              },
+              icon: const Icon(Icons.touch_app, color: Colors.white),
+              label: const Text('被扫一次+1', style: TextStyle(color: Colors.white)),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _confirm(String action, Map<String, dynamic> code) async {
+    try {
+      if (action == 'reset') await widget.api.personalQrReset((code['id'] as num).toInt());
+      if (action == 'delete') await widget.api.personalQrDelete((code['id'] as num).toInt());
+      if (mounted) _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.config.theme;
+    return Scaffold(
+      backgroundColor: t.bg,
+      body: Column(children: [
+        PageHeader(title: '我的收款码', config: widget.config),
+        Expanded(child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(14),
+                children: [
+                  Row(children: [
+                    Expanded(child: FilledButton.icon(onPressed: () => _upload('alipay'), icon: const Icon(Icons.upload), label: const Text('上传支付宝码'))),
+                    const SizedBox(width: 10),
+                    Expanded(child: FilledButton.icon(onPressed: () => _upload('wxpay'), icon: const Icon(Icons.upload), label: const Text('上传微信码'))),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text('上传你在支付宝/微信里的真实收款二维码截图；可设使用次数（-1为无上限）。点卡片全屏展示供对方扫。', style: TextStyle(color: t.subText, fontSize: 12)),
+                  const SizedBox(height: 12),
+                  if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(_error!, style: const TextStyle(color: Colors.red))),
+                  for (final c in _codes)
+                    Card(
+                      color: t.card.withValues(alpha: 0.9),
+                      child: ListTile(
+                        onTap: () => _view(c),
+                        leading: (c['image'] as String?) != null
+                            ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(base64Decode((c['image'] as String).split(',').last), width: 52, height: 52, fit: BoxFit.cover))
+                            : const Icon(Icons.qr_code),
+                        title: Text(c['type'] == 'alipay' ? '支付宝收款码' : '微信收款码', style: TextStyle(color: t.text)),
+                        subtitle: Text('已用 ${c['usedCount']} / ${c['maxUses'] < 0 ? '无限' : c['maxUses']}${c['exhausted'] == true ? '（已达上限）' : ''}', style: TextStyle(color: t.subText, fontSize: 12)),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (v) => _confirm(v, c),
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(value: 'reset', child: Text('重置次数')),
+                            const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: Colors.red))),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              )),
+      ]),
+    );
+  }
 }
