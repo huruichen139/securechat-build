@@ -202,8 +202,13 @@ module.exports = function registerMedia(app, db, auth) {
     if (!/^[0-9a-f-]{8,}$/.test(id)) return deny(res, 400, '无效文件');
     const f = prepare('SELECT name,mime,path FROM media_files WHERE id=?').get(id);
     if (!f || !fs.existsSync(f.path)) return deny(res, 404, '文件不存在');
-    res.setHeader('Content-Type', f.mime || 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'inline; filename="' + String(f.name || 'file').replace(/["\\\r\n]/g, '_') + '"');
+    // 防 XSS：仅白名单类型允许内联渲染，其余强制下载；svg/html 可携带脚本一律不内联
+    const rawMime = String(f.mime || '').toLowerCase().split(';')[0].trim();
+    const SAFE_INLINE = /^(image\/(png|jpe?g|gif|webp|bmp|avif)|video\/(mp4|webm|ogg|quicktime)|audio\/(mpeg|mp4|ogg|wav|webm|aac|flac))$/;
+    const safe = SAFE_INLINE.test(rawMime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Type', safe ? rawMime : 'application/octet-stream');
+    res.setHeader('Content-Disposition', (safe ? 'inline' : 'attachment') + '; filename="' + String(f.name || 'file').replace(/["\\\r\n]/g, '_') + '"');
     fs.createReadStream(f.path).pipe(res);
   });
 
