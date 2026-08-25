@@ -115,13 +115,8 @@ class UpdateService {
         final result = await Process.run('open', [path]);
         return result.exitCode == 0;
       } else if (Platform.isAndroid) {
-        // Android 7+ 必须经 FileProvider(content://) 安装；8+ 需未知来源权限
+        // Android 7+ 必须经 FileProvider(content://) 安装；8+ 无权限时原生层引导开启后返回false
         try {
-          final canInstall = await _installerChannel.invokeMethod<bool>('canInstall');
-          if (canInstall != true) {
-            await _installerChannel.invokeMethod('requestInstallPermission');
-            return false; // 用户授权后需再次点击更新
-          }
           return await _installerChannel.invokeMethod<bool>('installApk', {'path': path}) ?? false;
         } catch (_) {
           // 通道不可用时退回旧方案（老系统可用）
