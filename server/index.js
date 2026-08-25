@@ -698,6 +698,11 @@ app.post('/api/keys/prekeys', (req, res) => {
       prepare('INSERT INTO prekeys (user_id, key_id, pub_key, created_at) VALUES (?, ?, ?, ?)').run(payload.id, item.keyId, item.pubKey, now);
     }
   }
+  // 防膨胀：仅保留每用户最新 200 条预钥，并清理 30 天前的已用预钥
+  try {
+    prepare('DELETE FROM prekeys WHERE user_id=? AND id NOT IN (SELECT id FROM prekeys WHERE user_id=? ORDER BY created_at DESC LIMIT 200)').run(payload.id, payload.id);
+    prepare('DELETE FROM prekeys WHERE user_id=? AND used=1 AND created_at < ?').run(payload.id, now - 30 * 24 * 3600 * 1000);
+  } catch (e) { console.error('[keys] prune failed: ' + (e && e.message || e)); }
   res.json({ ok: true, count: list.length });
 });
 
@@ -739,23 +744,29 @@ app.post('/api/profile', (req, res) => {
   if (typeof body.nickname === 'string') {
     const nick = body.nickname.trim();
     if (!nick) return res.status(400).json({ error: '昵称不能为空' });
+    if (nick.length > 30) return res.status(400).json({ error: '昵称过长（限30字）' });
     fields.push('nickname=?'); args.push(nick);
   }
-  if (typeof body.country === 'string') { fields.push('country=?'); args.push(body.country); }
-  if (typeof body.province === 'string') { fields.push('province=?'); args.push(body.province); }
-  if (typeof body.city === 'string') { fields.push('city=?'); args.push(body.city); }
+  if (typeof body.country === 'string') { if (body.country.length > 60) return res.status(400).json({ error: '国家/地区过长' }); fields.push('country=?'); args.push(body.country); }
+  if (typeof body.province === 'string') { if (body.province.length > 60) return res.status(400).json({ error: '省份过长' }); fields.push('province=?'); args.push(body.province); }
+  if (typeof body.city === 'string') { if (body.city.length > 60) return res.status(400).json({ error: '城市过长' }); fields.push('city=?'); args.push(body.city); }
   // extra：任意键值对象，整体写入（覆盖）
   if (body.extra !== undefined) {
     if (body.extra === null || typeof body.extra !== 'object' || Array.isArray(body.extra)) {
       return res.status(400).json({ error: 'extra 必须是对象' });
     }
     const cleaned = {};
+    let extraBudget = 4096;
     for (const k of Object.keys(body.extra)) {
       if (Object.prototype.hasOwnProperty.call(body.extra, k)) {
         const v = body.extra[k];
         if (v === null || v === undefined) continue;
         if (typeof v === 'object') continue; // 不存嵌套对象/数组，保持扁平
-        cleaned[k] = String(v);
+        const sv = String(v).slice(0, Math.max(0, extraBudget));
+        extraBudget -= sv.length;
+        if (extraBudget < 0) break;
+        if (!sv) continue;
+        cleaned[String(k).slice(0, 60)] = sv;
       }
     }
     fields.push('extra=?'); args.push(JSON.stringify(cleaned));
