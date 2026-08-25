@@ -146,39 +146,13 @@ class _WalletPageState extends State<WalletPage> {
       if (!mounted) return;
       try {
         final s = await widget.api.rechargeStatus(orderNo);
+        if (!mounted) return;
         if (s['status'] == 'paid') {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('充值成功 +¥${s['amount']}')));
           await _reload();
           return;
         }
       } catch (_) {}
-    }
-  }
-
-  Future<void> _redeem() async {
-    final c = TextEditingController();
-    final code = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('兑换码充值'),
-        content: TextField(controller: c, autofocus: true, decoration: const InputDecoration(hintText: '请输入兑换码')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('兑换')),
-        ],
-      ),
-    );
-    if (code == null || code.isEmpty) return;
-    try {
-      final r = await widget.api.redeem(code);
-      if (!mounted) return;
-      setState(() => _balance = (r['balance'] as num?)?.toDouble() ?? _balance);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换成功，+${r['value']}')));
-        await _reload();
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换失败：${e.toString().replaceFirst('Bad state: ', '')}')));
     }
   }
 

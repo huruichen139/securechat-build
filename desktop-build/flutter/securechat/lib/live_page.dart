@@ -179,7 +179,7 @@ class _LiveRoomViewState extends State<_LiveRoomView> {
       if (mounted) setState(() {
         _room = r;
       });
-      final liveNow = (_room?['status'] == 'live');
+      final liveNow = (_room['status'] == 'live');
       if (liveNow && (_poll == null || !_poll!.isActive)) { _pollChats(); _poll = Timer.periodic(const Duration(seconds: 2), (_) => _pollChats()); }
       else if (!liveNow && _poll != null) { _poll!.cancel(); _poll = null; }
     } catch (e) {

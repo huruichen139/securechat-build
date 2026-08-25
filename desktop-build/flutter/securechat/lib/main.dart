@@ -1284,8 +1284,7 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           });
           if (selConv != null) {
-            final peerId = p['from'];
-            final convKey = 'f';
+            const convKey = 'f';
             _lastMsg.remove(convKey);
           }
         } else if (type == 'msg_edit') {
@@ -2300,7 +2299,7 @@ class _ChatViewStateState extends State<_ChatView> {
             _moreCell(t, Icons.short_text, '快捷回复', () { setState(() => _morePanel = false); _showQuickReplies(); }),
             _moreCell(t, Icons.schedule, '定时发送', () { setState(() => _morePanel = false); _showScheduleDialog(); }),
             if (isMobile) _moreCell(t, Icons.emoji_emotions_outlined, '表情', () { setState(() => _morePanel = false); _showEmojiPicker(context); }),
-            if (isMobile && conv != null && conv['kind'] == 'group') _moreCell(t, Icons.alternate_email, '@所有人', () { setState(() => _morePanel = false); input.text += '@所有人 '; inputFocus.requestFocus(); }),
+            if (isMobile && conv['kind'] == 'group') _moreCell(t, Icons.alternate_email, '@所有人', () { setState(() => _morePanel = false); input.text += '@所有人 '; inputFocus.requestFocus(); }),
           ]),
         ),
       ],
@@ -3001,7 +3000,7 @@ class _ChatViewStateState extends State<_ChatView> {
 
   void _showQuickReplies() async {
     final result = await showQuickRepliesSheet(context, widget.api);
-    if (result != null && result is String && mounted) {
+    if (result is String && result.isNotEmpty && mounted) {
       input.text = result;
       inputFocus.requestFocus();
     }
@@ -3306,7 +3305,7 @@ class _ChatViewStateState extends State<_ChatView> {
           ]),
           actions: [
             TextButton(onPressed: () => setState(() => _fontSize = 15.0), child: const Text('默认')),
-            TextButton(onPressed: () { SharedPreferences.getInstance().then((p) => p.setDouble('chatFontSize', _fontSize)).catchError((_){}); Navigator.pop(d); }, child: const Text('确定')),
+            TextButton(onPressed: () { SharedPreferences.getInstance().then((p) => p.setDouble('chatFontSize', _fontSize)).catchError((_){ return false; }); Navigator.pop(d); }, child: const Text('确定')),
           ],
         ),
       ),
@@ -3467,7 +3466,7 @@ class _ChatViewStateState extends State<_ChatView> {
   void _saveBgColors() {
     try {
       final entries = _chatBgColors.entries.map((e) => '${e.key}:${e.value.value}').toList();
-      SharedPreferences.getInstance().then((p) => p.setStringList('chatBgColors', entries)).catchError((_){});
+      SharedPreferences.getInstance().then((p) => p.setStringList('chatBgColors', entries)).catchError((_){ return false; });
     } catch (_) {}
   }
 
@@ -3967,11 +3966,6 @@ class _ContactsViewStateState extends State<ContactsView> {
       grouped.putIfAbsent(letter, () => []).add(item);
     }
     final sortedKeys = grouped.keys.toList()..sort();
-    int totalChildren = 1; // section title
-    for (final letter in sortedKeys) {
-      totalChildren += 1; // letter header
-      totalChildren += grouped[letter]!.length;
-    }
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         if (index == 0) {

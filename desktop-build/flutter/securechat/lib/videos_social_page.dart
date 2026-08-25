@@ -98,6 +98,7 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
       final ext = src.contains('.webm') ? 'webm' : 'mp4';
       final tmp = File('${Directory.systemTemp.path}/securechat-video-${DateTime.now().millisecondsSinceEpoch}.$ext');
       await tmp.writeAsBytes(bytes);
+      if (!mounted) return;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         await Process.start(tmp.path, []);
       } else {
@@ -290,7 +291,6 @@ class _VideosSocialPageState extends State<VideosSocialPage> {
                             final nick = _svc.str(v['nickname']);
                             final liked = v['likedByMe'] == true;
                             final fav = v['favoritedByMe'] == true;
-                            final src = _svc.absolute(_svc.str(v['url']));
                             return Container(
                               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               padding: const EdgeInsets.all(14),

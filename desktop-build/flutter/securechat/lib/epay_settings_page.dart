@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/securechat_api.dart';
 import 'services/app_config.dart';
-import 'widgets/ux.dart';
 
 class EpaySettingsPage extends StatefulWidget {
   const EpaySettingsPage({super.key, required this.api, required this.config});

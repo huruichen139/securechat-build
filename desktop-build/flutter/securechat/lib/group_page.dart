@@ -398,7 +398,7 @@ class _GroupRoomState extends State<_GroupRoom> {
           try {
             final cmid = 'gm${DateTime.now().microsecondsSinceEpoch}';
             final sent = await _svc.sendMessage(widget.groupId, text, clientMsgId: cmid);
-            final newId = (sent is Map) ? sent['id'] : null;
+            final newId = sent['id'];
             if (newId is int) { try { await _svc.replyMessage(widget.groupId, newId, replyTo: msgId); } catch (_) {} }
             await _load();
           }
