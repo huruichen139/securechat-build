@@ -795,6 +795,106 @@ class _ValueDropdownState<T> extends State<_ValueDropdown<T>> {
   }
 }
 
+// ============ 我的真实收款码（支付宝/微信收款二维码）============
+// 上传自己的真实收款二维码截图保存到服务器，可设置使用次数（-1=无上限），
+// 全屏查看、被扫一次计数、重置、删除。
+class PayQrShowPage extends StatefulWidget {
+  const PayQrShowPage({super.key, required this.api, required this.config});
+  final SecureChatApi api;
+  final AppConfig config;
+  @override
+  State<PayQrShowPage> createState() => _PayQrShowPageState();
+}
+
+class _PayQrShowPageState extends State<PayQrShowPage> {
+  List<Map<String, dynamic>> _codes = [];
+  bool _loading = true;
+  int _idx = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final list = await widget.api.personalQrList();
+      if (!mounted) return;
+      setState(() { _codes = list; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _goManage() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => _PersonalQrPage(api: widget.api, config: widget.config)));
+    if (mounted) _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.config.theme;
+    final hasCodes = _codes.isNotEmpty;
+    final safeIdx = _codes.isEmpty ? 0 : (_idx % _codes.length);
+    return Scaffold(
+      backgroundColor: Colors.black87,
+      body: SafeArea(
+        child: Column(children: [
+          Row(children: [
+            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back, color: Colors.white)),
+            const Expanded(child: Text('收付款', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600))),
+            IconButton(onPressed: _goManage, icon: const Icon(Icons.settings, color: Colors.white)),
+            const SizedBox(width: 8),
+          ]),
+          Expanded(child: _loading
+              ? const Center(child: CircularProgressIndicator(color: Colors.white))
+              : !hasCodes
+                  ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.qr_code_2, size: 72, color: Colors.white54),
+                      const SizedBox(height: 14),
+                      const Text('还没有收款码', style: TextStyle(color: Colors.white70)),
+                      const SizedBox(height: 6),
+                      const Text('上传你的支付宝/微信真实收款码\n对方扫码即可向你付款', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      const SizedBox(height: 18),
+                      FilledButton.icon(
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+                            title: const Text('生成我的收款码'),
+                            content: const Text('将跳转到收款码管理，上传你在支付宝/微信里的真实收款码截图即可。'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('取消')),
+                              FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('去生成')),
+                            ],
+                          ));
+                          if (ok == true && mounted) await _goManage();
+                        },
+                        icon: const Icon(Icons.qr_code_2),
+                        label: const Text('立即生成'),
+                      ),
+                    ]))
+                  : Column(children: [
+                      Expanded(child: GestureDetector(
+                        onTap: () => setState(() => _idx = (safeIdx + 1) % _codes.length),
+                        child: Center(child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Image.memory(base64Decode((_codes[safeIdx]['image'] as String).split(',').last), width: MediaQuery.of(context).size.width * 0.68, fit: BoxFit.contain),
+                            const SizedBox(height: 10),
+                            Text(_codes[safeIdx]['type'] == 'alipay' ? '支付宝收款码' : '微信收款码', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+                            Text('已用 ${_codes[safeIdx]['usedCount']} / ${(_codes[safeIdx]['maxUses'] as num) < 0 ? '无限' : _codes[safeIdx]['maxUses']}', style: const TextStyle(color: Colors.black45, fontSize: 12)),
+                          ]),
+                        )),
+                      )),
+                      Padding(padding: const EdgeInsets.all(16), child: Text('点击二维码切换（${safeIdx + 1}/${_codes.length}）· 右上角设置管理', style: const TextStyle(color: Colors.white38, fontSize: 12))),
+                    ])),
+        ]),
+      ),
+    );
+  }
+}
+
 // 可变引用，用于在弹窗关闭后读取下拉框当前值
 class _ValueDropdownController<T> {
   T? value;

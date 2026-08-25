@@ -16,6 +16,7 @@ import 'chat_features.dart';
 import 'contact_detail_page.dart';
 import 'scan_page.dart';
 import 'wallet_page.dart';
+import 'wallet_extra_page.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'services/securechat_api.dart';
@@ -1657,21 +1658,24 @@ class _ChatViewStateState extends State<_ChatView> {
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       items: [
-        _plusItem(0, Icons.payments_outlined, '收付款'),
+        _plusItem(0, Icons.qr_code_2, '收付款码'),
         if (Platform.isAndroid || Platform.isIOS) _plusItem(1, Icons.center_focus_weak, '扫一扫'),
         _plusItem(2, Icons.person_add_alt_1, '添加朋友'),
         _plusItem(3, Icons.group_add, '发起群聊'),
+        _plusItem(4, Icons.account_balance_wallet_outlined, '钱包'),
       ],
     ).then((v) {
       if (v == null || !mounted) return;
       if (v == 0) {
-        Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config)));
+        Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => PayQrShowPage(api: widget.api, config: widget.config)));
       } else if (v == 1) {
         Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => ScanPage(api: widget.api, config: widget.config)));
       } else if (v == 2) {
         _showAddFriendDialog(ctx);
       } else if (v == 3) {
         _showCreateGroupDialog(ctx);
+      } else if (v == 4) {
+        Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => WalletPage(api: widget.api, config: widget.config)));
       }
     });
   }

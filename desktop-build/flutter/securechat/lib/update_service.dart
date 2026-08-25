@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.71.7';
+const kAppVersion = '1.71.8';
 
 class UpdateService {
   UpdateService({required this.api});
@@ -77,12 +79,24 @@ class UpdateService {
   }
 
   /// 下载安装包/便携包，返回保存路径；404 返回 null。
+  /// Android 下载到外部缓存目录（open_filex 的 FileProvider 覆盖该路径，可直接拉起安装器）。
   Future<String?> download(String relativePath, {void Function(int, int)? onProgress}) async {
     final uri = api.downloadUri(relativePath);
     final client = http.Client();
     try {
       final name = relativePath.split('/').last;
-      final savePath = '${Directory.systemTemp.path}${Platform.isWindows ? '\\' : '/'}$name';
+      String baseDir = Directory.systemTemp.path;
+      if (Platform.isAndroid) {
+        try {
+          final ext = await getExternalCacheDirectories();
+          baseDir = (ext != null && ext.isNotEmpty) ? ext.first.path : (await getApplicationCacheDirectory()).path;
+        } catch (_) {
+          final cache = await getApplicationCacheDirectory();
+          baseDir = cache.path;
+        }
+      }
+      if (!Directory(baseDir).existsSync()) Directory(baseDir).createSync(recursive: true);
+      final savePath = '$baseDir${Platform.isWindows ? '\\' : '/'}$name';
       final out = File(savePath);
       final resp = await client.send(http.Request('GET', uri));
       if (resp.statusCode == 404) return null;
@@ -115,11 +129,12 @@ class UpdateService {
         final result = await Process.run('open', [path]);
         return result.exitCode == 0;
       } else if (Platform.isAndroid) {
-        // Android 7+ 必须经 FileProvider(content://) 安装；8+ 无权限时原生层引导开启后返回false
+        // open_filex：内部处理 FileProvider(content://)、未知来源权限引导与 MIME 注册
         try {
-          return await _installerChannel.invokeMethod<bool>('installApk', {'path': path}) ?? false;
+          final r = await OpenFilex.open(path, type: 'application/vnd.android.package-archive');
+          return r.type == ResultType.done;
         } catch (_) {
-          // 通道不可用时退回旧方案（老系统可用）
+          // 兜底（老系统）
           await Process.run('am', ['start', '-a', 'android.intent.action.VIEW', '-d', 'file://$path', '-t', '*/*']);
           return true;
         }
