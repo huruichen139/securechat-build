@@ -98,7 +98,7 @@
 
   // 上传 + 发送：把音频字节 POST 到 /api/files（发送给 to），然后以客户端消息方式发送文本 marker
   async function sendRecorded(to, { name, clientMsgId } = {}) {
-    const r = (blob || chunks.length ? new Blob(chunks, { type: 'audio/webm' }) : null);
+    const r = blob || (chunks.length ? new Blob(chunks, { type: 'audio/webm' }) : null);
     if (!r) { toast('请先录音', 'warn'); return null; }
     const id = await uploadBytes(to, r, name || ('voice-' + Date.now() + '.webm'));
     blob = null; chunks = [];
@@ -150,8 +150,10 @@
     const el = document.createElement('audio');
     el.src = url; el.controls = true; el.style.display = 'none';
     document.body.appendChild(el);
-    el.play().catch(() => {});
-    el.onended = () => el.remove();
+    const cleanup = () => { try { el.pause(); el.removeAttribute('src'); } catch (e) {} if (el.parentNode) el.remove(); };
+    el.onended = cleanup;
+    el.onerror = cleanup;
+    el.play().catch(cleanup);
   }
 
   const feature = {

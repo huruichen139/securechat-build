@@ -26,3 +26,6 @@ cloudflared.exe
 server/.env
 desktop-build/harmony/.hvigor/
 desktop-build/harmony/entry/build/server/.epaygw_key.json
+
+opencode.db
+opencode.db-*
