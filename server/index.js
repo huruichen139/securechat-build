@@ -178,6 +178,22 @@ const MAX_MSG_CONTENT = 100 * 1024; // 100KB
 const emailCodes = new Map();
 function genCode() { return String(crypto.randomInt(100000, 1000000)); }
 function cleanCode() { const now = Date.now(); for (const [k, v] of emailCodes) if (v.expireAt < now) emailCodes.delete(k); }
+// 验证码校验尝试限制：防6位码在有效期内的暴力枚举
+const codeAttemptFail = new Map();
+function codeAttemptKey(email) { return 'codetry:' + String(email).toLowerCase(); }
+function codeAttemptsExceeded(email) {
+  const k = codeAttemptKey(email);
+  const v = codeAttemptFail.get(k);
+  if (v && v.count >= 8 && Date.now() - v.first < 10 * 60 * 1000) return true;
+  return false;
+}
+function recordCodeFail(email) {
+  const k = codeAttemptKey(email);
+  const v = codeAttemptFail.get(k);
+  if (!v || Date.now() - v.first > 10 * 60 * 1000) codeAttemptFail.set(k, { count: 1, first: Date.now() });
+  else v.count += 1;
+}
+function clearCodeFails(email) { codeAttemptFail.delete(codeAttemptKey(email)); }
 
 // ---------- SMTP 邮件发送（163 邮箱） ----------
 const mailer = nodemailer.createTransport({
@@ -261,8 +277,10 @@ app.post('/api/register', (req, res) => {
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
   if (username.length < 2 || username.length > 20) return res.status(400).json({ error: '用户名长度需2-20' });
   if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+  if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(email, code, 'register');
-  if (codeErr) return res.status(400).json({ error: codeErr });
+  if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
+  clearCodeFails(email);
   const exists = prepare('SELECT id FROM users WHERE username=?').get(username);
   if (exists) return res.status(409).json({ error: '用户名已存在' });
   const emailTaken = prepare('SELECT id FROM users WHERE email=?').get(email);
@@ -354,8 +372,10 @@ app.post('/api/login/code', (req, res) => {
   const { email, code } = req.body || {};
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式错误' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
+  if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(email, code, 'login');
-  if (codeErr) return res.status(400).json({ error: codeErr });
+  if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
+  clearCodeFails(email);
   const user = prepare('SELECT * FROM users WHERE email=?').get(email);
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   if (user.banned) {
@@ -373,8 +393,10 @@ app.post('/api/password/reset', (req, res) => {
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式错误' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
   if (!newPassword || String(newPassword).length < 6) return res.status(400).json({ error: '新密码至少6位' });
+  if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(email, code, 'reset');
-  if (codeErr) return res.status(400).json({ error: codeErr });
+  if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
+  clearCodeFails(email);
   const user = prepare('SELECT id FROM users WHERE email=?').get(email);
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   const hash = bcrypt.hashSync(String(newPassword), 10);
