@@ -1043,7 +1043,7 @@ app.post('/api/messages', (req, res) => {
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '对方已把你拉黑，无法发送消息' });
   if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) return res.status(400).json({ error: '消息标识无效' });
   if (clientMsgId) {
-    const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=?').get(clientMsgId);
+    const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=? AND from_id=?').get(clientMsgId, payload.id);
     if (existing) return res.json({ ok: true, message: { id: existing.id, from: existing.senderId, to: existing.recipientId, content: existing.content, createdAt: existing.createdAt, clientMsgId } });
   }
   const createdAt = Date.now();
@@ -3849,7 +3849,7 @@ wss.on('connection', (ws, req) => {
       // Retries reuse clientMsgId. Return the original message instead of
       // inserting a duplicate row or delivering it twice.
       if (clientMsgId) {
-        const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=?').get(clientMsgId);
+        const existing = prepare('SELECT id,from_id AS senderId,to_id AS recipientId,content,created_at AS createdAt FROM messages WHERE client_msg_id=? AND from_id=?').get(clientMsgId, ws.uid);
         if (existing) {
           // content 已是客户端密文，不再 decrypt
           send(ws, P.S_MSG, { id: existing.id, from: existing.senderId, to: existing.recipientId, content: existing.content, createdAt: existing.createdAt, clientMsgId });
@@ -3907,7 +3907,7 @@ wss.on('connection', (ws, req) => {
       if (!isMember) return send(ws, P.S_ERROR, { error: '你不在此群' });
       // 重试复用 clientMsgId：返回原消息，不再插入/广播第二条
       if (clientMsgId) {
-        const existing = prepare('SELECT id,group_id AS groupId,from_id AS fromId,content,created_at AS createdAt FROM group_messages WHERE client_msg_id=?').get(clientMsgId);
+        const existing = prepare('SELECT id,group_id AS groupId,from_id AS fromId,content,created_at AS createdAt FROM group_messages WHERE client_msg_id=? AND from_id=? AND group_id=?').get(clientMsgId, ws.uid, gid);
         if (existing) {
           send(ws, P.S_GROUP_MSG, { id: existing.id, groupId: existing.groupId, from: existing.fromId, content: existing.content, createdAt: existing.createdAt, clientMsgId, fromUser: ws.user });
           return;
