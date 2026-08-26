@@ -109,6 +109,28 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
+    // securechat://pay?token=xxx → 收付款码：跳转支付确认页
+    if (text.startsWith('securechat://pay')) {
+      final token = _queryParam(text, 'token');
+      if (token == null || token.isEmpty) { _status = '收付款码无效'; return; }
+      if (!mounted) return;
+      setState(() { _busy = true; });
+      try {
+        final info = await widget.api.codeInfo(token);
+        if (!mounted) return;
+        setState(() => _busy = false);
+        final paid = await showDialog<bool>(
+          context: context,
+          builder: (dctx) => _PayCodeConfirmDialog(api: widget.api, token: token, info: info),
+        );
+        _status = paid == true ? '支付成功' : '已取消';
+      } catch (e) {
+        _status = e.toString().replaceFirst('Bad state: ', '');
+        if (mounted) setState(() => _busy = false);
+      }
+      return;
+    }
+
     // securechat://mini?app=… → 打开小程序（搜索名称/ID）
     if (text.startsWith('securechat://mini')) {
       final key = _queryParam(text, 'app') ?? _queryParam(text, 'id');
@@ -153,8 +175,7 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   void _showRawResult(String text) {
-    final isUrl = RegExp(r'^https?://', caseSensitive: false).hasMatch(text);
-    showDialog<void>(
+    final isUrl = RegExp(r'^https?://', caseSensitive: false).hasMatch(text);    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isUrl ? '扫码结果 - 链接' : '扫码结果'),
@@ -277,5 +298,72 @@ class _ScanPageState extends State<ScanPage> {
         ),
       ),
     ]);
+  }
+}
+
+class _PayCodeConfirmDialog extends StatefulWidget {
+  const _PayCodeConfirmDialog({required this.api, required this.token, required this.info});
+  final SecureChatApi api;
+  final String token;
+  final Map<String, dynamic> info;
+  @override
+  State<_PayCodeConfirmDialog> createState() => _PayCodeConfirmDialogState();
+}
+
+class _PayCodeConfirmDialogState extends State<_PayCodeConfirmDialog> {
+  bool _busy = false;
+  String? _err;
+  final _amountCtrl = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    final info = widget.info;
+    final type = (info['type'] ?? '').toString();
+    final isReceive = type == 'receive';
+    final party = ((isReceive ? info['receiver'] : info['payer']) ?? const {}) as Map<String, dynamic>;
+    final name = (party['nickname'] ?? party['username'] ?? '').toString();
+    final fixedAmount = info['amount'];
+    final remark = (info['remark'] ?? '').toString();
+    return AlertDialog(
+      title: Text(isReceive ? '扫码支付' : '付款码收款'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(isReceive ? '收款方：$name' : '付款方：$name'),
+        if (remark.isNotEmpty) Text('备注：$remark'),
+        const SizedBox(height: 8),
+        if (!isReceive)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text('请由收款方扫描此码并输入金额', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          )
+        else if (fixedAmount != null)
+          Text('金额：¥' + ((fixedAmount as num).toDouble()).toStringAsFixed(2), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xff07c160)))
+        else
+          TextField(controller: _amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '请输入支付金额')),
+        if (_err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_err!, style: const TextStyle(color: Colors.red))),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+        if (isReceive)
+          FilledButton(
+            onPressed: _busy ? null : () async {
+              double? amt = fixedAmount == null ? double.tryParse(_amountCtrl.text.trim()) : (fixedAmount as num).toDouble();
+              if (fixedAmount == null && (amt == null || amt <= 0)) {
+                setState(() => _err = '请输入有效金额');
+                return;
+              }
+              setState(() { _busy = true; _err = null; });
+              try {
+                await widget.api.confirmPayByCode(widget.token, amount: amt);
+                if (!mounted) return;
+                Navigator.pop(context, true);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('支付成功')));
+              } catch (e) {
+                if (mounted) setState(() { _busy = false; _err = e.toString().replaceFirst('Bad state: ', ''); });
+              }
+            },
+            child: Text(_busy ? '支付中...' : '确认支付'),
+          ),
+      ],
+    );
   }
 }

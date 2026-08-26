@@ -412,6 +412,18 @@ class SecureChatApi {
     final data = await _json('GET', '/api/pay/personal-qr');
     return ((data['codes'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
+
+  // ============ 站内收付款码 ============
+  Future<Map<String, dynamic>> codeInfo(String token) => _json('GET', '/api/pay/code/$token/info');
+  Future<Map<String, dynamic>> myReceiveCodes() async {
+    final data = await _json('GET', '/api/pay/code/mine');
+    return data;
+  }
+  Future<Map<String, dynamic>> createReceiveCode({double? amount, String remark = '', int maxUses = -1}) =>
+      _json('POST', '/api/pay/code/receive', body: {'amount': amount, 'remark': remark, 'maxUses': maxUses});
+  Future<void> deleteReceiveCode(int id) => _json('DELETE', '/api/pay/code/mine/$id');
+  Future<Map<String, dynamic>> confirmPayByCode(String token, {double? amount, String remark = ''}) =>
+      _json('POST', '/api/pay/code/receive/$token/confirm', body: {'amount': amount, 'remark': remark});
   Future<Map<String, dynamic>> personalQrSave({required String type, required String image, required int maxUses, String note = ''}) =>
       _json('POST', '/api/pay/personal-qr', body: {'type': type, 'image': image, 'maxUses': maxUses, 'note': note});
   Future<Map<String, dynamic>> personalQrUse(int id) => _json('POST', '/api/pay/personal-qr/$id/use', body: {});

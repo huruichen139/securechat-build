@@ -139,6 +139,9 @@ module.exports = function registerPayment(app, db, auth) {
     prepare("CREATE INDEX IF NOT EXISTS idx_pay_auth_user_merchant ON pay_authorizations(user_id, merchant_id, status)").run();
   }
   ensureTables();
+  // 迁移：收款码次数限制列
+  try { prepare("ALTER TABLE pay_codes ADD COLUMN max_uses INTEGER NOT NULL DEFAULT -1").run(); } catch (e) {}
+  try { prepare("ALTER TABLE pay_codes ADD COLUMN used_count INTEGER NOT NULL DEFAULT 0").run(); } catch (e) {}
   // 迁移：pay_merchants 增加每商户独立 API 密钥列
   try { prepare("ALTER TABLE pay_merchants ADD COLUMN api_key TEXT").run(); } catch (e) {}
   try {
@@ -222,6 +225,8 @@ module.exports = function registerPayment(app, db, auth) {
     return {
       id: c.id, type: c.type, token: c.token, amount: c.amount, remark: c.remark,
       status: c.status, expiresAt: c.expires_at, createdAt: c.created_at,
+      maxUses: c.max_uses === undefined ? -1 : c.max_uses,
+      usedCount: c.used_count || 0,
       owner: publicUser(getUserRow(c.owner_id))
     };
   }
@@ -266,13 +271,35 @@ module.exports = function registerPayment(app, db, auth) {
       if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
     }
     const remark = String((req.body && req.body.remark) || '').trim().slice(0, 100) || '';
+    // 次数限制：-1 无上限（默认）；正整数 N = 可被扫N次；0 不允许
+    let maxUses = -1;
+    const muRaw = (req.body && req.body.maxUses);
+    if (muRaw !== undefined && muRaw !== null && muRaw !== '') {
+      maxUses = Math.trunc(Number(muRaw));
+      if (!Number.isFinite(maxUses)) maxUses = -1;
+    }
     const token = crypto.randomBytes(16).toString('base64url');
-    const expiresAt = Date.now() + 7 * 24 * 3600 * 1000;
-    prepare('INSERT INTO pay_codes(owner_id,type,token,amount,remark,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?)')
-      .run(ownerId, 'receive', token, amount, remark, 'active', expiresAt, Date.now());
+    // 长期收款码：10年有效期，靠 status/used_count 控制失效
+    const expiresAt = Date.now() + 3650 * 24 * 3600 * 1000;
+    prepare('INSERT INTO pay_codes(owner_id,type,token,amount,remark,status,expires_at,created_at,max_uses,used_count) VALUES(?,?,?,?,?,?,?,?,?,0)')
+      .run(ownerId, 'receive', token, amount, remark, 'active', expiresAt, Date.now(), maxUses);
     const code = prepare('SELECT * FROM pay_codes WHERE token=?').get(token);
     try { persist(); } catch (e) {}
     res.json({ ok: true, code: codePublic(code), qrText: codePayload(code), expiresAt });
+  });
+
+  // 我的长期收款码列表（含使用计数）
+  app.get('/api/pay/code/mine', mw, (req, res) => {
+    const rows = prepare("SELECT * FROM pay_codes WHERE owner_id=? AND type='receive' AND status IN ('active','used') ORDER BY created_at DESC LIMIT 20").all(req.user.id);
+    res.json({ codes: rows.map(codePublic) });
+  });
+
+  // 删除我的收款码
+  app.delete('/api/pay/code/mine/:id', mw, (req, res) => {
+    const info = prepare("UPDATE pay_codes SET status='cancelled' WHERE id=? AND owner_id=? AND type='receive'").run(parseInt(req.params.id, 10), req.user.id);
+    if (!info.changes) return res.status(404).json({ error: '收款码不存在' });
+    try { persist(); } catch (e) {}
+    res.json({ ok: true });
   });
 
   // 生成付款码（短时效 2 分钟）：POST /api/pay/code/pay
@@ -320,16 +347,22 @@ module.exports = function registerPayment(app, db, auth) {
     if (code.status !== 'active' || (code.expires_at && code.expires_at < Date.now())) return res.status(410).json({ error: '码已失效' });
     if (code.owner_id === payerId) return res.status(400).json({ error: '不能扫自己的收款码' });
     let amount = parseFloat((req.body && req.body.amount));
-    if (code.amount) {
-      const claim = prepare("UPDATE pay_codes SET status='used' WHERE id=? AND status='active'").run(code.id);
-      if (!claim.changes) return res.status(410).json({ error: '码已失效' });
+    // 次数限制原子扣减：无上限(-1)或未达上限才能继续，码保持 active
+    const claim = prepare("UPDATE pay_codes SET used_count=used_count+1 WHERE id=? AND status='active' AND (max_uses<0 OR used_count<max_uses)").run(code.id);
+    if (!claim.changes) {
+      const cur = prepare('SELECT used_count,max_uses FROM pay_codes WHERE id=?').get(code.id);
+      if (cur && cur.max_uses >= 0 && cur.used_count >= cur.max_uses) return res.status(410).json({ error: '该收款码已达使用次数上限' });
+      return res.status(410).json({ error: '码已失效' });
     }
     if (code.amount) amount = code.amount;
-    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
+    if (!Number.isFinite(amount) || amount <= 0) {
+      prepare('UPDATE pay_codes SET used_count=MAX(0,used_count-1) WHERE id=?').run(code.id);
+      return res.status(400).json({ error: '金额无效' });
+    }
     const remark = String((req.body && req.body.remark) || '').trim().slice(0, 100) || '扫码收款';
     doPay(payerId, code.owner_id, amount, remark, 'paycode', code.id, (err, result) => {
       if (err) {
-        if (code.amount) prepare('UPDATE pay_codes SET status=? WHERE id=?').run('active', code.id);
+        prepare('UPDATE pay_codes SET used_count=MAX(0,used_count-1) WHERE id=?').run(code.id);
         return res.status(err.code || 400).json({ error: err.message });
       }
       try { persist(); } catch (e) {}
@@ -568,8 +601,7 @@ module.exports = function registerPayment(app, db, auth) {
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
     const cat = { water: '水费', electric: '电费', gas: '燃气费', phone: '手机充值', broadband: '宽带', traffic: '交通违章', tuition: '学杂费' };
     const label = cat[category] || category;
-    doPay(userId, userId, amount, label + '（演示）', 'life', null, (err, result) => {
-      if (err) return res.status(err.code || 400).json({ error: err.message });
+    doPay(userId, userId, amount, label + '（演示）', 'life', null, true, (err, result) => {      if (err) return res.status(err.code || 400).json({ error: err.message });
       const info = prepare('INSERT INTO life_payments(user_id,category,provider,account,amount,status,created_at) VALUES(?,?,?,?,?,?,?)')
         .run(userId, category, provider, account, amount, 'paid', Date.now());
       try { persist(); } catch (e) {}
@@ -720,7 +752,7 @@ module.exports = function registerPayment(app, db, auth) {
       // 触发 epaygw 懒同步：置网关订单 TRADE_SUCCESS 并通知商户（NewAPI 等）
       try {
         const c = epayConfig(prepare);
-        const q = { act: 'order', pid: c.pid || '1000', out_trade_no: o.order_no };
+        const q = { act: 'order', pid: c.merchantPid || '1000', out_trade_no: o.order_no };
         const qs = Object.keys(q).sort().map((k) => k + '=' + encodeURIComponent(q[k])).join('&');
         const sg = crypto.createHash('md5').update(qs + c.key).digest('hex').toUpperCase();
         http.get('http://127.0.0.1:' + (process.env.EPAY_HTTP_PORT || 8889) + '/epaygw/api.php?' + qs + '&sign=' + sg, (r) => { r.resume(); }).on('error', () => {});
@@ -909,7 +941,7 @@ module.exports = function registerPayment(app, db, auth) {
   app.all('/api/pay/gateway/epay/notify', (req, res) => {
     const c = epayConfig(prepare);
     const p = { ...(req.query || {}), ...(req.body || {}) };
-    if (!c.enabled || !p.sign || epaySign(p, c.key) !== String(p.sign).toLowerCase()) return res.status(403).send('fail');
+    if (!c.enabled || !c.key || !p.sign || epaySign(p, c.key) !== String(p.sign).toLowerCase()) return res.status(403).send('fail');
     if (String(p.trade_status || '').toUpperCase() !== 'TRADE_SUCCESS' && String(p.trade_status || '') !== '1') return res.send('success');
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(p.out_trade_no || ''));
     if (!order) return res.status(404).send('fail');

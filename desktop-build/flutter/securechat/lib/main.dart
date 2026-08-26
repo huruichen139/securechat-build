@@ -832,7 +832,8 @@ class _ChatViewStateState extends State<_ChatView> {
 
   bool _updatePrompted = false;
   Future<void> _checkUpdate() async {
-    if (_updatePrompted || !Platform.isWindows) return;
+    // 手机端也检查更新（下载apk后经系统安装器安装）；iOS无签名包暂不提示
+    if (_updatePrompted || Platform.isIOS) return;
     try {
       final svc = UpdateService(api: widget.api);
       final info = await svc.check();

@@ -1,13 +1,12 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.71.9';
+const kAppVersion = '1.71.10';
 
 class UpdateService {
   UpdateService({required this.api});
@@ -68,9 +67,14 @@ class UpdateService {
       final latest = (data['latest'] ?? data['current'] ?? '').toString();
       if (latest.isEmpty || !isNewer(latest, kAppVersion)) return null;
       final downloads = (data['downloads'] as Map?)?.cast<String, dynamic>() ?? const {};
+      // 按当前平台选择安装包：手机拿apk、mac拿dmg、其余拿windows
+      String dlKey = 'windows';
+      if (Platform.isAndroid) dlKey = 'android';
+      if (Platform.isIOS) dlKey = 'ios';
+      if (Platform.isMacOS) dlKey = 'macos';
       return {
         'latest': latest,
-        'download': downloads['windows'],
+        'download': downloads[dlKey],
         'releaseNotes': _currentReleaseNotes(data['releaseNotes']),
       };
     } catch (_) {
@@ -99,7 +103,8 @@ class UpdateService {
       final savePath = '$baseDir${Platform.isWindows ? '\\' : '/'}$name';
       final out = File(savePath);
       final resp = await client.send(http.Request('GET', uri));
-      if (resp.statusCode == 404) return null;
+      // 非200一律放弃（避免把错误HTML/文本存成.exe/.apk再被拉起安装）
+      if (resp.statusCode != 200) { await resp.stream.drain<void>(); return null; }
       final total = resp.contentLength;
       final sink = out.openWrite();
       var loaded = 0;
@@ -117,8 +122,6 @@ class UpdateService {
     }
   }
 
-  static const _installerChannel = MethodChannel('securechat/installer');
-
   /// 打开/启动下载到的安装包。
   Future<bool> launchInstaller(String path) async {
     try {
@@ -130,14 +133,8 @@ class UpdateService {
         return result.exitCode == 0;
       } else if (Platform.isAndroid) {
         // open_filex：内部处理 FileProvider(content://)、未知来源权限引导与 MIME 注册
-        try {
-          final r = await OpenFilex.open(path, type: 'application/vnd.android.package-archive');
-          return r.type == ResultType.done;
-        } catch (_) {
-          // 兜底（老系统）
-          await Process.run('am', ['start', '-a', 'android.intent.action.VIEW', '-d', 'file://$path', '-t', '*/*']);
-          return true;
-        }
+        final r = await OpenFilex.open(path, type: 'application/vnd.android.package-archive');
+        return r.type == ResultType.done;
       } else {
         return false;
       }

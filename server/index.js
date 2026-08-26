@@ -2562,8 +2562,10 @@ app.post('/api/oauth/qq/bind', async (req, res) => {
   if (!state || !openid || !email || !code) return res.status(400).json({ error: '参数不完整' });
   const s = qqSessions.get(state);
   if (!s || s.openid !== openid) return res.status(400).json({ error: '登录会话无效，请重新发起 QQ 登录' });
+  if (codeAttemptsExceeded(String(email))) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(String(email), String(code), 'login');
-  if (codeErr) return res.status(400).json({ error: codeErr });
+  if (codeErr) { recordCodeFail(String(email)); return res.status(400).json({ error: codeErr }); }
+  clearCodeFails(String(email));
   const user = prepare('SELECT * FROM users WHERE email=?').get(String(email).trim().toLowerCase());
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
@@ -2833,8 +2835,10 @@ app.post('/api/oauth/github/bind', async (req, res) => {
   if (!state || !githubId || !email || !code) return res.status(400).json({ error: '参数不完整' });
   const s = githubSessions.get(state);
   if (!s || s.githubId !== githubId) return res.status(400).json({ error: '登录会话无效，请重新发起 GitHub 登录' });
+  if (codeAttemptsExceeded(String(email))) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(String(email), String(code), 'login');
-  if (codeErr) return res.status(400).json({ error: codeErr });
+  if (codeErr) { recordCodeFail(String(email)); return res.status(400).json({ error: codeErr }); }
+  clearCodeFails(String(email));
   const user = prepare('SELECT * FROM users WHERE email=?').get(String(email).trim().toLowerCase());
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
@@ -3937,7 +3941,7 @@ wss.on('connection', (ws, req) => {
       let replyContent = null, replyFrom = null, replyRecalled = false;
       if (msgObj.replyTo) {
         try {
-          const pm = prepare('SELECT content,from_id,recalled FROM messages WHERE id=?').get(msgObj.replyTo);
+          const pm = prepare('SELECT content,from_id,recalled FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(msgObj.replyTo, ws.uid, ws.uid);
           if (pm) { replyContent = pm.content; replyFrom = pm.from_id; replyRecalled = !!pm.recalled; }
         } catch (e) {}
       }
@@ -4018,6 +4022,9 @@ wss.on('connection', (ws, req) => {
       const { groupId } = payload || {};
       const gid = Number(groupId);
       if (!Number.isInteger(gid)) return;
+      // 成员校验：非群成员不得写入/触发广播
+      const isMember = prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid);
+      if (!isMember) return;
       try {
         const unread = prepare('SELECT id FROM group_messages WHERE group_id=? AND from_id<>?').all(gid, ws.uid);
         if (unread.length > 0) {
@@ -4185,15 +4192,21 @@ function mountFeatureRoutes(app, db) {
     server.listen(TLS_INTERNAL, '127.0.0.1');
     httpRedirect.listen(HTTP_INTERNAL, '127.0.0.1');
     net.createServer((sock) => {
+      // 防崩溃：error/close 监听必须先于任何异步路径注册（客户端RST不发数据时once('data')永不触发）
+      sock.on('error', () => { try { sock.destroy(); } catch (_) {} });
+      sock.setTimeout(15000, () => { try { sock.destroy(); } catch (_) {} }); // slowloris防护
       sock.once('data', (buf) => {
-        const isTls = buf[0] === 0x16;
+        // 立即暂停并把首块塞回流缓冲，connect期间的后续分段不会丢失
+        sock.pause();
+        try { sock.unshift(buf); } catch (_) {}
+        const isTls = buf.length > 0 && buf[0] === 0x16;
         const target = isTls ? TLS_INTERNAL : HTTP_INTERNAL;
         const upstream = net.connect(target, '127.0.0.1', () => {
-          upstream.write(buf);
-          sock.pipe(upstream).pipe(sock);
+          upstream.on('error', () => { try { sock.destroy(); } catch (_) {} });
+          sock.pipe(upstream);
+          upstream.pipe(sock);
+          sock.resume();
         });
-        upstream.on('error', () => { try { sock.destroy(); } catch (_) {} });
-        sock.on('error', () => { try { upstream.destroy(); } catch (_) {} });
       });
     }).listen(PORT, '0.0.0.0', () => {
       console.log(`[SecureChat] server running on https://0.0.0.0:${PORT} (plain http -> 301 https) (ws: /ws)`);
