@@ -33,7 +33,9 @@ function md5(s) { return crypto.createHash('md5').update(String(s)).digest('hex'
 function signOf(params, key) {
   const arr = {};
   for (const k of Object.keys(params).sort()) {
+    // 标准易支付协议：sign/sign_type 不参与签名；空值参数不参与（与商户端 md5 签名工具一致）
     if (k === 'sign' || k === 'sign_type') continue;
+    if (params[k] === '' || params[k] === null || params[k] === undefined) continue;
     arr[k] = params[k];
   }
   const keys = Object.keys(arr);
