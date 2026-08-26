@@ -296,9 +296,17 @@ Future<void> showTranscribeDialog(BuildContext ctx, SecureChatApi api, Map<Strin
     return;
   }
   if (ctx.mounted) {
-    showDialog(context: ctx, builder: (_) => const AlertDialog(
-      content: Row(children: [const CircularProgressIndicator(), SizedBox(width: 16), Text('正在转写语音…')]),
-    ));
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('转写中...'),
+          content: Row(mainAxisSize: MainAxisSize.min, children: [const CircularProgressIndicator(), const SizedBox(width: 16), const Text('正在转写语音…')]),
+        ),
+      ),
+    );
   }
   try {
     final text = await api.transcribe(voiceId);
@@ -331,9 +339,17 @@ Future<void> showOCRDialog(BuildContext ctx, SecureChatApi api, Map<String, dyna
     final fileId = fileMeta['id'] as String?;
     if (fileId == null) return;
     if (ctx.mounted) {
-      showDialog(context: ctx, builder: (_) => const AlertDialog(
-        content: Row(children: [const CircularProgressIndicator(), SizedBox(width: 16), Text('正在识别图片文字…')]),
-      ));
+      showDialog(
+        context: ctx,
+        barrierDismissible: false,
+        builder: (_) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('识别中...'),
+            content: Row(mainAxisSize: MainAxisSize.min, children: [const CircularProgressIndicator(), const SizedBox(width: 16), const Text('正在识别图片文字…')]),
+          ),
+        ),
+      );
     }
     final bytes = await api.fetchFile(fileId);
     final tmpPath = '${Directory.systemTemp.path}/ocr-${fileId}.jpg';

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'feedback_page.dart';
+import 'passkey_page.dart';
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'update_service.dart';
@@ -85,6 +86,44 @@ class _SettingsPageState extends State<SettingsPage> {
     });
     _savePrivacy(key, value);
     _toast(context, '$label已${value ? '开启' : '关闭'}（本机偏好，服务端暂不支持同步）');
+  }
+
+  Future<void> _changePassword(BuildContext context) async {
+    final oldC = TextEditingController();
+    final newC = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('修改密码'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: oldC, obscureText: true, decoration: const InputDecoration(labelText: '当前密码')),
+          const SizedBox(height: 10),
+          TextField(controller: newC, obscureText: true, decoration: const InputDecoration(labelText: '新密码（至少6位）')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('确认修改')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    if (oldC.text.isEmpty || newC.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写当前密码且新密码至少6位')));
+      return;
+    }
+    try {
+      await widget.api.changePassword(oldC.text, newC.text);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('密码已修改，请重新登录'), backgroundColor: Color(0xff07c160)));
+      await widget.api.clearSession();
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => LoginPage(config: widget.config)), (r) => false);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('修改失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+      }
+    }
   }
 
   Future<void> _scanCache() async {
@@ -514,6 +553,48 @@ class _SettingsPageState extends State<SettingsPage> {
             title: '我的反馈',
             subtitle: '查看已提交反馈的处理状态',
             onTap: () => _openFeedback(1),
+          ),
+        ],
+      ),
+      SectionTitle(config: config, title: '账号与安全'),
+      SectionCard(
+        config: config,
+        children: [
+          ListCell(
+            config: config,
+            icon: Icons.lock_outline,
+            title: '修改密码',
+            subtitle: '定期修改密码更安全',
+            onTap: () => _changePassword(context),
+          ),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.devices_outlined,
+            title: '登录设备管理',
+            subtitle: 'Passkey 与受信设备',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PasskeyPage(api: widget.api, config: config))),
+          ),
+        ],
+      ),
+      SectionTitle(config: config, title: '账号与安全'),
+      SectionCard(
+        config: config,
+        children: [
+          ListCell(
+            config: config,
+            icon: Icons.lock_outline,
+            title: '修改密码',
+            subtitle: '定期修改密码更安全',
+            onTap: () => _changePassword(context),
+          ),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.devices_outlined,
+            title: '登录设备管理',
+            subtitle: 'Passkey 与受信设备',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PasskeyPage(api: widget.api, config: config))),
           ),
         ],
       ),

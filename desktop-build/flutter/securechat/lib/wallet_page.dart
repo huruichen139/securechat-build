@@ -18,6 +18,19 @@ class _WalletPageState extends State<WalletPage> {
   bool _loading = true;
   String? _error;
   final List<Map<String, dynamic>> _txn = [];
+  String _filter = 'all'; // all | in | out
+  Map<String, dynamic>? _walletInfo;
+
+  bool _isIncome(Map<String, dynamic> t) {
+    final k = (t['kind'] ?? '').toString();
+    return k == 'in' || k == 'recharge';
+  }
+
+  List<Map<String, dynamic>> get _filteredTxn {
+    if (_filter == 'all') return _txn;
+    final wantIn = _filter == 'in';
+    return _txn.where((t) => _isIncome(t) == wantIn).toList();
+  }
 
   @override
   void initState() {
@@ -32,6 +45,7 @@ class _WalletPageState extends State<WalletPage> {
     });
     try {
       final w = await widget.api.wallet();
+      _walletInfo = w;
       _balance = (w['balance'] as num?)?.toDouble() ?? 0;
       _txn
         ..clear()
@@ -115,6 +129,12 @@ class _WalletPageState extends State<WalletPage> {
       final payUrl = (r['payUrl'] ?? '').toString();
       final orderNo = (r['orderNo'] ?? '').toString();
       if (payUrl.isEmpty) throw '未获取到支付地址';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          duration: Duration(seconds: 4),
+          content: Text('等待支付结果，最长60秒，完成后自动到账'),
+        ));
+      }
       final launched = await launchUrl(Uri.parse(payUrl), mode: LaunchMode.externalApplication);
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已生成支付链接，浏览器未自动打开')));
@@ -131,7 +151,9 @@ class _WalletPageState extends State<WalletPage> {
       if (!mounted) return;
       setState(() => _balance = (r['balance'] as num?)?.toDouble() ?? _balance);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换成功，+${r['value']}')));
+        final v = r['value'];
+        final vStr = v is num ? v.toStringAsFixed(2) : '${v ?? ''}';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('兑换成功，+$vStr')));
         await _reload();
       }
     } catch (e) {
@@ -148,7 +170,9 @@ class _WalletPageState extends State<WalletPage> {
         final s = await widget.api.rechargeStatus(orderNo);
         if (!mounted) return;
         if (s['status'] == 'paid') {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('充值成功 +¥${s['amount']}')));
+          final amt = s['amount'];
+          final amtStr = amt is num ? amt.toStringAsFixed(2) : '${amt ?? ''}';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('充值成功 +¥$amtStr')));
           await _reload();
           return;
         }
@@ -244,19 +268,37 @@ class _WalletPageState extends State<WalletPage> {
                               tooltip: '刷新',
                             ),
                           ]),
+                          // 收入/支出筛选（微信账单式）
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(children: [
+                              for (final f in const [('all', '全部'), ('in', '收入'), ('out', '支出')])
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    label: Text(f.$2, style: TextStyle(fontSize: 12, color: _filter == f.$1 ? Colors.white : t.subText)),
+                                    selected: _filter == f.$1,
+                                    selectedColor: const Color(0xff07c160),
+                                    backgroundColor: t.inputBg,
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) => setState(() => _filter = f.$1),
+                                  ),
+                                ),
+                            ]),
+                          ),
                           SectionCard(
                             config: cfg,
-                            children: _txn.isEmpty
+                            children: _filteredTxn.isEmpty
                                 ? [
                                     Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 32),
-                                      child: Center(child: Text('暂无交易记录', style: TextStyle(color: t.subText))),
+                                      child: Center(child: Text(_txn.isEmpty ? '暂无交易记录' : '该分类下暂无记录', style: TextStyle(color: t.subText))),
                                     ),
                                   ]
                                 : [
-                                    for (var i = 0; i < _txn.length; i++) ...[
+                                    for (var i = 0; i < _filteredTxn.length; i++) ...[
                                       if (i > 0) CellDivider(config: cfg, indent: 60),
-                                      _txnRow(cfg, _txn[i]),
+                                      _txnRow(cfg, _filteredTxn[i]),
                                     ],
                                   ],
                           ),
@@ -271,6 +313,7 @@ class _WalletPageState extends State<WalletPage> {
 
   Widget _balanceCard(AppConfig cfg) {
     final t = cfg.theme;
+    final info = _walletInfo;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -281,7 +324,26 @@ class _WalletPageState extends State<WalletPage> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('我的余额（元）', style: TextStyle(fontSize: 13, color: t.subText)),
         const SizedBox(height: 6),
-        Text(_balance.toStringAsFixed(2), style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: t.text)),
+        // 点击余额弹出资产详情（微信零钱式）
+        InkWell(
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            showDragHandle: true,
+            builder: (bctx) => SafeArea(child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('钱包详情', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.text)),
+                const SizedBox(height: 12),
+                Text('当前余额：¥${_balance.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, color: t.text)),
+                if (info != null && info['totalReceived'] != null)
+                  Padding(padding: const EdgeInsets.only(top: 6), child: Text('累计充值：¥${(info['totalReceived'] as num).toStringAsFixed(2)}', style: TextStyle(fontSize: 13, color: t.subText))),
+                const SizedBox(height: 14),
+                SizedBox(width: double.infinity, child: FilledButton(onPressed: () { Navigator.pop(bctx); _rechargeSheet(); }, child: const Text('去充值'))),
+              ]),
+            )),
+          ),
+          child: Text(_balance.toStringAsFixed(2), style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: t.text)),
+        ),
         const SizedBox(height: 18),
         Row(children: [
           Expanded(child: _actionBtn(cfg, Icons.account_balance_wallet_outlined, '充值', _rechargeSheet)),

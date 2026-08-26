@@ -192,7 +192,10 @@ class SecureChatApi {
   }
 
   Future<void> resetPassword(String email, String code, String newPassword) async {
-    await _json('POST', '/api/password/reset', body: {'email': email, 'code': code, 'newPassword': newPassword}, auth: false);
+    await _json('POST', '/api/password/reset', body: {'email': email, 'code': code, 'newPassword': newPassword});
+  }
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    await _json('POST', '/api/password/change', body: {'oldPassword': oldPassword, 'newPassword': newPassword});
   }
 
   Future<String> aiChat({required String baseUrl, required String apiKey, required String model, required List<Map<String, dynamic>> messages}) async {

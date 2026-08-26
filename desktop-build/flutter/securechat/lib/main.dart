@@ -26,6 +26,7 @@ import 'services/x3dh.dart';
 import 'services/call_service.dart';
 import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
+import 'widgets/window_tray.dart';
 import 'widgets/ux.dart';
 import 'call_page.dart';
 import 'deeplink.dart';
@@ -3434,8 +3435,11 @@ class _ChatViewStateState extends State<_ChatView> {
         if (conv['kind'] == 'group') { await widget.api.recallGroupMessage(conv['id'] as int, msgId); }
         else { await widget.api.recallMessage(msgId); }
         count++;
-      } catch (_) {}
-    }
+    } catch (_) {}
+    // 微信式系统托盘：点 X 隐藏到托盘，托盘菜单可显示主界面或真正退出
+    // （initTray 内部已 try-catch 静默降级并自行判断桌面平台）
+    await initTray();
+  }
     if (mounted) {
       setState(() {
         for (final msg in _selectedMsgs) {

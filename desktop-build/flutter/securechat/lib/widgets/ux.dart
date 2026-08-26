@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../services/app_config.dart';
 
@@ -24,7 +27,11 @@ class Ux {
 }
 
 /// 页面顶栏：原生、简洁、仅标题 + 返回
-class PageHeader extends StatelessWidget {
+///
+/// 桌面端（Windows/macOS/Linux）在最顶部额外渲染一条 32px 迷你标题栏：
+/// 左侧可拖动区域 + 应用名小字，右侧最小化/最大化/关闭按钮，
+/// 保证全屏推入的二级页面也能拖动窗口与关闭应用。
+class PageHeader extends StatefulWidget {
   const PageHeader({super.key, required this.title, this.config, this.trailing, this.onBack});
 
   final String title;
@@ -33,10 +40,90 @@ class PageHeader extends StatelessWidget {
   final VoidCallback? onBack;
 
   @override
-  Widget build(BuildContext context) {
-    final t = config?.theme;
-    final text = t?.text ?? Theme.of(context).colorScheme.onSurface;
+  State<PageHeader> createState() => _PageHeaderState();
+}
+
+class _PageHeaderState extends State<PageHeader> {
+  static bool get _isDesktop => Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isDesktop) {
+      windowManager.isMaximized().then((v) {
+        if (mounted) setState(() => _maximized = v);
+      });
+    }
+  }
+
+  Future<void> _toggleMaximize() async {
+    try {
+      if (await windowManager.isMaximized()) {
+        await windowManager.unmaximize();
+        if (mounted) setState(() => _maximized = false);
+      } else {
+        await windowManager.maximize();
+        if (mounted) setState(() => _maximized = true);
+      }
+    } catch (_) {}
+  }
+
+  Widget _winButton(IconData icon, Color color, VoidCallback onTap, {Color? hover}) {
+    return SizedBox(
+      width: 44,
+      height: 32,
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: hover,
+        child: Icon(icon, size: 15, color: color),
+      ),
+    );
+  }
+
+  Widget _buildMiniTitleBar(BuildContext context, AppTheme? t) {
+    final surface = t?.panel ?? Theme.of(context).colorScheme.surface;
+    final nameColor = t?.text ?? Theme.of(context).colorScheme.onSurface;
+    final btnColor = t?.subText ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
     return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: surface.withValues(alpha: 0.85),
+        border: Border(bottom: BorderSide(color: t?.div.withValues(alpha: 0.5) ?? Theme.of(context).dividerColor)),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: DragToMoveArea(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('SecureChat', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: nameColor.withValues(alpha: 0.7))),
+              ),
+            ),
+          ),
+        ),
+        _winButton(Icons.remove_rounded, btnColor, () { try { windowManager.minimize(); } catch (_) {} }),
+        _winButton(
+          _maximized ? Icons.filter_none_rounded : Icons.crop_square_rounded,
+          btnColor,
+          () { _toggleMaximize(); },
+        ),
+        _winButton(
+          Icons.close_rounded,
+          const Color(0xffe74c3c),
+          () { try { windowManager.close(); } catch (_) {} },
+          hover: const Color(0x29e74c3c),
+        ),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.config?.theme;
+    final text = t?.text ?? Theme.of(context).colorScheme.onSurface;
+    final header = Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
@@ -45,15 +132,20 @@ class PageHeader extends StatelessWidget {
       ),
       child: Row(children: [
         IconButton(
-          onPressed: onBack ?? () => Navigator.maybePop(context),
+          onPressed: widget.onBack ?? () => Navigator.maybePop(context),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          color: t?.text ?? Theme.of(context).colorScheme.onSurface,
+          color: text,
         ),
         const SizedBox(width: 4),
-        Expanded(child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text))),
-        if (trailing != null) trailing!,
+        Expanded(child: Text(widget.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: text))),
+        ?widget.trailing,
       ]),
     );
+    if (!_isDesktop) return header;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      _buildMiniTitleBar(context, t),
+      header,
+    ]);
   }
 }
 
@@ -132,7 +224,7 @@ class ListCell extends StatelessWidget {
                 ],
               ]),
             ),
-            if (trailing != null) trailing!,
+            ?trailing,
             if (trailing == null && showArrow)
               Icon(Icons.chevron_right_rounded, color: t.subText.withValues(alpha: 0.7), size: 20),
           ]),

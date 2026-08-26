@@ -64,6 +64,7 @@ class _AccountsPageState extends State<AccountsPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       backgroundColor: t.bg,
       builder: (ctx) {
         return SafeArea(
@@ -107,18 +108,38 @@ class _AccountsPageState extends State<AccountsPage> {
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
+      showDragHandle: true,
       backgroundColor: t.bg,
       builder: (c) => SafeArea(
         child: Container(
           height: MediaQuery.of(c).size.height * 0.85,
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
-          child: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(p['title'] ?? '', style: TextStyle(color: t.text, fontSize: 20, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 14),
-              Text(p['content'] ?? '', style: TextStyle(color: t.text, fontSize: 15, height: 1.6)),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                child: Text(
+                  p['title'] ?? '文章详情',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.text, fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(c),
+                tooltip: '关闭',
+                icon: Icon(Icons.close_rounded, size: 20, color: t.subText),
+              ),
             ]),
-          ),
+            Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(p['content'] ?? '', style: TextStyle(color: t.text, fontSize: 15, height: 1.6)),
+                ]),
+              ),
+            ),
+          ]),
         ),
       ),
     );
