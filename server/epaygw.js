@@ -326,7 +326,14 @@ module.exports = function (app, db, authMw) {
     const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
     const base = proto + '://' + req.get('host');
     try {
-      const sc = db.prepare('SELECT id FROM pay_orders WHERE order_no=?').get(o.out_trade_no);
+      let sc = db.prepare('SELECT id,status,paid_at FROM pay_orders WHERE order_no=?').get(o.out_trade_no);
+      if (sc && !sc.paid_at && (sc.status !== 'pending' || !sc.expires_at || sc.expires_at < Date.now())) {
+        // 未支付过的旧单（过期等）：重新激活并刷新有效期，避免同一out_trade_no被永久卡死
+        db.prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=?")
+          .run(Date.now() + 30 * 60 * 1000, sc.id);
+        if (typeof db.persist === 'function') db.persist();
+        sc = db.prepare('SELECT id,status,paid_at FROM pay_orders WHERE order_no=?').get(o.out_trade_no);
+      }
       if (!sc && GATEWAY_MERCHANT_ID) {
         db.prepare('INSERT INTO pay_orders(order_no,merchant_id,amount,subject,status,callback_url,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)')
           .run(o.out_trade_no, GATEWAY_MERCHANT_ID, Number(o.money), o.name, 'pending', o.notify_url, Date.now(), Date.now() + 30 * 60 * 1000);

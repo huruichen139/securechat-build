@@ -733,9 +733,14 @@ module.exports = function registerPayment(app, db, auth) {
 
   // 确认支付：直接扣款，无需预授权；允许转给自己（网关商户与付款人可为同一账号）。
   app.post('/api/pay/gateway/order/:orderNo/confirm', mw, (req, res) => {
-    const o = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(req.params.orderNo);
+    let o = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(req.params.orderNo);
     if (!o) return res.status(404).json({ error: '订单不存在' });
-    if (o.status !== 'pending' || o.expires_at < Date.now()) return res.status(409).json({ error: '订单已失效或已处理' });
+    // 未支付过的过期单（含pending但已过期）：复活并刷新有效期（商户重发同单号时不再被永久卡死）
+    if ((o.status !== 'pending' || !o.expires_at || o.expires_at < Date.now()) && !o.paid_at) {
+      prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=? AND status<>'paid'").run(Date.now() + 30 * 60 * 1000, o.id);
+      o = prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id);
+    }
+    if (o.status !== 'pending' || (o.expires_at && o.expires_at < Date.now())) return res.status(409).json({ error: '订单已失效或已处理' });
     if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
     const amount = Number(req.body?.amount);
     if (amount !== o.amount) return res.status(400).json({ error: '确认金额与订单金额不一致' });
@@ -912,7 +917,12 @@ module.exports = function registerPayment(app, db, auth) {
     if (!c.enabled || !c.sandbox) return res.status(503).json({ error: '模拟模式未启用' });
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(req.query.orderNo || ''));
     if (!order) return res.status(404).send('订单不存在');
-    if (order.status !== 'pending') return res.send('订单已处理');
+    if (order.status !== 'pending' && order.paid_at) return res.send('订单已处理');
+    if (!order.paid_at && (order.status !== 'pending' || !order.expires_at || order.expires_at < Date.now())) {
+      prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=?").run(Date.now() + 30 * 60 * 1000, order.id);
+      try { persist(); } catch (e) {}
+      order = prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id);
+    }
     res.type('html').send(`<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>收银台</title></head>
 <body style="font-family:sans-serif;max-width:420px;margin:40px auto;text-align:center">
 <h2>收银台</h2><p>订单：${escHtml(order.order_no)}</p><p>金额：<b>¥${Number(order.amount).toFixed(2)}</b></p><p>说明：${escHtml(order.subject)}</p>
@@ -926,7 +936,11 @@ module.exports = function registerPayment(app, db, auth) {
     if (!c.enabled || !c.sandbox) return res.status(503).json({ error: '模拟模式未启用' });
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String((req.body && req.body.orderNo) || ''));
     if (!order) return res.status(404).json({ error: '订单不存在' });
-    if (order.status !== 'pending' || order.expires_at < Date.now()) return res.status(409).json({ error: '订单已失效或已处理' });
+    if (!order.paid_at && (order.status !== 'pending' || !order.expires_at || order.expires_at < Date.now())) {
+      prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=?").run(Date.now() + 30 * 60 * 1000, order.id);
+      order = prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id);
+    }
+    if (order.status !== 'pending' || (order.expires_at && order.expires_at < Date.now())) return res.status(409).json({ error: '订单已失效或已处理' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
     if (!merchant) return res.status(404).json({ error: '商户不存在' });
     doPay(req.user.id, merchant.user_id, Number(order.amount), '支付 ' + order.subject, 'epay', order.id, (err, result) => {
