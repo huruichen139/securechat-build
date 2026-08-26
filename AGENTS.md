@@ -45,3 +45,6 @@
 - Flutter：`D:\chat\tools\flutter`。pub get/analyze/test 加 `PUB_HOSTED_URL='https://pub.flutter-io.cn'`、`FLUTTER_STORAGE_BASE_URL='https://storage.flutter-io.cn'`。
 - 服务器：`D:\chat\server\index.js`（sql.js），HTTPS 0.0.0.0:8888，数据在 `D:\chat\data\`。
 - 勿提交运行时目录：`backups/`、`*.sqlite.bak*`、`server/call-recordings/`、`server/files/`、`tools/`。
+
+## EPay (wallet recharge)
+- PID 10060, key 1Y2ckaVXiYuQLKteg0IM (stored in DB settings epay_config). When changing PID, MUST also change key, otherwise qqxeg returns signature error.
