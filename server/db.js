@@ -567,10 +567,12 @@ function prepare(sql) {
   return {
     run(...args) {
       db.run(sql, args);
+      // getRowsModified(): 本连接最近一次 INSERT/UPDATE/DELETE 影响的行数（sql.js 标准 API）
+      const changes = typeof db.getRowsModified === 'function' ? db.getRowsModified() : 0;
       const row = db.exec('SELECT last_insert_rowid() AS id');
       const lastInsertRowid = (row && row.length && row[0].values.length) ? row[0].values[0][0] : 0;
       persist(); // 防抖落盘，批量写入时只落盘最后一次
-      return { lastInsertRowid };
+      return { lastInsertRowid, changes };
     },
     get(...args) {
       const stmt = db.prepare(sql);
