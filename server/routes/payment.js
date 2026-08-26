@@ -740,6 +740,7 @@ module.exports = function registerPayment(app, db, auth) {
       prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=? AND status<>'paid'").run(Date.now() + 30 * 60 * 1000, o.id);
       o = prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id);
     }
+    if (o.status === 'paid') return res.status(409).json({ error: '该订单此前已支付成功，请勿重复支付；如需再次赞助请在游戏内重新下单' });
     if (o.status !== 'pending' || (o.expires_at && o.expires_at < Date.now())) return res.status(409).json({ error: '订单已失效或已处理' });
     if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
     const amount = Number(req.body?.amount);
