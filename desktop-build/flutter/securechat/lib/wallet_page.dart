@@ -93,7 +93,7 @@ class _WalletPageState extends State<WalletPage> {
           const SizedBox(height: 16),
           SizedBox(width: double.infinity, child: FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(payType == 'redeem' ? '立即兑换' : (payType == 'qqpay' ? '去QQ钱包支付' : (payType == 'wxpay' ? '去微信支付' : '去支付宝支付'))),
+            child: Text(payType == 'redeem' ? '立即兑换' : (payType == 'wxpay' ? '去微信支付' : '去支付宝支付')),
           )),
         ]),
         );
@@ -167,7 +167,7 @@ class _WalletPageState extends State<WalletPage> {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: uidC, decoration: const InputDecoration(hintText: '收款人 ID (UID)')),
           const SizedBox(height: 10),
-          TextField(controller: amtC, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: '金额')),
+          TextField(controller: amtC, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: '金额')),
           const SizedBox(height: 10),
           TextField(controller: remarkC, decoration: const InputDecoration(hintText: '备注（可选）')),
         ]),

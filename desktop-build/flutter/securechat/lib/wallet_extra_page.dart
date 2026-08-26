@@ -212,6 +212,19 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写 UID 和金额')));
       return;
     }
+    // 二次确认（微信式：转账前复核对象与金额）
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('确认转账'),
+        content: Text('向 UID $uid 转账 ¥${a.toStringAsFixed(2)}${rmC.text.trim().isNotEmpty ? '\n备注：${rmC.text.trim()}' : ''}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('确认转账')),
+        ],
+      ),
+    );
+    if (sure != true || !mounted) return;
     try {
       final r = await api.transfer(uid, a, remark: rmC.text.trim());
       if (mounted) {
@@ -527,7 +540,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
     return Scaffold(
       backgroundColor: t.bg,
       body: Column(children: [
-        PageHeader(title: '支付与生活', config: cfg),
+        PageHeader(title: '服务', config: cfg),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())

@@ -40,7 +40,6 @@ class _GatewayPayPageState extends State<GatewayPayPage> {
   Future<void> _pinToFront() async {
     if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       try {
-        await windowManager.setAlwaysOnTop(true);
         await windowManager.focus();
       } catch (_) {}
     }

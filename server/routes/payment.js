@@ -240,6 +240,8 @@ module.exports = function registerPayment(app, db, auth) {
   // 统一扣款+入账（冲钱包，写流水与账单），err 通过 cb({code,message}) callback 返回
   function doPay(fromId, toId, amount, remark, category, refId, cb, allowSelf) {
     if (!Number.isFinite(amount) || amount <= 0) return cb({ code: 400, message: '金额无效' });
+    amount = Math.round(amount * 100) / 100;
+    if (amount > 1000000) return cb({ code: 400, message: '金额超限' });
     if (fromId === toId && !allowSelf) return cb({ code: 400, message: '不能转给自己' });
     ensureWallet(fromId);
     ensureWallet(toId);
@@ -271,12 +273,13 @@ module.exports = function registerPayment(app, db, auth) {
       if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
     }
     const remark = String((req.body && req.body.remark) || '').trim().slice(0, 100) || '';
-    // 次数限制：-1 无上限（默认）；正整数 N = 可被扫N次；0 不允许
+    // 次数限制：-1 无上限（默认）；正整数 N = 可被扫N次；其余值非法
     let maxUses = -1;
     const muRaw = (req.body && req.body.maxUses);
     if (muRaw !== undefined && muRaw !== null && muRaw !== '') {
-      maxUses = Math.trunc(Number(muRaw));
-      if (!Number.isFinite(maxUses)) maxUses = -1;
+      const muNum = Number(muRaw);
+      if (!(muNum === -1 || (Number.isInteger(muNum) && muNum >= 1))) return res.status(400).json({ error: '次数参数无效（-1为无上限，正整数为限定次数）' });
+      maxUses = muNum;
     }
     const token = crypto.randomBytes(16).toString('base64url');
     // 长期收款码：10年有效期，靠 status/used_count 控制失效
@@ -1047,12 +1050,12 @@ module.exports = function registerPayment(app, db, auth) {
     res.json({ ok: true, code: personalQrPublic(row) });
   });
 
-  // 被扫一次：次数+1（达到上限后拒绝再计）
+  // 被扫一次：次数+1（原子条件更新，达到上限后拒绝再计）
   app.post('/api/pay/personal-qr/:id/use', mw, (req, res) => {
     const row = prepare('SELECT * FROM personal_qr WHERE id=? AND user_id=?').get(parseInt(req.params.id, 10), req.user.id);
     if (!row) return res.status(404).json({ error: '收款码不存在' });
-    if (row.max_uses >= 0 && row.used_count >= row.max_uses) return res.status(409).json({ error: '已达使用次数上限' });
-    prepare('UPDATE personal_qr SET used_count=used_count+1 WHERE id=?').run(row.id);
+    const upd = prepare('UPDATE personal_qr SET used_count=used_count+1 WHERE id=? AND user_id=? AND (max_uses<0 OR used_count<max_uses)').run(row.id, req.user.id);
+    if (!upd.changes) return res.status(409).json({ error: '已达使用次数上限' });
     persist();
     res.json({ ok: true, code: personalQrPublic(prepare('SELECT * FROM personal_qr WHERE id=?').get(row.id)) });
   });

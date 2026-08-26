@@ -105,7 +105,7 @@ class _MePageState extends State<MePage> {
                         CellDivider(config: widget.config),
                         ListCell(config: widget.config, icon: Icons.photo_library_outlined, title: '相册', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AlbumPage(api: _api, config: widget.config)))),
                         CellDivider(config: widget.config),
-                        ListCell(config: widget.config, icon: Icons.wallet_giftcard_outlined, title: '卡包', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletExtraPage(api: _api, config: widget.config)))),
+                        ListCell(config: widget.config, icon: Icons.wallet_giftcard_outlined, title: '服务', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletExtraPage(api: _api, config: widget.config)))),
                         CellDivider(config: widget.config),
                         ListCell(config: widget.config, icon: Icons.emoji_emotions_outlined, title: '表情', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatExtPage(api: _api, config: widget.config)))),
                       ],

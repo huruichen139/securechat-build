@@ -2672,7 +2672,7 @@ class _ChatViewStateState extends State<_ChatView> {
     final isGroup = selConv != null && selConv!['kind'] == 'group';
     final dlCtrl = ValueNotifier<double>(0.0);
     final dlgCtx = context;
-    showDialog(context: dlgCtx, barrierDismissible: false, builder: (_) => ValueListenableBuilder<double>(
+    showDialog(context: dlgCtx, barrierDismissible: true, builder: (_) => ValueListenableBuilder<double>(
       valueListenable: dlCtrl,
       builder: (_, v, __) => AlertDialog(content: Column(mainAxisSize: MainAxisSize.min, children: [
         CircularProgressIndicator(value: v > 0 ? null : null, color: const Color(0xff07c160)),

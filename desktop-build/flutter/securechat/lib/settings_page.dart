@@ -555,6 +555,18 @@ class _SettingsPageState extends State<SettingsPage> {
             iconColor: const Color(0xffe0533d),
             title: '退出登录',
             onTap: () async {
+              final sure = await showDialog<bool>(
+                context: context,
+                builder: (dctx) => AlertDialog(
+                  title: const Text('退出登录'),
+                  content: const Text('退出后需要重新输入账号密码登录，确定退出？'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
+                    FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('退出', style: TextStyle(color: Color(0xffe0533d)))),
+                  ],
+                ),
+              );
+              if (sure != true || !mounted) return;
               await widget.api.clearSession();
               if (!mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
