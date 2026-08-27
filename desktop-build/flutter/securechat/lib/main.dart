@@ -667,6 +667,8 @@ class _ChatViewStateState extends State<_ChatView> {
   List<Map<String, dynamic>> _chatSearchResults = [];
   int _chatSearchIdx = -1;
   bool _isTyping = false;
+  bool _peerTyping = false;
+  final _peerTypingTimers = <int, dynamic>{};
   final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
   final _chatBgColors = <String, Color>{}; // 会话背景色 keyed by convKey
   bool _multiSelectMode = false;
@@ -927,7 +929,7 @@ class _ChatViewStateState extends State<_ChatView> {
       final oldKey = _convKey(selConv!);
       if (input.text.isNotEmpty) { _drafts[oldKey] = input.text; } else { _drafts.remove(oldKey); }
     }
-    setState(() { selected = index; _unread.remove(_convKey(conv)); });
+    setState(() { selected = index; _unread.remove(_convKey(conv)); _updateWindowTitle(); });
     messages.clear();
     // 恢复目标会话草稿
     final newKey = _convKey(conv);
@@ -1241,6 +1243,7 @@ class _ChatViewStateState extends State<_ChatView> {
           if (conv != null && !talkingToPeer) {
             final key = 'f${from == myId ? to : from}';
             setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
+            _updateWindowTitle();
             _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
             return;
           }
@@ -1378,7 +1381,7 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           }
           if (conv == null || conv['kind'] != 'group' || conv['id'] != gid) {
-            if (!mine) setState(() => _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1);
+            if (!mine) setState(() { _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1; _updateWindowTitle(); });
             return;
           }
           setState(() {
@@ -1423,6 +1426,17 @@ class _ChatViewStateState extends State<_ChatView> {
           final nick = (p['fromNick'] ?? '某').toString();
           if (!mounted) return;
           try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$nick 拍了拍你'), duration: const Duration(seconds: 2))); } catch (_) {}
+        } else if (type == 'typing') {
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          final fromId = p['from'] as int?;
+          final conv = selConv;
+          if (fromId != null && conv != null && conv['kind'] == 'friend' && conv['id'] == fromId && mounted) {
+            setState(() => _peerTyping = true);
+            _peerTypingTimers[fromId]?.cancel();
+            _peerTypingTimers[fromId] = Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) setState(() => _peerTyping = false);
+            });
+          }
         } else if (type == 'friend_req') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           final fu = (p['fromUser'] as Map?)?.cast<String, dynamic>();
@@ -1549,6 +1563,12 @@ class _ChatViewStateState extends State<_ChatView> {
       if (secs >= 60) { _toggleRecording(); return; }
       if (mounted) setState(() => _recordingDuration = secs);
     });
+  }
+
+  void _updateWindowTitle() {
+    final total = _unread.values.fold<int>(0, (a, b) => a + b);
+    final suffix = total > 0 ? ' ($total条未读)' : '';
+    try { windowManager.setTitle('SecureChat$suffix'); } catch (_) {}
   }
 
   @override
@@ -1696,7 +1716,7 @@ class _ChatViewStateState extends State<_ChatView> {
             CircleAvatar(radius: 20, backgroundColor: config.primary, child: Text('S', style: TextStyle(color: theme.onAccent, fontWeight: FontWeight.bold, fontSize: 14))),
             const SizedBox(width: 10),
             Expanded(child: Text('微信', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
-          IconButton(tooltip: '全部已读', onPressed: () { setState(() => _unread.clear()); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
+          IconButton(tooltip: '全部已读', onPressed: () { setState(() { _unread.clear(); _updateWindowTitle(); }); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
           if (isMobile) Builder(builder: (btnCtx) => IconButton(tooltip: '附加功能', onPressed: () => _showPlusMenu(btnCtx), icon: const Icon(Icons.add, size: 24), color: theme.text)),
           ]),
         ),
@@ -1791,9 +1811,9 @@ class _ChatViewStateState extends State<_ChatView> {
           Text(selName ?? '未选择会话', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.text)),
           Row(mainAxisSize: MainAxisSize.min, children: [
             Text(selConv != null ? _convStatusLine(selConv!) : '', style: TextStyle(color: t.subText, fontSize: 11)),
-            if (_isTyping) ...[
+            if (_peerTyping) ...[
               const SizedBox(width: 6),
-              Text('正在输入...', style: TextStyle(color: _wechatGreen, fontSize: 11, fontWeight: FontWeight.w500)),
+              Text('对方正在输入...', style: TextStyle(color: _wechatGreen, fontSize: 11, fontWeight: FontWeight.w500)),
             ],
           ]),
         ]),

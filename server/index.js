@@ -3894,6 +3894,8 @@ function removeWs(uid, ws) {
 
 wss.on('connection', (ws, req) => {
   ws.uid = null;
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   // 未认证客户端10秒超时
   const authTimer = setTimeout(() => { if (!ws.uid) try { ws.close(4001, 'auth timeout'); } catch {} }, 10000);
   ws.on('close', () => { try { clearTimeout(authTimer); } catch {} });
@@ -3938,6 +3940,13 @@ wss.on('connection', (ws, req) => {
          WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
       ).all(dbUser.id);
       for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
+      // 推送离线未读消息（断线期间积累的消息）
+      try {
+        const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY created_at DESC LIMIT 200').all(dbUser.id);
+        for (const m of offlineMsgs) {
+          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null });
+        }
+      } catch (e) {}
       // 记录最后登录时间与 IP
       try { prepare('UPDATE users SET last_login_at=?, last_ip=?, last_seen=? WHERE id=?').run(Date.now(), ws._ip || '', Date.now(), dbUser.id); } catch (e) {}
       return;
@@ -4119,6 +4128,16 @@ wss.on('connection', (ws, req) => {
     }
   });
 });
+
+// WebSocket 心跳：30秒 ping，清理僵尸连接
+const WS_PING_INTERVAL = 30000;
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) { try { ws.terminate(); } catch {} continue; }
+    ws.isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, WS_PING_INTERVAL);
 
 let _lastUserListHash = '';
 function broadcastUserList() {
