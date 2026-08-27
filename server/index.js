@@ -3944,7 +3944,7 @@ wss.on('connection', (ws, req) => {
       try {
         const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY created_at DESC LIMIT 200').all(dbUser.id);
         for (const m of offlineMsgs) {
-          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null });
+          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading });
         }
       } catch (e) {}
       // 记录最后登录时间与 IP

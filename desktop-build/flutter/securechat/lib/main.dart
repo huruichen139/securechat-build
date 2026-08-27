@@ -1824,8 +1824,9 @@ class _ChatViewStateState extends State<_ChatView> {
           IconButton(tooltip: '语音通话', onPressed: () => _startCall(false), icon: Icon(Icons.call_outlined, color: t.subText)),
           if (!isMobile) IconButton(tooltip: '视频通话', onPressed: () => _startCall(true), icon: Icon(Icons.videocam_outlined, color: t.subText)),
           if (!isMobile && selConv!['kind'] == 'friend') IconButton(tooltip: '拍一拍', onPressed: _poke, icon: Icon(Icons.waving_hand_outlined, color: t.subText)),
+          if (!isMobile && selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
           PopupMenuButton<int>(
-            icon: Icon(Icons.more_horiz, color: t.subText),
+            icon: const Icon(Icons.more_horiz),
             onSelected: (v) {
               if (v == 0) _toggleMultiSelect();
               else if (v == 1) _startCall(true);
@@ -1833,31 +1834,26 @@ class _ChatViewStateState extends State<_ChatView> {
               else if (v == 3) _clearConversation();
               else if (v == 4) _showGroupMembers();
               else if (v == 5) _showGroupAnnouncement();
+              else _onContextMenu(v, context);
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 0, child: Text('多选')),
-              if (selConv!['kind'] == 'friend') const PopupMenuItem(value: 1, child: Text('视频通话')),
-              if (selConv!['kind'] == 'friend') const PopupMenuItem(value: 2, child: Text('拍一拍')),
-              const PopupMenuItem(value: 3, child: Text('清空聊天')),
-              if (selConv!['kind'] == 'group') const PopupMenuItem(value: 4, child: Text('群成员')),
-              if (selConv!['kind'] == 'group') const PopupMenuItem(value: 5, child: Text('群公告')),
-            ],
-          ),
-          if (!isMobile && selConv!['kind'] == 'group') IconButton(tooltip: '群公告', onPressed: _showGroupAnnouncement, icon: Icon(Icons.campaign_outlined, color: t.subText)),
-          if (!isMobile && selConv!['kind'] == 'group') IconButton(tooltip: '群工具（投票/待办）', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityToolsPage(api: widget.api, config: widget.config))), icon: Icon(Icons.tune, color: t.subText)),
-          PopupMenuButton<int>(
-            icon: const Icon(Icons.more_horiz),
-            onSelected: (v) => _onContextMenu(v, context),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 0, child: Text('发起群聊')),
-              PopupMenuItem(value: 6, child: Text('加入群聊')),
-              PopupMenuItem(value: 1, child: Text('发起音视频会议')),
-              PopupMenuItem(value: 2, child: Text('添加好友')),
-              PopupMenuItem(value: 3, child: Text('查看聊天资料')),
-              PopupMenuItem(value: 7, child: Text('设置聊天背景')),
-              PopupMenuItem(value: 8, child: Text('字体大小')),
-              PopupMenuItem(value: 4, child: Text('我的名片')),
-              PopupMenuItem(value: 5, child: Text('扫一扫')),
+              if (selConv != null) ...[
+                const PopupMenuItem(value: 0, child: Text('多选')),
+                if (selConv!['kind'] == 'friend') const PopupMenuItem(value: 1, child: Text('视频通话')),
+                if (selConv!['kind'] == 'friend') const PopupMenuItem(value: 2, child: Text('拍一拍')),
+                const PopupMenuItem(value: 3, child: Text('清空聊天')),
+                if (selConv!['kind'] == 'group') const PopupMenuItem(value: 4, child: Text('群成员')),
+                if (selConv!['kind'] == 'group') const PopupMenuItem(value: 5, child: Text('群公告')),
+              ],
+              const PopupMenuItem(value: 10, child: Text('发起群聊')),
+              const PopupMenuItem(value: 16, child: Text('加入群聊')),
+              const PopupMenuItem(value: 11, child: Text('发起音视频会议')),
+              const PopupMenuItem(value: 12, child: Text('添加好友')),
+              const PopupMenuItem(value: 13, child: Text('查看聊天资料')),
+              const PopupMenuItem(value: 17, child: Text('设置聊天背景')),
+              const PopupMenuItem(value: 18, child: Text('字体大小')),
+              const PopupMenuItem(value: 14, child: Text('我的名片')),
+              const PopupMenuItem(value: 15, child: Text('扫一扫')),
             ],
           ),
         ],
@@ -3287,21 +3283,21 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   void _onContextMenu(int v, BuildContext ctx) {
-    if (v == 0) _showCreateGroupDialog(ctx);
-    if (v == 1) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('音视频会议功能开发中'))); }
-    if (v == 2) _showAddFriendDialog(ctx);
-    if (v == 3) _showChatInfo(ctx);
-    if (v == 4) _showMyCard(ctx);
-    if (v == 5) {
+    if (v == 10) _showCreateGroupDialog(ctx);
+    if (v == 11) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('音视频会议功能开发中'))); }
+    if (v == 12) _showAddFriendDialog(ctx);
+    if (v == 13) _showChatInfo(ctx);
+    if (v == 14) _showMyCard(ctx);
+    if (v == 15) {
       if (Platform.isAndroid || Platform.isIOS) {
         Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => QrConfirmPage(api: widget.api, config: widget.config)));
       } else {
         ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('扫描仅支持手机端')));
       }
     }
-    if (v == 6) _showJoinGroupDialog(ctx);
-    if (v == 7) _showBgPicker(ctx);
-    if (v == 8) _showFontSizeDialog(ctx);
+    if (v == 16) _showJoinGroupDialog(ctx);
+    if (v == 17) _showBgPicker(ctx);
+    if (v == 18) _showFontSizeDialog(ctx);
   }
 
   void _showCreateGroupDialog(BuildContext ctx) async {
@@ -3462,16 +3458,10 @@ class _ChatViewStateState extends State<_ChatView> {
         if (conv['kind'] == 'group') { await widget.api.recallGroupMessage(conv['id'] as int, msgId); }
         else { await widget.api.recallMessage(msgId); }
         count++;
-    } catch (e) {
-      debugPrint('[ws] connect error: $e');
-      if (mounted) {
-        final attempt = _wsReconnectAttempt + 1;
-        _wsReconnectAttempt = attempt;
-        final delay = Duration(milliseconds: (2000 * (1 << (attempt - 1))).clamp(2000, 60000));
-        Future.delayed(delay, () { if (mounted) _connect(); });
+      } catch (e) {
+        debugPrint('[batch] recall error: $e');
       }
     }
-  }
     if (mounted) {
       setState(() {
         for (final msg in _selectedMsgs) {

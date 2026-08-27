@@ -636,7 +636,6 @@ module.exports = function registerGroups(app, db, auth) {
     const msg = p.get('SELECT id, from_id FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
     if (!msg) return fail(res, 404, '消息不存在');
     const greply = p.get('SELECT owner_id FROM groups WHERE id=?', groupId);
-    if (!(req.user.id === (greply && greply.owner_id) || req.user.id === msg.from_id)) return fail(res, 403, '仅消息发送者或群主可操作');
     const replyTo = Number((req.body || {}).replyTo) || null;
     const now = Date.now();
     try {
@@ -650,6 +649,8 @@ module.exports = function registerGroups(app, db, auth) {
     const groupId = parseInt(req.params.id, 10);
     const msgId = parseInt(req.params.msgId, 10);
     if (!Number.isInteger(groupId) || !Number.isInteger(msgId)) return fail(res, 400, '参数错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const msg = p.get('SELECT id,from_id,content,created_at FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
     if (!msg) return fail(res, 404, '消息不存在');
     if (msg.from_id !== req.user.id) return fail(res, 403, '只能撤回自己发送的消息');
@@ -668,6 +669,8 @@ module.exports = function registerGroups(app, db, auth) {
     const groupId = parseInt(req.params.id, 10);
     const msgId = parseInt(req.params.msgId, 10);
     if (!Number.isInteger(groupId) || !Number.isInteger(msgId)) return fail(res, 400, '参数错误');
+    if (!groupExists(groupId)) return fail(res, 404, '群不存在');
+    if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const msg = p.get('SELECT id,from_id,content,recalled FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
     if (!msg) return fail(res, 404, '消息不存在');
     if (msg.from_id !== req.user.id) return fail(res, 403, '只能编辑自己发送的消息');
