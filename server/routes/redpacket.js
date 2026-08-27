@@ -210,11 +210,20 @@ module.exports = function registerRedpacket(app, db, auth) {
     prepare('UPDATE red_packets SET remaining_amount=?,remaining_count=?,status=? WHERE id=?')
       .run(Math.round((pkt.remaining_amount - amount) * 100) / 100, pkt.remaining_count - 1, (pkt.remaining_count - 1 <= 0) ? 'finished' : 'active', id);
 
-    // 入账
-    prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(me.id, 0, 0, Date.now());
-    prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(amount, amount, Date.now(), me.id);
-    prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
-      .run(me.id, 'in', amount, pkt.sender_id, '抢到红包', Date.now());
+    // 入账（使用事务保证扣款与入账原子性）
+    try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
+    try {
+      prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(me.id, 0, 0, Date.now());
+      prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(amount, amount, Date.now(), me.id);
+      prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
+        .run(me.id, 'in', amount, pkt.sender_id, '抢到红包', Date.now());
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+    } catch (e) {
+      try { prepare('ROLLBACK').run(); } catch (e2) {}
+      // 入账失败，回滚红包扣减
+      try { prepare('UPDATE red_packets SET remaining_count=remaining_count+1,remaining_amount=remaining_amount+?,status=? WHERE id=?').run(amount, 'active', id); } catch (e3) {}
+      return res.status(500).json({ error: '入账失败' });
+    }
     persist();
 
     res.json({ ok: true, amount, myAmount: amount, balance: walletOf(me.id).balance });
@@ -267,10 +276,17 @@ module.exports = function registerRedpacket(app, db, auth) {
     if (pkt.sender_id !== me.id) return res.status(403).json({ error: '只能退回自己发的红包' });
     if (pkt.status !== 'active' || pkt.remaining_count <= 0) return res.status(400).json({ error: '红包已抢完或已退回' });
     const refund = pkt.remaining_amount;
-    prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refund, Date.now(), me.id);
-    prepare('UPDATE red_packets SET status=?,remaining_amount=?,remaining_count=? WHERE id=?').run('refunded', 0, 0, id);
-    prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
-      .run(me.id, 'in', refund, null, '退回红包', Date.now());
+    try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
+    try {
+      prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refund, Date.now(), me.id);
+      prepare('UPDATE red_packets SET status=?,remaining_amount=?,remaining_count=? WHERE id=?').run('refunded', 0, 0, id);
+      prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
+        .run(me.id, 'in', refund, null, '退回红包', Date.now());
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+    } catch (e) {
+      try { prepare('ROLLBACK').run(); } catch (e2) {}
+      return res.status(500).json({ error: '退回失败' });
+    }
     persist();
     res.json({ ok: true, refund, balance: walletOf(me.id).balance });
   });
