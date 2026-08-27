@@ -698,7 +698,7 @@ function showMyCard() {
   head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
   const body = document.createElement('div');
   body.style.cssText = 'text-align:center;padding:6px 0 4px';
-  body.innerHTML = '<img src="' + imgUrl + '" alt="名片二维码" style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
+  body.innerHTML = '<img src="' + escapeHtml(imgUrl) + '" alt="名片二维码" style="width:220px;height:220px;max-width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff">'
     + '<div style="margin-top:12px;font-size:14px;font-weight:600">' + escapeHtml(state.me.nickname) + '</div>'
     + '<div style="font-size:12px;color:#64748b;margin-top:3px">ID: ' + escapeHtml(uid) + '</div>'
     + '<div style="margin-top:8px;font-size:12px;color:#64748b">让朋友用手机「扫一扫」添加我为好友</div>';
