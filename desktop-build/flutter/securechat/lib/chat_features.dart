@@ -245,6 +245,9 @@ Future<void> showScheduleDialog(BuildContext ctx, SecureChatApi api, int peerId,
     ),
     ),
   );
+  contentCtrl.dispose();
+  dateCtrl.dispose();
+  timeCtrl.dispose();
 }
 
 /// 5. 阅后即焚

@@ -106,6 +106,8 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+    oldC.dispose();
+    newC.dispose();
     if (ok != true || !context.mounted) return;
     if (oldC.text.isEmpty || newC.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写当前密码且新密码至少6位')));

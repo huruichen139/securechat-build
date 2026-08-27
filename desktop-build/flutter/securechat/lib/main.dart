@@ -2618,7 +2618,10 @@ class _ChatViewStateState extends State<_ChatView> {
               ],
             ]),
           ),
-          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('开心收下'))],
+          actions: [
+            if (status != 'active') TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+            FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(status == 'active' ? '开心收下' : '关闭')),
+          ],
         ),
       );
     } catch (e) {
