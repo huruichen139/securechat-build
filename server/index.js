@@ -1324,8 +1324,10 @@ app.get('/api/call-recordings/:id', (req, res) => {
     if (!adminOk) return res.status(404).json({ error: '回放不存在' });
   }
   if (!fs.existsSync(row.path)) return res.status(404).json({ error: '回放不存在' });
+  const resolved = path.resolve(row.path);
+  if (!resolved.startsWith(path.resolve(CALLS_DIR))) return res.status(403).json({ error: '路径非法' });
   res.setHeader('Content-Type', row.kind === 'audio' ? 'audio/webm' : 'video/webm');
-  fs.createReadStream(row.path).pipe(res);
+  fs.createReadStream(resolved).pipe(res);
 });
 
 // ---------- 群组 ----------
@@ -1568,6 +1570,8 @@ app.get('/api/wallet', (req, res) => {
 // 兑换码充值：POST /api/wallet/redeem { code }
 app.post('/api/wallet/redeem', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const ip = getIp(req);
+  if (rateLimit('redeem:' + ip, 20, 60 * 1000)) return res.status(429).json({ error: '尝试过于频繁' });
   const auth = req.headers.authorization || '';
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });

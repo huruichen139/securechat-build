@@ -127,7 +127,7 @@ function groupMsgDto(r, viewerId) {
   const name = (sender && (sender.my_nickname || sender.nickname)) || ('用户' + r.from_id);
   let read = false, readCount = 0;
   try {
-    const rc = p.get('SELECT COUNT(*) AS c FROM message_reads WHERE message_id=?', r.id);
+    const rc = p.get('SELECT COUNT(*) AS c FROM message_reads mr JOIN group_members gm ON gm.user_id=mr.user_id AND gm.group_id=? WHERE mr.message_id=?', r.group_id, r.id);
     readCount = rc ? Number(rc.c) || 0 : 0;
     if (viewerId != null) {
       const mine = p.get('SELECT 1 FROM message_reads WHERE message_id=? AND user_id=?', r.id, viewerId);
@@ -390,16 +390,20 @@ module.exports = function registerGroups(app, db, auth) {
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
     if (!g) return fail(res, 404, '群不存在');
     if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可解散群');
-    p.run('DELETE FROM groups WHERE id=?', groupId);
+    try { p.run('DELETE FROM group_message_meta WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)', groupId); } catch (e) {}
     p.run('DELETE FROM group_members WHERE group_id=?', groupId);
     p.run('DELETE FROM group_messages WHERE group_id=?', groupId);
     p.run('DELETE FROM group_announcements WHERE group_id=?', groupId);
     p.run('DELETE FROM group_member_settings WHERE group_id=?', groupId);
     p.run('DELETE FROM group_setting_notes WHERE group_id=?', groupId);
+    try { p.run('DELETE FROM group_votes WHERE group_id=?', groupId); } catch (e) {}
+    try { p.run('DELETE FROM group_todos WHERE group_id=?', groupId); } catch (e) {}
+    try { p.run('DELETE FROM group_join_grants WHERE group_id=?', groupId); } catch (e) {}
     const files = p.all('SELECT id,name FROM group_files WHERE group_id=?', groupId);
     for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id)); } catch (e) { /* 忽略 */ } }
     p.run('DELETE FROM group_files WHERE group_id=?', groupId);
-    try { p.run('DELETE FROM group_join_grants WHERE group_id=?', groupId); } catch (e) {}
+    p.run('DELETE FROM groups WHERE id=?', groupId);
+    persist();
     res.json({ ok: true });
   });
 
@@ -409,12 +413,18 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
-    const rows = p.all(
-      `SELECT gm.*,gmm.reply_to,gmm.forwarded_from,pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+    const before = parseInt(req.query.before, 10) || null;
+    let sql = `SELECT gm.*,gmm.reply_to,gmm.forwarded_from,pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
        FROM group_messages gm
        LEFT JOIN group_message_meta gmm ON gmm.message_id=gm.id
        LEFT JOIN group_messages pm ON pm.id=gmm.reply_to
-       WHERE gm.group_id=? ORDER BY gm.created_at ASC`, groupId);
+       WHERE gm.group_id=?`;
+    const params = [groupId];
+    if (before) { sql += ' AND gm.id<?'; params.push(before); }
+    sql += ' ORDER BY gm.created_at DESC LIMIT ?';
+    params.push(limit);
+    const rows = p.all(sql, ...params).reverse();
     res.json({ messages: rows.map(r => groupMsgDto(r, req.user.id)) });
   });
 
@@ -426,6 +436,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const content = String((req.body || {}).content || '');
     if (!content) return fail(res, 400, '消息内容不能为空');
+    if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
     const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''));
     const replyTo = Number((req.body || {}).replyTo) || null;
     const forwardedFrom = Number((req.body || {}).forwardedFrom) || null;
@@ -568,10 +579,12 @@ module.exports = function registerGroups(app, db, auth) {
     const file = p.get('SELECT * FROM group_files WHERE id=?', req.params.fileId);
     if (!file) return fail(res, 404, '文件不存在');
     if (!memberOf(file.group_id, req.user.id)) return fail(res, 403, '你不在此群');
-    if (!fs.existsSync(file.path)) return fail(res, 404, '文件不存在');
+    const resolved = path.resolve(file.path);
+    if (!resolved.startsWith(path.resolve(GROUP_FILES_DIR))) return fail(res, 403, '路径非法');
+    if (!fs.existsSync(resolved)) return fail(res, 404, '文件不存在');
     res.setHeader('Content-Type', file.mime);
     res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
-    fs.createReadStream(file.path).pipe(res);
+    fs.createReadStream(resolved).pipe(res);
   });
 
   // ---------- 群文件删除：DELETE /api/groups/:id/files/:fileId ----------
