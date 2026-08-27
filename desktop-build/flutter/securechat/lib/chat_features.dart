@@ -14,7 +14,7 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
   final targetCtrl = TextEditingController(text: 'zh');
   final result = await showDialog<String>(
     context: ctx,
-    builder: (_) => AlertDialog(
+    builder: (dialogCtx) => AlertDialog(
       title: const Text('翻译消息'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -32,7 +32,7 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('取消')),
         TextButton(
           onPressed: () async {
             final uri = Uri.parse('${api.baseUrl}/api/translate');
@@ -46,10 +46,10 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
             ).timeout(const Duration(seconds: 15));
             if (resp.statusCode == 200) {
               final data = json.decode(resp.body);
-              Navigator.pop(ctx, data['translated'] ?? '');
+              Navigator.pop(dialogCtx, data['translated'] ?? '');
             } else {
-              if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('翻译失败')));
+              if (dialogCtx.mounted) {
+                ScaffoldMessenger.of(dialogCtx).showSnackBar(const SnackBar(content: Text('翻译失败')));
               }
             }
           },
@@ -58,6 +58,7 @@ Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String tex
       ],
     ),
   );
+  targetCtrl.dispose();
   if (result != null && ctx.mounted) {
     ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('译文: $result')));
   }
@@ -121,7 +122,7 @@ Future<String?> showQuickRepliesSheet(BuildContext ctx, SecureChatApi api) async
               onPressed: () async {
                 final titleCtrl = TextEditingController();
                 final contentCtrl = TextEditingController();
-                final confirmed = await showDialog<bool>(context: ctx, builder: (_) => AlertDialog(
+                final confirmed = await showDialog<bool>(context: ctx, builder: (dialogCtx) => AlertDialog(
                   title: const Text('添加快捷回复'),
                   content: Column(mainAxisSize: MainAxisSize.min, children: [
                     TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: '标题')),
@@ -129,10 +130,12 @@ Future<String?> showQuickRepliesSheet(BuildContext ctx, SecureChatApi api) async
                     TextField(controller: contentCtrl, decoration: const InputDecoration(hintText: '回复内容')),
                   ]),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定')),
+                    TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('取消')),
+                    TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('确定')),
                   ],
                 ));
+                titleCtrl.dispose();
+                contentCtrl.dispose();
                 if (confirmed == true && titleCtrl.text.isNotEmpty && contentCtrl.text.isNotEmpty) {
                   await QuickReplyManager.instance.addReply(titleCtrl.text, contentCtrl.text);
                 }
@@ -248,12 +251,12 @@ Future<void> showScheduleDialog(BuildContext ctx, SecureChatApi api, int peerId,
 Future<void> showBurnDialog(BuildContext ctx, Map<String, dynamic> msg, SecureChatApi api, int peerId, bool isGroup) async {
   final duration = await showDialog<int>(
     context: ctx,
-    builder: (_) => AlertDialog(
+    builder: (dialogCtx) => AlertDialog(
       title: const Text('选择销毁时间'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(title: const Text('30秒'), onTap: () => Navigator.pop(ctx, 30)),
-        ListTile(title: const Text('1分钟'), onTap: () => Navigator.pop(ctx, 60)),
-        ListTile(title: const Text('5分钟'), onTap: () => Navigator.pop(ctx, 300)),
+        ListTile(title: const Text('30秒'), onTap: () => Navigator.pop(dialogCtx, 30)),
+        ListTile(title: const Text('1分钟'), onTap: () => Navigator.pop(dialogCtx, 60)),
+        ListTile(title: const Text('5分钟'), onTap: () => Navigator.pop(dialogCtx, 300)),
       ]),
     ),
   );
@@ -393,12 +396,12 @@ Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, Secure
   }
   final ok = await showDialog<bool>(
     context: ctx,
-    builder: (_) => AlertDialog(
+    builder: (dialogCtx) => AlertDialog(
       title: const Text('撤回消息'),
       content: const Text('确定要撤回这条消息吗？'),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('撤回')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('取消')),
+        FilledButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('撤回')),
       ],
     ),
   );
@@ -416,12 +419,12 @@ Future<void> showRecallDialog(BuildContext ctx, Map<String, dynamic> msg, Secure
       if (isMine && text.isNotEmpty) {
         final reEdit = await showDialog<bool>(
           context: ctx,
-          builder: (_) => AlertDialog(
+          builder: (dialogCtx2) => AlertDialog(
             title: const Text('已撤回'),
             content: const Text('消息已撤回，是否重新编辑？'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('重新编辑')),
+              TextButton(onPressed: () => Navigator.pop(dialogCtx2, false), child: const Text('取消')),
+              FilledButton(onPressed: () => Navigator.pop(dialogCtx2, true), child: const Text('重新编辑')),
             ],
           ),
         );

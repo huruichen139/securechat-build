@@ -56,7 +56,14 @@ function publicUser(u) {
 
 function verifyUser(req) {
   const auth = req.headers.authorization || '';
-  return jwt.verify(auth.replace(/^Bearer\s+/i, ''), JWT_SECRET) || null;
+  try {
+    const payload = jwt.verify(auth.replace(/^Bearer\s+/i, ''), JWT_SECRET);
+    if (!payload || !payload.id) return null;
+    const u = gdb.prepare('SELECT token_version FROM users WHERE id=?').get(payload.id);
+    if (!u) return null;
+    if ((payload.tv || 0) !== (u.token_version || 0)) return null;
+    return payload;
+  } catch { return null; }
 }
 function apiUser(req) {
   try { return verifyUser(req); } catch (e) { return null; }

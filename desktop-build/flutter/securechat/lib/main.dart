@@ -1186,7 +1186,6 @@ class _ChatViewStateState extends State<_ChatView> {
 
   Future<void> _connect() async {
     try {
-      _wsReconnectAttempt = 0; // 连接成功时重置
       myId = widget.api.myId;
       x3dhApi = widget.api;
       _ensureDeletedLoaded();
@@ -1201,6 +1200,7 @@ class _ChatViewStateState extends State<_ChatView> {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
         if (type == 'auth_ok') {
+          _wsReconnectAttempt = 0; // 认证成功才重置重连计数器
           // 重连成功后重新拉取会话列表与当前会话历史，补齐断线期间漏掉的消息
           if (mounted) {
             final conv = selConv;
@@ -1289,8 +1289,8 @@ class _ChatViewStateState extends State<_ChatView> {
             }
           });
           if (selConv != null) {
-            const convKey = 'f';
-            _lastMsg.remove(convKey);
+            final ck = _convKey(selConv!);
+            _lastMsg.remove(ck);
           }
         } else if (type == 'msg_edit') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
@@ -1319,7 +1319,7 @@ class _ChatViewStateState extends State<_ChatView> {
             if (uidInt != null && users.add(uidInt)) {
               setState(() {
                 for (final m in messages) {
-                  if (m['mine'] == true) {
+                  if (m['mine'] == true && m['sender'] != null) {
                     m['readCount'] = ((m['readCount'] as num?)?.toInt() ?? 1) + 1;
                   }
                 }
@@ -1374,8 +1374,8 @@ class _ChatViewStateState extends State<_ChatView> {
           if (!mine) {
             final myNick = widget.api.myNickname ?? '';
             final myUser = widget.api.myUsername ?? '';
-            if (text.contains('@所有人') || (myNick.isNotEmpty && text.contains('@')) || (myUser.isNotEmpty && text.contains('@'))) {
-              _mentionMe['g'] = true;
+            if (text.contains('@所有人') || (myNick.isNotEmpty && text.contains('@$myNick')) || (myUser.isNotEmpty && text.contains('@$myUser'))) {
+              _mentionMe['g$gid'] = true;
             }
           }
           if (conv == null || conv['kind'] != 'group' || conv['id'] != gid) {
@@ -3037,11 +3037,11 @@ class _ChatViewStateState extends State<_ChatView> {
           ListTile(leading: const Icon(Icons.star_outline), title: const Text('收藏'), onTap: () { Navigator.pop(sheetCtx); _favoriteMessage(msg); }),
           ListTile(leading: const Icon(Icons.waving_hand, size: 20), title: const Text('拍一拍'), onTap: () { Navigator.pop(sheetCtx); _patMessage(msg); }),
           ListTile(leading: const Icon(Icons.push_pin_outlined), title: const Text('置顶消息'), onTap: () { Navigator.pop(sheetCtx); _pinMessage(msg); }),
-           ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { Navigator.pop(sheetCtx); showTranslateDialog(sheetCtx, widget.api, msg['text'] ?? ''); }),
-          ListTile(leading: const Icon(Icons.mic), title: const Text('语音转文字'), onTap: () { Navigator.pop(sheetCtx); _showTranscribeDialog(sheetCtx, msg); }),
-          ListTile(leading: const Icon(Icons.image_search), title: const Text('提取文字'), onTap: () { Navigator.pop(sheetCtx); _showOCRDialog(sheetCtx, msg); }),
-          ListTile(leading: const Icon(Icons.remove), title: const Text('阅后即焚'), onTap: () { Navigator.pop(sheetCtx); _showBurnDialog(sheetCtx, msg); }),
-          ListTile(leading: const Icon(Icons.backspace), title: const Text('撤回'), onTap: () { Navigator.pop(sheetCtx); _showRecallDialog(sheetCtx, msg); }),
+           ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { Navigator.pop(sheetCtx); showTranslateDialog(context, widget.api, msg['text'] ?? ''); }),
+          ListTile(leading: const Icon(Icons.mic), title: const Text('语音转文字'), onTap: () { Navigator.pop(sheetCtx); _showTranscribeDialog(context, msg); }),
+          ListTile(leading: const Icon(Icons.image_search), title: const Text('提取文字'), onTap: () { Navigator.pop(sheetCtx); _showOCRDialog(context, msg); }),
+          ListTile(leading: const Icon(Icons.remove), title: const Text('阅后即焚'), onTap: () { Navigator.pop(sheetCtx); _showBurnDialog(context, msg); }),
+          ListTile(leading: const Icon(Icons.backspace), title: const Text('撤回'), onTap: () { Navigator.pop(sheetCtx); _showRecallDialog(context, msg); }),
           if (isFriendChat) ListTile(leading: const Icon(Icons.block, color: Colors.orange), title: const Text('拉黑', style: TextStyle(color: Colors.orange)), onTap: () { Navigator.pop(sheetCtx); _blockCurrentUser(); }),
           ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(sheetCtx); _deleteLocalMessage(msg); }),
         ]),
@@ -3435,10 +3435,15 @@ class _ChatViewStateState extends State<_ChatView> {
         if (conv['kind'] == 'group') { await widget.api.recallGroupMessage(conv['id'] as int, msgId); }
         else { await widget.api.recallMessage(msgId); }
         count++;
-    } catch (_) {}
-    // 微信式系统托盘：点 X 隐藏到托盘，托盘菜单可显示主界面或真正退出
-    // （initTray 内部已 try-catch 静默降级并自行判断桌面平台）
-    await initTray();
+    } catch (e) {
+      debugPrint('[ws] connect error: $e');
+      if (mounted) {
+        final attempt = _wsReconnectAttempt + 1;
+        _wsReconnectAttempt = attempt;
+        final delay = Duration(milliseconds: (2000 * (1 << (attempt - 1))).clamp(2000, 60000));
+        Future.delayed(delay, () { if (mounted) _connect(); });
+      }
+    }
   }
     if (mounted) {
       setState(() {

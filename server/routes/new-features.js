@@ -228,13 +228,12 @@ module.exports = function register(app, db, auth) {
   }
 
   function broadcastDestroyMessage(messageId) {
-    // 这里可以广播销毁消息给所有用户
-    // 简化处理，实际需要根据 messageId 找到对应会话
+    const sendToUser = global.__scSendToUser;
+    if (!sendToUser) return;
     const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
     if (msg) {
-      // 广播给相关用户
-      const toBroadcast = [msg.from_id, msg.to_id];
-      // 清理 timer
+      sendToUser(msg.from_id, P.S_MSG, { id: messageId, destroyed: true });
+      sendToUser(msg.to_id, P.S_MSG, { id: messageId, destroyed: true });
       db.run('DELETE FROM message_timers WHERE message_id=?', [messageId]);
     }
   }
@@ -363,9 +362,12 @@ module.exports = function register(app, db, auth) {
         const sendToUser = global.__scSendToUser;
         if (!sendToUser) continue;
         if (m.is_group) {
-          sendToUser(m.user_id, P.S_GROUP_MSG, { groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: Date.now(), scheduled: true });
+          const members = db.prepare('SELECT user_id FROM group_members WHERE group_id=?').all(m.peer_id);
+          for (const mb of members) {
+            sendToUser(mb.user_id, P.S_GROUP_MSG, { groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: Date.now(), scheduled: true });
+          }
         } else {
-          sendToUser(m.user_id, P.S_MSG, { from: m.user_id, to: m.peer_id, content: m.content, createdAt: Date.now(), scheduled: true });
+          sendToUser(m.peer_id, P.S_MSG, { from: m.user_id, to: m.peer_id, content: m.content, createdAt: Date.now(), scheduled: true });
         }
         db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [Date.now(), m.id]);
       }

@@ -128,8 +128,12 @@ app.use((req, res, next) => {
 });
 
 // ---------- CORS：允许网页端独立部署（不同域名）访问 API ----------
+const ALLOWED_ORIGINS = ['https://mc.32768.top', 'http://mc.32768.top', 'http://localhost', 'http://127.0.0.1'];
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -767,12 +771,16 @@ app.get('/api/keys/bundle/:userId', (req, res) => {
   const u = prepare('SELECT id, pubkey FROM users WHERE id=?').get(targetId);
   if (!u) return res.status(404).json({ error: '用户不存在' });
   const spk = prepare('SELECT key_id AS keyId, pub_key AS pubKey, signature FROM signed_prekeys WHERE user_id=? ORDER BY created_at DESC LIMIT 1').get(targetId) || null;
-  const opk = prepare('SELECT id, key_id AS keyId, pub_key AS pubKey FROM prekeys WHERE user_id=? AND used=0 ORDER BY created_at ASC LIMIT 1').get(targetId) || null;
   let oneTimePreKey = null;
-  if (opk) {
-    prepare('UPDATE prekeys SET used=1 WHERE id=?').run(opk.id);
-    oneTimePreKey = { keyId: opk.keyId, pubKey: opk.pubKey };
-  }
+  try {
+    db.run('BEGIN IMMEDIATE');
+    const opk = prepare('SELECT id, key_id AS keyId, pub_key AS pubKey FROM prekeys WHERE user_id=? AND used=0 ORDER BY created_at ASC LIMIT 1').get(targetId) || null;
+    if (opk) {
+      prepare('UPDATE prekeys SET used=1 WHERE id=?').run(opk.id);
+      oneTimePreKey = { keyId: opk.keyId, pubKey: opk.pubKey };
+    }
+    db.run('COMMIT');
+  } catch (e) { try { db.run('ROLLBACK'); } catch {} }
   res.json({
     identityKey: u.pubkey || null,
     signedPreKey: spk ? { keyId: spk.keyId, pubKey: spk.pubKey, signature: spk.signature } : null,
@@ -1003,8 +1011,19 @@ app.delete('/api/history/:peerId', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
   if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
+  const ids = prepare('SELECT id FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)')
+    .all(payload.id, peerId, peerId, payload.id).map(r => r.id);
+  if (ids.length) {
+    const ph = ids.map(() => '?').join(',');
+    try { prepare(`DELETE FROM message_meta WHERE message_id IN (${ph})`).run(...ids); } catch {}
+    try { prepare(`DELETE FROM message_favorites WHERE message_id IN (${ph})`).run(...ids); } catch {}
+    try { prepare(`DELETE FROM message_reads WHERE message_id IN (${ph})`).run(...ids); } catch {}
+    try { prepare(`DELETE FROM chat_ext WHERE message_id IN (${ph})`).run(...ids); } catch {}
+    try { prepare(`DELETE FROM message_timers WHERE message_id IN (${ph})`).run(...ids); } catch {}
+  }
   const result = prepare('DELETE FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)')
     .run(payload.id, peerId, peerId, payload.id);
+  persist();
   res.json({ ok: true, deleted: result.changes || 0 });
 });
 
@@ -1554,15 +1573,20 @@ app.post('/api/wallet/redeem', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const code = String((req.body && req.body.code) || '').trim().toUpperCase();
   if (!code) return res.status(400).json({ error: '请输入兑换码' });
-  const c = prepare('SELECT code,value,claimed_by FROM redeem_codes WHERE code=?').get(code);
-  if (!c) return res.status(404).json({ error: '兑换码不存在' });
-  if (c.claimed_by) return res.status(409).json({ error: '兑换码已被使用' });
-  prepare('UPDATE redeem_codes SET claimed_by=?,claimed_at=? WHERE code=?').run(payload.id, Date.now(), code);
-  prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(c.value, c.value, Date.now(), payload.id);
-  prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)').run(payload.id, 'recharge', c.value, '兑换码充值', Date.now());
-  persist();
-  const w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
-  res.json({ ok: true, balance: w.balance, value: c.value });
+  try {
+    db.run('BEGIN IMMEDIATE');
+    const c = prepare('SELECT code,value,claimed_by FROM redeem_codes WHERE code=?').get(code);
+    if (!c) { db.run('ROLLBACK'); return res.status(404).json({ error: '兑换码不存在' }); }
+    if (c.claimed_by) { db.run('ROLLBACK'); return res.status(409).json({ error: '兑换码已被使用' }); }
+    prepare('UPDATE redeem_codes SET claimed_by=?,claimed_at=? WHERE code=?').run(payload.id, Date.now(), code);
+    prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(payload.id, Date.now());
+    prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(c.value, c.value, Date.now(), payload.id);
+    prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)').run(payload.id, 'recharge', c.value, '兑换码充值', Date.now());
+    db.run('COMMIT');
+    persist();
+    const w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
+    res.json({ ok: true, balance: w.balance, value: c.value });
+  } catch (e) { try { db.run('ROLLBACK'); } catch {} res.status(500).json({ error: '兑换失败' }); }
 });
 
 // 转账：POST /api/wallet/transfer { toUid, amount, remark }
@@ -1577,15 +1601,19 @@ app.post('/api/wallet/transfer', (req, res) => {
   if (target.id === payload.id) return res.status(400).json({ error: '不能转给自己' });
   const value = parseFloat(amount);
   if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ error: '金额无效' });
-  const my = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
-  if (!my || my.balance < value) return res.status(400).json({ error: '余额不足' });
-  prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), payload.id);
-  prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(target.id, 0, 0, Date.now());
-  prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(value, value, Date.now(), target.id);
-  prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(payload.id, 'out', value, target.id, remark || '转账', Date.now());
-  prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(target.id, 'in', value, payload.id, remark || '收到转账', Date.now());
-  persist();
-  res.json({ ok: true, balance: (prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id)).balance });
+  try {
+    db.run('BEGIN IMMEDIATE');
+    const my = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
+    if (!my || my.balance < value) { db.run('ROLLBACK'); return res.status(400).json({ error: '余额不足' }); }
+    prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), payload.id);
+    prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(target.id, 0, 0, Date.now());
+    prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(value, value, Date.now(), target.id);
+    prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(payload.id, 'out', value, target.id, remark || '转账', Date.now());
+    prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(target.id, 'in', value, payload.id, remark || '收到转账', Date.now());
+    db.run('COMMIT');
+    persist();
+    res.json({ ok: true, balance: (prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id)).balance });
+  } catch (e) { try { db.run('ROLLBACK'); } catch {} res.status(500).json({ error: '转账失败' }); }
 });
 
 // 我的交易记录：GET /api/wallet/txn
@@ -1692,22 +1720,25 @@ app.all('/api/wallet/recharge/notify', (req, res) => {
   }
   if (String(p.trade_status || '') !== 'TRADE_SUCCESS') return res.send('success');
   ensureRechargeTable();
-  const r = prepare('SELECT * FROM wallet_recharges WHERE order_no=?').get(String(p.out_trade_no || ''));
-  if (!r) return res.send('order not found');
-  if (r.status === 'paid') return res.send('success');
-  // 金额校验：回调金额必须与订单一致
-  if (Math.abs(Number(r.amount) - Number(p.money)) > 0.001) {
-    console.log('[wallet] recharge money mismatch: order=' + r.amount + ' notify=' + p.money);
-    return res.send('money mismatch');
-  }
-  prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(r.user_id, Date.now());
-  prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(r.amount, r.amount, Date.now(), r.user_id);
-  prepare('UPDATE wallet_recharges SET status=?,trade_no=?,paid_at=? WHERE order_no=?').run('paid', String(p.trade_no || ''), Date.now(), r.order_no);
-  prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)')
-    .run(r.user_id, 'recharge', r.amount, '在线充值(' + (p.trade_no || '') + ')', Date.now());
-  persist();
-  console.log('[wallet] recharged: user=' + r.user_id + ' +' + r.amount);
-  res.send('success');
+  try {
+    db.run('BEGIN IMMEDIATE');
+    const r = prepare('SELECT * FROM wallet_recharges WHERE order_no=?').get(String(p.out_trade_no || ''));
+    if (!r) { db.run('ROLLBACK'); return res.send('order not found'); }
+    if (r.status === 'paid') { db.run('ROLLBACK'); return res.send('success'); }
+    if (Math.abs(Number(r.amount) - Number(p.money)) > 0.001) {
+      console.log('[wallet] recharge money mismatch: order=' + r.amount + ' notify=' + p.money);
+      db.run('ROLLBACK'); return res.send('money mismatch');
+    }
+    prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(r.user_id, Date.now());
+    prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(r.amount, r.amount, Date.now(), r.user_id);
+    prepare('UPDATE wallet_recharges SET status=?,trade_no=?,paid_at=? WHERE order_no=?').run('paid', String(p.trade_no || ''), Date.now(), r.order_no);
+    prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)')
+      .run(r.user_id, 'recharge', r.amount, '在线充值(' + (p.trade_no || '') + ')', Date.now());
+    db.run('COMMIT');
+    persist();
+    console.log('[wallet] recharged: user=' + r.user_id + ' +' + r.amount);
+    res.send('success');
+  } catch (e) { try { db.run('ROLLBACK'); } catch {} res.send('error'); }
 });
 
 // 状态：GET my status / SET 状态（微信『我的状态』）
@@ -1983,9 +2014,11 @@ function buildGroupsForUser(userId) {
 
 // 给所有在线用户推送其所在群列表
 function broadcastGroups() {
-  for (const ws of online.values()) {
-    if (ws.uid == null) continue;
-    send(ws, P.S_GROUP_LIST, { groups: buildGroupsForUser(ws.uid) });
+  for (const [uid, list] of online.entries()) {
+    for (const ws of list) {
+      if (ws.uid == null) continue;
+      send(ws, P.S_GROUP_LIST, { groups: buildGroupsForUser(ws.uid) });
+    }
   }
 }
 
@@ -4085,7 +4118,7 @@ wss.on('connection', (ws, req) => {
 
 let _lastUserListHash = '';
 function broadcastUserList() {
-  const users = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey,last_seen FROM users').all();
+  const users = prepare('SELECT id,username,nickname,avatar,uid,country,province,city,extra,pubkey,last_seen FROM users').all();
   const list = users.map(u => ({ ...publicUser(u), online: onlineHas(u.id) }));
   // 简单哈希去重：避免短时间内重复广播相同内容（如频繁改头像触发多次）
   const hash = JSON.stringify(list.map(u => u.id + ':' + u.online + ':' + u.nickname));

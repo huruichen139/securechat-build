@@ -178,10 +178,17 @@ module.exports = function registerPayment(app, db, auth) {
     next();
   }
 
-  // 管理端点鉴权：优先外部 auth 中间件，否则回退内置 JWT 校验（auth 为 null 时旧代码会直接 401，导致管理接口全部不可用）
+  // 管理端点鉴权：优先外部 auth 中间件，否则回退内置 JWT 校验 + 管理员检查
   function adminMw(req, res, next) {
     if (auth && typeof auth === 'function') return auth(req, res, next);
-    return mw(req, res, next);
+    let payload = null;
+    try { payload = jwt.verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (e) { payload = null; }
+    if (!payload) return res.status(401).json({ error: '未授权' });
+    req.user = payload;
+    const u = prepare('SELECT id,email FROM users WHERE id=?').get(payload.id);
+    const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
+    if (!u || !admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '需要管理员权限' });
+    next();
   }
 
   function getUserRow(id) { return prepare('SELECT id,username,nickname,avatar,uid FROM users WHERE id=?').get(id); }
