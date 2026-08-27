@@ -121,5 +121,11 @@ class _EpaySettingsPageState extends State<EpaySettingsPage> {
     );
   }
 
+  @override
+  void dispose() {
+    _keyCtrl.dispose();
+    super.dispose();
+  }
+
   static const _wechatGreen = Color(0xff07c160);
 }

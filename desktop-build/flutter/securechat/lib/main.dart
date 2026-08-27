@@ -455,7 +455,7 @@ class _ChatShellState extends State<ChatShell> {
         if (!mounted) return;
         final level = a['level'] ?? 'info';
         final color = level == 'danger' ? Colors.red : level == 'warning' ? Colors.orange : _wechatGreen;
-        showDialog(
+        await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             icon: Icon(Icons.campaign, color: color, size: 32),
@@ -464,7 +464,6 @@ class _ChatShellState extends State<ChatShell> {
             actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('我知道了'))],
           ),
         );
-        await Future.delayed(const Duration(milliseconds: 300));
       }
     } catch (_) {}
   }
@@ -2665,18 +2664,18 @@ class _ChatViewStateState extends State<_ChatView> {
       entries.add(entry);
       overlay.insert(entry);
     }
-    Future.delayed(const Duration(milliseconds: 2500), () { for (final e in entries) { e.remove(); } });
+    Future.delayed(const Duration(milliseconds: 2500), () { for (final e in entries) { try { e.remove(); } catch (_) {} } });
   }
   Future<void> _openFile(Map<String, dynamic> meta) async {
     final id = (meta['id'] ?? '').toString();
     if (id.isEmpty) return;
     final isGroup = selConv != null && selConv!['kind'] == 'group';
-    final dlCtrl = ValueNotifier<double>(0.0);
     final dlgCtx = context;
-    showDialog(context: dlgCtx, barrierDismissible: true, builder: (_) => ValueListenableBuilder<double>(
+    final dlCtrl = ValueNotifier<double>(0.0);
+    showDialog(context: dlgCtx, barrierDismissible: false, builder: (_) => ValueListenableBuilder<double>(
       valueListenable: dlCtrl,
       builder: (_, v, __) => AlertDialog(content: Column(mainAxisSize: MainAxisSize.min, children: [
-        CircularProgressIndicator(value: v > 0 ? null : null, color: const Color(0xff07c160)),
+        CircularProgressIndicator(value: v > 0 ? v : null, color: const Color(0xff07c160)),
         const SizedBox(height: 12),
         Text(v > 0 ? '下载中 ${(v * 100).toStringAsFixed(0)}%' : '下载中...', style: const TextStyle(fontSize: 13)),
       ])),
@@ -2687,7 +2686,10 @@ class _ChatViewStateState extends State<_ChatView> {
       if (!mounted) return;
       final mime = (meta['mime'] ?? '').toString();
       if (mime.startsWith('image/')) {
-        await showDialog(context: context, builder: (_) => Dialog(child: InteractiveViewer(child: Image.memory(bytes))));
+        await showDialog(context: context, builder: (dCtx) => Dialog(child: Stack(children: [
+          InteractiveViewer(child: Image.memory(bytes)),
+          Positioned(right: 8, top: 8, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), style: IconButton.styleFrom(backgroundColor: Colors.black45), onPressed: () => Navigator.pop(dCtx))),
+        ])));
       } else {
         final out = await FilePicker.platform.saveFile(fileName: (meta['name'] ?? 'file').toString());
         if (out != null) {
@@ -2698,7 +2700,9 @@ class _ChatViewStateState extends State<_ChatView> {
     } catch (e) {
       if (Navigator.canPop(dlgCtx)) Navigator.pop(dlgCtx);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('文件获取失败：')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('文件获取失败：${e.toString().replaceFirst('Bad state: ', '')}')));
+    } finally {
+      dlCtrl.dispose();
     }
   }
   int _lastTypingSent = 0;

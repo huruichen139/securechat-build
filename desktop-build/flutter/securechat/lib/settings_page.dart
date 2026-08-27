@@ -577,27 +577,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-      SectionTitle(config: config, title: '账号与安全'),
-      SectionCard(
-        config: config,
-        children: [
-          ListCell(
-            config: config,
-            icon: Icons.lock_outline,
-            title: '修改密码',
-            subtitle: '定期修改密码更安全',
-            onTap: () => _changePassword(context),
-          ),
-          CellDivider(config: config),
-          ListCell(
-            config: config,
-            icon: Icons.devices_outlined,
-            title: '登录设备管理',
-            subtitle: 'Passkey 与受信设备',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PasskeyPage(api: widget.api, config: config))),
-          ),
-        ],
-      ),
       SectionTitle(config: config, title: '关于'),
       SectionCard(
         config: config,
