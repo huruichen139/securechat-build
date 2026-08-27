@@ -363,7 +363,7 @@ Future<void> showOCRDialog(BuildContext ctx, SecureChatApi api, Map<String, dyna
     // 调用服务端 OCR API
     final resp = await http.post(
       Uri.parse('${api.baseUrl}/api/image/ocr'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', if (api.token != null) 'Authorization': 'Bearer ${api.token}'},
       body: json.encode({'imagePath': tmpPath}),
     );
     if (ctx.mounted) Navigator.pop(ctx);

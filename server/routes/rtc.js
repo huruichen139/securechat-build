@@ -148,7 +148,15 @@ module.exports = function registerRtc(app, db, auth) {
     if (!me) return;
     const { to } = (req.body && typeof req.body === 'object') ? req.body : {};
     const toId = Number(to);
-    if (Number.isInteger(toId) && toId && toId !== me) pushSignal(toId, me, 'hangup', null);
+    if (Number.isInteger(toId) && toId && toId !== me) {
+      let blocked = false;
+      try {
+        blocked = !!prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(toId, me, me, toId);
+      } catch (e) { blocked = false; }
+      if (blocked) return res.status(403).json({ error: '无法向该用户发送信令' });
+      if ((inbox.get(toId) || []).length >= 200) return res.status(429).json({ error: '信令队列已满' });
+      pushSignal(toId, me, 'hangup', null);
+    }
     res.json({ ok: true });
   });
 

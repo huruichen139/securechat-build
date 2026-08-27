@@ -97,13 +97,19 @@ module.exports = function register(app, db, auth) {
   }
 
   app.post('/api/groups/votes', requireAuth, (req, res) => {
-    const { groupId, title, content, isAnonymous, allowChange } = req.body || {};
+    const { groupId, title, content, options, isAnonymous, allowChange } = req.body || {};
     if (!groupId || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
     if (!memberOf(groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const now = Date.now();
     const result = db.run('INSERT INTO group_votes(group_id, title, content, created_by, is_anonymous, allow_change, created_at) VALUES(?,?,?,?,?,?,?)',
       [groupId, title, content || '', req.user.id, isAnonymous ? 1 : 0, allowChange ? 1 : 0, now]);
     const voteId = result.lastInsertRowid;
+    if (Array.isArray(options)) {
+      options.forEach((opt, idx) => {
+        const text = String(opt?.text || opt || '').trim();
+        if (text) db.run('INSERT INTO vote_options(vote_id, text, order_index) VALUES(?,?,?)', [voteId, text, idx]);
+      });
+    }
     res.json({ success: true, voteId });
   });
 
@@ -214,27 +220,33 @@ module.exports = function register(app, db, auth) {
 
   function destroyBurnMessage(messageId) {
     try {
+      // 先查出消息信息（含发送者/接收者），再删除并广播
+      const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
+      const gmsg = msg ? null : db.prepare('SELECT * FROM group_messages WHERE id=?').get(messageId);
       // 从单聊表删除
       db.run('DELETE FROM messages WHERE id=?', [messageId]);
       // 从群聊表删除
       db.run('DELETE FROM group_messages WHERE id=?', [messageId]);
       // 从 message_meta 删除
       db.run('DELETE FROM message_meta WHERE message_id=?', [messageId]);
+      db.run('DELETE FROM group_message_meta WHERE message_id=?', [messageId]);
       // 广播销毁消息
-      broadcastDestroyMessage(messageId);
+      const sendToUser = global.__scSendToUser;
+      if (sendToUser) {
+        if (msg) {
+          sendToUser(msg.from_id, P.S_MSG, { id: messageId, destroyed: true });
+          sendToUser(msg.to_id, P.S_MSG, { id: messageId, destroyed: true });
+        } else if (gmsg) {
+          const members = db.prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gmsg.group_id);
+          for (const mb of members) {
+            sendToUser(mb.user_id, P.S_MSG, { id: messageId, groupId: gmsg.group_id, destroyed: true });
+          }
+        }
+      }
+      db.run('DELETE FROM message_timers WHERE message_id=?', [messageId]);
+      db.persist && db.persist();
     } catch (e) {
       console.error('[burn] destroy failed:', e.message);
-    }
-  }
-
-  function broadcastDestroyMessage(messageId) {
-    const sendToUser = global.__scSendToUser;
-    if (!sendToUser) return;
-    const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
-    if (msg) {
-      sendToUser(msg.from_id, P.S_MSG, { id: messageId, destroyed: true });
-      sendToUser(msg.to_id, P.S_MSG, { id: messageId, destroyed: true });
-      db.run('DELETE FROM message_timers WHERE message_id=?', [messageId]);
     }
   }
 
@@ -354,22 +366,28 @@ module.exports = function register(app, db, auth) {
     }
   }
 
-  // 3. 定时发送调度器：每 5 秒扫描到期任务并投递（通过 WS 发送消息）
+  // 3. 定时发送调度器：每 5 秒扫描到期任务并投递（通过 WS 发送消息，同时落库）
   setInterval(() => {
     try {
       const due = db.prepare("SELECT * FROM scheduled_messages WHERE cancelled=0 AND sent_at IS NULL AND scheduled_at <= ?").all(Date.now());
       for (const m of due) {
         const sendToUser = global.__scSendToUser;
         if (!sendToUser) continue;
+        const now = Date.now();
         if (m.is_group) {
+          const info = db.prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
+            .run(m.peer_id, m.user_id, m.content, null, now);
+          const messageId = info.lastInsertRowid;
           const members = db.prepare('SELECT user_id FROM group_members WHERE group_id=?').all(m.peer_id);
           for (const mb of members) {
-            sendToUser(mb.user_id, P.S_GROUP_MSG, { groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: Date.now(), scheduled: true });
+            sendToUser(mb.user_id, P.S_GROUP_MSG, { id: messageId, groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: now, scheduled: true });
           }
         } else {
-          sendToUser(m.peer_id, P.S_MSG, { from: m.user_id, to: m.peer_id, content: m.content, createdAt: Date.now(), scheduled: true });
+          const info = db.prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
+            .run(m.user_id, m.peer_id, m.content, null, now);
+          sendToUser(m.peer_id, P.S_MSG, { id: info.lastInsertRowid, from: m.user_id, to: m.peer_id, content: m.content, createdAt: now, scheduled: true });
         }
-        db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [Date.now(), m.id]);
+        db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [now, m.id]);
       }
       if (due.length) db.persist && db.persist();
     } catch (e) { console.error('[scheduled] tick failed:', e && e.message || e); }

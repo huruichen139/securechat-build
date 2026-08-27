@@ -180,6 +180,13 @@ module.exports = function registerMedia(app, db, auth) {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
     if (!Buffer.isBuffer(req.body) || !req.body.length) return deny(res, 400, '文件为空');
+    // 用户配额：最多 500 个文件或总量 2GB，防止磁盘被刷满
+    try {
+      const q = prepare('SELECT COUNT(*) AS c, COALESCE(SUM(size),0) AS s FROM media_files WHERE user_id=?').get(payload.id) || { c: 0, s: 0 };
+      if (Number(q.c) >= 500 || Number(q.s) + req.body.length > 2 * 1024 * 1024 * 1024) {
+        return deny(res, 400, '媒体空间已满（上限500个或2GB）');
+      }
+    } catch (e) { /* 配额表缺失时放行 */ }
     const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
     const id = crypto.randomUUID();
     const filePath = path.join(MEDIA_DIR, id + '.bin');

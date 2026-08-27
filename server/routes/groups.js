@@ -543,6 +543,11 @@ module.exports = function registerGroups(app, db, auth) {
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     if (!Buffer.isBuffer(req.body) || !req.body.length) return fail(res, 400, '文件为空');
+    // 群文件配额：单群总量 2GB，防止磁盘被刷满
+    try {
+      const q = p.get('SELECT COALESCE(SUM(size),0) AS s FROM group_files WHERE group_id=?', groupId) || { s: 0 };
+      if (Number(q.s) + req.body.length > 2 * 1024 * 1024 * 1024) return fail(res, 400, '群文件空间已满（上限2GB）');
+    } catch (e) { /* 表缺失时放行 */ }
     const name = String(req.query.name || 'file').trim().slice(0, 240) || 'file';
     const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
     const id = crypto.randomUUID();

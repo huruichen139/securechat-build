@@ -92,12 +92,20 @@ module.exports = function registerChatExt(app, db, auth) {
     return out;
   }
 
-  // 校验 friend/group 目标合法且有效
-  function isValidTarget(t) {
-    const exists = t.kind === 'group'
-      ? prepare('SELECT id FROM groups WHERE id=?').get(t.id)
-      : prepare('SELECT id FROM users WHERE id=?').get(t.id);
-    return !!exists;
+  // 校验 friend/group 目标合法且有效；群目标要求转发者是群成员，好友目标要求双方未拉黑
+  function isBlockedEither(a, b) {
+    try { return !!prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a, b, b, a); } catch (e) { return false; }
+  }
+  function isGroupMember(gid, uid) {
+    try { return !!prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(gid, uid); } catch (e) { return false; }
+  }
+  function isValidTarget(t, userId) {
+    if (t.kind === 'group') {
+      const exists = prepare('SELECT id FROM groups WHERE id=?').get(t.id);
+      return !!exists && isGroupMember(t.id, userId);
+    }
+    const exists = prepare('SELECT id FROM users WHERE id=?').get(t.id);
+    return !!exists && !isBlockedEither(t.id, userId);
   }
 
   // 取得某条私聊消息（必须与当前用户相关）
@@ -185,7 +193,7 @@ module.exports = function registerChatExt(app, db, auth) {
   app.post('/api/messages/:id/forward', (req, res) => {
     const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
     const id = Number(req.params.id);
-    const targets = normalizeTargets(req.body && req.body.targets);
+    const targets = normalizeTargets(req.body && req.body.targets).slice(0, 50);
     if (!targets.length) return res.status(400).json({ error: '转发目标不能为空' });
     const srcMsg = messageForUser(id, payload.id);
     if (!srcMsg) return res.status(404).json({ error: '消息不存在' });
@@ -193,7 +201,7 @@ module.exports = function registerChatExt(app, db, auth) {
     const content = srcMsg.content || '[转发消息]';
     const results = [];
     for (const t of targets) {
-      if (!isValidTarget(t)) continue;
+      if (!isValidTarget(t, payload.id)) continue;
       if (t.kind === 'group') {
         const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
           .run(t.id, payload.id, content, Date.now());
@@ -218,8 +226,8 @@ module.exports = function registerChatExt(app, db, auth) {
   app.post('/api/messages/forward', (req, res) => {
     const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
     const body = req.body || {};
-    const ids = Array.isArray(body.messageIds) ? body.messageIds.map(Number).filter(Number.isInteger) : [];
-    const targets = normalizeTargets(body.targets);
+    const ids = Array.isArray(body.messageIds) ? body.messageIds.map(Number).filter(Number.isInteger).slice(0, 100) : [];
+    const targets = normalizeTargets(body.targets).slice(0, 50);
     const merge = body.merge === true;
     if (!ids.length) return res.status(400).json({ error: '请选择要转发的消息' });
     if (!targets.length) return res.status(400).json({ error: '转发目标不能为空' });
@@ -260,7 +268,7 @@ module.exports = function registerChatExt(app, db, auth) {
       };
       const content = '[合并转发]\n' + JSON.stringify(merged);
       for (const t of targets) {
-        if (!isValidTarget(t)) continue;
+        if (!isValidTarget(t, payload.id)) continue;
         if (t.kind === 'group') {
           const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
             .run(t.id, payload.id, content, Date.now());
@@ -282,7 +290,7 @@ module.exports = function registerChatExt(app, db, auth) {
         const m = item.msg;
         const content = m.content || '[转发消息]';
         for (const t of targets) {
-          if (!isValidTarget(t)) continue;
+          if (!isValidTarget(t, payload.id)) continue;
           if (t.kind === 'group') {
             const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
               .run(t.id, payload.id, content, Date.now());
@@ -313,6 +321,7 @@ module.exports = function registerChatExt(app, db, auth) {
       return res.status(404).json({ error: '拍一拍对象不存在' });
     }
     if (to === payload.id) return res.status(400).json({ error: '不能拍自己' });
+    if (isBlockedEither(to, payload.id)) return res.status(403).json({ error: '无法拍一拍（黑名单）' });
     // 校验该消息属于当前会话（from 或 to 之一是当前用户，且另一端是目标）
     if (id) {
       const msg = messageForUser(id, payload.id);
