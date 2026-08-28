@@ -571,6 +571,10 @@ app.post('/api/friend/add', (req, res) => {
   if (!target) return res.status(404).json({ error: '该ID不存在' });
   const friendId = target.id;
   if (friendId === payload.id) return res.status(400).json({ error: '不能加自己' });
+  // 黑名单检查：被拉黑方不得添加对方为好友
+  const isBlocked = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)')
+    .get(payload.id, friendId, friendId, payload.id);
+  if (isBlocked) return res.status(403).json({ error: '无法添加该用户' });
   const existing = prepare('SELECT id,status FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)')
     .get(payload.id, friendId, friendId, payload.id);
   if (existing && existing.status === 1) return res.status(409).json({ error: '已经是好友' });
