@@ -195,20 +195,32 @@ module.exports = function registerRedpacket(app, db, auth) {
     amount = Math.round(amount * 100) / 100;
     if (amount > pkt.remaining_amount) amount = pkt.remaining_amount;
 
-    const dec = prepare('UPDATE red_packets SET remaining_count=remaining_count-1 WHERE id=? AND remaining_count>0 AND status=?').run(id, 'active');
-    if (!dec.changes) return res.status(400).json({ error: '红包已被抢完' });
+    // 整个抢单操作在事务内完成，remaining_amount 用 DB 当前值而非过时值
+    try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
     try {
-      prepare('INSERT INTO red_packet_grabs(packet_id,user_id,amount,created_at) VALUES(?,?,?,?)').run(id, me.id, amount, Date.now());
-    } catch (e) {
-      prepare('UPDATE red_packets SET remaining_count=remaining_count+1 WHERE id=?').run(id);
-      if (String(e && e.message || e).includes('UNIQUE')) {
-        const g = prepare('SELECT * FROM red_packet_grabs WHERE packet_id=? AND user_id=?').get(id, me.id);
-        return res.json({ ok: true, already: true, amount: g ? g.amount : 0, myAmount: g ? g.amount : 0, balance: walletOf(me.id).balance });
+      const dec = prepare('UPDATE red_packets SET remaining_count=remaining_count-1,remaining_amount=remaining_amount-? WHERE id=? AND remaining_count>0 AND status=? AND remaining_amount>=?')
+        .run(amount, id, 'active', amount);
+      if (!dec.changes) { try { prepare('COMMIT').run(); } catch (e) {} return res.status(400).json({ error: '红包已被抢完' }); }
+      try {
+        prepare('INSERT INTO red_packet_grabs(packet_id,user_id,amount,created_at) VALUES(?,?,?,?)').run(id, me.id, amount, Date.now());
+      } catch (e) {
+        try { prepare('UPDATE red_packets SET remaining_count=remaining_count+1,remaining_amount=remaining_amount+? WHERE id=?').run(amount, id); } catch (e2) {}
+        try { prepare('COMMIT').run(); } catch (e3) {}
+        if (String(e && e.message || e).includes('UNIQUE')) {
+          const g = prepare('SELECT * FROM red_packet_grabs WHERE packet_id=? AND user_id=?').get(id, me.id);
+          return res.json({ ok: true, already: true, amount: g ? g.amount : 0, myAmount: g ? g.amount : 0, balance: walletOf(me.id).balance });
+        }
+        throw e;
       }
-      throw e;
+      // 从 DB 读取最新剩余来判断状态
+      const fresh = prepare('SELECT remaining_amount,remaining_count FROM red_packets WHERE id=?').get(id);
+      const newStatus = (fresh && fresh.remaining_count <= 0) ? 'finished' : 'active';
+      prepare('UPDATE red_packets SET status=? WHERE id=?').run(newStatus, id);
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+    } catch (e) {
+      try { prepare('ROLLBACK').run(); } catch (e2) {}
+      return res.status(500).json({ error: '抢单失败' });
     }
-    prepare('UPDATE red_packets SET remaining_amount=?,remaining_count=?,status=? WHERE id=?')
-      .run(Math.round((pkt.remaining_amount - amount) * 100) / 100, pkt.remaining_count - 1, (pkt.remaining_count - 1 <= 0) ? 'finished' : 'active', id);
 
     // 入账（使用事务保证扣款与入账原子性）
     try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
@@ -274,21 +286,24 @@ module.exports = function registerRedpacket(app, db, auth) {
     const pkt = prepare('SELECT * FROM red_packets WHERE id=?').get(id);
     if (!pkt) return res.status(404).json({ error: '红包不存在' });
     if (pkt.sender_id !== me.id) return res.status(403).json({ error: '只能退回自己发的红包' });
-    if (pkt.status !== 'active' || pkt.remaining_count <= 0) return res.status(400).json({ error: '红包已抢完或已退回' });
+    // 将 status 检查移到事务内，防止抢单竞态
     const refund = pkt.remaining_amount;
     try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
     try {
-      prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refund, Date.now(), me.id);
+      const fresh = prepare('SELECT status,remaining_amount,remaining_count FROM red_packets WHERE id=?').get(id);
+      if (!fresh || fresh.status !== 'active' || fresh.remaining_count <= 0) { try { prepare('COMMIT').run(); } catch (e) {} return res.status(400).json({ error: '红包已抢完或已退回' }); }
+      const refundAmt = fresh.remaining_amount;
+      prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refundAmt, Date.now(), me.id);
       prepare('UPDATE red_packets SET status=?,remaining_amount=?,remaining_count=? WHERE id=?').run('refunded', 0, 0, id);
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
-        .run(me.id, 'in', refund, null, '退回红包', Date.now());
+        .run(me.id, 'in', refundAmt, null, '退回红包', Date.now());
       try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
     } catch (e) {
       try { prepare('ROLLBACK').run(); } catch (e2) {}
       return res.status(500).json({ error: '退回失败' });
     }
     persist();
-    res.json({ ok: true, refund, balance: walletOf(me.id).balance });
+    res.json({ ok: true, refund: refundAmt, balance: walletOf(me.id).balance });
   });
 
   // WS 通知辅助

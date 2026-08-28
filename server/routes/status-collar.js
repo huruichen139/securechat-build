@@ -251,12 +251,22 @@ module.exports = function registerStatusCollar(app, db, auth) {
     let params = [lastSeen];
     let where = 'm.created_at>? AND m.user_id!=?';
     params.push(me);
-    function inList(ids, field) {
+    function notInList(ids, field) {
       if (!ids.length) return '';
       return ' AND ' + field + ' NOT IN (' + ids.map(() => '?').join(',') + ')';
     }
-    where += inList(blocked, 'm.user_id') + inList(only.map(u => u), 'm.user_id');
-    params.push(...blocked, ...only);
+    function inList(ids, field) {
+      if (!ids.length) return '';
+      return ' AND ' + field + ' IN (' + ids.map(() => '?').join(',') + ')';
+    }
+    where += notInList(blocked, 'm.user_id');
+    if (only.length) {
+      // 只看这些人的动态
+      where += inList(only, 'm.user_id');
+      params.push(...only);
+    } else {
+      params.push(...blocked);
+    }
     const candidates = prepare(
       `SELECT m.id,m.user_id AS userId,m.created_at AS createdAt FROM moments m
        WHERE ` + where + ` ORDER BY m.created_at DESC LIMIT 100`

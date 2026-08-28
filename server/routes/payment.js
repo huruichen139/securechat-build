@@ -252,21 +252,24 @@ module.exports = function registerPayment(app, db, auth) {
     if (fromId === toId && !allowSelf) return cb({ code: 400, message: '不能转给自己' });
     ensureWallet(fromId);
     ensureWallet(toId);
-    const deb = prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=? AND balance>=?').run(amount, Date.now(), fromId, amount);
-    if (!deb.changes) return cb({ code: 400, message: '余额不足' });
+    try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
     try {
+      const deb = prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=? AND balance>=?').run(amount, Date.now(), fromId, amount);
+      if (!deb.changes) { try { prepare('COMMIT').run(); } catch (e) {} return cb({ code: 400, message: '余额不足' }); }
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
         .run(fromId, 'out', amount, toId || null, remark || '转账', Date.now());
       writeCharge(toId, 'in', amount, fromId, remark);
       addBill(fromId, 'out', category, amount, toId, remark + '（转出）', category, refId || null);
       addBill(toId, 'in', category, amount, fromId, remark + '（收入）', category, refId || null);
-      try { persist(); } catch (e) {}
-      cb(null, { ok: true, balance: balanceOf(fromId) });
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
     } catch (e) {
-      prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), fromId);
+      try { prepare('ROLLBACK').run(); } catch (e2) {}
+      try { prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), fromId); } catch (e3) {}
       try { persist(); } catch (_) {}
-      cb({ code: 500, message: '支付失败已回滚' });
+      return cb({ code: 500, message: '支付失败已回滚' });
     }
+    try { persist(); } catch (e) {}
+    cb(null, { ok: true, balance: balanceOf(fromId) });
   }
 
   // ============ 收付款码 ============
@@ -562,6 +565,10 @@ module.exports = function registerPayment(app, db, auth) {
     const userId = req.user.id;
     const s = prepare('SELECT * FROM group_solections WHERE id=?').get(parseInt(req.params.id, 10));
     if (!s) return res.status(404).json({ error: '接龙不存在' });
+    if (!memberOf(s.group_id, userId)) return res.status(403).json({ error: '你不在此群' });
+    if (s.status !== 'open') return res.status(400).json({ error: '接龙已结束' });
+    const existing = prepare('SELECT id FROM solection_entries WHERE solection_id=? AND user_id=?').get(s.id, userId);
+    if (!existing) return res.status(404).json({ error: '你未报名' });
     prepare('DELETE FROM solection_entries WHERE solection_id=? AND user_id=?').run(s.id, userId);
     try { persist(); } catch (e) {}
     res.json({ ok: true, solection: solectionDetail(s.id) });
@@ -973,6 +980,11 @@ module.exports = function registerPayment(app, db, auth) {
     if (Number(p.money) !== Number(order.amount)) return res.status(400).send('fail');
     if (order.status !== 'paid') {
       prepare('UPDATE pay_orders SET status=?,paid_at=? WHERE id=?').run('paid', Date.now(), order.id);
+      // 给商户入账（EPay 回调 = 用户外部已付款，需将金额转入商户钱包）
+      const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
+      if (merchant) {
+        try { writeCharge(merchant.user_id, 'in', order.amount, order.payer_id, '网关收入:' + order.subject); } catch (e) {}
+      }
       persist();
     }
     res.send('success');
