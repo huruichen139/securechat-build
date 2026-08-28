@@ -1015,6 +1015,18 @@ app.delete('/api/history/:peerId', (req, res) => {
     .all(payload.id, peerId, peerId, payload.id).map(r => r.id);
   if (ids.length) {
     const ph = ids.map(() => '?').join(',');
+    // 清理关联的磁盘文件（__FILE__ 消息）
+    try {
+      const fileRows = prepare(`SELECT content FROM messages WHERE id IN (${ph})`).all(...ids);
+      for (const r of fileRows) {
+        if (typeof r.content === 'string' && r.content.startsWith('__FILE__')) {
+          try {
+            const meta = JSON.parse(r.content.slice('__FILE__'.length));
+            if (meta.id) { try { fs.unlinkSync(path.join(FILES_DIR, meta.id + '.bin')); } catch (_) {} }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
     try { prepare(`DELETE FROM message_meta WHERE message_id IN (${ph})`).run(...ids); } catch {}
     try { prepare(`DELETE FROM message_favorites WHERE message_id IN (${ph})`).run(...ids); } catch {}
     try { prepare(`DELETE FROM message_reads WHERE message_id IN (${ph})`).run(...ids); } catch {}
