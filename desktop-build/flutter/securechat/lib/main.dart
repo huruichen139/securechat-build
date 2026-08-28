@@ -1218,6 +1218,12 @@ class _ChatViewStateState extends State<_ChatView> {
         if (type == 'msg') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;
+          // 阅后即焚消息被销毁：从本地消息列表移除
+          if (p['destroyed'] == true) {
+            final msgId = p['id'];
+            if (msgId != null) setState(() { messages.removeWhere((m) => m['id'] == msgId); });
+            return;
+          }
           final cmid = (p['clientMsgId'] ?? '').toString();
           // 自己发的消息：若本地已乐观插入，只补服务端 id，不再插入第二条；
           // 若本地没有（如转发到其他会话后又切回来），则继续走下面的正常插入。
@@ -1290,9 +1296,19 @@ class _ChatViewStateState extends State<_ChatView> {
               }
             }
           });
-          if (selConv != null) {
-            final ck = _convKey(selConv!);
-            _lastMsg.remove(ck);
+          // 只有当被撤回的消息是该会话的最后一条消息时，才更新 _lastMsg 预览
+          final fromId = p['from'];
+          final toId = p['to'];
+          // 确定对端 peerId（非本用户的那一方）
+          final peerKey = (fromId == myId) ? toId : fromId;
+          if (peerKey != null) {
+            final ck2 = 'f$peerKey';
+            final lastEntry = _lastMsg[ck2];
+            if (lastEntry != null && lastEntry['id'] == msgId) {
+              // 被撤回的正好是会话列表里的最后一条消息，需要清除预览
+              _lastMsg.remove(ck2);
+            }
+            // 如果不是最后一条，则不需要动 _lastMsg，会话列表保持不变
           }
         } else if (type == 'msg_edit') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
@@ -1308,6 +1324,15 @@ class _ChatViewStateState extends State<_ChatView> {
                 break;
               }
             }
+          });
+        } else if (type == 'msg_destroy' || (type == 'msg' && (root['payload']?['destroyed'] == true))) {
+          // 阅后即焚消息被销毁：从本地消息列表移除
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (!mounted) return;
+          final msgId = p['id'] ?? p['messageId'];
+          if (msgId == null) return;
+          setState(() {
+            messages.removeWhere((m) => m['id'] == msgId);
           });
         } else if (type == 'group_msg_read') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
