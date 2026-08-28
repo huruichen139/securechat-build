@@ -1355,6 +1355,25 @@ class _ChatViewStateState extends State<_ChatView> {
               if (last != null && last['mine'] == true) last['read'] = true;
             }
           }
+        } else if (type == 'group_member_change') {
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (!mounted) return;
+          final gid = int.tryParse('${p['groupId']}');
+          final action = p['action']?.toString();
+          if (gid != null) {
+            final actionText = action == 'dissolved' ? '该群已被解散' : (action == 'removed' ? '你已被移出该群' : '你已退出该群');
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(actionText)));
+            // 从会话列表移除
+            final idx = _findConversation(gid, isGroup: true);
+            if (idx >= 0) {
+              setState(() { conversations.removeAt(idx); _unread.remove('g$gid'); });
+              if (selConv != null && selConv!['kind'] == 'group' && selConv!['id'] == gid) {
+                setState(() { selected = -1; messages.clear(); selName = ''; });
+                if (conversations.isNotEmpty) _openConversation(0);
+              }
+            }
+            _lastMsg.remove('g$gid');
+          }
         } else if (type == 'group_msg') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           if (!mounted) return;

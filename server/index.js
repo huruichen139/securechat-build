@@ -4220,6 +4220,24 @@ function mountFeatureRoutes(app, db) {
       } catch (e) {}
     });
   } catch (e) { console.error('[groups] attach edit failed: ' + (e && e.message || e)); }
+  try {
+    require('./routes/groups').attachGroupMemberChange((groupId, userId, action) => {
+      try {
+        if (onlineAny(userId)) {
+          sendToUser(userId, P.S_GROUP_MEMBER_CHANGE, { groupId, userId, action });
+        }
+        // 通知剩余在线成员群列表刷新
+        try {
+          const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(groupId);
+          for (const m of members) {
+            if (m.user_id !== userId && onlineAny(m.user_id)) {
+              sendToUser(m.user_id, P.S_GROUP_LIST, { groups: buildGroupsForUser(m.user_id) });
+            }
+          }
+        } catch (e2) {}
+      } catch (e) {}
+    });
+  } catch (e) { console.error('[groups] attach memberChange failed: ' + (e && e.message || e)); }
   rx('./chat-ext', [app, db, { sendToUser, onlineAny: onlineAny, P }]);
   rx('./routes/rtc', [app, db, apiUser]);
   rx('./routes/media', [app, db, apiUser]);

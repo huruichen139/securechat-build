@@ -1709,6 +1709,19 @@ case P.S_MSG:
       toast(payload.reason || '已被强制下线', 'error');
       logout();
       break;
+    case 'group_member_change':
+      if (payload && payload.groupId) {
+        const actionText = payload.action === 'dissolved' ? '该群已被解散' : (payload.action === 'removed' ? '你已被移出该群' : '你已退出该群');
+        toast(actionText, 'error');
+        loadGroups();
+        if (state.activeGroup && state.activeGroup.id === payload.groupId) {
+          state.activeGroup = null;
+          state.activeGroupMsgs = [];
+          renderGroupMessages();
+          renderGroupList();
+        }
+      }
+      break;
   }
 }
 

@@ -174,6 +174,8 @@ let broadcastHook = null;
 function setBroadcastHook(fn) { broadcastHook = fn || null; }
 let recallHook = null;
 function setRecallHook(fn) { recallHook = fn || null; }
+let memberChangeHook = null;
+function setMemberChangeHook(fn) { memberChangeHook = fn || null; }
 
 module.exports = function registerGroups(app, db, auth) {
   // 构造 prepare：优先用 db.js 的（自带落盘）；否则退回纯 sql.js
@@ -351,6 +353,7 @@ module.exports = function registerGroups(app, db, auth) {
     p.run('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, targetId);
     p.run('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?', groupId, targetId);
     try { p.run('DELETE FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, targetId); } catch (e) {}
+    try { memberChangeHook && memberChangeHook(groupId, targetId, 'removed'); } catch (e) {}
     res.json({ ok: true });
   });
 
@@ -380,6 +383,7 @@ module.exports = function registerGroups(app, db, auth) {
     p.run('DELETE FROM group_members WHERE group_id=? AND user_id=?', groupId, req.user.id);
     p.run('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, req.user.id);
     p.run('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?', groupId, req.user.id);
+    try { memberChangeHook && memberChangeHook(groupId, req.user.id, 'left'); } catch (e) {}
     res.json({ ok: true });
   });
 
@@ -390,7 +394,15 @@ module.exports = function registerGroups(app, db, auth) {
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
     if (!g) return fail(res, 404, '群不存在');
     if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可解散群');
+    // 先通知所有在线成员群已解散（然后再删数据）
+    try {
+      const dissMembers = p.all('SELECT user_id FROM group_members WHERE group_id=?', groupId);
+      for (const dm of dissMembers) {
+        try { memberChangeHook && memberChangeHook(groupId, dm.user_id, 'dissolved'); } catch (e) {}
+      }
+    } catch (e) {}
     try { p.run('DELETE FROM group_message_meta WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)', groupId); } catch (e) {}
+    try { p.run('DELETE FROM message_reads WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)', groupId); } catch (e) {}
     p.run('DELETE FROM group_members WHERE group_id=?', groupId);
     p.run('DELETE FROM group_messages WHERE group_id=?', groupId);
     p.run('DELETE FROM group_announcements WHERE group_id=?', groupId);
@@ -400,7 +412,7 @@ module.exports = function registerGroups(app, db, auth) {
     try { p.run('DELETE FROM group_todos WHERE group_id=?', groupId); } catch (e) {}
     try { p.run('DELETE FROM group_join_grants WHERE group_id=?', groupId); } catch (e) {}
     const files = p.all('SELECT id,name FROM group_files WHERE group_id=?', groupId);
-    for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id)); } catch (e) { /* 忽略 */ } }
+    for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id + '.bin')); } catch (e) { /* 忽略 */ } }
     p.run('DELETE FROM group_files WHERE group_id=?', groupId);
     p.run('DELETE FROM groups WHERE id=?', groupId);
     persist();
@@ -697,5 +709,6 @@ module.exports = function registerGroups(app, db, auth) {
 
   module.exports.attachGroupBroadcast = setBroadcastHook;
   module.exports.attachGroupRecall = setRecallHook;
+  module.exports.attachGroupMemberChange = setMemberChangeHook;
   return { ok: true, routes: ['/api/groups/*'] };
 };
