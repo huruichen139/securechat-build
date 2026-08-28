@@ -1026,7 +1026,10 @@ app.delete('/api/history/:peerId', (req, res) => {
         if (typeof r.content === 'string' && r.content.startsWith('__FILE__')) {
           try {
             const meta = JSON.parse(r.content.slice('__FILE__'.length));
-            if (meta.id) { try { fs.unlinkSync(path.join(FILES_DIR, meta.id + '.bin')); } catch (_) {} }
+            // 仅清理合法 UUID 格式的文件 ID，防止路径遍历
+            if (meta.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(meta.id)) {
+              try { fs.unlinkSync(path.join(FILES_DIR, meta.id + '.bin')); } catch (_) {}
+            }
           } catch (_) {}
         }
       }
