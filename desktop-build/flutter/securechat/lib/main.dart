@@ -2777,7 +2777,10 @@ class _ChatViewStateState extends State<_ChatView> {
       ])),
     ));
     try {
-      final bytes = isGroup ? await widget.api.fetchGroupFile(id) : await widget.api.fetchFile(id);
+      final onProgress = (int received, int total) {
+        if (total > 0 && dlCtrl.value != received / total) dlCtrl.value = received / total;
+      };
+      final bytes = isGroup ? await widget.api.fetchGroupFile(id, onProgress: onProgress) : await widget.api.fetchFile(id, onProgress: onProgress);
       if (Navigator.canPop(dlgCtx)) Navigator.pop(dlgCtx);
       if (!mounted) return;
       final mime = (meta['mime'] ?? '').toString();
