@@ -702,6 +702,10 @@ app.post('/api/avatar', (req, res) => {
   if (typeof avatar !== 'string' || !avatar.startsWith('data:image/')) {
     return res.status(400).json({ error: '头像格式错误' });
   }
+  // 仅允许安全的光栅图片格式；拒绝 svg（可携带脚本）与可解析为 HTML 的格式
+  const avatarMime = avatar.slice(0, 40).match(/^data:image\/([a-zA-Z0-9.+-]+)[;,]/);
+  const safeAvatar = avatarMime && /^(png|jpe?g|gif|webp|bmp|avif)$/i.test(avatarMime[1]);
+  if (!safeAvatar) return res.status(400).json({ error: '头像仅支持 PNG/JPG/GIF/WebP/BMP' });
   // 限制 256K base64（避免数据库爆）
   if (avatar.length > 256 * 1024) return res.status(400).json({ error: '图片过大（限256KB）' });
   prepare('UPDATE users SET avatar=? WHERE id=?').run(avatar, payload.id);
