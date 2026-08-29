@@ -10,7 +10,14 @@ module.exports = function register(app, db, auth) {
     const jwt = require('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
     try {
-      req.user = jwt.verify(token, JWT_SECRET);
+      const payload = jwt.verify(token, JWT_SECRET);
+      if (!payload || !payload.id) return res.status(401).json({ error: '未授权' });
+      req.user = payload;
+      try {
+        const u = require('../db').prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
+        if (!u || u.banned) return res.status(403).json({ error: '账号不可用' });
+        if ((payload.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: '登录已失效' });
+      } catch (e) {}
       next();
     } catch (e) {
       res.status(401).json({ error: '未授权' });
