@@ -4108,19 +4108,21 @@ wss.on('connection', (ws, req) => {
       const isMember = prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid);
       if (!isMember) return;
       try {
-        const unread = prepare('SELECT id FROM group_messages WHERE group_id=? AND from_id<>?').all(gid, ws.uid);
-        if (unread.length > 0) {
-          const now = Date.now();
-          for (const m of unread) {
-            prepare('INSERT OR IGNORE INTO message_reads(message_id,user_id,read_at) VALUES(?,?,?)').run(m.id, ws.uid, now);
-          }
-          persist();
-          // 广播给群内其他在线成员：userId 已读该群，客户端据此刷新已读人数
-          const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
-          for (const mm of members) {
-            if (mm.user_id !== ws.uid && onlineAny(mm.user_id)) {
-              sendToUser(mm.user_id, P.S_GROUP_MSG_READ, { groupId: gid, userId: ws.uid });
-            }
+        // 单条批量 INSERT 把未读群消息一次性标记为已读（避免逐条遍历，性能优化）
+        const now = Date.now();
+        prepare(
+          `INSERT OR IGNORE INTO message_reads(message_id,user_id,read_at)
+           SELECT id,?,? FROM group_messages
+           WHERE group_id=? AND from_id<>? AND id NOT IN (
+             SELECT message_id FROM message_reads WHERE user_id=?
+           )`
+        ).run(ws.uid, now, gid, ws.uid, ws.uid);
+        if (prepare('SELECT 1 FROM message_reads WHERE user_id=? LIMIT 1').get(ws.uid)) persist();
+        // 广播给群内其他在线成员：userId 已读该群，客户端据此刷新已读人数
+        const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
+        for (const mm of members) {
+          if (mm.user_id !== ws.uid && onlineAny(mm.user_id)) {
+            sendToUser(mm.user_id, P.S_GROUP_MSG_READ, { groupId: gid, userId: ws.uid });
           }
         }
       } catch (e) { /* 忽略 */ }
