@@ -1491,6 +1491,21 @@ class _ChatViewStateState extends State<_ChatView> {
           }
         } else if (type == 'friend_list') {
           if (mounted) _loadData();
+        } else if (type == 'error') {
+          // 服务端拒绝消息（如黑名单/目标无效/内容过长）：提示用户并从列表移除仍在等待确认的乐观消息
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          final errMsg = (p['error'] ?? '发送失败').toString();
+          if (!mounted) return;
+          // 移除最后一条状态非 sent 的本地消息（通常是刚发送但被拒绝的）
+          setState(() {
+            final idx = messages.lastIndexWhere((m) => m['status'] != 'sent' && m['mine'] == true);
+            if (idx >= 0) {
+              final cmid = messages[idx]['cmid']?.toString();
+              if (cmid != null) _sentIds.remove(cmid);
+              messages.removeAt(idx);
+            }
+          });
+          try { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg))); } catch (_) {}
         }
         } catch (e) { debugPrint('[ws] handler error: $e'); }
       }, onError: (_) {}, onDone: () {
