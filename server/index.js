@@ -1134,6 +1134,8 @@ app.post('/api/messages', (req, res) => {
   const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = req.body || {};
   const toId = parseInt(to, 10);
   if (!Number.isInteger(toId) || !content || typeof content !== 'string') return res.status(400).json({ error: '消息内容无效' });
+  if (toId === payload.id) return res.status(400).json({ error: '不能给自己发送消息' });
+  if (!prepare('SELECT 1 FROM users WHERE id=?').get(toId)) return res.status(404).json({ error: '目标用户不存在' });
   if (content.length > MAX_MSG_CONTENT) return res.status(413).json({ error: '消息内容过长（最大100KB）' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, toId)) return res.status(403).json({ error: '你已拉黑对方，无法发送消息' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '对方已把你拉黑，无法发送消息' });
@@ -3984,6 +3986,8 @@ wss.on('connection', (ws, req) => {
       if ((typeof to !== 'number' && typeof to !== 'string') || !/^\d+$/.test(String(to))) return send(ws, P.S_ERROR, { error: '目标无效' });
       const toId = Number(to);
       if (toId === undefined || !Number.isInteger(toId) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
+      if (toId === ws.uid) return send(ws, P.S_ERROR, { error: '不能给自己发送消息' });
+      if (!prepare('SELECT 1 FROM users WHERE id=?').get(toId)) return send(ws, P.S_ERROR, { error: '目标用户不存在' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
         return send(ws, P.S_ERROR, { error: '消息标识无效' });
       }
