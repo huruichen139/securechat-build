@@ -2508,6 +2508,24 @@ class _ChatViewStateState extends State<_ChatView> {
     }
   }
 
+  String _guessMime(String ext) {
+    final e = ext.toLowerCase();
+    const map = <String, String>{
+      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif',
+      'webp': 'image/webp', 'bmp': 'image/bmp', 'svg': 'image/svg+xml', 'avif': 'image/avif',
+      'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime', 'mkv': 'video/x-matroska',
+      'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'aac': 'audio/aac',
+      'flac': 'audio/flac', 'm4a': 'audio/mp4', 'weba': 'audio/webm',
+      'pdf': 'application/pdf', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'zip': 'application/zip', 'rar': 'application/vnd.rar', '7z': 'application/x-7z-compressed',
+      'txt': 'text/plain', 'md': 'text/markdown', 'csv': 'text/csv', 'json': 'application/json',
+      'html': 'text/html', 'xml': 'application/xml', 'apk': 'application/vnd.android.package-archive',
+    };
+    return map[e] ?? 'application/octet-stream';
+  }
+
   Future<void> _pickAndSendFile({bool imageOnly = false}) async {
     final conv = selConv;
     if (conv == null) return;
@@ -2518,7 +2536,7 @@ class _ChatViewStateState extends State<_ChatView> {
     if (res == null || res.files.isEmpty || res.files.single.bytes == null || !mounted) return;
     final f = res.files.single;
     final name = f.name;
-    final mime = (f.extension != null && f.extension!.isNotEmpty) ? 'application/${f.extension!.toLowerCase()}' : 'application/octet-stream';
+    final mime = _guessMime(f.extension ?? '');
     try {
       final Map<String, dynamic> raw = conv['kind'] == 'group'
           ? await widget.api.uploadGroupFile(conv['id'] as int, f.bytes!, name, mime)
