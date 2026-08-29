@@ -101,37 +101,47 @@ module.exports = function registerRedpacket(app, db, auth) {
     const my = walletOf(me.id);
     if (my.balance < value) return res.status(400).json({ error: '余额不足' });
 
-    // 扣款
-    prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), me.id);
-
-    // 先创建红包记录（msg_id 暂置 0），拿到自增 id 作为消息里的红包标识
-    const rp = prepare('INSERT INTO red_packets(sender_id,target_type,target_id,total_amount,count,remaining_amount,remaining_count,mode,greeting,status,msg_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,0,?)')
-      .run(me.id, targetType, targetId, value, c, value, c, m, (greeting || '恭喜发财，大吉大利！').slice(0, 60), 'active', Date.now());
-    const packetId = rp.lastInsertRowid;
-    // 消息内容用数字 id（[红包:<id>]），保证前端点击后能命中 red_packets.id 查询
-    const msgContent = '[红包:' + packetId + ']';
-
-    // 写消息（单聊进 messages，群聊进 group_messages），再把 msg_id 回写红包记录
+    // 整个发红包流程放在事务内：扣款、创建红包、写消息、写流水原子化，避免部分写入
+    let packetId = null;
     let msgId = null;
-    if (targetType === 'dm') {
-      const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)').run(me.id, targetId, msgContent, Date.now());
-      msgId = info.lastInsertRowid;
-    } else {
-      const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)').run(targetId, me.id, msgContent, Date.now());
-      msgId = info.lastInsertRowid;
-    }
-    prepare('UPDATE red_packets SET msg_id=? WHERE id=?').run(msgId, packetId);
+    try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
+    try {
+      // 扣款（带余额校验，防止并发转账导致的透支）
+      const deb = prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=? AND balance>=?').run(value, Date.now(), me.id, value);
+      if (!deb.changes) { try { prepare('COMMIT').run(); } catch (e) {} try { prepare('ROLLBACK').run(); } catch (e) {} return res.status(400).json({ error: '余额不足' }); }
 
-    prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
-      .run(me.id, 'out', value, targetType === 'dm' ? targetId : null, '发红包 ' + (greeting || ''), Date.now());
+      // 先创建红包记录（msg_id 暂置 0），拿到自增 id 作为消息里的红包标识
+      const rp = prepare('INSERT INTO red_packets(sender_id,target_type,target_id,total_amount,count,remaining_amount,remaining_count,mode,greeting,status,msg_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,0,?)')
+        .run(me.id, targetType, targetId, value, c, value, c, m, (greeting || '恭喜发财，大吉大利！').slice(0, 60), 'active', Date.now());
+      packetId = rp.lastInsertRowid;
+      // 消息内容用数字 id（[红包:<id>]），保证前端点击后能命中 red_packets.id 查询
+      const msgContent = '[红包:' + packetId + ']';
+
+      // 写消息（单聊进 messages，群聊进 group_messages），再把 msg_id 回写红包记录
+      if (targetType === 'dm') {
+        const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)').run(me.id, targetId, msgContent, Date.now());
+        msgId = info.lastInsertRowid;
+      } else {
+        const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)').run(targetId, me.id, msgContent, Date.now());
+        msgId = info.lastInsertRowid;
+      }
+      prepare('UPDATE red_packets SET msg_id=? WHERE id=?').run(msgId, packetId);
+
+      prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
+        .run(me.id, 'out', value, targetType === 'dm' ? targetId : null, '发红包 ' + (greeting || ''), Date.now());
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+    } catch (e) {
+      try { prepare('ROLLBACK').run(); } catch (e2) {}
+      return res.status(500).json({ error: '发红包失败' });
+    }
     persist();
 
     // WS 通知
     try {
       if (targetType === 'dm') {
-        sendToUserNotify(targetId, me.id, msgContent, msgId, 'dm');
+        if (msgId != null) sendToUserNotify(targetId, me.id, '[红包:' + packetId + ']', msgId, 'dm');
       } else {
-        sendToGroupNotify(targetId, me.id, msgContent, msgId);
+        if (msgId != null) sendToGroupNotify(targetId, me.id, '[红包:' + packetId + ']', msgId);
       }
     } catch (e) {}
 

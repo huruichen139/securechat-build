@@ -437,6 +437,14 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       console.log('[remind] fired reminder #' + id + (inserted ? (' -> ' + inserted.kind + ':' + inserted.id) : ''));
     };
     if (delay <= 0) { setTimeout(exec, 0); return; }
+    // setTimeout 上限约 24.8 天；超长提醒必须递归重新调度，否则会提前触发导致提醒错时间。
+    if (delay > 2147483647) {
+      // 分阶段逼近：睡 7 天后重新评估剩余时间，直到剩余 <= 上限再真正 exec。
+      const step = Math.min(delay - 2147483647, 7 * 24 * 3600 * 1000);
+      const t = setTimeout(() => { if (!timers.has(id)) return; timers.delete(id); schedule(id); }, step);
+      timers.set(id, t);
+      return;
+    }
     const t = setTimeout(exec, Math.min(delay, 2147483647));
     timers.set(id, t);
   }
