@@ -104,6 +104,7 @@ module.exports = function registerChatExt(app, db, auth) {
       const exists = prepare('SELECT id FROM groups WHERE id=?').get(t.id);
       return !!exists && isGroupMember(t.id, userId);
     }
+    if (t.id === userId) return false; // 不能转发给自己
     const exists = prepare('SELECT id FROM users WHERE id=?').get(t.id);
     return !!exists && !isBlockedEither(t.id, userId);
   }
