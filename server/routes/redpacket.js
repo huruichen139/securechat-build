@@ -19,7 +19,11 @@ module.exports = function registerRedpacket(app, db, auth) {
     try {
       const token = authH.replace(/^Bearer\s+/i, '');
       const payload = jwt.verify(token, JWT_SECRET);
-      if (payload && payload.id) return payload;
+      if (!payload || !payload.id) return null;
+      const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
+      if (!u || u.banned) return null;
+      if ((payload.tv || 0) !== (u.token_version || 0)) return null;
+      return payload;
     } catch (e) {}
     return null;
   }

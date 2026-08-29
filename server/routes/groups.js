@@ -59,9 +59,10 @@ function verifyUser(req) {
   try {
     const payload = jwt.verify(auth.replace(/^Bearer\s+/i, ''), JWT_SECRET);
     if (!payload || !payload.id) return null;
-    const u = gdb.prepare('SELECT token_version FROM users WHERE id=?').get(payload.id);
+    const u = gdb.prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
     if (!u) return null;
     if ((payload.tv || 0) !== (u.token_version || 0)) return null;
+    if (u.banned) return null;
     return payload;
   } catch { return null; }
 }

@@ -174,6 +174,9 @@ module.exports = function registerPayment(app, db, auth) {
     let payload = null;
     try { payload = jwt.verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (e) { payload = null; }
     if (!payload) return res.status(401).json({ error: '未授权' });
+    const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
+    if (!u || u.banned) return res.status(403).json({ error: '账号不可用' });
+    if ((payload.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: '登录已失效' });
     req.user = payload;
     next();
   }
@@ -185,9 +188,11 @@ module.exports = function registerPayment(app, db, auth) {
     try { payload = jwt.verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (e) { payload = null; }
     if (!payload) return res.status(401).json({ error: '未授权' });
     req.user = payload;
-    const u = prepare('SELECT id,email FROM users WHERE id=?').get(payload.id);
+    const u = prepare('SELECT id,email,token_version,banned FROM users WHERE id=?').get(payload.id);
+    if (!u || u.banned) return res.status(403).json({ error: '账号不可用' });
+    if ((payload.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: '登录已失效' });
     const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
-    if (!u || !admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '需要管理员权限' });
+    if (!admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '需要管理员权限' });
     next();
   }
 

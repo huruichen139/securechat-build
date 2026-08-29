@@ -54,7 +54,14 @@ module.exports = function registerChatExt(app, db, auth) {
   function apiUser(req) {
     const auth = req.headers.authorization || '';
     const token = auth.replace(/^Bearer\s+/i, '');
-    try { return jwt.verify(token, JWT_SECRET); } catch { return null; }
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      if (!payload || !payload.id) return null;
+      const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
+      if (!u || u.banned) return null;
+      if ((payload.tv || 0) !== (u.token_version || 0)) return null;
+      return payload;
+    } catch { return null; }
   }
 
   function publicName(userId) {
