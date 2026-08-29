@@ -5317,7 +5317,7 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
         const claimedAt = c.claimed_at ? new Date(c.claimed_at).toLocaleString() : '-';
         const statusCls = c.claimed_by ? 'used' : 'unused';
         const statusText = c.claimed_by ? '已使用' : '未使用';
-        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #07c160;color:#07c160;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + c.value + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
+        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #07c160;color:#07c160;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + escapeHtml(String(c.value)) + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
       }).join('');
       tbl.querySelectorAll('.admin-code-copy').forEach(btn => {
         btn.onclick = () => {
