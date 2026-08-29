@@ -172,9 +172,11 @@ function verifyToken(token) {
     const p = jwt.verify(token, JWT_SECRET);
     if (!p || !p.id) return null;
     // 检查 token_version 是否匹配（密码重置/封禁后废除旧 token）
-    const u = prepare('SELECT token_version FROM users WHERE id=?').get(p.id);
+    const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(p.id);
     if (!u) return null;
     if ((p.tv || 0) !== (u.token_version || 0)) return null;
+    // 封禁账号拒绝所有已签发 token（防止封禁后仍能通过 REST 操作）
+    if (u.banned) return null;
     return p;
   } catch { return null; }
 }
