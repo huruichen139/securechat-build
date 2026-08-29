@@ -21,6 +21,7 @@ cloudflared.exe
 *.sqlite.*
 /server/call-recordings/
 /server/files/
+/server/group-files/
 /tools/
 /log_utfprobe.txt
 server/.env
