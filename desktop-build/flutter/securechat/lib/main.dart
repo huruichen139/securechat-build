@@ -1202,6 +1202,9 @@ class _ChatViewStateState extends State<_ChatView> {
         final type = root['type'];
         if (type == 'auth_fail') {
           // WS 认证失败（如 token 过期）：立即回登录页，避免用户在"已登录"界面做无效操作
+          try { _wsSub?.cancel(); } catch (_) {}
+          try { socket?.sink.close(); } catch (_) {}
+          socket = null;
           if (mounted) {
             try { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('登录已失效，请重新登录'))); } catch (_) {}
             await widget.api.clearSession();
