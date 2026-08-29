@@ -30,3 +30,5 @@ desktop-build/harmony/entry/build/server/.epaygw_key.json
 
 opencode.db
 opencode.db-*
+data/epaygw_orders.json
+data/apk_done*.txt
