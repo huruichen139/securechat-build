@@ -1583,8 +1583,14 @@ app.post('/api/moments/:id/comment', (req, res) => {
   if (!payload) return;
   const { content, replyToId } = req.body || {};
   if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '评论不能为空' });
+  let replyTo = null;
+  if (replyToId) {
+    const parent = prepare('SELECT id FROM moment_comments WHERE id=? AND moment_id=?').get(Number(replyToId), id);
+    if (!parent) return res.status(400).json({ error: '被回复的评论不存在' });
+    replyTo = parent.id;
+  }
   prepare('INSERT INTO moment_comments(moment_id,user_id,reply_to_id,content,created_at) VALUES(?,?,?,?,?)')
-    .run(id, payload.id, replyToId || null, content.trim(), Date.now());
+    .run(id, payload.id, replyTo, content.trim(), Date.now());
   persist();
   res.json({ ok: true });
 });

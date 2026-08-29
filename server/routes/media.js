@@ -380,7 +380,13 @@ module.exports = function registerMedia(app, db, auth) {
     if (!prepare('SELECT id FROM articles WHERE id=?').get(aid)) return deny(res, 404, '文章不存在');
     const content = String((req.body || {}).content || '').trim();
     if (!content || content.length > 2000) return deny(res, 400, '留言内容不能为空');
-    const replyTo = Number((req.body || {}).replyTo) || null;
+    let replyTo = null;
+    const rawReplyTo = Number((req.body || {}).replyTo) || null;
+    if (rawReplyTo) {
+      const parent = prepare('SELECT id FROM article_comments WHERE id=? AND article_id=?').get(rawReplyTo, aid);
+      if (!parent) return deny(res, 400, '被回复的评论不存在');
+      replyTo = parent.id;
+    }
     prepare('INSERT INTO article_comments(article_id,user_id,reply_to,content,created_at) VALUES(?,?,?,?,?)')
       .run(aid, payload.id, replyTo, content, Date.now());
     prepare('UPDATE articles SET comment_count=(SELECT COUNT(*) FROM article_comments WHERE article_id=?) WHERE id=?').run(aid, aid);
@@ -574,7 +580,13 @@ module.exports = function registerMedia(app, db, auth) {
     if (!prepare('SELECT id FROM videos WHERE id=?').get(vid)) return deny(res, 404, '视频不存在');
     const content = String((req.body || {}).content || '').trim();
     if (!content || content.length > 2000) return deny(res, 400, '评论不能为空');
-    const replyTo = Number((req.body || {}).replyTo) || null;
+    let replyTo = null;
+    const rawReplyTo = Number((req.body || {}).replyTo) || null;
+    if (rawReplyTo) {
+      const parent = prepare('SELECT id FROM video_comments WHERE id=? AND video_id=?').get(rawReplyTo, vid);
+      if (!parent) return deny(res, 400, '被回复的评论不存在');
+      replyTo = parent.id;
+    }
     prepare('INSERT INTO video_comments(video_id,user_id,reply_to,content,created_at) VALUES(?,?,?,?,?)')
       .run(vid, payload.id, replyTo, content, Date.now());
     const cnt = (prepare('SELECT COUNT(*) AS c FROM video_comments WHERE video_id=?').get(vid) || { c: 0 }).c;

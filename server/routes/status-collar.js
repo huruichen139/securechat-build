@@ -217,8 +217,14 @@ module.exports = function registerStatusCollar(app, db, auth) {
     if (blk) return deny(res, 403, '无法互动');
     const { content, replyToId } = req.body || {};
     if (typeof content !== 'string' || !content.trim()) return deny(res, 400, '评论不能为空');
+    let replyTo = null;
+    if (replyToId) {
+      const parent = prepare('SELECT id FROM moment_comments WHERE id=? AND moment_id=?').get(Number(replyToId), id);
+      if (!parent) return deny(res, 400, '被回复的评论不存在');
+      replyTo = parent.id;
+    }
     prepare('INSERT INTO moment_comments(moment_id,user_id,reply_to_id,content,created_at) VALUES(?,?,?,?,?)')
-      .run(id, me, replyToId || null, content.trim(), Date.now());
+      .run(id, me, replyTo, content.trim(), Date.now());
     persist();
     okay(res, { id });
   });
