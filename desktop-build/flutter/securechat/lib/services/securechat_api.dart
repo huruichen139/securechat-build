@@ -251,19 +251,24 @@ class SecureChatApi {
 
   Future<Uint8List> fetchFile(String id, {void Function(int received, int total)? onProgress}) async {
     final uri = _uri('/api/files/$id');
-    final request = http.Request('GET', uri)..headers['Authorization'] = 'Bearer $token';
-    final response = await http.Client().send(request);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      await response.stream.drain<void>();
-      throw StateError('文件获取失败 (${response.statusCode})');
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', uri)..headers['Authorization'] = 'Bearer $token';
+      final response = await client.send(request);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        await response.stream.drain<void>();
+        throw StateError('文件获取失败 (${response.statusCode})');
+      }
+      final total = response.contentLength ?? 0;
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response.stream) {
+        builder.add(chunk);
+        if (onProgress != null && total > 0) onProgress(builder.length, total);
+      }
+      return builder.takeBytes();
+    } finally {
+      client.close();
     }
-    final total = response.contentLength ?? 0;
-    final builder = BytesBuilder(copy: false);
-    await for (final chunk in response.stream) {
-      builder.add(chunk);
-      if (onProgress != null && total > 0) onProgress(builder.length, total);
-    }
-    return builder.takeBytes();
   }
 
   Future<Map<String, dynamic>> uploadAttachment(int to, List<int> bytes, String name, String mime) async {
@@ -284,19 +289,24 @@ class SecureChatApi {
 
   Future<Uint8List> fetchGroupFile(String fileId, {void Function(int received, int total)? onProgress}) async {
     final uri = _uri('/api/group-files/$fileId');
-    final request = http.Request('GET', uri)..headers['Authorization'] = 'Bearer $token';
-    final response = await http.Client().send(request);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      await response.stream.drain<void>();
-      throw StateError('文件获取失败 (${response.statusCode})');
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', uri)..headers['Authorization'] = 'Bearer $token';
+      final response = await client.send(request);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        await response.stream.drain<void>();
+        throw StateError('文件获取失败 (${response.statusCode})');
+      }
+      final total = response.contentLength ?? 0;
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response.stream) {
+        builder.add(chunk);
+        if (onProgress != null && total > 0) onProgress(builder.length, total);
+      }
+      return builder.takeBytes();
+    } finally {
+      client.close();
     }
-    final total = response.contentLength ?? 0;
-    final builder = BytesBuilder(copy: false);
-    await for (final chunk in response.stream) {
-      builder.add(chunk);
-      if (onProgress != null && total > 0) onProgress(builder.length, total);
-    }
-    return builder.takeBytes();
   }
 
   Future<List<Map<String, dynamic>>> myFiles() async {
