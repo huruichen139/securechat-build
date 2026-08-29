@@ -44,6 +44,7 @@
 ## 环境
 - Flutter：`D:\chat\tools\flutter`。pub get/analyze/test 加 `PUB_HOSTED_URL='https://pub.flutter-io.cn'`、`FLUTTER_STORAGE_BASE_URL='https://storage.flutter-io.cn'`。
 - 服务器：`D:\chat\server\index.js`（sql.js），HTTPS 0.0.0.0:8888，数据在 `D:\chat\data\`。
+- **IP 获取**：服务器直连 HTTPS（无反向代理），`getIp`/`clientIp` 默认用 `socket.remoteAddress`，不信任 `X-Forwarded-For`（防伪造绕过限流）。若将来部署到 Nginx/Cloudflare 之后，必须在服务端 `.env` 设 `TRUST_PROXY=1` 才能正确获取真实客户端 IP。
 - 勿提交运行时目录：`backups/`、`*.sqlite.bak*`、`server/call-recordings/`、`server/files/`、`tools/`。
 
 ## EPay (wallet recharge)
