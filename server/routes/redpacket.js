@@ -338,4 +338,37 @@ module.exports = function registerRedpacket(app, db, auth) {
       } catch (e) {}
     }
   }
+
+  // 自动退回：超过 24 小时未领完的红包，把剩余金额退回发送者（微信红包语义）
+  // 每 10 分钟扫描一次，用事务保证只退回一次。
+  setInterval(() => {
+    try {
+      const cutoff = Date.now() - 24 * 3600 * 1000;
+      const expired = prepare("SELECT * FROM red_packets WHERE status='active' AND created_at < ?").all(cutoff);
+      for (const pkt of expired) {
+        if (pkt.remaining_count <= 0 || pkt.remaining_amount <= 0) {
+          try { prepare("UPDATE red_packets SET status='finished' WHERE id=? AND status='active'").run(pkt.id); continue; } catch (e) { continue; }
+        }
+        try {
+          prepare('BEGIN IMMEDIATE TRANSACTION').run();
+          try {
+            const fresh = prepare("SELECT remaining_amount,remaining_count,status FROM red_packets WHERE id=? AND status='active'").get(pkt.id);
+            if (!fresh || fresh.remaining_count <= 0 || fresh.remaining_amount <= 0) { try { prepare('COMMIT').run(); } catch (e) {} continue; }
+            // 原子标记 refunded，防止同一红包被重复退回
+            const mark = prepare("UPDATE red_packets SET status='refunded',remaining_amount=0,remaining_count=0 WHERE id=? AND status='active'").run(pkt.id);
+            if (!mark.changes) { try { prepare('COMMIT').run(); } catch (e) {} continue; }
+            const refundAmt = fresh.remaining_amount;
+            prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(pkt.sender_id, Date.now());
+            prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refundAmt, Date.now(), pkt.sender_id);
+            prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
+              .run(pkt.sender_id, 'in', refundAmt, null, '24小时未领完自动退回', Date.now());
+            try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+          } catch (e) {
+            try { prepare('ROLLBACK').run(); } catch (e2) {}
+          }
+        } catch (e) {}
+      }
+      if (expired.length) try { persist(); } catch (e) {}
+    } catch (e) {}
+  }, 10 * 60 * 1000);
 };
