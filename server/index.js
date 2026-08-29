@@ -197,7 +197,14 @@ function rateLimit(key, max, windowMs) {
   b.count++;
   return b.count > max;
 }
-function getIp(req) { return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || ''; }
+function getIp(req) {
+  // 仅在显式配置 TRUST_PROXY=1 时信任 X-Forwarded-For，防止客户端伪造 IP 绕过限流。
+  // 未配置时直接使用 socket 地址（单机直连场景），避免 XFF 被随意伪造。
+  if (process.env.TRUST_PROXY === '1' && req.headers['x-forwarded-for']) {
+    return String(req.headers['x-forwarded-for']).split(',')[0].trim() || req.socket.remoteAddress || '';
+  }
+  return req.socket.remoteAddress || '';
+}
 // 限流桶定期清理（60秒），防止内存无限增长
 setInterval(() => { const now = Date.now(); for (const [k, b] of _rateBuckets) { if (now > b.resetAt) _rateBuckets.delete(k); } }, 60000);
 
@@ -3406,7 +3413,7 @@ app.post('/api/admin/ban', (req, res) => {
 // ---------- 通用：审计日志 + 客户端IP ----------
 function clientIp(req) {
   const xff = req.headers['x-forwarded-for'];
-  if (xff) return String(xff).split(',')[0].trim();
+  if (process.env.TRUST_PROXY === '1' && xff) return String(xff).split(',')[0].trim();
   return (req.socket && req.socket.remoteAddress || '').replace('::ffff:', '') || '';
 }
 function logAudit(adminId, action, targetId, targetType, detail, ip) {
