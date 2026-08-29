@@ -332,8 +332,11 @@ module.exports = function registerPayment(app, db, auth) {
     const code = prepare('SELECT * FROM pay_codes WHERE token=?').get(String(req.params.token || ''));
     if (!code) return res.status(404).json({ error: '码不存在' });
     const expired = code.status === 'active' && code.expires_at && code.expires_at < Date.now();
+    // 达到使用次数上限也视为失效
+    const exhausted = code.status === 'active' && code.max_uses >= 0 && code.used_count >= code.max_uses;
     if (expired) prepare('UPDATE pay_codes SET status=? WHERE id=?').run('expired', code.id);
-    if (code.status !== 'active' || expired) return res.status(410).json({ error: '码已失效' });
+    if (exhausted) prepare("UPDATE pay_codes SET status='used' WHERE id=?").run(code.id);
+    if (code.status !== 'active' || expired || exhausted) return res.status(410).json({ error: '码已失效' });
     res.json({ code: codePublic(code) });
   });
 
