@@ -1200,6 +1200,20 @@ class _ChatViewStateState extends State<_ChatView> {
         try {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
         final type = root['type'];
+        if (type == 'auth_fail') {
+          // WS 认证失败（如 token 过期）：立即回登录页，避免用户在"已登录"界面做无效操作
+          if (mounted) {
+            try { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('登录已失效，请重新登录'))); } catch (_) {}
+            await widget.api.clearSession();
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => LoginPage(config: widget.config)),
+                (route) => false,
+              );
+            }
+          }
+          return;
+        }
         if (type == 'auth_ok') {
           _wsReconnectAttempt = 0; // 认证成功才重置重连计数器
           // 重连成功后重新拉取会话列表与当前会话历史，补齐断线期间漏掉的消息
