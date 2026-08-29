@@ -32,6 +32,7 @@ class CallService extends ChangeNotifier {
   bool cameraOn = true;
 
   Timer? _ringTimer;
+  Timer? _disconnectTimer;
   bool _remoteDescSet = false;
   final List<RTCIceCandidate> _pendingCandidates = [];
   DateTime? _connectedAt;
@@ -126,9 +127,18 @@ class CallService extends ChangeNotifier {
           status = CallStatus.connected;
           notifyListeners();
         } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
-            state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
             state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
           if (status != CallStatus.idle && status != CallStatus.ended) _end('通话已断开');
+        } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          // 网络抖动会导致短暂 Disconnected，先给宽限期，避免误挂断
+          _disconnectTimer?.cancel();
+          _disconnectTimer = Timer(const Duration(seconds: 8), () {
+            if (status != CallStatus.idle && status != CallStatus.ended && status == CallStatus.connected) {
+              _end('通话已断开');
+            }
+          });
+        } else if (state == RTCIceConnectionState.RTCIceConnectionStateConnected) {
+          _disconnectTimer?.cancel();
         }
       };
       peer!.onTrack = (event) {
@@ -247,6 +257,7 @@ class CallService extends ChangeNotifier {
 
   void _end(String? reason) {
     _ringTimer?.cancel();
+    _disconnectTimer?.cancel();
     endReason = reason;
     status = CallStatus.ended;
     peerId = null;
