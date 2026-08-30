@@ -535,14 +535,25 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     '吃饭': 'Eat', '喝水': 'Drink', '工作': 'Work', '学习': 'Study', '谢谢': 'Thanks',
   };
 
+  // 翻译限流（内存桶）：单用户 1 分钟内最多 20 次，防把上游免费 API 刷爆/被封
+  const _trBuckets = new Map();
+  function _trLimited(userId) {
+    const now = Date.now();
+    let b = _trBuckets.get(userId);
+    if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + 60 * 1000 }; _trBuckets.set(userId, b); }
+    b.count++;
+    return b.count > 20;
+  }
+  setInterval(() => { const now = Date.now(); for (const [k, b] of _trBuckets) { if (now > b.resetAt) _trBuckets.delete(k); } }, 5 * 60 * 1000);
+
   app.post('/api/translate', (req, res) => {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
+    if (_trLimited(payload.id)) return deny(res, 429, '翻译过于频繁，请稍后再试');
     const { text, target = 'zh' } = req.body || {};
     const src = String(text || '').slice(0, 2000);
     if (!src) return deny(res, 400, '没有待翻译文本');
     const lang = String(target) === 'en' ? 'en' : 'zh';
-    const toLang = lang === 'zh' ? 'zh-CN' : 'en';
     handleTranslate(src, lang)
       .then((out) => res.json({ ok: true, text, translated: out.translated, source: out.source, detected: out.detected }))
       .catch((e) => res.status(502).json({ error: e.message || '翻译失败' }));
