@@ -639,6 +639,9 @@ class _ChatViewStateState extends State<_ChatView> {
   WebSocketChannel? socket;
   StreamSubscription? _wsSub;
   int _wsReconnectAttempt = 0;
+  Timer? _hbTimer;
+  int _lastRttMs = 0;
+  int _netQuality = 2;
   CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
@@ -1196,6 +1199,13 @@ class _ChatViewStateState extends State<_ChatView> {
       }
       socket = widget.api.connect();
       _wsSub?.cancel();
+      // 应用层心跳：周期发送 pong 供服务端测 RTT 并返回建议间隔（微信式自适应心跳）
+      _hbTimer?.cancel();
+      _hbTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+        try {
+          socket?.sink.add(jsonEncode({'type': 'pong', 'payload': {'clientTs': DateTime.now().millisecondsSinceEpoch}}));
+        } catch (_) {}
+      });
       _wsSub = socket!.stream.listen((event) async {
         try {
         final root = jsonDecode(event as String) as Map<String, dynamic>;
@@ -1229,6 +1239,15 @@ class _ChatViewStateState extends State<_ChatView> {
                 await _openConversationById(id, isGroup: conv['kind'] == 'group', name: conv['name']?.toString() ?? selName ?? '');
               }
             }
+            // 离线消息提示：断线期间收到新消息时通知用户
+            try {
+              final pend = await widget.api.offlinePending();
+              final cnt = (pend['count'] as num?)?.toInt() ?? 0;
+              if (cnt > 0 && mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('离线期间收到 $cnt 条新消息'), duration: const Duration(seconds: 2)));
+              }
+            } catch (_) {}
           }
           return;
         }
@@ -1508,6 +1527,30 @@ class _ChatViewStateState extends State<_ChatView> {
           }
         } else if (type == 'friend_list') {
           if (mounted) _loadData();
+        } else if (type == 'device_kicked') {
+          // 本设备被其他端移除：回登录页
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (mounted && '${p['deviceId']}' == widget.api.deviceId) {
+            try { _wsSub?.cancel(); } catch (_) {}
+            try { socket?.sink.close(); } catch (_) {}
+            socket = null;
+            try { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('此设备已被移除，请重新登录'))); } catch (_) {}
+            await widget.api.clearSession();
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => LoginPage(config: widget.config)),
+                (route) => false,
+              );
+            }
+            return;
+          }
+        } else if (type == 'pong') {
+          // 自适应心跳：服务端返回建议间隔，客户端记录（用于调试/调优）
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (p['rtt'] != null && mounted) {
+            _lastRttMs = (p['rtt'] as num).toInt();
+            _updatePingBadge();
+          }
         } else if (type == 'error') {
           // 服务端拒绝消息（如黑名单/目标无效/内容过长）：提示用户并从列表移除仍在等待确认的乐观消息
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
@@ -1647,9 +1690,17 @@ class _ChatViewStateState extends State<_ChatView> {
     try { windowManager.setTitle('SecureChat$suffix'); } catch (_) {}
   }
 
+  void _updatePingBadge() {
+    // 网络质量指示：RTT 越小越好。仅在 WM 上保留以供后续展示，当前写入可视化状态。
+    _netQuality = _lastRttMs > 0
+        ? (_lastRttMs < 200 ? 0 : (_lastRttMs < 1000 ? 1 : 2))
+        : 2;
+  }
+
   @override
   void dispose() {
     _hideMentionOverlay();
+    _hbTimer?.cancel();
     _wsSub?.cancel();
     _voiceSub?.cancel();
     socket?.sink.close();

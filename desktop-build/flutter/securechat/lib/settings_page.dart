@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'device_manage_page.dart';
 import 'feedback_page.dart';
-import 'passkey_page.dart';
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
 import 'update_service.dart';
@@ -574,8 +574,8 @@ class _SettingsPageState extends State<SettingsPage> {
             config: config,
             icon: Icons.devices_outlined,
             title: '登录设备管理',
-            subtitle: 'Passkey 与受信设备',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PasskeyPage(api: widget.api, config: config))),
+            subtitle: '查看并移除已登录设备',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeviceManagePage(api: widget.api, config: config))),
           ),
         ],
       ),

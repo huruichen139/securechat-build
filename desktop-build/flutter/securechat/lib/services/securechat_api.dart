@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -33,6 +34,13 @@ class SecureChatApi {
   int? myId;
   String? myNickname;
   String? myUsername;
+  /// 设备 ID（用于设备管理），首次启动生成并持久化
+  String deviceId = '';
+  String deviceName = '';
+  String deviceType = 'desktop';
+  String devicePlatform = '';
+
+  static const _kDeviceId = 'sc_device_id';
 
   static const _kToken = 'sc_api_token';
   static const _kMyId = 'sc_api_myid';
@@ -49,7 +57,47 @@ class SecureChatApi {
     token = sp.getString(_kToken);
     final id = sp.getInt(_kMyId);
     if (id != null) myId = id;
+    await _initDeviceInfo();
     _syncGlobal();
+  }
+
+  /// 初始化设备 ID（首次生成并持久化）与设备信息
+  Future<void> _initDeviceInfo() async {
+    final sp = await SharedPreferences.getInstance();
+    deviceId = sp.getString(_kDeviceId) ?? '';
+    if (deviceId.isEmpty) {
+      deviceId = 'dev-${DateTime.now().millisecondsSinceEpoch}-${(myId ?? 0)}';
+      await sp.setString(_kDeviceId, deviceId);
+    }
+    if (devicePlatform.isEmpty && deviceName.isEmpty) {
+      try {
+        if (Platform.isAndroid) {
+          devicePlatform = 'android';
+          deviceType = 'android';
+          deviceName = 'Android 手机';
+        } else if (Platform.isIOS) {
+          devicePlatform = 'ios';
+          deviceType = 'ios';
+          deviceName = 'iPhone';
+        } else if (Platform.isMacOS) {
+          devicePlatform = 'macos';
+          deviceType = 'macos';
+          deviceName = 'Mac';
+        } else if (Platform.isLinux) {
+          devicePlatform = 'linux';
+          deviceType = 'desktop';
+          deviceName = 'Linux 电脑';
+        } else {
+          devicePlatform = 'windows';
+          deviceType = 'desktop';
+          deviceName = 'Windows 电脑';
+        }
+      } catch (_) {
+        // 未能获取平台（如测试环境）时使用默认值
+        if (devicePlatform.isEmpty) devicePlatform = 'windows';
+        if (deviceName.isEmpty) deviceName = 'Windows 电脑';
+      }
+    }
   }
 
   Future<void> recallMessage(int msgId) async {
@@ -149,6 +197,28 @@ class SecureChatApi {
         'greeting': greeting,
       });
 
+  // ========== 消息增量同步 / 离线队列 / 设备管理 ==========
+  Future<Map<String, dynamic>> syncMessages({int since = 0, int limit = 200}) =>
+      _json('GET', '/api/sync', query: {'since': '$since', 'limit': '$limit'});
+
+  Future<Map<String, dynamic>> offlinePending() => _json('GET', '/api/offline/pending');
+
+  Future<Map<String, dynamic>> offlinePull() => _json('GET', '/api/offline/pull');
+
+  Future<Map<String, dynamic>> offlineAck(List<int> ids) =>
+      _json('POST', '/api/offline/ack', body: {'ids': ids});
+
+  Future<Map<String, dynamic>> registerDevice({required String deviceId, String deviceName = '', String deviceType = 'desktop', String platform = ''}) =>
+      _json('POST', '/api/devices/register', body: {'deviceId': deviceId, 'deviceName': deviceName, 'deviceType': deviceType, 'platform': platform});
+
+  Future<Map<String, dynamic>> listDevices() => _json('GET', '/api/devices');
+
+  Future<Map<String, dynamic>> deviceHeartbeat(String deviceId) =>
+      _json('POST', '/api/devices/heartbeat', body: {'deviceId': deviceId});
+
+  Future<Map<String, dynamic>> kickDevice(String deviceId) =>
+      _json('DELETE', '/api/devices/${Uri.encodeComponent(deviceId)}');
+
   Future<List<Map<String, dynamic>>> feedsNews() async {
     final r = await _json('GET', '/api/feeds/news');
     return (r['list'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
@@ -169,10 +239,25 @@ class SecureChatApi {
   Future<Map<String, dynamic>> gatewayConfirm(String orderNo, double amount) =>
       _json('POST', '/api/pay/gateway/order/${Uri.encodeComponent(orderNo)}/confirm', body: {'confirm': true, 'amount': amount});
 
+  Future<void> _registerDevice() async {
+    try {
+      if (deviceId.isEmpty) await _initDeviceInfo();
+      await _json('POST', '/api/devices/register', body: {
+        'deviceId': deviceId,
+        'deviceName': deviceName,
+        'deviceType': deviceType,
+        'platform': devicePlatform,
+      });
+    } catch (_) {
+      // 设备注册失败不阻塞主流程（下次会话重试）
+    }
+  }
+
   Future<Map<String, dynamic>> login(String account, String password) async {
     final data = await _json('POST', '/api/login', body: {'account': account, 'password': password}, auth: false);
     _setSession(data);
     await persistSession();
+    await _registerDevice();
     return data;
   }
 
@@ -184,6 +269,7 @@ class SecureChatApi {
     final data = await _json('POST', '/api/login/code', body: {'email': email, 'code': code}, auth: false);
     _setSession(data);
     await persistSession();
+    await _registerDevice();
     return data;
   }
 
@@ -409,7 +495,16 @@ class SecureChatApi {
     final scheme = root.scheme == 'https' ? 'wss' : 'ws';
     final uri = Uri(scheme: scheme, host: root.host, port: root.hasPort ? root.port : null, path: '/ws');
     final channel = WebSocketChannel.connect(uri);
-    channel.sink.add(jsonEncode({'type': 'auth', 'payload': {'token': token}}));
+    channel.sink.add(jsonEncode({
+      'type': 'auth',
+      'payload': {
+        'token': token,
+        if (deviceId.isNotEmpty) 'deviceId': deviceId,
+        if (deviceName.isNotEmpty) 'deviceName': deviceName,
+        if (deviceType.isNotEmpty) 'deviceType': deviceType,
+        if (devicePlatform.isNotEmpty) 'platform': devicePlatform,
+      },
+    }));
     return channel;
   }
 
@@ -741,6 +836,7 @@ class SecureChatApi {
       myUsername = user['username']?.toString();
     }
     await persistSession();
+    await _registerDevice();
   }
 
   Future<Map<String, dynamic>> adminQqConfig() => _json('GET', '/api/admin/qq/config');

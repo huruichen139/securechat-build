@@ -114,6 +114,15 @@ function parseExtra(s){ try { return JSON.parse(s || '{}') || {}; } catch { retu
 
 const app = express();
 
+// ========== 请求追踪 ID ==========
+// 每个请求分配唯一 requestId，随 X-Request-ID 响应返回；日志可据此串起一条链路
+let _reqSeq = 0;
+app.use((req, res, next) => {
+  req.requestId = req.headers['x-request-id'] || ('r-' + process.pid + '-' + (++_reqSeq));
+  res.set('X-Request-ID', req.requestId);
+  next();
+});
+
 // ---------- 强制HTTPS：TLS启用时，非本地明文访问一律301跳转到HTTPS ----------
 // 本地回环豁免（epaygw/Cloudreve等本机服务回调走127.0.0.1的HTTP端口，不能被重定向破坏）
 let __tlsEnabled = null;
@@ -3897,14 +3906,6 @@ function humanBytes(b) {
   if (b < 1024 * 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + ' MB';
   return (b / 1024 / 1024 / 1024).toFixed(2) + ' GB';
 }
-
-// ========== 请求追踪 ID ==========
-let _reqSeq = 0;
-app.use((req, res, next) => {
-  req.requestId = req.headers['x-request-id'] || ('r-' + process.pid + '-' + (++_reqSeq));
-  res.set('X-Request-ID', req.requestId);
-  next();
-});
 
 // ========== 消息增量同步 API ==========
 // GET /api/sync?since=0&limit=200  — 返回 seq > since 的私聊+群聊消息
