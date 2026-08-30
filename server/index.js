@@ -1160,6 +1160,8 @@ app.post('/api/messages', (req, res) => {
   const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0 };
   const peer = onlineAny(toId);
   if (peer) sendToUser(toId, P.S_MSG, message);
+  // 推送给自己其他在线端（多端同步：REST 发送时其他端也需要看到自己发的消息）
+  sendToUser(payload.id, P.S_MSG, message);
   sentMsgsThisMinCounter += 1;
   if (peer) recvMsgsThisMinCounter += 1;
   res.json({ ok: true, message });
