@@ -61,6 +61,19 @@ module.exports = function registerLifestyle(app, db, auth) {
   }
   function micrId(uid) { return Number(uid) || 0; }
 
+  // 打招呼限流（内存桶）：同一用户 10 分钟内最多 20 次，防批量骚扰陌生人
+  const _helloBuckets = new Map();
+  function _hello(userId, kind) {
+    const key = kind + ':' + userId;
+    const now = Date.now();
+    let b = _helloBuckets.get(key);
+    if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + 10 * 60 * 1000 }; _helloBuckets.set(key, b); }
+    b.count++;
+    return b.count > 20;
+  }
+  // 定期清理过期桶，防内存增长
+  setInterval(() => { const now = Date.now(); for (const [k, b] of _helloBuckets) { if (now > b.resetAt) _helloBuckets.delete(k); } }, 5 * 60 * 1000);
+
   // 确保既有表补齐需要的列（幂等）
   function ensureColumn(table, col, ddl) {
     try { prepare('ALTER TABLE ' + table + ' ADD COLUMN ' + ddl).run(); } catch (_) { /* 已存在则忽略 */ }
@@ -310,6 +323,8 @@ module.exports = function registerLifestyle(app, db, auth) {
     const both = prepare(`SELECT 1 FROM friends a JOIN friends b ON b.user_id=a.friend_id AND b.friend_id=a.user_id
       WHERE a.user_id=? AND a.friend_id=? AND a.status=1`).get(id.id, target);
     if (both) return okay(res, { already: true, message: '你们已是好友' });
+    // 限流：附近打招呼 10 分钟最多 20 次（防批量骚扰陌生人）
+    if (_hello(id.id, 'nearby')) return deny(res, 429, '打招呼过于频繁，请稍后再试');
     prepare('INSERT OR IGNORE INTO friends(user_id,friend_id,status,created_at) VALUES(?,?,0,?)').run(id.id, target, Date.now());
     okay(res, { sent: true, message: '已打招呼' });
   });
@@ -367,6 +382,8 @@ module.exports = function registerLifestyle(app, db, auth) {
     const both = prepare(`SELECT 1 FROM friends a JOIN friends b ON b.user_id=a.friend_id AND b.friend_id=a.user_id
       WHERE a.user_id=? AND a.friend_id=? AND a.status=1`).get(id.id, target);
     if (both) return okay(res, { already: true, message: '你们已是好友' });
+    // 限流：摇一摇打招呼 10 分钟最多 20 次
+    if (_hello(id.id, 'shake')) return deny(res, 429, '打招呼过于频繁，请稍后再试');
     prepare('INSERT OR IGNORE INTO friends(user_id,friend_id,status,created_at) VALUES(?,?,0,?)').run(id.id, target, Date.now());
     okay(res, { sent: true, message: '已打招呼' });
   });
