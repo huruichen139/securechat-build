@@ -478,6 +478,12 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     const content = String((req.body || {}).content || '').trim().slice(0, 300) || '定时提醒';
     if (!Number.isInteger(targetId)) return deny(res, 400, '目标无效');
     if (!Number.isInteger(at) || at <= 0) return deny(res, 400, '提醒时间无效');
+    // 拒绝过去时间（否则 schedule 会立即触发，等于"立刻发消息"）与超过 1 年的远期
+    if (at <= Date.now()) return deny(res, 400, '提醒时间必须晚于当前时间');
+    if (at > Date.now() + 365 * 24 * 3600 * 1000) return deny(res, 400, '提醒时间不能超过一年');
+    // 配额：单用户最多 200 条未触发提醒，防定时器/内存耗尽
+    const pendingCnt = prepare('SELECT COUNT(*) AS c FROM reminders WHERE user_id=? AND fired=0').get(payload.id);
+    if (pendingCnt && pendingCnt.c >= 200) return deny(res, 400, '未完成提醒过多（上限200条）');
     let targetType = rawTargetType;
     if (targetType === 'group') {
       if (!groupExists(targetId)) return deny(res, 400, '群不存在');
