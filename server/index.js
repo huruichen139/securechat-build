@@ -584,6 +584,8 @@ app.post('/api/friend/add', (req, res) => {
   const isBlocked = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)')
     .get(payload.id, friendId, friendId, payload.id);
   if (isBlocked) return res.status(403).json({ error: '无法添加该用户' });
+  // 限流：10 分钟内最多发 20 个好友请求（防批量骚扰/爬用户）
+  if (rateLimit('friendreq:' + payload.id, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '好友请求过于频繁，请稍后再试' });
   const existing = prepare('SELECT id,status FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)')
     .get(payload.id, friendId, friendId, payload.id);
   if (existing && existing.status === 1) return res.status(409).json({ error: '已经是好友' });
@@ -1948,6 +1950,8 @@ app.post('/api/poke', (req, res) => {
   if (!to || !prepare('SELECT id FROM users WHERE id=?').get(to)) return res.status(404).json({ error: '用户不存在' });
   if (to === payload.id) return res.status(400).json({ error: '不能拍自己' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, to) || prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(to, payload.id)) return res.status(403).json({ error: '你与对方处于拉黑状态，无法拍一拍' });
+  // 限流：对同一人 1 分钟内最多拍 5 次（防骚扰刷屏）
+  if (rateLimit('poke:' + payload.id + ':' + to, 5, 60 * 1000)) return res.status(429).json({ error: '拍一拍过于频繁，请稍后再试' });
   prepare('INSERT INTO pokes(from_id,to_id,created_at) VALUES(?,?,?)').run(payload.id, to, Date.now());
   persist();
   const me = prepare('SELECT nickname FROM users WHERE id=?').get(payload.id);
