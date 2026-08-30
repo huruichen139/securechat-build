@@ -12,7 +12,7 @@ const jwt = require('jsonwebtoken');
 const { WebSocketServer } = require('ws');
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
-const { getDb, prepare, persist, persistNow, genUid } = require('./db');
+const { getDb, prepare, persist, persistNow, genUid, nextSeq, getSyncState, updateSyncState } = require('./db');
 const P = require('../shared/protocol');
 const execFile = util.promisify(childProcess.execFile);
 
@@ -72,6 +72,17 @@ setInterval(() => {
 // 仅 3529403074@qq.com 拥有管理员后台权限
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '3529403074@qq.com').split(',').map(s => s.trim().toLowerCase());
 function isAdmin(user) { return !!(user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())); }
+// authed：通用认证，校验 Authorization Bearer token，返回 payload 或 null
+function authed(req) {
+  const auth = req.headers.authorization || '';
+  const token = auth.replace('Bearer ', '').trim();
+  if (!token) return null;
+  const payload = verifyToken(token);
+  if (!payload) return null;
+  const u = prepare('SELECT id,banned FROM users WHERE id=?').get(payload.id);
+  if (!u || u.banned) return null;
+  return payload;
+}
 // adminGuard：校验 Authorization Bearer，且必须是 ADMIN_EMAILS 里的账号；返回 {payload, u, sent}。sent=true 表示已写响应
 function adminGuard(req, res) {
   const auth = req.headers.authorization || '';
@@ -1154,14 +1165,19 @@ app.post('/api/messages', (req, res) => {
     if (existing) return res.json({ ok: true, message: { id: existing.id, from: existing.senderId, to: existing.recipientId, content: existing.content, createdAt: existing.createdAt, clientMsgId } });
   }
   const createdAt = Date.now();
-  const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)').run(payload.id, toId, content, clientMsgId || null, createdAt);
+  const msgSeq = nextSeq();
+  const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)').run(payload.id, toId, content, clientMsgId || null, createdAt, msgSeq);
   if (replyTo || forwardedFrom || burnAfterReading) {
     prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
       .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
   }
-  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0 };
+  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0, seq: msgSeq };
   const peer = onlineAny(toId);
   if (peer) sendToUser(toId, P.S_MSG, message);
+  // 离线队列：对方不在线时入队，重连后推送（即使 WS 断开也能收到）
+  if (!peer) {
+    try { prepare('INSERT INTO offline_queue(user_id, from_id, msg_type, ref_id, content, seq, created_at) VALUES(?,?,?,?,?,?,?)').run(toId, payload.id, 'direct', info.lastInsertRowid, content, msgSeq, createdAt); } catch (e) {}
+  }
   // 推送给自己其他在线端（多端同步：REST 发送时其他端也需要看到自己发的消息）
   sendToUser(payload.id, P.S_MSG, message);
   sentMsgsThisMinCounter += 1;
@@ -3882,7 +3898,152 @@ function humanBytes(b) {
   return (b / 1024 / 1024 / 1024).toFixed(2) + ' GB';
 }
 
-// ---------- 托管网页端静态资源 ----------
+// ========== 请求追踪 ID ==========
+let _reqSeq = 0;
+app.use((req, res, next) => {
+  req.requestId = req.headers['x-request-id'] || ('r-' + process.pid + '-' + (++_reqSeq));
+  res.set('X-Request-ID', req.requestId);
+  next();
+});
+
+// ========== 消息增量同步 API ==========
+// GET /api/sync?since=0&limit=200  — 返回 seq > since 的私聊+群聊消息
+app.get('/api/sync', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const since = parseInt(req.query.since, 10) || 0;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+  // 私聊消息：自己发的 + 收到的
+  const directMsgs = prepare(
+    `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
+     FROM messages m
+     WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?)
+     ORDER BY m.seq ASC LIMIT ?`
+  ).all(since, payload.id, payload.id, limit);
+  // 群聊消息：所在群的消息
+  const groupMsgs = prepare(
+    `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from", gm.content, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
+     FROM group_messages gm
+     JOIN group_members gmemb ON gmemb.group_id = gm.group_id AND gmemb.user_id = ?
+     WHERE gm.seq > ?
+     ORDER BY gm.seq ASC LIMIT ?`
+  ).all(payload.id, since, limit);
+  // 合并排序，按 seq 升序
+  const all = [...directMsgs.map(m => ({ ...m, msgType: 'direct' })), ...groupMsgs.map(m => ({ ...m, msgType: 'group' }))];
+  all.sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  const sliced = all.slice(0, limit);
+  const maxSeq = sliced.length ? Math.max(...sliced.map(m => m.seq || 0)) : since;
+  const hasMore = all.length > limit;
+  // 更新同步状态
+  const directSeqs = sliced.filter(m => m.msgType === 'direct').map(m => m.seq || 0);
+  const groupSeqs = sliced.filter(m => m.msgType === 'group').map(m => m.seq || 0);
+  const maxDirect = directSeqs.length ? Math.max(...directSeqs) : since;
+  const maxGroup = groupSeqs.length ? Math.max(...groupSeqs) : since;
+  updateSyncState(payload.id, maxDirect, maxGroup);
+  res.json({ ok: true, messages: sliced, lastSeq: maxSeq, hasMore });
+});
+
+// GET /api/offline/pending — 检查是否有离线消息（供客户端显示"有新消息"提示）
+app.get('/api/offline/pending', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const cnt = prepare('SELECT COUNT(*) AS c FROM offline_queue WHERE user_id=?').get(payload.id);
+  res.json({ ok: true, count: cnt ? cnt.c : 0 });
+});
+
+// GET /api/offline/pull — 拉取并清除离线消息队列
+app.get('/api/offline/pull', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const rows = prepare('SELECT id, from_id AS fromId, msg_type AS msgType, ref_id AS refId, content, seq, created_at AS createdAt FROM offline_queue WHERE user_id=? ORDER BY seq ASC LIMIT 500').all(payload.id);
+  const maxSeq = rows.length ? Math.max(...rows.map(r => r.seq || 0)) : 0;
+  // 清除已拉取的队列（避免重复推送）
+  for (const r of rows) {
+    try { prepare('DELETE FROM offline_queue WHERE id=?').run(r.id); } catch (e) {}
+  }
+  res.json({ ok: true, messages: rows, lastSeq: maxSeq });
+});
+
+// POST /api/offline/ack — 确认收到离线消息
+app.post('/api/offline/ack', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const ids = Array.isArray((req.body || {}).ids) ? (req.body.ids).map(Number).filter(Number.isInteger) : [];
+  for (const id of ids) {
+    try { prepare('DELETE FROM offline_queue WHERE id=? AND user_id=?').run(id, payload.id); } catch (e) {}
+  }
+  res.json({ ok: true });
+});
+
+// ========== 登录设备管理 API ==========
+// POST /api/devices/register — 登录时注册设备
+app.post('/api/devices/register', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { deviceId, deviceName, deviceType, platform } = req.body || {};
+  if (!deviceId || typeof deviceId !== 'string' || deviceId.length > 128) return res.status(400).json({ error: '设备ID无效' });
+  const name = String(deviceName || '').slice(0, 64) || '未知设备';
+  const type = String(deviceType || 'desktop').slice(0, 32);
+  const plat = String(platform || '').slice(0, 32);
+  const ip = clientIp(req);
+  const now = Date.now();
+  prepare(`INSERT INTO devices(user_id, device_id, device_name, device_type, platform, ip, last_active_at, created_at)
+    VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id, device_id) DO UPDATE SET device_name=excluded.device_name, device_type=excluded.device_type, platform=excluded.platform, ip=excluded.ip, last_active_at=excluded.last_active_at`)
+    .run(payload.id, deviceId, name, type, plat, ip, now, now);
+  res.json({ ok: true });
+});
+
+// GET /api/devices — 列出所有登录设备
+app.get('/api/devices', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const devices = prepare('SELECT id, device_id AS deviceId, device_name AS deviceName, device_type AS deviceType, platform, ip, last_active_at AS lastActiveAt, created_at AS createdAt FROM devices WHERE user_id=? ORDER BY last_active_at DESC').all(payload.id);
+  // 标记当前在线的设备
+  const now = Date.now();
+  for (const d of devices) {
+    d.isOnline = (now - d.lastActiveAt) < 5 * 60 * 1000; // 5 分钟内活跃视为在线
+  }
+  res.json({ ok: true, devices });
+});
+
+// POST /api/devices/heartbeat — 设备心跳（更新 last_active_at）
+app.post('/api/devices/heartbeat', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const { deviceId } = req.body || {};
+  if (deviceId) {
+    try { prepare('UPDATE devices SET last_active_at=? WHERE user_id=? AND device_id=?').run(Date.now(), payload.id, deviceId); } catch (e) {}
+  }
+  res.json({ ok: true });
+});
+
+// DELETE /api/devices/:deviceId — 踢出设备（使其 token 失效）
+app.delete('/api/devices/:deviceId', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const deviceId = req.params.deviceId;
+  if (!deviceId) return res.status(400).json({ error: '设备ID无效' });
+  const device = prepare('SELECT * FROM devices WHERE user_id=? AND device_id=?').get(payload.id, deviceId);
+  if (!device) return res.status(404).json({ error: '设备不存在' });
+  // 删除设备记录
+  prepare('DELETE FROM devices WHERE user_id=? AND device_id=?').run(payload.id, deviceId);
+  // 递增 token_version 使所有旧 token 失效（除当前设备外）
+  try {
+    prepare('UPDATE users SET token_version = token_version + 1 WHERE id=?').run(payload.id);
+    // 推送踢下线通知给同一用户的所有在线 WS（除当前请求来源外）
+    const P = require('../shared/protocol');
+    const targets = online.get(payload.id);
+    if (targets) {
+      for (const ws of targets) {
+        send(ws, P.S_DEVICE_KICKED || 'device_kicked', { deviceId });
+      }
+    }
+  } catch (e) {}
+  persist();
+  res.json({ ok: true });
+});
+
+// ========== 托管网页端静态资源 ==========
 // /downloads/* 托管安装包目录（server/downloads），不存在则 404；前端 download.html 会处理"暂未提供"情况。
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 const webDir = process.env.WEB_DIR || path.join(__dirname, '..', 'web');
@@ -3954,7 +4115,25 @@ function removeWs(uid, ws) {
 wss.on('connection', (ws, req) => {
   ws.uid = null;
   ws.isAlive = true;
-  ws.on('pong', () => { ws.isAlive = true; });
+  ws.on('pong', () => {
+    ws.isAlive = true;
+    // 自适应心跳：计算 RTT
+    if (ws.uid && ws._pingSentAt) {
+      const rtt = Date.now() - ws._pingSentAt;
+      let bucket = rttBuckets.get(ws.uid);
+      if (!bucket) { bucket = { samples: [], avgRtt: rtt }; rttBuckets.set(ws.uid, bucket); }
+      bucket.samples.push(rtt);
+      if (bucket.samples.length > 10) bucket.samples.shift();
+      bucket.avgRtt = bucket.samples.reduce((a, b) => a + b, 0) / bucket.samples.length;
+      updateHeartbeatInterval();
+    }
+  });
+  // 记录 ping 发送时间（用于 RTT 计算）
+  const origPing = ws.ping.bind(ws);
+  ws.ping = function(...args) {
+    ws._pingSentAt = Date.now();
+    return origPing(...args);
+  };
   // 未认证客户端10秒超时
   const authTimer = setTimeout(() => { if (!ws.uid) try { ws.close(4001, 'auth timeout'); } catch {} }, 10000);
   ws.on('close', () => { try { clearTimeout(authTimer); } catch {} });
@@ -3983,12 +4162,25 @@ wss.on('connection', (ws, req) => {
         const bip = ws._ip ? prepare('SELECT ip FROM banned_ips WHERE ip=?').get(ws._ip) : null;
         if (bip) return send(ws, P.S_AUTH_FAIL, { error: '当前IP已被封禁' });
       } catch (e) {}
+      // 设备注册（客户端传 deviceId 时自动注册）
+      if (payload.deviceId) {
+        const devName = String(payload.deviceName || '').slice(0, 64) || '桌面端';
+        const devType = String(payload.deviceType || 'desktop').slice(0, 32);
+        const plat = String(payload.platform || '').slice(0, 32);
+        try {
+          prepare(`INSERT INTO devices(user_id, device_id, device_name, device_type, platform, ip, last_active_at, created_at)
+            VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id, device_id) DO UPDATE SET device_name=excluded.device_name, device_type=excluded.device_type, platform=excluded.platform, ip=excluded.ip, last_active_at=excluded.last_active_at`)
+            .run(dbUser.id, payload.deviceId, devName, devType, plat, ws._ip || '', Date.now(), Date.now());
+        } catch (e) {}
+        ws.deviceId = payload.deviceId;
+      }
       // 多端登录：同一 uid 允许多个 WS 连接（Map 存数组）
       const list = online.get(dbUser.id) || [];
       list.push(ws);
       online.set(dbUser.id, list);
       if (online.size > peakConcurrentUsers) peakConcurrentUsers = online.size;
-      send(ws, P.S_AUTH_OK, { user: ws.user });
+      const syncState = getSyncState(dbUser.id);
+      send(ws, P.S_AUTH_OK, { user: ws.user, syncState: { lastMsgSeq: syncState.last_msg_seq, lastGroupSeq: syncState.last_group_seq } });
       broadcastUserList();
       pushFriendList(dbUser.id);
       broadcastGroups();
@@ -3999,11 +4191,11 @@ wss.on('connection', (ws, req) => {
          WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
       ).all(dbUser.id);
       for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
-      // 推送离线未读消息（断线期间积累的消息）
+      // 推送离线未读消息（断线期间积累的消息，带 seq 供增量去重）
       try {
-        const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY created_at DESC LIMIT 200').all(dbUser.id);
+        const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY seq ASC LIMIT 200').all(dbUser.id);
         for (const m of offlineMsgs) {
-          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading });
+          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading, seq: m.seq || null });
         }
       } catch (e) {}
       // 记录最后登录时间与 IP
@@ -4038,13 +4230,14 @@ wss.on('connection', (ws, req) => {
       if (blocked1 || blocked2) { send(ws, P.S_ERROR, { error: '无法发送（黑名单）' }); return; }
       // Cleartext path: from_id -> peer without E2EE. content 已被客户端加密为密文；服务端只存储/转发，不再加解密。
       const createdAt = Date.now();
-      const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-        .run(ws.uid, toId, content, clientMsgId || null, createdAt);
+      const wsMsgSeq = nextSeq();
+      const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
+        .run(ws.uid, toId, content, clientMsgId || null, createdAt, wsMsgSeq);
       if (metaFlag) {
         prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
           .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
       }
-      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0 };
+      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0, seq: wsMsgSeq };
       let replyContent = null, replyFrom = null, replyRecalled = false;
       if (msgObj.replyTo) {
         try {
@@ -4056,6 +4249,10 @@ wss.on('connection', (ws, req) => {
       send(ws, P.S_MSG, msgObj);
       const peer = onlineAny(toId);
       if (peer) sendToUser(toId, P.S_MSG, msgObj);
+      // 离线队列：对方不在线时入队
+      if (!peer) {
+        try { prepare('INSERT INTO offline_queue(user_id, from_id, msg_type, ref_id, content, seq, created_at) VALUES(?,?,?,?,?,?,?)').run(toId, ws.uid, 'direct', info.lastInsertRowid, content, wsMsgSeq, createdAt); } catch (e) {}
+      }
       // 实时计数：发1 收1（对方在线则记一次接收）
       sentMsgsThisMinCounter += 1;
       if (peer) recvMsgsThisMinCounter += 1;
@@ -4092,8 +4289,9 @@ wss.on('connection', (ws, req) => {
       }
       const enc = content;
       const now = Date.now();
-      const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-        .run(gid, ws.uid, enc, clientMsgId || null, now);
+      const grpMsgSeq = nextSeq();
+      const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
+        .run(gid, ws.uid, enc, clientMsgId || null, now, grpMsgSeq);
       const replyToId = Number(replyTo) || null;
       const forwardedFromId = Number(forwardedFrom) || null;
       let replyContent = null, replyFrom = null;
@@ -4110,7 +4308,7 @@ wss.on('connection', (ws, req) => {
             .run(info.lastInsertRowid, null, forwardedFromId, now);
         } catch (e) {}
       }
-      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom, forwardedFrom: forwardedFromId || null, read: true, readCount: 1 };
+      const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom, forwardedFrom: forwardedFromId || null, read: true, readCount: 1, seq: grpMsgSeq };
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;
@@ -4162,6 +4360,48 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    // ========== 客户端 pong 回复（自适应心跳 RTT 测量） ==========
+    if (type === 'pong' && payload && payload.clientTs) {
+      if (!ws.uid) return;
+      const rtt = Date.now() - Number(payload.clientTs);
+      let bucket = rttBuckets.get(ws.uid);
+      if (!bucket) { bucket = { samples: [], avgRtt: rtt }; rttBuckets.set(ws.uid, bucket); }
+      bucket.samples.push(rtt);
+      if (bucket.samples.length > 10) bucket.samples.shift();
+      bucket.avgRtt = bucket.samples.reduce((a, b) => a + b, 0) / bucket.samples.length;
+      updateHeartbeatInterval();
+      // 回复服务端建议的心跳间隔
+      send(ws, 'pong', { serverTs: Date.now(), suggestedInterval: wsPingInterval, rtt: Math.round(bucket.avgRtt) });
+      return;
+    }
+
+    // ========== 增量同步（WS通道） ==========
+    if (type === P.C_SYNC) {
+      if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
+      const since = Number((payload || {}).since) || 0;
+      const limit = Math.min(Number((payload || {}).limit) || 200, 500);
+      // 私聊消息
+      const directMsgs = prepare(
+        `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
+         FROM messages m WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?) ORDER BY m.seq ASC LIMIT ?`
+      ).all(since, ws.uid, ws.uid, limit);
+      // 群聊消息
+      const groupMsgs = prepare(
+        `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from", gm.content, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
+         FROM group_messages gm JOIN group_members gmemb ON gmemb.group_id = gm.group_id AND gmemb.user_id = ?
+         WHERE gm.seq > ? ORDER BY gm.seq ASC LIMIT ?`
+      ).all(ws.uid, since, limit);
+      const all = [...directMsgs.map(m => ({ ...m, msgType: 'direct' })), ...groupMsgs.map(m => ({ ...m, msgType: 'group' }))];
+      all.sort((a, b) => (a.seq || 0) - (b.seq || 0));
+      const sliced = all.slice(0, limit);
+      const maxSeq = sliced.length ? Math.max(...sliced.map(m => m.seq || 0)) : since;
+      const maxDirect = sliced.filter(m => m.msgType === 'direct').reduce((mx, m) => Math.max(mx, m.seq || 0), since);
+      const maxGroup = sliced.filter(m => m.msgType === 'group').reduce((mx, m) => Math.max(mx, m.seq || 0), since);
+      updateSyncState(ws.uid, maxDirect, maxGroup);
+      send(ws, P.S_SYNC, { messages: sliced, lastSeq: maxSeq, hasMore: all.length > limit });
+      return;
+    }
+
     // 信令转发：用于 WebRTC（音视频/文件 DataChannel）的 offer/answer/ICE/挂断等
     if (type === P.C_SIGNAL) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
@@ -4186,21 +4426,44 @@ wss.on('connection', (ws, req) => {
       // 记录最后在线时间（先更新再广播，让 S_USER_LIST 带上最新 lastSeen）
       try { prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), ws.uid); } catch (e) {}
       removeWs(ws.uid, ws);
+      // 清理自适应心跳 RTT 数据
+      if (!onlineHas(ws.uid)) rttBuckets.delete(ws.uid);
       broadcastUserList();
       broadcastGroups();
     }
   });
 });
 
-// WebSocket 心跳：30秒 ping，清理僵尸连接
-const WS_PING_INTERVAL = 30000;
-setInterval(() => {
+// WebSocket 心跳：自适应间隔，基础 30 秒
+const WS_PING_BASE_INTERVAL = 30000;
+let wsPingInterval = WS_PING_BASE_INTERVAL;
+const wsPingTimer = setInterval(() => {
   for (const ws of wss.clients) {
     if (ws.isAlive === false) { try { ws.terminate(); } catch {} continue; }
     ws.isAlive = false;
     try { ws.ping(); } catch {}
   }
-}, WS_PING_INTERVAL);
+}, wsPingInterval);
+// 自适应心跳：客户端上报 RTT，服务端动态调整 ping 间隔
+// 网络好时缩短到 15s，网络差时延长到 60s
+const rttBuckets = new Map(); // uid -> { samples: [], avgRtt: number }
+function updateHeartbeatInterval() {
+  if (rttBuckets.size === 0) { wsPingInterval = WS_PING_BASE_INTERVAL; return; }
+  let totalRtt = 0, count = 0;
+  for (const [, v] of rttBuckets) { totalRtt += v.avgRtt; count++; }
+  const avgRtt = count ? totalRtt / count : 0;
+  if (avgRtt < 200) wsPingInterval = 15000;       // 网络很好
+  else if (avgRtt < 1000) wsPingInterval = 30000;  // 正常
+  else wsPingInterval = 60000;                      // 弱网，减少心跳频率
+  clearInterval(wsPingTimer);
+  setInterval(() => {
+    for (const ws of wss.clients) {
+      if (ws.isAlive === false) { try { ws.terminate(); } catch {} continue; }
+      ws.isAlive = false;
+      try { ws.ping(); } catch {}
+    }
+  }, wsPingInterval);
+}
 
 let _lastUserListHash = '';
 function broadcastUserList() {

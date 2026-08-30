@@ -533,6 +533,78 @@ function init() {
     started_at INTEGER NOT NULL
   );
   `);
+  try { db.run('CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages(from_id, to_id, created_at)'); } catch (e) {}
+  try { db.run('CREATE INDEX IF NOT EXISTS idx_group_messages_pair ON group_messages(group_id, created_at)'); } catch (e) {}
+
+  // ======== seq 同步协议 ========
+  // 全局序列号计数器（messages 和 group_messages 共用一个递增 seq）
+  try { db.run(`CREATE TABLE IF NOT EXISTS seq_counter (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    current_seq INTEGER NOT NULL DEFAULT 0
+  )`); db.run(`INSERT OR IGNORE INTO seq_counter(id, current_seq) VALUES(1, 0)`); } catch (e) {}
+  // 给 messages 加 seq 列
+  try { db.run('ALTER TABLE messages ADD COLUMN seq INTEGER'); } catch (e) {}
+  try { db.run('CREATE INDEX IF NOT EXISTS idx_messages_seq ON messages(seq) WHERE seq IS NOT NULL'); } catch (e) {}
+  // 给 group_messages 加 seq 列
+  try { db.run('ALTER TABLE group_messages ADD COLUMN seq INTEGER'); } catch (e) {}
+  try { db.run('CREATE INDEX IF NOT EXISTS idx_group_messages_seq ON group_messages(seq) WHERE seq IS NOT NULL'); } catch (e) {}
+  // 每用户已同步的最大 seq（用于离线拉取和增量同步）
+  try { db.run(`CREATE TABLE IF NOT EXISTS user_sync_state (
+    user_id INTEGER PRIMARY KEY,
+    last_msg_seq INTEGER NOT NULL DEFAULT 0,
+    last_group_seq INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+  )`); } catch (e) {}
+
+  // ======== 登录设备管理 ========
+  try { db.run(`CREATE TABLE IF NOT EXISTS devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    device_id TEXT NOT NULL,
+    device_name TEXT NOT NULL DEFAULT '',
+    device_type TEXT NOT NULL DEFAULT 'desktop',
+    platform TEXT NOT NULL DEFAULT '',
+    ip TEXT NOT NULL DEFAULT '',
+    last_active_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(user_id, device_id)
+  )`); } catch (e) {}
+
+  // ======== 离线消息队列 ========
+  try { db.run(`CREATE TABLE IF NOT EXISTS offline_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    from_id INTEGER NOT NULL,
+    msg_type TEXT NOT NULL DEFAULT 'direct',
+    ref_id INTEGER,
+    content TEXT NOT NULL,
+    seq INTEGER,
+    created_at INTEGER NOT NULL
+  )`); } catch (e) {}
+  try { db.run('CREATE INDEX IF NOT EXISTS idx_offline_queue_user ON offline_queue(user_id, created_at)'); } catch (e) {}
+
+  // 回填老消息的 seq 号（从 1 开始递增）
+  try {
+    const maxMsgSeq = db.exec('SELECT MAX(seq) FROM messages');
+    const hasSeq = maxMsgSeq && maxMsgSeq.length && maxMsgSeq[0].values[0][0] != null;
+    if (!hasSeq) {
+      const msgRows = db.exec('SELECT id FROM messages ORDER BY id ASC');
+      const grpRows = db.exec('SELECT id FROM group_messages ORDER BY id ASC');
+      // 按 created_at 合并排序，统一分配 seq
+      const allMsgs = [];
+      if (msgRows && msgRows.length) for (const r of msgRows[0].values) allMsgs.push({ type: 'msg', id: r[0] });
+      if (grpRows && grpRows.length) for (const r of grpRows[0].values) allMsgs.push({ type: 'grp', id: r[0] });
+      let seq = 0;
+      for (const m of allMsgs) {
+        seq++;
+        if (m.type === 'msg') db.run('UPDATE messages SET seq=? WHERE id=?', [seq, m.id]);
+        else db.run('UPDATE group_messages SET seq=? WHERE id=?', [seq, m.id]);
+      }
+      db.run('UPDATE seq_counter SET current_seq=? WHERE id=1', [seq]);
+      console.log(`[db] backfilled ${seq} messages with seq numbers`);
+    }
+  } catch (e) { console.warn('[db] seq backfill error:', e.message); }
+
   persistNow();
 }
 
@@ -585,4 +657,34 @@ function prepare(sql) {
   };
 }
 
-module.exports = { getDb, prepare, persist, persistNow, genUid };
+// 获取下一个全局消息 seq 号（messages 和 group_messages 共用递增序列）
+function nextSeq() {
+  if (!db) return 0;
+  db.run('UPDATE seq_counter SET current_seq = current_seq + 1 WHERE id = 1');
+  const row = db.exec('SELECT current_seq FROM seq_counter WHERE id = 1');
+  return (row && row.length && row[0].values.length) ? row[0].values[0][0] : 0;
+}
+
+// 获取用户同步状态
+function getSyncState(userId) {
+  const row = prepare('SELECT * FROM user_sync_state WHERE user_id=?').get(userId);
+  if (row) return row;
+  // 首次同步：返回当前最大 seq 作为起点
+  const maxMsg = db.exec('SELECT MAX(seq) FROM messages');
+  const maxGrp = db.exec('SELECT MAX(seq) FROM group_messages');
+  const maxSeq = Math.max(
+    (maxMsg && maxMsg.length && maxMsg[0].values[0][0]) || 0,
+    (maxGrp && maxGrp.length && maxGrp[0].values[0][0]) || 0
+  );
+  prepare('INSERT OR IGNORE INTO user_sync_state(user_id,last_msg_seq,last_group_seq,updated_at) VALUES(?,?,?,?)')
+    .run(userId, maxSeq, maxSeq, Date.now());
+  return { user_id: userId, last_msg_seq: maxSeq, last_group_seq: maxSeq, updated_at: Date.now() };
+}
+
+// 更新用户同步状态
+function updateSyncState(userId, msgSeq, groupSeq) {
+  prepare('INSERT INTO user_sync_state(user_id,last_msg_seq,last_group_seq,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET last_msg_seq=MAX(last_msg_seq,excluded.last_msg_seq), last_group_seq=MAX(last_group_seq,excluded.last_group_seq), updated_at=excluded.updated_at')
+    .run(userId, msgSeq || 0, groupSeq || 0, Date.now());
+}
+
+module.exports = { getDb, prepare, persist, persistNow, genUid, nextSeq, getSyncState, updateSyncState };

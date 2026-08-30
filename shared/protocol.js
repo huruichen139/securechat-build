@@ -1,20 +1,22 @@
 'use strict';
 // 协议消息类型与版本，保证前后端一致
 module.exports = {
-  VERSION: 1,
+  VERSION: 2,
   // 客户端 -> 服务端
-  C_AUTH: 'auth',          // 登录鉴权
+  C_AUTH: 'auth',          // 登录鉴权 { token, deviceId, deviceName, deviceType, platform }
   C_MSG: 'msg',            // 发送聊天消息
   C_READ: 'read',          // 标记已读
   C_TYPING: 'typing',     // 正在输入
   C_LOGOUT: 'logout',
-  // 信令：客户端 <-> 客户端，服务端只转发
+  // 信令：客户端 <-> 服务端，服务端只转发
   C_SIGNAL: 'signal',      // 统一信令通道，payload: {to, sub, data}
   //   sub 可为：call / call_ack / offer / answer / ice / hangup / file_offer / file_ack / file_cancel
+  // 增量同步：客户端 -> 服务端
+  C_SYNC: 'sync',          // 请求增量同步 { lastMsgSeq, lastGroupSeq, limit }
   // 服务端 -> 客户端
   S_AUTH_OK: 'auth_ok',
   S_AUTH_FAIL: 'auth_fail',
-  S_MSG: 'msg',            // 推送新消息
+  S_MSG: 'msg',            // 推送新消息（含 seq 字段）
   S_MSG_RECALL: 'msg_recall', // 推送消息撤回通知 payload {messageId, from, to}
   S_MSG_EDIT: 'msg_edit', // 推送消息编辑通知 payload {messageId, from, to, content}
   S_MSG_READ: 'msg_read', // 推送对方已读 payload {peerId}
@@ -31,7 +33,7 @@ module.exports = {
   // 群组相关
   C_GROUP_MSG: 'group_msg',     // 客户端 -> 服务端 payload {groupId, content}
   C_GROUP_READ: 'group_read',   // 客户端 -> 服务端 payload {groupId}（标记已读）
-  S_GROUP_MSG: 'group_msg',     // 服务端 -> 客户端 payload {groupId, from, fromUid, content, createdAt}
+  S_GROUP_MSG: 'group_msg',     // 服务端 -> 客户端 payload {groupId, from, fromUid, content, createdAt, seq}
   S_GROUP_LIST: 'group_list',   // 服务端 -> 客户端 payload {groups:[...]}
   S_GROUP_MEMBER_CHANGE: 'group_member_change', // 服务端 -> 客户端 payload {groupId, userId, action: 'removed'|'left'|'dissolved'}
   // 系统公告（管理员广播）
@@ -39,5 +41,11 @@ module.exports = {
   C_ANNOUNCEMENT_READ: 'announcement_read', // 客户端 -> 服务端 payload {id} 标记公告已读
   // 强制下线
   S_KICKED: 'kicked',
+  // 增量同步响应
+  S_SYNC: 'sync',          // 服务端 -> 客户端 { messages: [...], groupMessages: [...], lastMsgSeq, lastGroupSeq, hasMore }
+  // 心跳自适应
+  S_PONG: 'pong',          // 服务端 -> 客户端 { ts, suggestedInterval }
+  // 设备踢下线通知
+  S_DEVICE_KICKED: 'device_kicked', // 服务端 -> 客户端 { deviceId }
 };
 
