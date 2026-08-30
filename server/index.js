@@ -1500,6 +1500,8 @@ app.post('/api/moments', (req, res) => {
     return res.status(400).json({ error: '内容不能为空' });
   }
   if (content.length > 10000) return res.status(400).json({ error: '内容过长（限1万字）' });
+  // 限流：同一用户 10 分钟内最多 20 条动态，防刷
+  if (rateLimit('moment:' + payload.id, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '发布过于频繁，请稍后再试' });
   const img = Array.isArray(images) ? JSON.stringify(images.slice(0, 9).map(s => String(s).slice(0, 500))) : '[]';
   const info = prepare('INSERT INTO moments(user_id,content,images,visibility,created_at) VALUES(?,?,?,?,?)')
     .run(payload.id, content.trim(), img, 'all', Date.now());
@@ -1586,6 +1588,9 @@ app.post('/api/moments/:id/comment', (req, res) => {
   if (!payload) return;
   const { content, replyToId } = req.body || {};
   if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '评论不能为空' });
+  if (content.length > 2000) return res.status(400).json({ error: '评论过长（限2000字）' });
+  // 限流：同一用户 5 分钟内最多 30 条评论，防刷
+  if (rateLimit('mcomment:' + payload.id, 30, 5 * 60 * 1000)) return res.status(429).json({ error: '评论过于频繁，请稍后再试' });
   let replyTo = null;
   if (replyToId) {
     const parent = prepare('SELECT id FROM moment_comments WHERE id=? AND moment_id=?').get(Number(replyToId), id);
@@ -1994,6 +1999,9 @@ app.post('/api/feedback', (req, res) => {
   if (typeof content !== 'string' || content.trim().length < 10) {
     return res.status(400).json({ error: '内容至少 10 字' });
   }
+  if (content.length > 5000) return res.status(400).json({ error: '内容过长（限5000字）' });
+  // 限流：同一用户 10 分钟内最多 5 条，防刷库
+  if (rateLimit('feedback:' + payload.id, 5, 10 * 60 * 1000)) return res.status(429).json({ error: '提交过于频繁，请稍后再试' });
   const sw = checkSensitive(content);
   if (sw) return res.status(400).json({ error: '内容包含敏感词：' + sw });
   const now = Date.now();
