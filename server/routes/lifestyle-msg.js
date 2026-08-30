@@ -298,10 +298,24 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (s.status !== 'open') return deny(res, 400, '接龙已结束');
     if (!inGroup(s.group_id, payload.id)) return deny(res, 403, '你不在此群');
     const note = String((req.body || {}).note || '').trim().slice(0, 200);
-    const maxSeq = prepare('SELECT COALESCE(MAX(seq),0) AS m FROM solang_entries WHERE solang_id=?').get(s.id) || { m: 0 };
-    const seq = (maxSeq.m || 0) + 1;
-    prepare('INSERT INTO solang_entries(solang_id,seq,user_id,note,created_at) VALUES(?,?,?,?,?)')
-      .run(s.id, seq, payload.id, note, Date.now());
+    // 去重：同一用户不能重复报名（solang_entries 只有 UNIQUE(solang_id,seq)，没有 user 唯一约束）
+    const dup = prepare('SELECT id FROM solang_entries WHERE solang_id=? AND user_id=?').get(s.id, payload.id);
+    if (dup) return deny(res, 409, '你已报名');
+    // seq 递增有并发竞态（两人同时报名会拿到同一 seq 触发 UNIQUE 冲突），失败时重试几次
+    let inserted = false;
+    for (let attempt = 0; attempt < 5 && !inserted; attempt++) {
+      const maxSeq = prepare('SELECT COALESCE(MAX(seq),0) AS m FROM solang_entries WHERE solang_id=?').get(s.id) || { m: 0 };
+      const seq = (maxSeq.m || 0) + 1;
+      try {
+        prepare('INSERT INTO solang_entries(solang_id,seq,user_id,note,created_at) VALUES(?,?,?,?,?)')
+          .run(s.id, seq, payload.id, note, Date.now());
+        inserted = true;
+      } catch (e) {
+        if (!String(e && e.message || e).includes('UNIQUE')) throw e;
+        // seq 冲突：重新取 MAX(seq) 再试
+      }
+    }
+    if (!inserted) return deny(res, 500, '报名失败，请重试');
     const fresh = prepare('SELECT * FROM solang WHERE id=?').get(s.id);
     okay(res, { solang: solangDto(fresh) });
   });
