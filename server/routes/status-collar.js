@@ -600,15 +600,24 @@ module.exports = function registerStatusCollar(app, db, auth) {
     if (!item) return deny(res, 404, '收藏项不存在');
     const to = Number((req.body || {}).to);
     if (!Number.isInteger(to) || to <= 0) return deny(res, 400, '接收方无效');
+    if (to === me) return deny(res, 400, '不能转发给自己');
     if (!prepare('SELECT id FROM users WHERE id=?').get(to)) return deny(res, 404, '接收方不存在');
+    // 黑名单检查
+    const isBlocked = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(me, to, to, me);
+    if (isBlocked) return deny(res, 403, '无法向对方转发');
     let data;
     try { data = JSON.parse(item.data || '{}'); } catch (e) { data = {}; }
     // 组装转发文本
     const text = composeForwardText(item.kind, data, (req.body || {}).content);
+    if (text.length > 100 * 1024) return deny(res, 413, '内容过长');
     const now = Date.now();
     const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)')
       .run(me, to, text, now);
-    // 通知在线接收方（尽力而为，通过 WebSocket？这里由客户端轮询 history 即可，与 index.js 语义一致）
+    // WS 实时推送接收方（与 index.js REST 发送一致）
+    try {
+      const fn = (typeof global.__scSendToUser === 'function') ? global.__scSendToUser : null;
+      if (fn) fn(to, 'msg', { id: info.lastInsertRowid, from: me, to, content: text, createdAt: now });
+    } catch (e) {}
     persist();
     res.json({ ok: true, messageId: info.lastInsertRowid });
   });
