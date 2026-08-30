@@ -152,7 +152,17 @@ module.exports = function registerLifestyle(app, db, auth) {
     if (!name || name.length > 30) return deny(res, 400, '小程序名称不能为空（30字内）');
     if (!url || !/^https?:\/\//i.test(url) || url.length > 2000) return deny(res, 400, '请填写 http(s) 开头的 web 入口地址');
     const icon = String((req.body || {}).icon || '').trim().slice(0, 2000);
+    // icon 只允许 http(s) 或安全光栅 data-uri，禁止 javascript:/data:text/html 等可执行来源
+    if (icon && !(/^https?:\/\//i.test(icon) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(icon))) {
+      return deny(res, 400, '图标地址仅支持 http(s) 链接或图片 data-uri');
+    }
     const description = String((req.body || {}).description || '').trim().slice(0, 500);
+    // 配额：单用户最多发布 50 个小程序，防刷
+    const own = prepare('SELECT COUNT(*) AS c FROM mini_programs WHERE owner_id=?').get(id.id);
+    if (own && own.c >= 50) return deny(res, 400, '发布数量已达上限（50个）');
+    // 同名去重：同一用户不能重复发布同名小程序（syncToMiniApps 按 owner+name 判重，重名会静默覆盖）
+    const dup = prepare('SELECT id FROM mini_programs WHERE owner_id=? AND name=?').get(id.id, name);
+    if (dup) return deny(res, 409, '你已发布过同名小程序');
     const now = Date.now();
     const info = prepare('INSERT INTO mini_programs(name,icon,url,description,owner_id,created_at) VALUES(?,?,?,?,?,?)')
       .run(name, icon, url, description, id.id, now);
