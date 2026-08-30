@@ -328,7 +328,12 @@ module.exports = function registerMedia(app, db, auth) {
     const title = String((req.body || {}).title || '').trim();
     const content = String((req.body || {}).content || '').trim();
     if (!title || !content) return deny(res, 400, '标题和正文不能为空');
+    if (title.length > 200) return deny(res, 400, '标题过长（限200字）');
+    if (content.length > 100 * 1024) return deny(res, 413, '正文过长（限100KB）');
     const cover = String((req.body || {}).cover || '').slice(0, 2000);
+    if (cover && !(/^https?:\/\//i.test(cover) || /^\/api\//.test(cover) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(cover))) {
+      return deny(res, 400, '封面地址无效');
+    }
     const now = Date.now();
     const info = prepare('INSERT INTO articles(account_id,title,content,cover,created_at,updated_at) VALUES(?,?,?,?,?,?)')
       .run(aid, title, content, cover, now, now);
@@ -460,10 +465,15 @@ module.exports = function registerMedia(app, db, auth) {
     if (!payload) return deny(res, 401, '未授权');
     const title = String((req.body || {}).title || '').trim();
     if (!title) return deny(res, 400, '视频标题不能为空');
-    const url = String((req.body || {}).url || '').trim();
+    if (title.length > 100) return deny(res, 400, '标题过长（限100字）');
+    const url = String((req.body || {}).url || '').trim().slice(0, 2000);
     if (!url) return deny(res, 400, '请先上传视频文件');
-    const content = String((req.body || {}).content || '').trim();
+    if (!(/^https?:\/\//i.test(url) || /^\/api\//.test(url))) return deny(res, 400, '视频地址无效');
+    const content = String((req.body || {}).content || '').trim().slice(0, 5000);
     const cover = String((req.body || {}).cover || '').slice(0, 2000);
+    if (cover && !(/^https?:\/\//i.test(cover) || /^\/api\//.test(cover) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(cover))) {
+      return deny(res, 400, '封面地址无效');
+    }
     const fileType = /\.(webm)(\?|$)/i.test(url) ? 'webm' : 'mp4';
     const now = Date.now();
     const info = prepare(`INSERT INTO videos(user_id,title,cover,content,url,file_type,created_at)
