@@ -34,16 +34,25 @@ module.exports = function registerFeeds(app, db, auth) {
     });
   }
 
+  // 单飞（single-flight）：并发请求同一 key 时只发一次上游请求，其余复用同一 Promise。
+  // 否则缓存过期瞬间的 N 个并发请求会同时打上游，可能触发限流/封 IP。
+  const inflight = new Map();
   function cached(key, loader) {
     const hit = cache.get(key);
     if (hit && hit.at > Date.now() - TTL) return Promise.resolve(hit.value);
-    return Promise.resolve().then(loader).then((v) => {
+    const running = inflight.get(key);
+    if (running) return running;
+    const p = Promise.resolve().then(loader).then((v) => {
       cache.set(key, { at: Date.now(), value: v });
+      inflight.delete(key);
       return v;
     }).catch((e) => {
+      inflight.delete(key);
       if (hit) return hit.value;
       throw e;
     });
+    inflight.set(key, p);
+    return p;
   }
 
   function relTime(unixSec) {
