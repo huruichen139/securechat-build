@@ -1089,6 +1089,7 @@ app.post('/api/messages/:id/edit', (req, res) => {
   if (row.recalled) return res.status(400).json({ error: '已撤回的消息无法编辑' });
   const content = (req.body || {}).content;
   if (!content || typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
+  if (content.length > MAX_MSG_CONTENT) return res.status(413).json({ error: '消息内容过长（最大100KB）' });
   prepare('UPDATE messages SET content=? WHERE id=?').run(content.trim(), id);
   persist();
   const editPayload = { messageId: id, from: row.from_id, to: row.to_id, content: content.trim() };

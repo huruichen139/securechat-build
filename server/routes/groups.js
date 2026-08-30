@@ -695,6 +695,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (msg.recalled) return fail(res, 400, '已撤回的消息无法编辑');
     const content = (req.body || {}).content;
     if (!content || typeof content !== 'string' || !content.trim()) return fail(res, 400, '内容不能为空');
+    if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
     try {
       p.run('UPDATE group_messages SET content=? WHERE id=?', content.trim(), msgId);
     } catch (e) {
