@@ -183,8 +183,10 @@ function publicUser(u) {
   };
 }
 
-function signToken(user) {
-  return jwt.sign({ id: user.id, username: user.username, tv: user.token_version || 0 }, JWT_SECRET, { expiresIn: '7d' });
+function signToken(user, deviceId) {
+  const claims = { id: user.id, username: user.username, tv: user.token_version || 0 };
+  if (deviceId) claims.deviceId = String(deviceId).slice(0, 128);
+  return jwt.sign(claims, JWT_SECRET, { expiresIn: '7d' });
 }
 
 function verifyToken(token) {
@@ -197,6 +199,11 @@ function verifyToken(token) {
     if ((p.tv || 0) !== (u.token_version || 0)) return null;
     // 封禁账号拒绝所有已签发 token（防止封禁后仍能通过 REST 操作）
     if (u.banned) return null;
+    // 设备维度吊销：若 token 绑定了具体设备，则校验该设备仍存在（被踢出/移除后失效）
+    if (p.deviceId) {
+      const dev = prepare('SELECT id FROM devices WHERE user_id=? AND device_id=?').get(p.id, String(p.deviceId));
+      if (!dev) return null;
+    }
     return p;
   } catch { return null; }
 }
@@ -424,7 +431,8 @@ app.post('/api/login', (req, res) => {
   if (user.banned) {
     return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
   }
-  const token = signToken(user);
+  const loginDeviceId = String((req.body || {}).deviceId || '').slice(0, 128);
+  const token = signToken(user, loginDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
 });
 
@@ -443,7 +451,8 @@ app.post('/api/login/code', (req, res) => {
   if (user.banned) {
     return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
   }
-  const token = signToken(user);
+  const codeDeviceId = String((req.body || {}).deviceId || '').slice(0, 128);
+  const token = signToken(user, codeDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
 });
 
@@ -3944,7 +3953,50 @@ app.get('/api/sync', (req, res) => {
   res.json({ ok: true, messages: sliced, lastSeq: maxSeq, hasMore });
 });
 
-// GET /api/offline/pending — 检查是否有离线消息（供客户端显示"有新消息"提示）
+// GET /api/conversations/preview — 一次返回所有会话（好友+群）的最新一条消息
+// 用于会话列表显示"最后一条消息预览"，避免 N 次请求。微信式体验。
+app.get('/api/conversations/preview', (req, res) => {
+  const payload = authed(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const previews = {};
+  try {
+    const me = payload.id;
+    // 私聊：按 (对端 peer) 分组取每组最新一条。peer = 与我不一样的那方。
+    const dp = prepare(
+      `SELECT id, from_id AS "from", to_id AS "to", content, created_at AS createdAt, seq, mine
+       FROM (
+         SELECT m.id, m.from_id, m.to_id, m.content, m.created_at, m.seq,
+                CASE WHEN m.from_id=? THEN 1 ELSE 0 END AS mine,
+                CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END AS peer,
+                ROW_NUMBER() OVER (PARTITION BY CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END ORDER BY m.id DESC) AS rn
+         FROM messages m
+         WHERE m.from_id=? OR m.to_id=?
+       ) WHERE rn=1 ORDER BY seq DESC`
+    );
+    const rows = dp.all(me, me, me, me, me);
+    for (const r of rows) {
+      previews['f' + (r.mine ? r.to : r.from)] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.created_at, seq: r.seq };
+    }
+    // 群聊：每个所在群最新一条
+    const gp = prepare(
+      `SELECT id, group_id AS groupId, from_id AS "from", content, created_at AS createdAt, seq, mine
+       FROM (
+         SELECT gm.id, gm.group_id, gm.from_id, gm.content, gm.created_at, gm.seq,
+                CASE WHEN gm.from_id=? THEN 1 ELSE 0 END AS mine,
+                ROW_NUMBER() OVER (PARTITION BY gm.group_id ORDER BY gm.id DESC) AS rn
+         FROM group_messages gm
+         JOIN group_members gmemb ON gmemb.group_id=gm.group_id AND gmemb.user_id=?
+       ) WHERE rn=1 ORDER BY seq DESC`
+    );
+    const grows = gp.all(me, me);
+    for (const r of grows) {
+      previews['g' + r.groupId] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.created_at, seq: r.seq };
+    }
+  } catch (e) {
+    // 窗口函数不支持时降级为空，不影响主流程
+  }
+  res.json({ ok: true, previews });
+});
 app.get('/api/offline/pending', (req, res) => {
   const payload = authed(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
@@ -4018,7 +4070,7 @@ app.post('/api/devices/heartbeat', (req, res) => {
   res.json({ ok: true });
 });
 
-// DELETE /api/devices/:deviceId — 踢出设备（使其 token 失效）
+// DELETE /api/devices/:deviceId — 移除设备（吊销该设备的 token，不影响其他设备）
 app.delete('/api/devices/:deviceId', (req, res) => {
   const payload = authed(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
@@ -4026,17 +4078,18 @@ app.delete('/api/devices/:deviceId', (req, res) => {
   if (!deviceId) return res.status(400).json({ error: '设备ID无效' });
   const device = prepare('SELECT * FROM devices WHERE user_id=? AND device_id=?').get(payload.id, deviceId);
   if (!device) return res.status(404).json({ error: '设备不存在' });
-  // 删除设备记录
+  // 删除设备记录 → 触发 verifyToken 中 deviceId 校验，使该设备的 token 失效
   prepare('DELETE FROM devices WHERE user_id=? AND device_id=?').run(payload.id, deviceId);
-  // 递增 token_version 使所有旧 token 失效（除当前设备外）
+  // 推送踢下线通知并关闭仅该 deviceId 的在线 WS 连接（不影响其他设备）
   try {
-    prepare('UPDATE users SET token_version = token_version + 1 WHERE id=?').run(payload.id);
-    // 推送踢下线通知给同一用户的所有在线 WS（除当前请求来源外）
     const P = require('../shared/protocol');
     const targets = online.get(payload.id);
     if (targets) {
       for (const ws of targets) {
-        send(ws, P.S_DEVICE_KICKED || 'device_kicked', { deviceId });
+        if (String(ws.deviceId || '') === String(deviceId)) {
+          try { send(ws, P.S_DEVICE_KICKED || 'device_kicked', { deviceId }); } catch (e) {}
+          try { ws.close(4003, 'device removed'); } catch (e) {}
+        }
       }
     }
   } catch (e) {}
@@ -4181,7 +4234,9 @@ wss.on('connection', (ws, req) => {
       online.set(dbUser.id, list);
       if (online.size > peakConcurrentUsers) peakConcurrentUsers = online.size;
       const syncState = getSyncState(dbUser.id);
-      send(ws, P.S_AUTH_OK, { user: ws.user, syncState: { lastMsgSeq: syncState.last_msg_seq, lastGroupSeq: syncState.last_group_seq } });
+      // 若客户端带了 deviceId，签发绑定设备的 token（被移除的设备 token 立即失效，不影响其他设备）
+      const deviceToken = ws.deviceId ? signToken(dbUser, ws.deviceId) : null;
+      send(ws, P.S_AUTH_OK, { user: ws.user, syncState: { lastMsgSeq: syncState.last_msg_seq, lastGroupSeq: syncState.last_group_seq }, deviceToken });
       broadcastUserList();
       pushFriendList(dbUser.id);
       broadcastGroups();

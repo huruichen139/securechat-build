@@ -100,6 +100,11 @@ class SecureChatApi {
     }
   }
 
+  /// 登录前确保设备信息已初始化（未登录时 deviceId 可能为空）
+  Future<void> _initDeviceInfoIfNeeded() async {
+    if (deviceId.isEmpty) await _initDeviceInfo();
+  }
+
   Future<void> recallMessage(int msgId) async {
     await _json('POST', '/api/messages/${msgId}/recall', body: {});
   }
@@ -144,6 +149,14 @@ class SecureChatApi {
       myUsername = user['username']?.toString();
     }
     _syncGlobal();
+  }
+
+  /// WS auth_ok 返回绑定设备的 token，用它替换全局 token（被移除设备时该 token 失效）
+  Future<void> applyDeviceToken(String? deviceToken) async {
+    if (deviceToken == null || deviceToken.isEmpty) return;
+    token = deviceToken;
+    _syncGlobal();
+    await persistSession();
   }
 
   bool get isLoggedIn => token != null && token!.isNotEmpty;
@@ -201,6 +214,9 @@ class SecureChatApi {
   Future<Map<String, dynamic>> syncMessages({int since = 0, int limit = 200}) =>
       _json('GET', '/api/sync', query: {'since': '$since', 'limit': '$limit'});
 
+  Future<Map<String, dynamic>> conversationPreviews() =>
+      _json('GET', '/api/conversations/preview');
+
   Future<Map<String, dynamic>> offlinePending() => _json('GET', '/api/offline/pending');
 
   Future<Map<String, dynamic>> offlinePull() => _json('GET', '/api/offline/pull');
@@ -254,7 +270,8 @@ class SecureChatApi {
   }
 
   Future<Map<String, dynamic>> login(String account, String password) async {
-    final data = await _json('POST', '/api/login', body: {'account': account, 'password': password}, auth: false);
+    await _initDeviceInfoIfNeeded();
+    final data = await _json('POST', '/api/login', body: {'account': account, 'password': password, 'deviceId': deviceId.isEmpty ? null : deviceId}, auth: false);
     _setSession(data);
     await persistSession();
     await _registerDevice();
@@ -266,7 +283,8 @@ class SecureChatApi {
   }
 
   Future<Map<String, dynamic>> loginByCode(String email, String code) async {
-    final data = await _json('POST', '/api/login/code', body: {'email': email, 'code': code}, auth: false);
+    await _initDeviceInfoIfNeeded();
+    final data = await _json('POST', '/api/login/code', body: {'email': email, 'code': code, 'deviceId': deviceId.isEmpty ? null : deviceId}, auth: false);
     _setSession(data);
     await persistSession();
     await _registerDevice();

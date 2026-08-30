@@ -858,6 +858,20 @@ class _ChatViewStateState extends State<_ChatView> {
         final pid = s['peerId'];
         if (pid is int) csMap[pid] = s;
       }
+      // 拉取所有会话的最新消息预览（微信式会话列表显示最后一条）
+      try {
+        final pv = await widget.api.conversationPreviews();
+        final pvMap = (pv['previews'] as Map?)?.map((k, v) => MapEntry('$k', v)) ?? {};
+        for (final e in pvMap.entries) {
+          final v = e.value is Map ? (e.value as Map).cast<String, dynamic>() : <String, dynamic>{};
+          _lastMsg[e.key] = {
+            'text': (v['text'] ?? '').toString(),
+            'mine': v['mine'] == true,
+            'read': true,
+            'ts': (v['ts'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          };
+        }
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         conversations.clear();
@@ -1229,6 +1243,11 @@ class _ChatViewStateState extends State<_ChatView> {
         }
         if (type == 'auth_ok') {
           _wsReconnectAttempt = 0; // 认证成功才重置重连计数器
+          // 应用绑定设备的 token（服务端签发，被移除设备时该 token 失效）
+          final authPayload = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (authPayload['deviceToken'] != null) {
+            await widget.api.applyDeviceToken(authPayload['deviceToken'].toString());
+          }
           // 重连成功后重新拉取会话列表与当前会话历史，补齐断线期间漏掉的消息
           if (mounted) {
             final conv = selConv;
