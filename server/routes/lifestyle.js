@@ -337,6 +337,8 @@ module.exports = function registerLifestyle(app, db, auth) {
     const id = me(res, req); if (!id) return;
     // 清理过期会话
     prepare('DELETE FROM shake_sessions WHERE expires_at<?').run(Date.now());
+    // 同一用户只保留一个活跃会话：重复调用 start 会无限累积行（每次 UUID 不同，无唯一约束）
+    prepare('DELETE FROM shake_sessions WHERE user_id=?').run(id.id);
     const sessionId = crypto.randomUUID();
     const now = Date.now();
     prepare('INSERT INTO shake_sessions(session_id,user_id,created_at,expires_at) VALUES(?,?,?,?)')
