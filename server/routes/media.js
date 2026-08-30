@@ -631,8 +631,16 @@ module.exports = function registerMedia(app, db, auth) {
     if (live) return deny(res, 409, '你已有正在直播的直播间');
     const title = String((req.body || {}).title || '').trim();
     if (!title) return deny(res, 400, '直播间标题不能为空');
+    if (title.length > 100) return deny(res, 400, '标题过长（限100字）');
     const cover = String((req.body || {}).cover || '').slice(0, 2000);
+    // cover/streamUrl 只允许 http(s) 或安全图片 data-uri，防 javascript: 注入到客户端 <img>/播放器
+    if (cover && !(/^https?:\/\//i.test(cover) || /^\/api\//.test(cover) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(cover))) {
+      return deny(res, 400, '封面地址无效');
+    }
     const streamUrl = String((req.body || {}).streamUrl || '').trim().slice(0, 2000);
+    if (streamUrl && !(/^https?:\/\//i.test(streamUrl) || /^\/api\//.test(streamUrl))) {
+      return deny(res, 400, '推流地址无效');
+    }
     const now = Date.now();
     const info = prepare(`INSERT INTO live_rooms(host_id,title,cover,stream_url,status,started_at,created_at)
       VALUES(?,?,?,?,?,?,?)`).run(payload.id, title, cover, streamUrl, 'live', now, now);
@@ -648,8 +656,12 @@ module.exports = function registerMedia(app, db, auth) {
     const room = prepare('SELECT * FROM live_rooms WHERE id=?').get(rid);
     if (!room) return deny(res, 404, '直播间不存在');
     if (room.host_id !== payload.id) return deny(res, 403, '仅主播可结束直播');
+    if (room.status !== 'live') return deny(res, 400, '该直播间已结束');
     const replayUrl = String((req.body || {}).replayUrl || '').trim().slice(0, 2000);
-    prepare('UPDATE live_rooms SET status=\'ended\', replay_url=?, ended_at=? WHERE id=?')
+    if (replayUrl && !(/^https?:\/\//i.test(replayUrl) || /^\/api\//.test(replayUrl))) {
+      return deny(res, 400, '回放地址无效');
+    }
+    prepare('UPDATE live_rooms SET status=\'ended\', replay_url=?, ended_at=? WHERE id=? AND status=\'live\'')
       .run(replayUrl || room.replay_url || '', Date.now(), rid);
     const fresh = prepare('SELECT * FROM live_rooms WHERE id=?').get(rid);
     okay(res, { room: livePublic(fresh, payload.id, true) });
