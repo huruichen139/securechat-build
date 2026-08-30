@@ -509,13 +509,25 @@ module.exports = function registerStatusCollar(app, db, auth) {
     const k = String(kind || 'text');
     if (!['text', 'image', 'file', 'message', 'link', 'moment'].includes(k)) return deny(res, 400, 'kind 无效');
     if (!data || typeof data !== 'object') return deny(res, 400, 'data 无效');
-    const tagsArr = Array.isArray(tags) ? tags.map(t => String(t).slice(0, 30)) : [];
+    const dataStr = JSON.stringify(data);
+    if (dataStr.length > 200 * 1024) return deny(res, 413, '收藏内容过大（限200KB）');
+    // 配额：单用户最多 5000 条收藏项
+    const cnt = prepare('SELECT COUNT(*) AS c FROM favorite_items WHERE user_id=?').get(me);
+    if (cnt && cnt.c >= 5000) return deny(res, 400, '收藏数量已达上限（5000条）');
+    // classifierId 归属校验：不能把收藏塞进别人的收藏夹
+    let cid = null;
+    if (classifierId) {
+      const own = prepare('SELECT id FROM favorites WHERE id=? AND user_id=?').get(Number(classifierId), me);
+      if (!own) return deny(res, 400, '收藏夹不存在');
+      cid = own.id;
+    }
+    const tagsArr = Array.isArray(tags) ? tags.slice(0, 20).map(t => String(t).slice(0, 30)) : [];
     const summary = buildSummary(k, data);
     const now = Date.now();
     const info = prepare(
       'INSERT INTO favorite_items(user_id,classifier_id,kind,data,tags,summary,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)'
-    ).run(me, classifierId ? Number(classifierId) : null, k, JSON.stringify(data), JSON.stringify(tagsArr), summary, now, now);
-    if (classifierId) prepare('UPDATE favorites SET updated_at=? WHERE id=? AND user_id=?').run(now, Number(classifierId), me);
+    ).run(me, cid, k, dataStr, JSON.stringify(tagsArr), summary, now, now);
+    if (cid) prepare('UPDATE favorites SET updated_at=? WHERE id=? AND user_id=?').run(now, cid, me);
     if (tagsArr.length) ensureTags(me, tagsArr);
     persist();
     okay(res, { id: info.lastInsertRowid });
@@ -574,12 +586,21 @@ module.exports = function registerStatusCollar(app, db, auth) {
     if (!row) return deny(res, 404, '收藏项不存在');
     let newClassifier = row.classifier_id;
     let newTags = row.tags;
-    if (req.body.classifierId !== undefined) newClassifier = req.body.classifierId ? Number(req.body.classifierId) : null;
+    if (req.body.classifierId !== undefined) {
+      if (req.body.classifierId) {
+        // 归属校验：不能移动到别人的收藏夹
+        const own = prepare('SELECT id FROM favorites WHERE id=? AND user_id=?').get(Number(req.body.classifierId), me);
+        if (!own) return deny(res, 400, '收藏夹不存在');
+        newClassifier = own.id;
+      } else {
+        newClassifier = null;
+      }
+    }
     if (Array.isArray(req.body.tags)) {
-      newTags = JSON.stringify(req.body.tags.map(t => String(t).slice(0, 30)));
+      newTags = JSON.stringify(req.body.tags.slice(0, 20).map(t => String(t).slice(0, 30)));
       ensureTags(me, JSON.parse(newTags));
     }
-    prepare('UPDATE favorite_items SET classifier_id=?,tags=?,updated_at=? WHERE id=?').run(newClassifier, newTags, Date.now(), id);
+    prepare('UPDATE favorite_items SET classifier_id=?,tags=?,updated_at=? WHERE id=? AND user_id=?').run(newClassifier, newTags, Date.now(), id, me);
     persist();
     okay(res, {});
   });

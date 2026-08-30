@@ -1968,6 +1968,10 @@ app.post('/api/notes', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const content = String((req.body || {}).content || '').trim();
   if (!content) return res.status(400).json({ error: '内容不能为空' });
+  if (content.length > 50000) return res.status(400).json({ error: '内容过长（限5万字）' });
+  // 配额：单用户最多 2000 条笔记，防刷库
+  const noteCount = prepare('SELECT COUNT(*) AS c FROM favorites WHERE user_id=? AND type=?').get(payload.id, 'note');
+  if (noteCount && noteCount.c >= 2000) return res.status(400).json({ error: '笔记数量已达上限（2000条）' });
   prepare('INSERT INTO favorites(user_id,type,content,created_at) VALUES(?,?,?,?)').run(payload.id, 'note', content, Date.now());
   persist();
   res.json({ ok: true });
