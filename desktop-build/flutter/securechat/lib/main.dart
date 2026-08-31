@@ -631,7 +631,7 @@ class _ChatView extends StatefulWidget {
   State<_ChatView> createState() => _ChatViewStateState();
 }
 
-class _ChatViewStateState extends State<_ChatView> {
+class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   int selected = -1;
   final input = TextEditingController();
   final messages = <Map<String, dynamic>>[];
@@ -722,6 +722,7 @@ class _ChatViewStateState extends State<_ChatView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pendingOpen = widget.initialOpen;
     if (_pendingOpen != null) widget.onOpenConsumed?.call();
     input.addListener(_onInputChanged);
@@ -730,6 +731,16 @@ class _ChatViewStateState extends State<_ChatView> {
     _checkUpdate();
     _loadPrefs();
     _msgScroll.addListener(() { if (mounted) { final atBottom = _msgScroll.position.pixels >= _msgScroll.position.maxScrollExtent - 80; if (_showScrollDown == atBottom) setState(() { _showScrollDown = !atBottom; }); } });
+  }
+
+  /// 前后台切换：回到前台时刷新未读并重连，保证断线期间的消息不丢失
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (socket == null && mounted) _connect();
+      // 刷新会话列表与未读
+      _loadData(keepSelection: true);
+    }
   }
 
   @override
@@ -745,10 +756,16 @@ class _ChatViewStateState extends State<_ChatView> {
       if (_pendingOpen != null) {
         final id = _pendingOpen!.id, isGroup = _pendingOpen!.isGroup, name = _pendingOpen!.name;
         _pendingOpen = null;
-        _openConversationById(id, isGroup: isGroup, name: name);
-        _focusWindow();
+        _openPendingChat(id, isGroup: isGroup, name: name);
       }
     }
+  }
+
+  /// 从通讯录/发现页跳转：先唤醒聚焦窗口，再打开对应会话，保证新消息渲染在可见窗口上
+  Future<void> _openPendingChat(int id, {required bool isGroup, required String name}) async {
+    await _focusWindow();
+    if (!mounted) return;
+    await _openConversationById(id, isGroup: isGroup, name: name);
   }
 
   Future<void> _loadPrefs() async {
@@ -875,6 +892,10 @@ class _ChatViewStateState extends State<_ChatView> {
 
   Future<void> _loadData({bool keepSelection = false}) async {
     try {
+      // 记录当前选中会话，重建会话列表后按 id 重定位，避免 selected 索引错位
+      final selConvBefore = selConv;
+      final selId = selConvBefore?['id'] as int?;
+      final selKind = selConvBefore?['kind'];
       final friends = await widget.api.friends();
       final groups = await widget.api.groups();
       final cs = await widget.api.chatSettings();
@@ -912,6 +933,11 @@ class _ChatViewStateState extends State<_ChatView> {
           conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
         conversations.sort((a, b) { final bp = (b['pinned'] == true) ? 1 : 0; final ap = (a['pinned'] == true) ? 1 : 0; if (bp != ap) return bp - ap; final bu = ((b['unread'] as num?)?.toInt() ?? 0); final au = ((a['unread'] as num?)?.toInt() ?? 0); return bu.compareTo(au); });
+        // 重定位当前选中会话（若有），防止 sort/重建后 selected 索引错位
+        if (keepSelection && selId != null) {
+          final ni = conversations.indexWhere((c) => c['id'] == selId && c['kind'] == selKind);
+          selected = ni >= 0 ? ni : -1;
+        }
       });
       final pending = _pendingOpen;
       if (pending != null) {
@@ -1741,18 +1767,21 @@ class _ChatViewStateState extends State<_ChatView> {
   }
 
   /// 跳转到聊天时唤醒并聚焦主窗口（窗口可能隐藏在托盘/后台，需 show+focus 才会重新渲染）
-  void _focusWindow() {
+  Future<void> _focusWindow() async {
     if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       try {
-        windowManager.show();
-        windowManager.focus();
-        windowManager.restore();
+        await windowManager.show();
+        await windowManager.focus();
+        await windowManager.restore();
+        // 等窗口可见后再继续，避免隐藏窗口丢弃后续 setState 渲染
+        await Future.delayed(const Duration(milliseconds: 50));
       } catch (_) {}
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _hideMentionOverlay();
     _hbTimer?.cancel();
     _wsSub?.cancel();
@@ -2970,6 +2999,7 @@ class _ChatViewStateState extends State<_ChatView> {
       socket?.sink.add(jsonEncode({'type': 'group_msg', 'payload': {'groupId': conv['id'], 'content': text, 'clientMsgId': gcmid, 'replyTo': ?replyMsg}}));
       setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1, 'status': 'sending'}));
       _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch};
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
       return;
     }
     final to = conv['id'] as int;
@@ -2978,6 +3008,7 @@ class _ChatViewStateState extends State<_ChatView> {
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
     setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false, 'status': 'sending'}); });
     _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
   Future<void> _clearConversation([int? index]) async {

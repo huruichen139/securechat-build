@@ -1,12 +1,16 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.71.15';
+const kAppVersion = '1.71.17';
+
+/// Android 原生安装器通道：MainActivity.installApk 通过 FileProvider 拉起安装界面
+const _kInstallerChannel = MethodChannel('securechat/installer');
 
 class UpdateService {
   UpdateService({required this.api});
@@ -140,12 +144,23 @@ class UpdateService {
         final result = await Process.run('open', [path]);
         return result.exitCode == 0;
       } else if (Platform.isAndroid) {
-        // open_filex：内部处理 FileProvider(content://)、未知来源权限引导与 MIME 注册
+        // 优先走原生 installApk（FileProvider + 未知来源权限引导 + ACTION_VIEW）最可靠；
+        // 失败再回退 open_filex
+        if (await _nativeInstall(path)) return true;
         final r = await OpenFilex.open(path, type: 'application/vnd.android.package-archive');
         return r.type == ResultType.done;
       } else {
         return false;
       }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _nativeInstall(String path) async {
+    try {
+      final ok = await _kInstallerChannel.invokeMethod<bool>('installApk', {'path': path});
+      return ok == true;
     } catch (_) {
       return false;
     }

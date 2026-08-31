@@ -432,6 +432,14 @@ app.post('/api/login', (req, res) => {
     return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
   }
   const loginDeviceId = String((req.body || {}).deviceId || '').slice(0, 128);
+  // 关键：若带 deviceId，必须先确保该设备已登记（token 会绑定设备，若设备缺失 verifyToken 会立即失效）
+  if (loginDeviceId) {
+    try {
+      prepare(`INSERT INTO devices(user_id, device_id, device_name, device_type, platform, ip, last_active_at, created_at)
+        VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id, device_id) DO UPDATE SET ip=excluded.ip, last_active_at=excluded.last_active_at`)
+        .run(user.id, loginDeviceId, String((req.body || {}).deviceName || '').slice(0, 64) || '未知设备', String((req.body || {}).deviceType || 'desktop').slice(0, 32), String((req.body || {}).platform || '').slice(0, 32), getIp(req), Date.now(), Date.now());
+    } catch (e) {}
+  }
   const token = signToken(user, loginDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
 });
@@ -452,6 +460,13 @@ app.post('/api/login/code', (req, res) => {
     return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
   }
   const codeDeviceId = String((req.body || {}).deviceId || '').slice(0, 128);
+  if (codeDeviceId) {
+    try {
+      prepare(`INSERT INTO devices(user_id, device_id, device_name, device_type, platform, ip, last_active_at, created_at)
+        VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id, device_id) DO UPDATE SET ip=excluded.ip, last_active_at=excluded.last_active_at`)
+        .run(user.id, codeDeviceId, String((req.body || {}).deviceName || '').slice(0, 64) || '未知设备', String((req.body || {}).deviceType || 'desktop').slice(0, 32), String((req.body || {}).platform || '').slice(0, 32), getIp(req), Date.now(), Date.now());
+    } catch (e) {}
+  }
   const token = signToken(user, codeDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
 });
