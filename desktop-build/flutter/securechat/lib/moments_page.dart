@@ -105,7 +105,7 @@ class _MomentsPageState extends State<MomentsPage> {
     }
   }
 
-  /// 点击图片查看大图（微信式，可左右滑动切换）
+  /// 点击图片查看大图（聊天式，可左右滑动切换）
   void _previewImage(String current, List<dynamic> all) {
     final initial = all.indexOf(current);
     final t = (widget.config as AppConfig).theme;

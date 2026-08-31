@@ -507,7 +507,7 @@ app.post('/api/password/change', (req, res) => {
   res.json({ ok: true });
 });
 
-// 扫码登录（微信式）：未登录端（电脑）生成二维码 → 已登录端（手机）扫码确认 → 电脑端轮询后登录。
+// 扫码登录（聊天式）：未登录端（电脑）生成二维码 → 已登录端（手机）扫码确认 → 电脑端轮询后登录。
 // 已登录设备调用 create 时（网页「扫码登录授权」），直接绑定自身身份并置为 confirmed，兼容旧流程。
 app.post('/api/login/qr/create', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
@@ -1606,7 +1606,7 @@ app.get('/api/moments', (req, res) => {
     try { m.images = JSON.parse(m.images || '[]'); } catch { m.images = []; }
     m.likeCount = likes.length;
     m.likedByMe = likes.includes(payload.id);
-    // 点赞者昵称列表（微信式"XXX，YYY 觉得很赞"）
+    // 点赞者昵称列表（聊天式"XXX，YYY 觉得很赞"）
     m.likers = likes.map(uid => nickMap.get(uid) || '').filter(Boolean);
     m.comments = comments;
     return m;
@@ -1856,7 +1856,7 @@ app.all('/api/wallet/recharge/notify', (req, res) => {
   } catch (e) { try { db.run('ROLLBACK'); } catch {} res.send('error'); }
 });
 
-// 状态：GET my status / SET 状态（微信『我的状态』）
+// 状态：GET my status / SET 状态（聊天『我的状态』）
 app.get('/api/status', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const auth = req.headers.authorization || '';
@@ -3981,7 +3981,7 @@ app.get('/api/sync', (req, res) => {
 });
 
 // GET /api/conversations/preview — 一次返回所有会话（好友+群）的最新一条消息
-// 用于会话列表显示"最后一条消息预览"，避免 N 次请求。微信式体验。
+// 用于会话列表显示"最后一条消息预览"，避免 N 次请求。聊天式体验。
 app.get('/api/conversations/preview', (req, res) => {
   const payload = authed(req);
   if (!payload) return res.status(401).json({ error: '未授权' });

@@ -160,8 +160,12 @@ class CallService extends ChangeNotifier {
       };
       localStream = await navigator.mediaDevices.getUserMedia({'audio': true, 'video': video});
       if (video) {
+        // 渲染器必须 initialize 后才有 textureId，RTCVideoView 用它渲染；
+        // 若为空，RTCVideoView/srcObject setter 会抛异常导致双端同时闪退。
+        // initialize() 内部幂等（防重复初始化），此处统一初始化两个渲染器。
         await localRenderer.initialize();
         localRenderer.srcObject = localStream;
+        await remoteRenderer.initialize();
       }
       peer!.addStream(localStream!);
       notifyListeners();

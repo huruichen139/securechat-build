@@ -1,5 +1,5 @@
 /* module: status (worker batch7) */
-/* SecureChat 状态（微信式）Web 模块（独立，不依赖 web/app.js 巨石）
+/* SecureChat 状态（聊天式）Web 模块（独立，不依赖 web/app.js 巨石）
    提供：设置文字+图标状态、自定义背景图、好友头像旁状态徽标、点看留言互动、
    24h 自动消失、状态 feed。
    复用 web/modules/registry.js 的 window.SecureChatExt._util（api/token）。

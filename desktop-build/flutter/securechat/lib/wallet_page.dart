@@ -91,7 +91,7 @@ class _WalletPageState extends State<WalletPage> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('余额充值', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
           const SizedBox(height: 14),
-          Row(children: [chip('支付宝', Icons.payment, 'alipay'), const SizedBox(width: 8), chip('微信', Icons.chat_bubble_outline, 'wxpay'), const SizedBox(width: 8), chip('兑换码', Icons.redeem, 'redeem')]),
+          Row(children: [chip('支付宝', Icons.payment, 'alipay'), const SizedBox(width: 8), chip('聊天', Icons.chat_bubble_outline, 'wxpay'), const SizedBox(width: 8), chip('兑换码', Icons.redeem, 'redeem')]),
           const SizedBox(height: 14),
           if (payType == 'redeem') ...[
             TextField(controller: codeC, autofocus: true, decoration: const InputDecoration(hintText: '请输入兑换码')),
@@ -107,7 +107,7 @@ class _WalletPageState extends State<WalletPage> {
           const SizedBox(height: 16),
           SizedBox(width: double.infinity, child: FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(payType == 'redeem' ? '立即兑换' : (payType == 'wxpay' ? '去微信支付' : '去支付宝支付')),
+            child: Text(payType == 'redeem' ? '立即兑换' : (payType == 'wxpay' ? '去聊天支付' : '去支付宝支付')),
           )),
         ]),
         );
@@ -268,7 +268,7 @@ class _WalletPageState extends State<WalletPage> {
                               tooltip: '刷新',
                             ),
                           ]),
-                          // 收入/支出筛选（微信账单式）
+                          // 收入/支出筛选（聊天账单式）
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(children: [
@@ -324,7 +324,7 @@ class _WalletPageState extends State<WalletPage> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('我的余额（元）', style: TextStyle(fontSize: 13, color: t.subText)),
         const SizedBox(height: 6),
-        // 点击余额弹出资产详情（微信零钱式）
+        // 点击余额弹出资产详情（聊天零钱式）
         InkWell(
           onTap: () => showModalBottomSheet<void>(
             context: context,

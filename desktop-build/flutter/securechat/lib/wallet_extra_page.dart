@@ -212,7 +212,7 @@ class _WalletExtraPageState extends State<WalletExtraPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写 UID 和金额')));
       return;
     }
-    // 二次确认（微信式：转账前复核对象与金额）
+    // 二次确认（聊天式：转账前复核对象与金额）
     final sure = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(

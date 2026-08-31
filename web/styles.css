@@ -1,6 +1,6 @@
 ﻿* { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  /* 微信调色板 */
+  /* 聊天调色板 */
   --bg: #ffffff;
   --side-bg: #ededed;
   --border: #e5e5e5;
@@ -1335,7 +1335,7 @@ html.is-mobile .sidebar-rail { display: none; }
 html.is-mobile .sidebar-content { width: 100%; flex: 1; }
 
 /* =========================================================
-   移动端底部 Tab 栏（微信式）：rail 改为固定在屏幕底部的横排导航。
+   移动端底部 Tab 栏（聊天式）：rail 改为固定在屏幕底部的横排导航。
    ========================================================= */
 html.is-mobile .mobile-bottom-nav {
   position: fixed;
@@ -1396,7 +1396,7 @@ html.is-mobile body.dark-mode .mobile-bottom-nav .side-tab.on { color: var(--pri
 /* 给会话列表底部留出 tab 栏高度，避免内容被遮 */
 html.is-mobile .sidebar-content { padding-bottom: 64px; }
 html.is-mobile .contact-list { padding-bottom: 0; }
-/* 聊天态隐藏底部 tab 栏（微信式），输入框不被遮挡 */
+/* 聊天态隐藏底部 tab 栏（聊天式），输入框不被遮挡 */
 html.is-mobile #chatView.mobile-chat-active ~ .mobile-bottom-nav { display: none; }
 /* 聊天态 .main / AI 视图：tab 已隐藏，main 占满底部 */
 html.is-mobile #chatView.mobile-chat-active > .main,
@@ -1410,7 +1410,7 @@ html.is-mobile #chatView.mobile-chat-active > #downloadView {
 }
 
 /* =========================================================
-   微信式全屏页面（发现/我的/通讯录）
+   聊天式全屏页面（发现/我的/通讯录）
    绝对定位覆盖整个 #chatView，z-index 高于 main/aiView/downloadView
    ========================================================= */
 .wechat-page {
@@ -1435,9 +1435,9 @@ html.is-mobile .header::before { display: none; }   /* 桌面端那条绿色竖�
 html.is-mobile .bubble { max-width: 86%; }
 
 /* =========================================================
-   微信式 UI 强化
+   聊天式 UI 强化
    ========================================================= */
-/* 顶部导航：微信式灰白栏 + 返回箭头 */
+/* 顶部导航：聊天式灰白栏 + 返回箭头 */
 html.is-mobile .header {
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
@@ -1455,7 +1455,7 @@ html.is-mobile .header .back-to-list-btn {
 }
 html.is-mobile .header .back-to-list-btn::before { content: '? '; font-size: 22px; }
 
-/* 聊天列表（微信/通讯录）：白底列表，行高大，头像圆角 */
+/* 聊天列表（聊天/通讯录）：白底列表，行高大，头像圆角 */
 html.is-mobile .contact-list { background: #fff; }
 html.is-mobile .contact {
   margin: 0; border-radius: 0; border-left: 0;
@@ -1467,7 +1467,7 @@ html.is-mobile .contact .name { font-size: 16px; font-weight: 500; color: var(--
 html.is-mobile .contact .last { font-size: 13px; color: var(--muted); margin-top: 3px; }
 html.is-mobile .contact .time { font-size: 11px; color: #b0b0b0; position: absolute; right: 14px; top: 12px; }
 
-/* 侧边区：搜索栏顶置（微信式灰底） */
+/* 侧边区：搜索栏顶置（聊天式灰底） */
 html.is-mobile .sidebar-search { background: #ededed; padding: 8px; }
 html.is-mobile .sidebar-search .search { background: #fff; border-radius: 6px; }
 
@@ -1475,11 +1475,11 @@ html.is-mobile .sidebar-search .search { background: #fff; border-radius: 6px; }
 html.is-mobile .contact.active { background: #f5f5f5; border-left: 0; }
 html.is-mobile .contact.active::before { display: none; }
 
-/* 聊天页：背景微信浅灰底 #EDEDED */
+/* 聊天页：背景聊天浅灰底 #EDEDED */
 html.is-mobile .messages { background: var(--chat-bg, #ededed); }
 html.is-mobile .msg-row { padding: 6px 14px; }
 
-/* 气泡：微信绿色（我）/ 白色（对方），圆角小尖角 */
+/* 气泡：聊天绿色（我）/ 白色（对方），圆角小尖角 */
 html.is-mobile .bubble {
   background: var(--bubble-other);
   border-radius: 6px;
@@ -1495,7 +1495,7 @@ html.is-mobile .msg-row.me .bubble {
 html.is-mobile .msg-row.me .bubble::after,
 html.is-mobile .msg-row.other .bubble::after { display: none; }
 
-/* 输入栏：微信式灰底 + 圆角输入框 + 右侧语音/emoji/+ 按钮 */
+/* 输入栏：聊天式灰底 + 圆角输入框 + 右侧语音/emoji/+ 按钮 */
 html.is-mobile .composer {
   background: #f7f7f7; border-top: 1px solid var(--nav-border);
   padding: 8px 10px 8px;
@@ -1512,7 +1512,7 @@ html.is-mobile .composer .send-btn {
   height: 36px; font-size: 14px; font-weight: 500;
 }
 
-/* 底部 tab：微信式 4 格，等分，灰色图标 + 选中绿字+上绿条 */
+/* 底部 tab：聊天式 4 格，等分，灰色图标 + 选中绿字+上绿条 */
 html.is-mobile .mobile-bottom-nav {
   background: #f7f7f7; border-top: 1px solid var(--nav-border);
   min-height: 50px; height: calc(50px + env(safe-area-inset-bottom, 0));
@@ -1541,7 +1541,7 @@ html.is-mobile .mobile-bottom-nav .side-tab .badge {
   border-radius: 8px; display: flex; align-items: center; justify-content: center;
 }
 
-/* 通话栏：微信式全屏黑底，按钮居中下方圆形 */
+/* 通话栏：聊天式全屏黑底，按钮居中下方圆形 */
 html.is-mobile .call-bar {
   background: #1c1c1e; color: #fff;
   flex-direction: column; justify-content: space-between;
@@ -1565,7 +1565,7 @@ html.is-mobile #hangupBtn { background: #fa5151; }
 html.is-mobile #acceptCallBtn { background: #07c160; }
 html.is-mobile #rejectCallBtn { background: #fa5151; }
 
-/* 深色模式适配微信式调色 */
+/* 深色模式适配聊天式调色 */
 html.is-mobile body.dark-mode .header,
 html.is-mobile body.dark-mode .mobile-bottom-nav {
   background: #2a2a2a; border-color: #3a3a3a;
@@ -1614,7 +1614,7 @@ body.dark-mode .feature-item:hover{background:rgba(255,255,255,.05)}
 body.dark-mode .feature-item .feature-label{color:#e0e0e0}
 
 /* =========================================================
-   微信式聊天气泡尾巴
+   聊天式聊天气泡尾巴
    ========================================================= */
 .bubble-wrap {
   display: flex;
@@ -1660,7 +1660,7 @@ body.dark-mode .feature-item .feature-label{color:#e0e0e0}
   border-color: transparent #e5e5e5 transparent transparent;
   z-index: -1;
 }
-/* 自己气泡：微信绿，尾巴指向右 */
+/* 自己气泡：聊天绿，尾巴指向右 */
 .msg-row.me .bubble {
   background: #95ec69;
   border-color: #8add5b;
@@ -1695,7 +1695,7 @@ body.dark-mode .feature-item .feature-label{color:#e0e0e0}
 }
 .msg-row.other .time { text-align: left; }
 
-/* 微信式日期分隔条 */
+/* 聊天式日期分隔条 */
 .day-divider {
   text-align: center;
   margin: 6px 0 12px;
@@ -1705,7 +1705,7 @@ body.dark-mode .feature-item .feature-label{color:#e0e0e0}
 }
 html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
 
-/* 微信式气泡：非对称圆角（尾巴侧小圆角，其余大圆角） */
+/* 聊天式气泡：非对称圆角（尾巴侧小圆角，其余大圆角） */
 .msg-row.other .bubble {
   border-radius: 3px 10px 10px 10px;
 }
@@ -1821,7 +1821,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
 .me-card-label { flex: 1; font-size: 15px; color: var(--text); }
 .me-card-arrow { color: #ccc; font-size: 14px; }
 
-/* ============ 微信式：发现页 / 我的页（纯色图标 + 分组列表） ============ */
+/* ============ 聊天式：发现页 / 我的页（纯色图标 + 分组列表） ============ */
 .wx-discover-list, .discover-list { background: #ededed; padding: 0; }
 .wx-group { background: #fff; margin: 8px 0; }
 .wx-group:first-child { margin-top: 8px; }
@@ -1880,7 +1880,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
   background: #f7f7f7; font-weight: 600; letter-spacing: .04em;
 }
 
-/* 微信式底部Tab（桌面端侧边栏也适配） */
+/* 聊天式底部Tab（桌面端侧边栏也适配） */
 .bottom-nav {
   display: flex;
   background: #f7f7f7;
@@ -1912,7 +1912,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
   font-weight: 600;
 }
 
-/* 聊天页输入栏微信式布局 */
+/* 聊天页输入栏聊天式布局 */
 .chat-composer {
   display: flex; align-items: flex-end; gap: 8px;
   padding: 8px 10px;
@@ -1945,7 +1945,7 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 聊天页顶部导航栏（微信式） */
+/* 聊天页顶部导航栏（聊天式） */
 .chat-header {
   height: 48px; padding: 0 12px;
   display: flex; align-items: center; gap: 8px;
@@ -2544,7 +2544,7 @@ html.is-mobile .header { background: #fff; }
 html.is-mobile .composer { background: #fff; }
 html.is-mobile .ai-header { background: #fff !important; }
 html.is-mobile .ai-composer { background: #fff !important; }
-/* 气泡：微信原生配色，回到扁平的 #95ec69 */
+/* 气泡：聊天原生配色，回到扁平的 #95ec69 */
 .msg-row.me .bubble { background: var(--wx-bubble-me); color: #000; }
 .msg-row.other .bubble { background: #fff; border: 1px solid #ececec; box-shadow: none; }
 .bubble { border-radius: 8px; }
@@ -2558,7 +2558,7 @@ html.is-mobile .ai-composer { background: #fff !important; }
   color: #a6adb4;
   font-size: 11px;
 }
-/* 发送按钮：微信绿实心，悬停只变深浅 */
+/* 发送按钮：聊天绿实心，悬停只变深浅 */
 .btn.send, .composer-send-btn { background: var(--accent); border-radius: 6px; transition: background .15s ease; }
 .btn.send:hover, .composer-send-btn:hover { background: var(--accent-hover); }
 .btn.send:active, .composer-send-btn:active { background: #059a4d; }
@@ -2580,7 +2580,7 @@ html.is-mobile .ai-composer { background: #fff !important; }
 /* 发现/我 分组：纯白卡片，无玻璃 */
 .wx-me-group, .wx-group { background: #fff; border: 1px solid var(--wx-line); }
 .wx-me-icon, .wx-discover-icon { border-radius: 8px; }
-/* 深色模式：微信桌面深色，扁平 */
+/* 深色模式：聊天桌面深色，扁平 */
 body.dark-mode { background: #111214; }
 body.dark-mode .main { background: #1a1b1e; }
 body.dark-mode .sidebar-rail { background: #17181a; border-right-color: rgba(255,255,255,.06); }
@@ -2613,7 +2613,7 @@ body.dark-mode .ai-header, body.dark-mode .ai-composer { background: #1a1b1e !im
 .wechat-page.active, .chat-view-panel { animation: pageIn .16s ease; }
 @keyframes pageIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 
-/* 桌面端：聊天人列表按需显示（点击"微信"才出现） */
+/* 桌面端：聊天人列表按需显示（点击"聊天"才出现） */
 html.chat-list-hidden:not(.is-mobile) .sidebar-content { display: none; }
 html.chat-list-hidden:not(.is-mobile) .sidebar { width: 72px; }
 html.chat-list-hidden:not(.is-mobile) .wechat-page { left: 72px !important; }
@@ -2645,7 +2645,7 @@ body.dark-mode .announce-banner { background: #422006; border-color: #78350f; co
 .img-preview-dl { border: 0; border-radius: 999px; background: #10b981; color: #fff; padding: 5px 14px; cursor: pointer; font-size: 12px; }
 .img-preview-dl:disabled { opacity: .6; }
 
-/* 聊天背景 —— 默认 #EDEDED 对齐微信；用户自定义走 --chat-bg 变量 */
+/* 聊天背景 —— 默认 #EDEDED 对齐聊天；用户自定义走 --chat-bg 变量 */
 .messages { background: var(--chat-bg, #ededed); }
 .chat-bg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 4px 0 10px; }
 .chat-bg-item { height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid transparent; transition: transform .15s, border-color .15s; }
@@ -2863,14 +2863,14 @@ body.dark-mode .conv-menu-item:hover { background: #252525; }
 body.dark-mode .like-heart { background: rgba(250,81,81,.16); }
 @media (prefers-reduced-motion: reduce) { .like-heart, .voice-bars span, .badge, .ripple-fx { animation: none !important; } }
 
-/* ===== 微信贴合+动画 第三批 ===== */
+/* ===== 聊天贴合+动画 第三批 ===== */
 /* 正在输入三点跳动 */
 .typing-anim { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
 .typing-anim i { width: 4px; height: 4px; border-radius: 50%; background: #999; animation: tJump 1.2s ease-in-out infinite; }
 .typing-anim i:nth-child(2) { animation-delay: .15s; }
 .typing-anim i:nth-child(3) { animation-delay: .3s; }
 @keyframes tJump { 0%,60%,100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
-/* 微信式日期分隔条（居中灰胶囊） */
+/* 聊天式日期分隔条（居中灰胶囊） */
 .day-divider.wx-divider { display: flex; align-items: center; justify-content: center; margin: 14px 0 10px; }
 .day-divider.wx-divider span, .day-divider.wx-divider { text-align: center; font-size: 12px; color: #fff; background: #d0d0d0; border-radius: 4px; padding: 2px 10px; width: max-content; margin-left: auto; margin-right: auto; }
 body.dark-mode .day-divider.wx-divider { background: #3a3a3a; color: #ccc; }

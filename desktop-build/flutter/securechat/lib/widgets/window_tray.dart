@@ -102,7 +102,7 @@ class _WindowTrayHost with TrayListener, WindowListener {
   @override
   void onWindowClose() {
     if (_manualQuit) return;
-    // 拦截关闭按钮：隐藏到托盘（微信式），进程继续运行
+    // 拦截关闭按钮：隐藏到托盘（聊天式），进程继续运行
     windowManager.hide();
   }
 }

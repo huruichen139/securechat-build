@@ -1035,7 +1035,7 @@ module.exports = function registerPayment(app, db, auth) {
     });
   });
 
-  // ============ 个人真实收款码（支付宝/微信）============
+  // ============ 个人真实收款码（支付宝/聊天）============
   // 用户上传自己的真实收款二维码图片，可设使用次数（-1=无上限），展示/保存/删除。
   try { prepare("CREATE TABLE IF NOT EXISTS personal_qr (\n" +
     " id INTEGER PRIMARY KEY AUTOINCREMENT,\n" +

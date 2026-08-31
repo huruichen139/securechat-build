@@ -577,7 +577,7 @@ class SecureChatApi {
     return ((data['txn'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
-  // 个人真实收款码（支付宝/微信）
+  // 个人真实收款码（支付宝/聊天）
   Future<List<Map<String, dynamic>>> personalQrList() async {
     final data = await _json('GET', '/api/pay/personal-qr');
     return ((data['codes'] as List?) ?? const []).cast<Map<String, dynamic>>();

@@ -440,7 +440,7 @@ class _UsersTabState extends State<_UsersTab> {
           onChanged: (v) => setState(() => _q = v),
           style: TextStyle(color: _t.text),
           decoration: InputDecoration(
-            hintText: '搜索用户名 / 昵称 / 微信号 / 邮箱',
+            hintText: '搜索用户名 / 昵称 / 聊天号 / 邮箱',
             hintStyle: TextStyle(color: _t.subText, fontSize: 13),
             prefixIcon: Icon(Icons.search, color: _t.subText, size: 20),
             isDense: true,

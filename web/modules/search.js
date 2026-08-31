@@ -98,7 +98,7 @@
         html += '<div class="search-item" data-type="friend" data-id="' + f.id + '">' +
           '<div class="search-item-avatar">' + (f.avatar ? '<img src="' + esc(f.avatar) + '">' : esc((f.nickname || '?')[0])) + '</div>' +
           '<div class="search-item-info"><div class="search-item-name">' + esc(f.nickname || f.username) + '</div>' +
-          '<div class="search-item-sub">微信号：' + esc(f.uid || f.username || '') + '</div></div>' +
+          '<div class="search-item-sub">聊天号：' + esc(f.uid || f.username || '') + '</div></div>' +
         '</div>';
       });
       html += '</div>';

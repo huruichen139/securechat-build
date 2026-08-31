@@ -60,7 +60,7 @@ Future<void> main() async {
       );
     } catch (_) {}
   }
-  // 托盘：关闭窗口隐藏到托盘继续后台运行（微信式），点击托盘图标或菜单可恢复主界面
+  // 托盘：关闭窗口隐藏到托盘继续后台运行（聊天式），点击托盘图标或菜单可恢复主界面
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     try {
       await initTray();
@@ -505,7 +505,7 @@ class _ChatShellState extends State<ChatShell> {
                   if (i == 1) { try { (_contactsViewState.currentState as dynamic)?.reload(); } catch (_) {} }
                 },
                 destinations: const [
-                  NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: '微信'),
+                  NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: '聊天'),
                   NavigationDestination(icon: Icon(Icons.contacts_outlined), selectedIcon: Icon(Icons.contacts), label: '通讯录'),
                   NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: '发现'),
                   NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: '我'),
@@ -570,7 +570,7 @@ class _ChatShellState extends State<ChatShell> {
     final t = config.theme;
     final railBg = t.isDark ? const Color(0xff17181a) : const Color(0xfff2f3f5);
     final items = <(int, IconData, String)>[
-      (0, Icons.chat_bubble_outline_rounded, '微信'),
+      (0, Icons.chat_bubble_outline_rounded, '聊天'),
       (1, Icons.contacts_outlined, '通讯录'),
       (2, Icons.explore_outlined, '发现'),
       (3, Icons.person_outline_rounded, '我'),
@@ -619,7 +619,7 @@ class _ChatShellState extends State<ChatShell> {
   }
 }
 
-// ─── 微信 Tab：会话列表 + 聊天窗口 ───────────────────────────────────────────
+// ─── 聊天 Tab：会话列表 + 聊天窗口 ───────────────────────────────────────────
 
 class _ChatView extends StatefulWidget {
   const _ChatView({super.key, required this.api, required this.config, this.initialOpen, this.onOpenConsumed});
@@ -906,7 +906,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         final pid = s['peerId'];
         if (pid is int) csMap[pid] = s;
       }
-      // 拉取所有会话的最新消息预览（微信式会话列表显示最后一条）
+      // 拉取所有会话的最新消息预览（聊天式会话列表显示最后一条）
       try {
         final pv = await widget.api.conversationPreviews();
         final pvMap = (pv['previews'] as Map?)?.map((k, v) => MapEntry('$k', v)) ?? {};
@@ -1265,7 +1265,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       }
       socket = widget.api.connect();
       _wsSub?.cancel();
-      // 应用层心跳：周期发送 pong 供服务端测 RTT 并返回建议间隔（微信式自适应心跳）
+      // 应用层心跳：周期发送 pong 供服务端测 RTT 并返回建议间隔（聊天式自适应心跳）
       _hbTimer?.cancel();
       _hbTimer = Timer.periodic(const Duration(seconds: 25), (_) {
         try {
@@ -1933,7 +1933,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           child: Row(children: [
             CircleAvatar(radius: 20, backgroundColor: config.primary, child: Text('S', style: TextStyle(color: theme.onAccent, fontWeight: FontWeight.bold, fontSize: 14))),
             const SizedBox(width: 10),
-            Expanded(child: Text('微信', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
+            Expanded(child: Text('聊天', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
           IconButton(tooltip: '全部已读', onPressed: () { setState(() { _unread.clear(); _updateWindowTitle(); }); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
           if (isMobile) Builder(builder: (btnCtx) => IconButton(tooltip: '附加功能', onPressed: () => _showPlusMenu(btnCtx), icon: const Icon(Icons.add, size: 24), color: theme.text)),
           ]),

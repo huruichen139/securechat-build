@@ -333,7 +333,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             ListCell(
                               config: _cfg,
                               icon: Icons.badge_outlined,
-                              title: '微信号',
+                              title: '聊天号',
                               subtitle: _uid,
                               showArrow: false,
                               trailing: Text('不可修改', style: TextStyle(fontSize: 12, color: t.subText)),

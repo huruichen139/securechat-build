@@ -233,7 +233,7 @@ input:focus, textarea:focus {
   .day-divider span, .chat-time { background: rgba(255,255,255,.08) !important; }
 }
 
-/* 消息气泡：微信式 */
+/* 消息气泡：聊天式 */
 .msg-row { padding: 6px 18px !important; }
 .msg-row .avatar { border-radius: 10px !important; overflow: hidden; }
 .msg-row .name {

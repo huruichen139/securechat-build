@@ -1,8 +1,8 @@
-// module: redpacket —— 微信式红包：发/抢/查/退回
+// module: redpacket —— 聊天式红包：发/抢/查/退回
 // 独立模块，不依赖 app.js 巨石。复用 SecureChatExt._util（registry.js）做鉴权与请求。
 // 功能：
 //   - 聊天输入框 "+ 红包" 按钮 → 发红包弹窗（专属/拼手气/普通红包）
-//   - 消息中 [红包:<id>] 渲染为微信式红包气泡，点击抢红包/查明细
+//   - 消息中 [红包:<id>] 渲染为聊天式红包气泡，点击抢红包/查明细
 (function () {
   'use strict';
   if (window.SecureChatRedpacket) return;
@@ -233,7 +233,7 @@
       '<div class="bubble rp-bubble" data-rp="' + esc(id) + '">' +
         '<div class="rp-bubble-icon">' + (mine ? '红包' : '红包') + '</div>' +
         '<div class="rp-bubble-body">' +
-          '<div class="rp-bubble-title">微信红包</div>' +
+          '<div class="rp-bubble-title">聊天红包</div>' +
           '<div class="rp-bubble-sub">' + (mine ? '查看领取详情' : '点击领取红包') + '</div>' +
         '</div>' +
       '</div>' +

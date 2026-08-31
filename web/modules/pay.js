@@ -621,13 +621,13 @@
     renderBills(billsBox);
   }
 
-  // 充值入口：三选一（兑换码/微信/支付宝）
+  // 充值入口：三选一（兑换码/聊天/支付宝）
   function rechargeEntry() {
     const m = modal('充值', (body) => {
       body.style.cssText = 'padding:0';
       const options = [
         { label: '兑换码充值', desc: '输入兑换码兑换余额', icon: '\u5151', color: '#07c160', fn: redeemFlow },
-        { label: '微信支付', desc: '微信扫码支付充值', icon: '\u5fae', color: '#07c160', fn: () => onlineRechargeFlow('wxpay') },
+        { label: '聊天支付', desc: '聊天扫码支付充值', icon: '\u5fae', color: '#07c160', fn: () => onlineRechargeFlow('wxpay') },
         { label: '支付宝支付', desc: '支付宝扫码支付充值', icon: '\u652f', color: '#1677ff', fn: () => onlineRechargeFlow('alipay') },
       ];
       options.forEach(opt => {
@@ -650,7 +650,7 @@
     });
   }
 
-  // 在线充值：走 EPay 真实网关（支付宝/微信），下单后跳转支付并轮询到账
+  // 在线充值：走 EPay 真实网关（支付宝/聊天），下单后跳转支付并轮询到账
   function onlineRechargeFlow(defaultType) {
     const amount = field('充值金额（元）', '', { type: 'number', placeholder: '例如 10' });
     let payType = defaultType || 'alipay';
@@ -658,7 +658,7 @@
     typeRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
     const types = [
       { id: 'alipay', label: '支付宝' },
-      { id: 'wxpay', label: '微信支付' }
+      { id: 'wxpay', label: '聊天支付' }
     ];
     const btns = types.map(t => {
       const b = document.createElement('button');

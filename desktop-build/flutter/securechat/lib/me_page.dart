@@ -85,7 +85,7 @@ class _MePageState extends State<MePage> {
                   padding: const EdgeInsets.only(bottom: 32),
                   children: [
                     _header(),
-                    // 微信「我」页是若干独立卡片 + 灰色间隙，而不是一条长列表
+                    // 聊天「我」页是若干独立卡片 + 灰色间隙，而不是一条长列表
                     const SizedBox(height: 10),
                     // 卡片 A：支付
                     SectionCard(
@@ -237,7 +237,7 @@ class _MePageState extends State<MePage> {
                   Text(name.isNotEmpty ? name : 'SecureChat 用户',
                       style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: t.text)),
                   const SizedBox(height: 4),
-                  Text('微信号：${uid.isNotEmpty ? uid : '暂未设置'}', style: TextStyle(fontSize: 13, color: t.subText)),
+                  Text('聊天号：${uid.isNotEmpty ? uid : '暂未设置'}', style: TextStyle(fontSize: 13, color: t.subText)),
                   if (signature.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(signature,

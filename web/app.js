@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务�?/api/version.latest 比对，最新版后会弹更新浮层�?
-const PACKAGE_VERSION = '1.71.18';
+const PACKAGE_VERSION = '1.71.19';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -204,7 +204,7 @@ const PROFILE_FIELDS = [
     { key: 'tel', label: '座机' },
     { key: 'fax', label: '传真' },
     { key: 'qq', label: 'QQ' },
-    { key: 'wechat', label: '微信' },
+    { key: 'wechat', label: '聊天' },
     { key: 'telegram', label: 'Telegram' },
     { key: 'twitter', label: 'Twitter / X' },
     { key: 'facebook', label: 'Facebook' },
@@ -975,7 +975,7 @@ function openModal(title, fields, onOk) {
 //   �?自带浮层（oa/videos/live/nearby/shake/scan/miniapp/groups/pay 等）：直�?feature.open()�?
 //   �?需要容器（status/favorites/moment-ext）：feature.open(containerEl)�?
 // openFeatureCenter 对前者调�?open()，对后者新�?modal 并把内容容器传给 feature.open(container)�?
-// 每个入口的渐变配色（135deg）：微信「发现」页风格彩色圆角方块�?
+// 每个入口的渐变配色（135deg）：聊天「发现」页风格彩色圆角方块�?
 const FEATURE_GRADS = [
   'linear-gradient(135deg,#07c160,#06ad56)',
   'linear-gradient(135deg,#10aeff,#0a7fe0)',
@@ -1881,7 +1881,7 @@ function renderContacts() {
   });
 }
 
-// ============ 会话右键菜单（微信式：置�?免打�?删除�?============
+// ============ 会话右键菜单（聊天式：置�?免打�?删除�?============
 let convMenuEl = null;
 function hideConvMenu() { if (convMenuEl) { convMenuEl.remove(); convMenuEl = null; } }
 function bindConvContextMenu(el, key, name, openFn) {
@@ -1935,7 +1935,7 @@ setInterval(() => {
   document.querySelectorAll('#messages .msg-row').forEach(bindBubbleLike);
 }, 1500);
 
-// 通讯录目录渲染（微信式：群聊 + A-Z 好友，无时间/未读�?
+// 通讯录目录渲染（聊天式：群聊 + A-Z 好友，无时间/未读�?
 function renderContactsDirectory() {
   const kw = ($('search') && $('search').value.trim().toLowerCase()) || '';
   const list = $('contactList');
@@ -2055,7 +2055,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     document.querySelectorAll('.side-tab').forEach(x => x.classList.toggle('on', x === tt));
     syncMobileNav(tt.dataset.side);
 
-    // 发现 tab：微信式发现页（朋友�?视频�?直播/扫一�?搜一�?看一�?附近/购物/游戏/小程�?AI�?
+    // 发现 tab：聊天式发现页（朋友�?视频�?直播/扫一�?搜一�?看一�?附近/购物/游戏/小程�?AI�?
     if (tt.dataset.side === 'ai') {
       showMobilePage('discoverPage');
       renderDiscoverPage();
@@ -2070,7 +2070,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // �?tab：微信式"�?页（资料 + 支付/收藏/相册/设置 + 下载 + 意见反馈�?
+    // �?tab：聊天式"�?页（资料 + 支付/收藏/相册/设置 + 下载 + 意见反馈�?
     if (tt.dataset.side === 'downloads' || tt.dataset.side === 'dl') {
       showMobilePage('mePage');
       renderMePage();
@@ -2099,7 +2099,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
       return;
     }
 
-    // 通讯�?tab：微信式联系人目录（群聊 + 新好�?+ A-Z 好友�?
+    // 通讯�?tab：聊天式联系人目录（群聊 + 新好�?+ A-Z 好友�?
     if (tt.dataset.side === 'contacts') {
       showMobilePage('contactsPage');
       renderContactsPage();
@@ -2127,7 +2127,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
 (function initMobileBottomNav() {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
-  // 微信式底部导航：仅保�?4 个核�?Tab（微�?/ 通讯�?/ 发现 / 我）
+  // 聊天式底部导航：仅保�?4 个核�?Tab（微�?/ 通讯�?/ 发现 / 我）
   const CORE_TABS = ['friends', 'contacts', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
     if (!CORE_TABS.includes(src.dataset.side)) return;
@@ -2200,7 +2200,7 @@ $('joinGroupBtn').onclick = () => {
   });
 };
 
-// 微信式邀请进群：好友搜索、多选、直接入群、附带邀请说明�?
+// 聊天式邀请进群：好友搜索、多选、直接入群、附带邀请说明�?
 function openGroupInvitePicker() {
   if (!state.activeGroup) { toast('请先选择一个群', 'warn', 1000); return; }
   const mask = document.createElement('div'); mask.className = 'modal-mask';
@@ -2295,7 +2295,7 @@ function openPeerProfile(peerId) {
       <div class="profile-head">
         <div class="profile-avatar">${peer.avatar ? '<img src="' + escapeHtml(peer.avatar) + '">' : avatarChar(peer.nickname)}</div>
         <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
-        <div class="profile-id">微信号：${escapeHtml(peer.uid || '')} · ID: ${peer.id}</div>
+        <div class="profile-id">聊天号：${escapeHtml(peer.uid || '')} · ID: ${peer.id}</div>
         <div class="profile-online">${peer.online ? '<span class="dot online"></span> 在线' : escapeHtml(peerStatusLabel(peer))}</div>
         ${region ? '<div class="profile-region">地区�? + escapeHtml(region) + '</div>' : ''}
       </div>
@@ -2990,7 +2990,7 @@ function appendMessage(m, prepend) {
       }
     } catch {}
   }
-  // 微信式日期分隔条：跨天时插入
+  // 聊天式日期分隔条：跨天时插入
   const mb = $('messages');
   if (mb && m.createdAt) {
     const mk = (d) => new Date(d).toDateString();
@@ -3069,7 +3069,7 @@ function deleteMsgLocal(id) {
   const box = $('messages'); if (box) box.scrollTop = box.scrollHeight;
 }
 
-// ============ 消息转发（微信式�?============
+// ============ 消息转发（聊天式�?============
 function openForwardPicker(msg) {
   const mask = document.createElement('div');
   mask.className = 'profile-mask';
@@ -3308,7 +3308,7 @@ function markGroupConversationRead(userId) {
   });
 }
 
-// 微信式日期分隔条文案
+// 聊天式日期分隔条文案
 function dayLabel(ts) {
   const d = new Date(ts);
   const now = new Date();
@@ -4037,7 +4037,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
   }
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 }
-// 图片全屏预览（微信式）：点击遮罩关闭，底部提供下�?
+// 图片全屏预览（聊天式）：点击遮罩关闭，底部提供下�?
 function openImagePreview(src, name, fileId, isGroup) {
   if (!src) { toast('图片尚未加载完成', 'warn', 1200); return; }
   const mask = document.createElement('div');
@@ -4293,7 +4293,7 @@ appendMessage = function (m, prepend) {
   _orig_appendMessage(m, prepend);
 };
 
-// ============ 微信式移动端页面导航 ============
+// ============ 聊天式移动端页面导航 ============
 function showMobileChatView() {
   const chatView = document.getElementById('chatView');
   if (!chatView) return;
@@ -4345,7 +4345,7 @@ function showMobilePage(pageId) {
   if (chatComposer) chatComposer.style.display = 'none';
 }
 
-// 发现页渲染（微信式列表）
+// 发现页渲染（聊天式列表）
 function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
@@ -4378,9 +4378,9 @@ function renderDiscoverPage() {
   });
 }
 
-// 我的页渲染（微信式）
+// 我的页渲染（聊天式）
 
-// ============ 设置页面（微信风格） ============
+// ============ 设置页面（聊天风格） ============
 function openSettingsPage() {
   const me = state.me;
   const main = document.querySelector('.main');
@@ -4418,7 +4418,7 @@ function openSettingsPage() {
   const profileCard = document.createElement('div');
   profileCard.style.cssText = 'background:var(--surface,#fff);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;cursor:pointer;border:1px solid var(--border,#e5e5e5)';
   const av = (me && me.avatar) ? '<img src="' + me.avatar + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + (me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
-  profileCard.innerHTML = av + '<div style="flex:1"><div style="font-size:17px;font-weight:600;color:var(--text,#191919)">' + (me ? escapeHtml(me.nickname) : '') + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">微信号：' + (me ? escapeHtml(me.uid || '') : '') + '</div></div><span style="color:#ccc;font-size:16px">\u203a</span>';
+  profileCard.innerHTML = av + '<div style="flex:1"><div style="font-size:17px;font-weight:600;color:var(--text,#191919)">' + (me ? escapeHtml(me.nickname) : '') + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">聊天号：' + (me ? escapeHtml(me.uid || '') : '') + '</div></div><span style="color:#ccc;font-size:16px">\u203a</span>';
   profileCard.onclick = () => showMyCard();
   content.appendChild(profileCard);
 
@@ -4623,7 +4623,7 @@ function renderMePage() {
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
       <div class="me-name">${escapeHtml(state.me.nickname)}</div>
-      <div class="me-id">微信号：${escapeHtml(state.me.uid || '')}</div>
+      <div class="me-id">聊天号：${escapeHtml(state.me.uid || '')}</div>
     </div>
     ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
@@ -4651,7 +4651,7 @@ const services = [
     { name: '意见反馈', icon: '�?, action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
     { name: '设置', icon: '�?, action: () => openSettingsPage() },
   ];
-  // 微信式分组：第一�?支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
+  // 聊天式分组：第一�?支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
   svc.innerHTML = `
     <div class="wx-me-group">${services.slice(0, 2).map((s, i) => meItemHtml(s, i)).join('')}</div>
     <div class="wx-me-group">${services.slice(2, 5).map((s, i) => meItemHtml(s, i + 2)).join('')}</div>
@@ -4792,7 +4792,7 @@ function setRailActive(side) {
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(x => x.classList.toggle('on', x.dataset.side === side));
   if (typeof syncMobileNav === 'function') syncMobileNav(side);
 }
-// 侧边�?微信"tab 未读总数角标（免打扰会话不计入）
+// 侧边�?聊天"tab 未读总数角标（免打扰会话不计入）
 function updateUnreadBadge() {
   const prefs = chatPrefs();
   const total = Object.keys(state.unread || {}).reduce((a, k) => a + (prefs.muted['u:' + k] ? 0 : (state.unread[k] || 0)), 0)
@@ -4808,13 +4808,13 @@ function updateUnreadBadge() {
   badge.style.display = total > 0 ? 'flex' : 'none';
   badge.textContent = total > 99 ? '99+' : String(total);
 }
-// 桌面端：聊天人列表只在点�?微信"时显�?
+// 桌面端：聊天人列表只在点�?聊天"时显�?
 function setChatListVisible(show) {
   document.documentElement.classList.toggle('chat-list-hidden', !show);
 }
-// 侧边�?Tab �?微信式页面路由（全端通用�?
+// 侧边�?Tab �?聊天式页面路由（全端通用�?
 (function initWechatMobileNav() {
-  // 发现 tab �?微信式发现页
+  // 发现 tab �?聊天式发现页
   const discoverTab = document.querySelector('.sidebar-rail .side-tab[data-side="ai"]');
   if (discoverTab) {
     discoverTab.onclick = (e) => {
@@ -4847,7 +4847,7 @@ function setChatListVisible(show) {
       showMobilePage('contactsPage');
     };
   }
-  // 微信 tab �?切回聊天主界面（桌面端同时显示聊天人列表�?
+  // 聊天 tab �?切回聊天主界面（桌面端同时显示聊天人列表�?
   const friendsTab = document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
   if (friendsTab) {
     friendsTab.onclick = (e) => {
@@ -4942,7 +4942,7 @@ function setChatListVisible(show) {
       if (tab) tab.click();
     };
   }
-  // 默认打开聊天界面（聊天列表可见）；切到发�?�?通讯录时隐藏，点"微信"再显�?
+  // 默认打开聊天界面（聊天列表可见）；切到发�?�?通讯录时隐藏，点"聊天"再显�?
   setChatListVisible(true);
 })();
 

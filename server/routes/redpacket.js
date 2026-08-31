@@ -1,5 +1,5 @@
 'use strict';
-// module: redpacket —— 微信式红包：发/抢/查/退回
+// module: redpacket —— 聊天式红包：发/抢/查/退回
 // 支持两种：单聊（专属/随机/普通）与群聊（拼手气/普通）。
 // 复用巨石钱包（wallets/wallet_txn 已在 db.js 建表；发红包从钱包扣款，抢红包入账）。
 // 消息以 [红包:<id>] 文本写入 messages / group_messages 表，前端渲染为红包气泡。
@@ -339,7 +339,7 @@ module.exports = function registerRedpacket(app, db, auth) {
     }
   }
 
-  // 自动退回：超过 24 小时未领完的红包，把剩余金额退回发送者（微信红包语义）
+  // 自动退回：超过 24 小时未领完的红包，把剩余金额退回发送者（聊天红包语义）
   // 每 10 分钟扫描一次，用事务保证只退回一次。
   setInterval(() => {
     try {
