@@ -4704,3 +4704,6 @@ function mountFeatureRoutes(app, db) {
 // 退出时保存一次
 process.on('SIGINT', () => { persistNow(); process.exit(0); });
 process.on('exit', () => { try { persistNow(); } catch {} });
+// 全局异常兜底：防止未捕获异常导致进程退出
+process.on('uncaughtException', (err) => { console.error('[fatal] uncaughtException:', err && err.message || err); });
+process.on('unhandledRejection', (reason) => { console.error('[fatal] unhandledRejection:', reason && reason.message || reason); });
