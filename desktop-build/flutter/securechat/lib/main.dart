@@ -1325,6 +1325,17 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                 }
               } catch (_) {}
             }
+            // 重连成功后：将卡在 'sending' 状态的消息重标为 'failed'（由超时兜底已标记）
+            // 或重新发送仍无 cmid 对应确认的乐观消息
+            {
+              final stale = messages.where((m) => m['status'] == 'sending' && m['mine'] == true).toList();
+              for (final m in stale) {
+                final cmid = m['cmid']?.toString();
+                if (cmid != null) {
+                  setState(() => m['status'] = 'failed');
+                }
+              }
+            }
           }
           return;
         }
@@ -2360,6 +2371,24 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                       const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5)),
                       const SizedBox(width: 4),
                     ],
+                    if (mine && msg['status'] == 'failed') ...[
+                      GestureDetector(
+                        onTap: () {
+                          // 点击重试：重新发送该消息
+                          final cmid = msg['cmid']?.toString();
+                          if (cmid != null) {
+                            setState(() => messages.removeWhere((m) => m['cmid'] == cmid));
+                            _sentIds.remove(cmid);
+                            // 把文本放回输入框让用户重发
+                            input.text = (msg['text'] ?? '').toString();
+                            inputFocus.requestFocus();
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发送失败，已放回输入框'), duration: Duration(seconds: 2)));
+                          }
+                        },
+                        child: Icon(Icons.error_outline, color: Colors.red.shade400, size: 14),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                     GestureDetector(onTap: () { final ts = msg['ts']; if (ts != null) { final dt = ts is int ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.tryParse(ts.toString()); if (dt != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 2), content: Text(dt.year.toString() + '-' + dt.month.toString().padLeft(2, '0') + '-' + dt.day.toString().padLeft(2, '0') + ' ' + dt.hour.toString().padLeft(2, '0') + ':' + dt.minute.toString().padLeft(2, '0') + ':' + dt.second.toString().padLeft(2, '0')))); } }, child: Text(msg['time'] as String, style: TextStyle(color: t.subText, fontSize: 10))),
                     if (mine) ...[
                       const SizedBox(width: 4),
@@ -3035,6 +3064,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       setState(() => messages.add({'cmid': gcmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': true, 'readCount': 1, 'status': 'sending'}));
       _lastMsg['g${conv['id']}'] = {'text': text, 'mine': true, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch};
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      Future.delayed(const Duration(seconds: 10), () {
+        if (!mounted) return;
+        final idx = messages.indexWhere((m) => m['cmid'] == gcmid && m['status'] == 'sending');
+        if (idx >= 0) setState(() => messages[idx]['status'] = 'failed');
+      });
       return;
     }
     final to = conv['id'] as int;
@@ -3044,6 +3078,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false, 'status': 'sending'}); });
     _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    // 超时兜底：若 10 秒内未收到服务端确认（如断线），标记为发送失败
+    Future.delayed(const Duration(seconds: 10), () {
+      if (!mounted) return;
+      final idx = messages.indexWhere((m) => m['cmid'] == cmid && m['status'] == 'sending');
+      if (idx >= 0) setState(() => messages[idx]['status'] = 'failed');
+    });
   }
 
   Future<void> _clearConversation([int? index]) async {
