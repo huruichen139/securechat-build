@@ -13,9 +13,15 @@ const _iceServers = [
 ];
 
 class CallService extends ChangeNotifier {
-  CallService({required this.socket});
+  CallService({required WebSocketChannel Function() socket}) : _socket = socket;
 
-  final WebSocketChannel socket;
+  // 通过回调获取最新 WebSocket：重连后 main.dart 会替换 socket，
+  // 若此处保存旧引用，重连后的 offer/answer/ICE/hangup 会发到已关闭的连接，导致对方收不到。
+  final WebSocketChannel Function() _socket;
+
+  WebSocketChannel? get socket {
+    try { return _socket(); } catch (_) { return null; }
+  }
 
   CallStatus status = CallStatus.idle;
   bool video = false;
@@ -46,7 +52,9 @@ class CallService extends ChangeNotifier {
   void _send(String sub, [Object? data]) {
     final to = peerId;
     if (to == null) return;
-    socket.sink.add(jsonEncode({'type': 'signal', 'payload': {'to': to, 'sub': sub, 'data': data}}));
+    final s = socket;
+    if (s == null) return;
+    s.sink.add(jsonEncode({'type': 'signal', 'payload': {'to': to, 'sub': sub, 'data': data}}));
   }
 
   void onSignal(int? from, String? sub, dynamic data) {
@@ -271,11 +279,12 @@ class CallService extends ChangeNotifier {
       localStream = null;
       try { remoteStream?.dispose(); } catch (_) {}
       remoteStream = null;
-      try { localRenderer.srcObject = null; } catch (_) {}
-      try { remoteRenderer.srcObject = null; } catch (_) {}
+      // 关键：不 dispose renderer——CallPage 的 RTCVideoView 仍引用它们，
+      // 立即 dispose 会导致 build 时访问已释放对象而闪退。只清空 srcObject，
+      // 真正的 dispose 由 CallService.dispose() 负责。
       if (!_disposed) {
-        try { localRenderer.dispose(); } catch (_) {}
-        try { remoteRenderer.dispose(); } catch (_) {}
+        try { localRenderer.srcObject = null; } catch (_) {}
+        try { remoteRenderer.srcObject = null; } catch (_) {}
       }
       try { peer?.close(); } catch (_) {}
       peer = null;

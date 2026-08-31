@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'services/securechat_api.dart';
 import 'services/app_config.dart';
 import 'widgets/ux.dart';
+import 'call_recordings_page.dart';
 
 /// 联系人详情页 - 点击联系人时展示对方资料
 class ContactDetailPage extends StatefulWidget {
@@ -178,7 +179,9 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
           ),
           child: Column(
             children: [
-              _buildActionRow(t, Icons.photo_outlined, '朋友圈', () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('朋友圈功能开发中'))); }),
+              if (!widget.isGroup) _buildActionRow(t, Icons.phone_in_talk_outlined, '通话回放', () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => CallRecordingsPage(api: widget.api, config: widget.config, peerId: widget.userId)));
+              }),
               Divider(height: 1, indent: 56, color: t.div),
               if (!widget.isGroup) _buildActionRow(t, Icons.label_outline, '设置备注和标签', () async {
                 final ctrl = TextEditingController(text: widget.currentRemark ?? '');

@@ -507,6 +507,15 @@ class _SettingsPageState extends State<SettingsPage> {
             showArrow: false,
             trailing: Switch(value: config.showStatusbar, onChanged: (v) => config.setShowStatusbar(v), activeThumbColor: config.primary),
           ),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.graphic_eq_outlined,
+            title: '语音消息转文字',
+            subtitle: config.voiceToText ? '收到语音后自动转成文字' : '关闭后语音仅播放声音',
+            showArrow: false,
+            trailing: Switch(value: config.voiceToText, onChanged: (v) => config.setVoiceToText(v), activeThumbColor: config.primary),
+          ),
         ],
       ),
     ]);

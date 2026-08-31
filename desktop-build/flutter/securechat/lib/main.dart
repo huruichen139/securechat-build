@@ -648,6 +648,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   Timer? _hbTimer;
   int _lastRttMs = 0;
   int _netQuality = 2;
+  bool _offlineHinted = false; // 离线消息提示只弹一次，且提示后清空队列
   CallService? calls;
   final recorder = AudioRecorder();
   bool recording = false;
@@ -660,6 +661,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   String? playingVoiceId;
   Duration _voicePosition = Duration.zero;
   Duration _voiceDuration = Duration.zero;
+  final Set<String> _voiceTranscribed = {}; // 已转文字的语音 id，防止重复转写
   int? myId;
   String? selName;
   final _sentIds = <String>{};
@@ -1308,15 +1310,21 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                 await _openConversationById(id, isGroup: conv['kind'] == 'group', name: conv['name']?.toString() ?? selName ?? '');
               }
             }
-            // 离线消息提示：断线期间收到新消息时通知用户
-            try {
-              final pend = await widget.api.offlinePending();
-              final cnt = (pend['count'] as num?)?.toInt() ?? 0;
-              if (cnt > 0 && mounted) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('离线期间收到 $cnt 条新消息'), duration: const Duration(seconds: 2)));
-              }
-            } catch (_) {}
+            // 离线消息提示：断线期间收到新消息时通知用户，但只提示一次，且提示后清空队列
+            if (!_offlineHinted) {
+              try {
+                final pend = await widget.api.offlinePending();
+                final cnt = (pend['count'] as num?)?.toInt() ?? 0;
+                if (cnt > 0 && mounted) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('离线期间收到 $cnt 条新消息'), duration: const Duration(seconds: 2)));
+                  // 标记已提示，避免每次重连都弹
+                  _offlineHinted = true;
+                  // 拉取并清除离线队列，服务端后续不再重复推送
+                  try { await widget.api.offlinePull(); } catch (_) {}
+                }
+              } catch (_) {}
+            }
           }
           return;
         }
@@ -1559,7 +1567,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           });
         } else if (type == 'signal') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
-          final service = calls ??= CallService(socket: socket!);
+          final service = calls ??= CallService(socket: () => socket!);
           service.onSignal(int.tryParse('${p['from']}'), p['sub'] as String?, p['data']);
           if (service.status == CallStatus.ringing && mounted) {
             final fromId = int.tryParse('${p['from']}');
@@ -1676,7 +1684,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未连接服务器，请检查网络')));
       return;
     }
-    final service = calls ??= CallService(socket: socket!);
+    final service = calls ??= CallService(socket: () => socket!);
     if (service.busy) return;
     await service.startCall(to, withVideo: video);
     if (!mounted) return;
@@ -2274,7 +2282,14 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     final fileMeta = _parseFileMeta(text);
     final redPacketId = _parseRedPacket(text);
     final content = voiceId != null
-        ? _voiceBubble(mine, voiceId, msg['voiceDur'] as int?)
+        ? Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+            _voiceBubble(mine, voiceId, msg['voiceDur'] as int?),
+            if (msg['transcript'] != null && msg['transcript'].toString().isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(top: 4, left: mine ? 0 : 2, right: mine ? 2 : 0),
+                child: Text(msg['transcript'].toString(), maxLines: 4, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: t.subText)),
+              ),
+          ])
         : redPacketId != null
             ? _redPacketBubble(mine, redPacketId, t)
         : fileMeta != null
@@ -2519,6 +2534,10 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       await player.play(DeviceFileSource(path));
       if (voicePlayer != player) { try { player.dispose(); } catch (_) {} return; }
       if (mounted) setState(() => playingVoiceId = id);
+      // 语音转文字：开启开关且未转写过时，自动把语音转成文字并在气泡下显示
+      if (widget.config.voiceToText && !_voiceTranscribed.contains(id)) {
+        _transcribeVoice(id);
+      }
     } catch (e) {
       _voiceSub?.cancel();
       player.dispose();
@@ -2527,6 +2546,21 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   }
 
   String _lastVoiceTemp = '';
+
+  Future<void> _transcribeVoice(String id) async {
+    if (_voiceTranscribed.contains(id)) return;
+    _voiceTranscribed.add(id);
+    try {
+      final text = await widget.api.transcribe(id);
+      if (!mounted || text.isEmpty) return;
+      final idx = messages.indexWhere((m) => m['voiceId'] == id);
+      if (idx >= 0) {
+        setState(() => messages[idx]['transcript'] = text);
+      }
+    } catch (_) {
+      // 服务端未配置 STT 或失败：静默（转文字为可选增强，不影响语音播放）
+    }
+  }
 
   Widget _composer() {
     final conv = selConv;

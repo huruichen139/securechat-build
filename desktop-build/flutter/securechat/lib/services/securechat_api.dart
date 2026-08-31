@@ -375,6 +375,34 @@ class SecureChatApi {
     }
   }
 
+  // ---------- 通话回放 ----------
+  Future<List<Map<String, dynamic>>> callRecordings({int? peerId}) async {
+    final data = await _json('GET', '/api/call-recordings', query: peerId != null ? {'peer': '$peerId'} : null);
+    return ((data['recordings'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<Uint8List> fetchCallRecording(String id, {void Function(int received, int total)? onProgress}) async {
+    final uri = _uri('/api/call-recordings/$id');
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', uri)..headers['Authorization'] = 'Bearer $token';
+      final response = await client.send(request);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        await response.stream.drain<void>();
+        throw StateError('回放获取失败 (${response.statusCode})');
+      }
+      final total = response.contentLength ?? 0;
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response.stream) {
+        builder.add(chunk);
+        if (onProgress != null && total > 0) onProgress(builder.length, total);
+      }
+      return builder.takeBytes();
+    } finally {
+      client.close();
+    }
+  }
+
   Future<Map<String, dynamic>> uploadAttachment(int to, List<int> bytes, String name, String mime) async {
     final uri = _uri('/api/files', {'to': '$to', 'name': name, 'mime': mime});
     final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);

@@ -76,6 +76,18 @@ class _WindowTrayHost with TrayListener, WindowListener {
   }
 
   @override
+  void onTrayIconRightMouseDown() {
+    // Windows 下右键不会自动弹出菜单，需手动调用 popUpContextMenu
+    try {
+      _popUpMenu();
+    } catch (_) {}
+  }
+
+  Future<void> _popUpMenu() async {
+    await trayManager.popUpContextMenu();
+  }
+
+  @override
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {
       case 'tray_show':
