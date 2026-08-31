@@ -4292,6 +4292,7 @@ wss.on('connection', (ws, req) => {
       if ((typeof to !== 'number' && typeof to !== 'string') || !/^\d+$/.test(String(to))) return send(ws, P.S_ERROR, { error: '目标无效' });
       const toId = Number(to);
       if (toId === undefined || !Number.isInteger(toId) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
+      if (typeof content === 'string' && content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
       if (toId === ws.uid) return send(ws, P.S_ERROR, { error: '不能给自己发送消息' });
       if (!prepare('SELECT 1 FROM users WHERE id=?').get(toId)) return send(ws, P.S_ERROR, { error: '目标用户不存在' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
@@ -4357,6 +4358,7 @@ wss.on('connection', (ws, req) => {
       const { groupId, content, clientMsgId, replyTo, forwardedFrom } = payload || {};
       const gid = Number(groupId);
       if (!Number.isInteger(gid) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
+      if (typeof content === 'string' && content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
         return send(ws, P.S_ERROR, { error: '消息标识无效' });
       }

@@ -998,7 +998,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       final oldKey = _convKey(selConv!);
       if (input.text.isNotEmpty) { _drafts[oldKey] = input.text; } else { _drafts.remove(oldKey); }
     }
-    setState(() { selected = index; _unread.remove(_convKey(conv)); _updateWindowTitle(); });
+    setState(() { selected = index; _unread.remove(_convKey(conv)); _updateWindowTitle(); replyingTo = null; _multiSelectMode = false; _selectedMsgs.clear(); });
     messages.clear();
     // 恢复目标会话草稿
     final newKey = _convKey(conv);
