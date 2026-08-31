@@ -60,6 +60,12 @@ Future<void> main() async {
       );
     } catch (_) {}
   }
+  // 托盘：关闭窗口隐藏到托盘继续后台运行（微信式），点击托盘图标或菜单可恢复主界面
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    try {
+      await initTray();
+    } catch (_) {}
+  }
   DeepLink.init(api: api, config: config);
   runApp(SecureChatApp(config: config, api: api));
   // 冷启动深链：securechat:// 协议唤起时，URL 作为命令行参数传入，
@@ -726,6 +732,25 @@ class _ChatViewStateState extends State<_ChatView> {
     _msgScroll.addListener(() { if (mounted) { final atBottom = _msgScroll.position.pixels >= _msgScroll.position.maxScrollExtent - 80; if (_showScrollDown == atBottom) setState(() { _showScrollDown = !atBottom; }); } });
   }
 
+  @override
+  void didUpdateWidget(covariant _ChatView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 通讯录/发现页发起聊天：_ChatView 保活在 Tab 0，initState 不会重跑。
+    // 用 didUpdateWidget 检测 initialOpen 变化，主动打开对应会话并清空 pending。
+    final next = widget.initialOpen;
+    final prev = oldWidget.initialOpen;
+    if (next != null && next != prev) {
+      _pendingOpen = next;
+      widget.onOpenConsumed?.call();
+      if (_pendingOpen != null) {
+        final id = _pendingOpen!.id, isGroup = _pendingOpen!.isGroup, name = _pendingOpen!.name;
+        _pendingOpen = null;
+        _openConversationById(id, isGroup: isGroup, name: name);
+        _focusWindow();
+      }
+    }
+  }
+
   Future<void> _loadPrefs() async {
     try {
       final sp = await SharedPreferences.getInstance();
@@ -887,7 +912,6 @@ class _ChatViewStateState extends State<_ChatView> {
           conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
         }
         conversations.sort((a, b) { final bp = (b['pinned'] == true) ? 1 : 0; final ap = (a['pinned'] == true) ? 1 : 0; if (bp != ap) return bp - ap; final bu = ((b['unread'] as num?)?.toInt() ?? 0); final au = ((a['unread'] as num?)?.toInt() ?? 0); return bu.compareTo(au); });
-        messages.clear();
       });
       final pending = _pendingOpen;
       if (pending != null) {
@@ -1714,6 +1738,17 @@ class _ChatViewStateState extends State<_ChatView> {
     _netQuality = _lastRttMs > 0
         ? (_lastRttMs < 200 ? 0 : (_lastRttMs < 1000 ? 1 : 2))
         : 2;
+  }
+
+  /// 跳转到聊天时唤醒并聚焦主窗口（窗口可能隐藏在托盘/后台，需 show+focus 才会重新渲染）
+  void _focusWindow() {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      try {
+        windowManager.show();
+        windowManager.focus();
+        windowManager.restore();
+      } catch (_) {}
+    }
   }
 
   @override

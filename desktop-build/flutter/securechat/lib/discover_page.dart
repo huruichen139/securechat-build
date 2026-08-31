@@ -12,6 +12,7 @@ import 'community_tools_page.dart';
 import 'ai_page.dart';
 import 'search_page.dart';
 import 'read_page.dart';
+import 'shake_page.dart';
 import 'embedded_web_page.dart';
 import 'epay_settings_page.dart';
 
@@ -42,6 +43,7 @@ class DiscoverPage extends StatelessWidget {
           ]),
           _group(cfg, [
             ListCell(config: cfg, icon: Icons.location_on_outlined, title: '附近的人', onTap: () => _open(context, NearbyPage(api: api ?? SecureChatApi(), config: cfg))),
+            ListCell(config: cfg, icon: Icons.smartphone_outlined, title: '摇一摇', onTap: () => _open(context, ShakePage(api: api ?? SecureChatApi(), config: cfg))),
           ]),
           _group(cfg, [
             ListCell(config: cfg, icon: Icons.shopping_bag_outlined, title: '购物', onTap: () => _open(context, CommunityToolsPage(api: api ?? SecureChatApi(), config: cfg))),

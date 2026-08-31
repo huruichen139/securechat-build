@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.71.14';
+const kAppVersion = '1.71.15';
 
 class UpdateService {
   UpdateService({required this.api});
@@ -92,11 +92,19 @@ class UpdateService {
       String baseDir = Directory.systemTemp.path;
       if (Platform.isAndroid) {
         try {
-          final ext = await getExternalCacheDirectories();
-          baseDir = (ext != null && ext.isNotEmpty) ? ext.first.path : (await getApplicationCacheDirectory()).path;
-        } catch (_) {
+          // 应用私有缓存目录：open_filex 的 FileProvider 一定覆盖 files/cache，
+          // 外部缓存目录(external-cache)可能不在其 file_paths 内导致 content:// 无法解析、
+          // 安装器静默失败。改用 getApplicationCacheDirectory 确保能拉起安装界面。
           final cache = await getApplicationCacheDirectory();
           baseDir = cache.path;
+        } catch (_) {
+          try {
+            final ext = await getExternalCacheDirectories();
+            baseDir = (ext != null && ext.isNotEmpty) ? ext.first.path : (await getApplicationCacheDirectory()).path;
+          } catch (_) {
+            final cache = await getApplicationCacheDirectory();
+            baseDir = cache.path;
+          }
         }
       }
       if (!Directory(baseDir).existsSync()) Directory(baseDir).createSync(recursive: true);

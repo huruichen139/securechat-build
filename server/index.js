@@ -1572,8 +1572,18 @@ app.get('/api/moments', (req, res) => {
     `SELECT c.id,c.moment_id AS momentId,c.user_id AS userId,c.content AS content,c.created_at AS createdAt,u.nickname
      FROM moment_comments c JOIN users u ON u.id=c.user_id WHERE c.moment_id IN (` + momentIds.map(()=>'?').join(',') + `) ORDER BY c.created_at ASC`
   ).all(...momentIds) : [];
+  // 点赞昵称：一次 JOIN users 取所有点赞者的昵称
+  const likerIds = [...new Set(allLikes.map(l => l.user_id))];
+  const nickMap = new Map();
+  if (likerIds.length) {
+    const nickRows = prepare('SELECT id,nickname FROM users WHERE id IN (' + likerIds.map(()=>'?').join(',') + ')').all(...likerIds);
+    for (const nr of nickRows) nickMap.set(nr.id, nr.nickname);
+  }
   const likesByMoment = new Map(); const commentsByMoment = new Map();
-  for (const l of allLikes) { if (!likesByMoment.has(l.moment_id)) likesByMoment.set(l.moment_id, []); likesByMoment.get(l.moment_id).push(l.user_id); }
+  for (const l of allLikes) {
+    if (!likesByMoment.has(l.moment_id)) likesByMoment.set(l.moment_id, []);
+    likesByMoment.get(l.moment_id).push(l.user_id);
+  }
   for (const c of allComments) { if (!commentsByMoment.has(c.momentId)) commentsByMoment.set(c.momentId, []); commentsByMoment.get(c.momentId).push(c); }
   const data = rows.map(m => {
     const likes = likesByMoment.get(m.id) || [];
@@ -1581,6 +1591,8 @@ app.get('/api/moments', (req, res) => {
     try { m.images = JSON.parse(m.images || '[]'); } catch { m.images = []; }
     m.likeCount = likes.length;
     m.likedByMe = likes.includes(payload.id);
+    // 点赞者昵称列表（微信式"XXX，YYY 觉得很赞"）
+    m.likers = likes.map(uid => nickMap.get(uid) || '').filter(Boolean);
     m.comments = comments;
     return m;
   });
