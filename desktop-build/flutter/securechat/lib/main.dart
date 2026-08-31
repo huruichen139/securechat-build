@@ -1648,11 +1648,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       }, onError: (_) {}, onDone: () {
         // WebSocket断开后指数退避重连
         if (!mounted) return;
+        socket = null; // 清除旧连接引用，确保 _connect() 创建全新连接
         final attempt = (_wsReconnectAttempt) + 1;
         _wsReconnectAttempt = attempt;
         final delay = Duration(milliseconds: (2000 * (1 << (attempt - 1))).clamp(2000, 60000));
         debugPrint('[ws] disconnected, reconnecting in ${delay.inSeconds}s (attempt $attempt)');
-        Future.delayed(delay, () { if (mounted && socket != null) _connect(); });
+        Future.delayed(delay, () { if (mounted) _connect(); });
       });
     } catch (_) {}
   }
@@ -1922,7 +1923,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   Widget _leftPanel(AppConfig config, {bool isMobile = false}) {
     final theme = config.theme;
     final items = conversations.where((c) =>
-      _search.isEmpty || (c['name'] as String).toLowerCase().contains(_search.toLowerCase())
+      _search.isEmpty || '${c['name'] ?? ''}'.toLowerCase().contains(_search.toLowerCase())
     ).toList();
     return Container(
       width: isMobile ? double.infinity : 280,
@@ -2394,7 +2395,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
-        _chatSearchQuery.isNotEmpty ? _highlightText(msg['text'] as String, _chatSearchQuery, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)) : SelectableText(msg['text'] as String, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
+        _chatSearchQuery.isNotEmpty ? _highlightText('${msg['text'] ?? ''}', _chatSearchQuery, style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)) : SelectableText('${msg['text'] ?? ''}', style: TextStyle(color: mine ? const Color(0xff191919) : t.text, fontSize: _fontSize, height: 1.4)),
         if (msg['edited'] == true) Padding(
           padding: const EdgeInsets.only(top: 2),
           child: Text('已编辑', style: TextStyle(color: mine ? const Color(0xff191919).withValues(alpha: 0.45) : t.subText, fontSize: 10)),
@@ -4187,7 +4188,7 @@ class _ContactsViewStateState extends State<ContactsView> {
   List<Map<String, dynamic>> _filterList(List<Map<String, dynamic>> list) {
     final q = _cSearch.trim().toLowerCase();
     if (q.isEmpty) return list;
-    return list.where((c) => (c['name'] as String).toLowerCase().contains(q)).toList();
+    return list.where((c) => '${c['name'] ?? ''}'.toLowerCase().contains(q)).toList();
   }
 
   /// Get first letter for alphabetical grouping (supports Chinese pinyin initials)
@@ -4335,7 +4336,7 @@ class _ContactsViewStateState extends State<ContactsView> {
             );
           }
           final item = entry;
-          final name = item['name'] as String;
+          final name = '${item['name'] ?? ''}';
           final icon = item['icon'] as IconData;
           final online = item['online'] as bool?;
           return Material(
@@ -4345,7 +4346,7 @@ class _ContactsViewStateState extends State<ContactsView> {
                 final id = item['id'];
                 if (id is! int) return;
                 final isGroup = item['kind'] == 'group';
-                final name = item['name'] as String;
+                final name = '${item['name'] ?? ''}';
                 Navigator.push(context, MaterialPageRoute(
                   builder: (_) => ContactDetailPage(
                     api: SecureChatApi(),
