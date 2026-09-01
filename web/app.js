@@ -3402,18 +3402,23 @@ function stopCallRingtone() {
   if (callRingtoneTimer) { clearInterval(callRingtoneTimer); callRingtoneTimer = null; }
 }
 function showMessageNotice(m, name) {
-  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文�? : String(m.content || '').slice(0, 240);
+  const text = String(m.content || '').startsWith('__FILE__') ? '收到一个文件' : String(m.content || '').slice(0, 240);
+  // 检查该会话是否免打扰
+  const prefs = chatPrefs();
+  const convKey = m.groupId ? 'g:' + m.groupId : 'u:' + ((m.from === state.me.id) ? m.to : m.from);
+  if (prefs.muted && prefs.muted[convKey]) return;
   playMessageNoticeSound();
   const stack = $('messageNoticeStack');
   if (stack) {
     const item = document.createElement('div'); item.className = 'message-notice';
-    item.innerHTML = '<strong>' + escapeHtml(name || '新消�?) + '</strong><span>' + escapeHtml(text || '收到新消�?) + '</span>';
-    item.onclick = () => { if (state.activePeer !== m.from) selectPeer(m.from); item.remove(); };
-    stack.appendChild(item); setTimeout(() => item.remove(), 6500);
+    item.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><strong style="flex:1">' + escapeHtml(name || '新消息') + '</strong><span class="msg-notice-close" style="cursor:pointer;font-size:16px;color:#999;padding:0 2px" title="关闭">&times;</span></div><span>' + escapeHtml(text || '收到新消息') + '</span>';
+    item.querySelector('.msg-notice-close').onclick = (e) => { e.stopPropagation(); item.remove(); };
+    item.onclick = () => { const peer = m.groupId ? null : m.from; if (peer && state.activePeer !== peer) selectPeer(peer); item.remove(); };
+    stack.appendChild(item); setTimeout(() => { if (item.parentNode) item.remove(); }, 6500);
   }
   if ('Notification' in window && Notification.permission === 'granted' && localStorage.sc_notifyOff !== '1') {
     try {
-      const _nn = new Notification(name || '新消�?, { body: text || '收到新消�?, tag: 'securechat-' + m.from });
+      const _nn = new Notification(name || '新消息', { body: text || '收到新消息', tag: 'securechat-' + m.from });
       _nn.onclick = function () { window.focus(); if (!m.groupId && m.from != null && state.activePeer !== m.from) { try { selectPeer(m.from); } catch (_) {} } };
     } catch (_) {}
   }
