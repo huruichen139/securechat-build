@@ -1,6 +1,16 @@
 {
-  "latest": "1.80.0",
+  "latest": "1.80.1",
   "releaseNotes": [
+    {
+      "version": "1.80.1",
+      "date": "2026-09-01",
+      "changes": [
+        "消息表情回应显示：气泡下方显示emoji回应及计数",
+        "消息表情回应服务端API：POST/GET /api/messages/:id/reactions",
+        "长按菜单新增表情回应面板：微笑/生气/点赞/爱心等10种",
+        "翻译弹窗改用StatefulBuilder+预设语言按钮（中文/英/日/韩/粤/自动）"
+      ]
+    },
     {
       "version": "1.80.0",
       "date": "2026-08-31",

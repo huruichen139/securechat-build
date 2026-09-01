@@ -2506,12 +2506,10 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                     if (mine && msg['status'] == 'failed') ...[
                       GestureDetector(
                         onTap: () {
-                          // 点击重试：重新发送该消息
                           final cmid = msg['cmid']?.toString();
                           if (cmid != null) {
                             setState(() => messages.removeWhere((m) => m['cmid'] == cmid));
                             _sentIds.remove(cmid);
-                            // 把文本放回输入框让用户重发
                             input.text = (msg['text'] ?? '').toString();
                             inputFocus.requestFocus();
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发送失败，已放回输入框'), duration: Duration(seconds: 2)));
@@ -2529,6 +2527,44 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                     _likeBadge(msg),
                   ]),
                 ),
+                // 表情回应显示（气泡下方）
+                if (msg['reactions'] != null && (msg['reactions'] as List).isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.only(top: 2, left: mine ? 0 : 8, right: mine ? 8 : 0),
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: (msg['reactions'] as List).map((r) {
+                        final emoji = (r['emoji'] ?? '').toString();
+                        final cnt = r['cnt'] ?? 1;
+                        return GestureDetector(
+                          onTap: () async {
+                            await widget.api.toggleReaction(msg['id'] as int, emoji);
+                            final reactions = await widget.api.getReactions(msg['id'] as int);
+                            if (mounted) setState(() => msg['reactions'] = reactions);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: t.isDark ? const Color(0xff2c3440) : const Color(0xfff5f5f5),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: t.isDark ? const Color(0xff3c4450) : const Color(0xffe8e8e8), width: 0.5),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(emoji, style: const TextStyle(fontSize: 14)),
+                                if (cnt > 1) ...[
+                                  const SizedBox(width: 2),
+                                  Text('$cnt', style: TextStyle(fontSize: 10, color: t.subText)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
               ]),
               if (_multiSelectMode && !mine) ...[
                 const SizedBox(width: 6),
