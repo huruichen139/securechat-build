@@ -997,4 +997,22 @@ class SecureChatApi {
       return null;
     }
   }
+
+  Future<List<Map<String, dynamic>>> toggleReaction(int messageId, String emoji) async {
+    try {
+      final data = await _json('POST', '/api/messages/$messageId/reactions', body: {'emoji': emoji});
+      return ((data['reactions'] as List?) ?? const []).cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getReactions(int messageId) async {
+    try {
+      final data = await _json('GET', '/api/messages/$messageId/reactions');
+      return ((data['reactions'] as List?) ?? const []).cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
 }

@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.71.22';
+const kAppVersion = '1.80.0';
 
 /// Android 原生安装器通道：MainActivity.installApk 通过 FileProvider 拉起安装界面
 const _kInstallerChannel = MethodChannel('securechat/installer');

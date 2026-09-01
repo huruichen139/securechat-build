@@ -4656,6 +4656,7 @@ function mountFeatureRoutes(app, db) {
   const rawDb = await getDb();
   ready = true;
   try { rawDb.run('CREATE TABLE IF NOT EXISTS blocklist(blocker_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER DEFAULT 0, PRIMARY KEY(blocker_id, blocked_id))'); } catch (e) { console.error('[db] blocklist 建表失败: ' + (e && e.message || e)); }
+  try { rawDb.run('CREATE TABLE IF NOT EXISTS message_reactions(id INTEGER PRIMARY KEY AUTOINCREMENT, message_id INTEGER NOT NULL, user_id INTEGER NOT NULL, emoji TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(message_id, user_id, emoji))'); } catch (e) { console.error('[db] message_reactions 建表失败: ' + (e && e.message || e)); }
   try { rawDb.run('ALTER TABLE messages ADD COLUMN recalled INTEGER DEFAULT 0'); } catch (e) { /* 已存在则忽略 */ }
   try { rawDb.run('ALTER TABLE group_message_meta ADD COLUMN forwarded_from INTEGER'); } catch (e) { /* 已存在则忽略 */ }
   const routeDb = {
@@ -4663,6 +4664,41 @@ function mountFeatureRoutes(app, db) {
     persist, persistNow, getDb, genUid
   };
   mountFeatureRoutes(app, routeDb);
+
+  // ========== 表情回应 API ==========
+  app.post('/api/messages/:id/reactions', (req, res) => {
+    if (!ready) return res.status(503).json({ error: '服务初始化中' });
+    const user = apiUser(req);
+    if (!user) return res.status(401).json({ error: '未登录' });
+    const msgId = Number(req.params.id);
+    const emoji = String((req.body || {}).emoji || '').slice(0, 10);
+    if (!msgId || !emoji) return res.status(400).json({ error: '参数无效' });
+    try {
+      const msg = prepare('SELECT id FROM messages WHERE id=?').get(msgId);
+      if (!msg) return res.status(404).json({ error: '消息不存在' });
+      // toggle: 已存在则删除，不存在则添加
+      const existing = prepare('SELECT id FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?').get(msgId, user.id, emoji);
+      if (existing) {
+        prepare('DELETE FROM message_reactions WHERE id=?').run(existing.id);
+      } else {
+        prepare('INSERT INTO message_reactions(message_id, user_id, emoji, created_at) VALUES(?,?,?,?)').run(msgId, user.id, emoji, Date.now());
+      }
+      // 返回当前消息所有回应
+      const reactions = prepare('SELECT user_id, emoji, COUNT(*) as cnt FROM message_reactions WHERE message_id=? GROUP BY emoji').all(msgId);
+      res.json({ ok: true, reactions });
+    } catch (e) { res.status(500).json({ error: '回应失败' }); }
+  });
+
+  app.get('/api/messages/:id/reactions', (req, res) => {
+    if (!ready) return res.status(503).json({ error: '服务初始化中' });
+    const msgId = Number(req.params.id);
+    if (!msgId) return res.status(400).json({ error: '参数无效' });
+    try {
+      const reactions = prepare('SELECT user_id, emoji, COUNT(*) as cnt FROM message_reactions WHERE message_id=? GROUP BY emoji').all(msgId);
+      res.json({ ok: true, reactions });
+    } catch (e) { res.status(500).json({ error: '查询失败' }); }
+  });
+
   // 强制HTTPS终极方案：公网端口做协议探测路由。
   // 首字节0x16=TLS → 管道转发到内部TLS端口；否则 → 转发到内部HTTP重定向服务器（301到HTTPS）。
   if (process.env.USE_HTTPS === '1') {

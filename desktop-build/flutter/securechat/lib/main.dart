@@ -29,6 +29,7 @@ import 'widgets/window_effect.dart';
 import 'widgets/window_tray.dart';
 import 'widgets/ux.dart';
 import 'widgets/toast_notification.dart';
+import 'widgets/reaction_bar.dart';
 import 'call_page.dart';
 import 'deeplink.dart';
 import 'qr_confirm_page.dart';
@@ -3540,6 +3541,8 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       context: context,
       builder: (sheetCtx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // 表情回应面板（微信风格横向表情栏）
+          ReactionBar(msg: msg, api: widget.api, config: widget.config),
           ListTile(leading: const Icon(Icons.copy), title: const Text('复制'), onTap: () { Navigator.pop(sheetCtx); _copyMessage(msg); }),
           ListTile(leading: const Icon(Icons.checklist), title: const Text('多选'), onTap: () { Navigator.pop(sheetCtx); _toggleMultiSelect(); }),
           ListTile(leading: const Icon(Icons.reply), title: const Text('回复'), onTap: () { Navigator.pop(sheetCtx); _startReply(msg); }),
