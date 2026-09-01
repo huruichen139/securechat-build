@@ -8,60 +8,126 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'services/securechat_api.dart';
 
-/// 1. 消息翻译 - 弹窗显示
+/// 1. 消息翻译 - 弹窗显示（支持任何语言互译）
 Future<void> showTranslateDialog(BuildContext ctx, SecureChatApi api, String text) async {
   if (text.isEmpty) return;
-  final targetCtrl = TextEditingController(text: 'zh');
-  final result = await showDialog<String>(
+  final _langs = [
+    {'code': 'zh', 'name': '中文'},
+    {'code': 'en', 'name': 'English'},
+    {'code': 'ja', 'name': '日本語'},
+    {'code': 'ko', 'name': '한국어'},
+    {'code': 'yue', 'name': '粤语'},
+    {'code': 'auto', 'name': '自动检测'},
+  ];
+  String target = 'auto';
+  String? result;
+  String? source;
+  bool loading = false;
+
+  await showDialog(
     context: ctx,
-    builder: (dialogCtx) => AlertDialog(
-      title: const Text('翻译消息'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('原文: $text', style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: targetCtrl,
-            decoration: const InputDecoration(
-              labelText: '目标语言',
-              hintText: '如: en, yue, ja, ko',
-              prefixIcon: Icon(Icons.language),
-            ),
+    builder: (_) => StatefulBuilder(
+      builder: (dialogCtx, setDialogState) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('翻译消息', style: TextStyle(fontSize: 17)),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff5f5f5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(text, style: const TextStyle(fontSize: 13, color: Color(0xff333333))),
+              ),
+              const SizedBox(height: 12),
+              const Text('翻译为：', style: TextStyle(fontSize: 12, color: Color(0xff999999))),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _langs.map((l) {
+                  final selected = target == l['code'];
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => target = l['code']!),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: selected ? const Color(0xff07c160) : const Color(0xfff0f0f0),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        l['name']!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: selected ? Colors.white : const Color(0xff333333),
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              if (result != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffe8f5e9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (source != null && source!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('来源: $source', style: const TextStyle(fontSize: 11, color: Color(0xff999999))),
+                        ),
+                      Text(result!, style: const TextStyle(fontSize: 14, color: Color(0xff17212b), fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+              ],
+              if (loading) ...[
+                const SizedBox(height: 12),
+                const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('关闭')),
+          TextButton(
+            onPressed: loading ? null : () async {
+              setDialogState(() { loading = true; result = null; });
+              try {
+                final data = await api.translateText(text, target: target);
+                if (data != null) {
+                  setDialogState(() {
+                    result = data['translated'] ?? '';
+                    source = data['source'] ?? '';
+                    loading = false;
+                  });
+                } else {
+                  setDialogState(() { loading = false; });
+                }
+              } catch (e) {
+                setDialogState(() { loading = false; });
+              }
+            },
+            child: const Text('翻译'),
           ),
         ],
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('取消')),
-        TextButton(
-          onPressed: () async {
-            final uri = Uri.parse('${api.baseUrl}/api/translate');
-            final resp = await http.post(
-              uri,
-              headers: {
-                'Content-Type': 'application/json',
-                if (api.token != null) 'Authorization': 'Bearer ${api.token}',
-              },
-              body: json.encode({'text': text, 'target': targetCtrl.text.trim().isEmpty ? 'zh' : targetCtrl.text.trim()}),
-            ).timeout(const Duration(seconds: 15));
-            if (resp.statusCode == 200) {
-              final data = json.decode(resp.body);
-              Navigator.pop(dialogCtx, data['translated'] ?? '');
-            } else {
-              if (dialogCtx.mounted) {
-                ScaffoldMessenger.of(dialogCtx).showSnackBar(const SnackBar(content: Text('翻译失败')));
-              }
-            }
-          },
-          child: const Text('翻译'),
-        ),
-      ],
     ),
   );
-  targetCtrl.dispose();
-  if (result != null && ctx.mounted) {
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('译文: $result')));
-  }
 }
 
 /// 2. 快捷回复管理器

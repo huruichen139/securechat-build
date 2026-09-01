@@ -981,4 +981,20 @@ class SecureChatApi {
     final data = await _json('GET', '/api/announcements');
     return ((data['announcements'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
+
+  Future<Map<String, String>?> translateText(String text, {String target = 'auto'}) async {
+    try {
+      final data = await _json('POST', '/api/translate', body: {'text': text, 'target': target});
+      if (data['ok'] == true) {
+        return {
+          'translated': (data['translated'] ?? '').toString(),
+          'source': (data['source'] ?? '').toString(),
+          'detected': (data['detected'] ?? '').toString(),
+        };
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }

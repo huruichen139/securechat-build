@@ -516,6 +516,15 @@ class _SettingsPageState extends State<SettingsPage> {
             showArrow: false,
             trailing: Switch(value: config.voiceToText, onChanged: (v) => config.setVoiceToText(v), activeThumbColor: config.primary),
           ),
+          CellDivider(config: config),
+          ListCell(
+            config: config,
+            icon: Icons.notifications_active_outlined,
+            title: '新消息提示音',
+            subtitle: config.soundEnabled ? '收到新消息时播放提示音' : '新消息静音',
+            showArrow: false,
+            trailing: Switch(value: config.soundEnabled, onChanged: (v) => config.setSoundEnabled(v), activeThumbColor: config.primary),
+          ),
         ],
       ),
     ]);

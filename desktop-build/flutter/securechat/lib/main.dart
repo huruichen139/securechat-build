@@ -28,6 +28,7 @@ import 'widgets/app_scaffold.dart';
 import 'widgets/window_effect.dart';
 import 'widgets/window_tray.dart';
 import 'widgets/ux.dart';
+import 'widgets/toast_notification.dart';
 import 'call_page.dart';
 import 'deeplink.dart';
 import 'qr_confirm_page.dart';
@@ -690,6 +691,9 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   final _likedMsgs = <String, int>{}; // 双击点赞: msgKey -> 点赞时间戳
   final _mentionMe = <String, bool>{};
   Map<String, dynamic>? _pinnedMsg; // 群聊@我标记 keyed by convKey // 双击点赞: msgKey -> 点赞时间戳
+  List<Map<String, dynamic>> _groupMemberCache = []; // 群成员缓存（用于@提及）
+  bool _showAtPopup = false; // @成员选择弹窗是否显示
+  String _atFilter = ''; // @搜索过滤文字
 
   Map<String, dynamic>? get selConv => selected >= 0 && selected < conversations.length ? conversations[selected] : null;
 
@@ -1014,6 +1018,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       widget.api.groupMembers(gid).then((members) {
         if (!mounted || selConv?['id'] != gid || selConv?['kind'] != 'group') return;
         final n = members.where((m) => m['online'] == true).length;
+        _groupMemberCache = members.cast<Map<String, dynamic>>();
         setState(() => _groupOnlineCount = n);
       }).catchError((_) {});
       try {
@@ -1372,9 +1377,30 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
           if (conv != null && !talkingToPeer) {
             final key = 'f${from == myId ? to : from}';
+            final isMuted = conversations.any((c) => c['kind'] == 'friend' && c['id'] == from && c['muted'] == true);
             setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
             _updateWindowTitle();
             _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
+            if (from != myId && _soundEnabled && !isMuted) _playNotificationSound();
+            // 桌面端：弹出 Windows 风格消息通知（免打扰会话不弹）
+            if (from != myId && !isMuted && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+              final senderName = _resolveUserName(from);
+              final preview = _notifPreview(text);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                ToastManager().show(
+                  context: context,
+                  sender: senderName,
+                  content: preview,
+                  isGroup: false,
+                  config: widget.config,
+                  onTap: () {
+                    final idx = conversations.indexWhere((c) => c['kind'] == 'friend' && c['id'] == from);
+                    if (idx >= 0) _openConversation(idx);
+                  },
+                );
+              });
+            }
             return;
           }
           setState(() {
@@ -1383,6 +1409,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
               final inView = conv != null && talkingToPeer;
               if (!mine && inView) {
                 socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': from}}));
+                if (_soundEnabled) _playNotificationSound();
               }
               _appendMsg(voice != null
                   ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
@@ -1549,12 +1576,37 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             }
           }
           if (conv == null || conv['kind'] != 'group' || conv['id'] != gid) {
-            if (!mine) setState(() { _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1; _updateWindowTitle(); });
+            if (!mine) {
+              final isGroupMuted = conversations.any((c) => c['kind'] == 'group' && c['id'] == gid && c['muted'] == true);
+              setState(() { _unread['g$gid'] = (_unread['g$gid'] ?? 0) + 1; _updateWindowTitle(); });
+              if (_soundEnabled && !isGroupMuted) _playNotificationSound();
+              // 桌面端：弹出群消息通知（免打扰群不弹）
+              if (!isGroupMuted && (Platform.isWindows || Platform.isMacOS || Platform.isLinux) && sender != null && sender.isNotEmpty) {
+                final groupName = conv != null ? (conv['name']?.toString() ?? '') : (conversations.where((c) => c['kind'] == 'group' && c['id'] == gid).map((c) => c['name']?.toString() ?? '').firstOrNull ?? '');
+                final preview = _notifPreview(text);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  ToastManager().show(
+                    context: context,
+                    sender: sender,
+                    content: preview,
+                    isGroup: true,
+                    groupName: groupName.isNotEmpty ? groupName : null,
+                    config: widget.config,
+                    onTap: () {
+                      final idx = conversations.indexWhere((c) => c['kind'] == 'group' && c['id'] == gid);
+                      if (idx >= 0) _openConversation(idx);
+                    },
+                  );
+                });
+              }
+            }
             return;
           }
           setState(() {
             if (!mine) {
               socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': gid}}));
+              if (_soundEnabled) _playNotificationSound();
             }
             _appendMsg(voice != null
                 ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
@@ -1667,6 +1719,79 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         Future.delayed(delay, () { if (mounted) _connect(); });
       });
     } catch (_) {}
+  }
+
+  void _playNotificationSound() {
+    try {
+      SystemSound.play(SystemSoundType.alert);
+    } catch (_) {}
+  }
+
+  bool get _soundEnabled => widget.config.soundEnabled;
+
+  /// 根据 userId 查找用户名/昵称（优先从好友列表查找）
+  String _resolveUserName(dynamic userId) {
+    final id = userId is int ? userId : int.tryParse('$userId');
+    if (id == null) return '用户$id';
+    // 从会话列表查找
+    final conv = conversations.where((c) => c['kind'] == 'friend' && c['id'] == id);
+    if (conv.isNotEmpty) {
+      final name = conv.first['name']?.toString();
+      if (name != null && name.isNotEmpty) return name;
+    }
+    return '用户$id';
+  }
+
+  /// 生成通知弹窗的消息预览文本
+  String _notifPreview(String text) {
+    if (text.startsWith('[语音消息')) return '[语音消息]';
+    if (text.startsWith('__FILE__')) return '[文件]';
+    if (text.startsWith('[红包:')) return '[红包]';
+    if (text.length > 50) return '${text.substring(0, 50)}...';
+    return text;
+  }
+
+  void _checkAtMention() {
+    final conv = selConv;
+    if (conv == null || conv['kind'] != 'group' || _groupMemberCache.isEmpty) {
+      if (_showAtPopup) setState(() => _showAtPopup = false);
+      return;
+    }
+    final text = input.text;
+    final cursorPos = input.selection.baseOffset;
+    if (cursorPos <= 0) { if (_showAtPopup) setState(() => _showAtPopup = false); return; }
+    // 找光标前面最近的@符号
+    final beforeCursor = text.substring(0, cursorPos);
+    final atIdx = beforeCursor.lastIndexOf('@');
+    if (atIdx < 0 || (atIdx > 0 && beforeCursor[atIdx - 1] != ' ' && beforeCursor[atIdx - 1] != '\n')) {
+      if (_showAtPopup) setState(() => _showAtPopup = false);
+      return;
+    }
+    final filter = beforeCursor.substring(atIdx + 1);
+    if (filter.contains(' ') || filter.contains('\n')) {
+      if (_showAtPopup) setState(() => _showAtPopup = false);
+      return;
+    }
+    _atFilter = filter;
+    if (!_showAtPopup) setState(() => _showAtPopup = true);
+    else setState(() {});
+  }
+
+  void _insertAtMention(Map<String, dynamic> member) {
+    final nick = (member['nickname'] ?? member['username'] ?? '').toString();
+    if (nick.isEmpty) return;
+    final text = input.text;
+    final cursorPos = input.selection.baseOffset;
+    final beforeCursor = text.substring(0, cursorPos);
+    final atIdx = beforeCursor.lastIndexOf('@');
+    if (atIdx < 0) return;
+    final afterCursor = text.substring(cursorPos);
+    final newText = text.substring(0, atIdx) + '@$nick ' + afterCursor;
+    input.text = newText;
+    final newPos = atIdx + nick.length + 2;
+    input.selection = TextSelection.collapsed(offset: newPos);
+    setState(() => _showAtPopup = false);
+    inputFocus.requestFocus();
   }
 
   int? get _talkId {
@@ -2243,7 +2368,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   Widget _readIcon(Map<String, dynamic> msg) {
     if (selConv != null && selConv!['kind'] == 'group') {
       final rc = (msg['readCount'] as num?)?.toInt() ?? 0;
-      return rc > 1 ? Text('已读 ', style: TextStyle(color: widget.config.theme.subText, fontSize: 10)) : const SizedBox.shrink();
+      if (rc <= 1) return const SizedBox.shrink();
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.done_all, size: 13, color: _wechatGreen),
+        const SizedBox(width: 1),
+        Text('已读 $rc', style: TextStyle(color: widget.config.theme.subText, fontSize: 10)),
+      ]);
     }
     final read = msg['read'] == true;
     return Icon(read ? Icons.done_all : Icons.done, size: 14, color: read ? _wechatGreen : widget.config.theme.subText);
@@ -2345,13 +2475,14 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                 if (replyText != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 3),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.6),
                     decoration: BoxDecoration(
-                      color: mine ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.05),
-                      border: Border(left: BorderSide(color: _wechatGreen.withValues(alpha: 0.6), width: 3)),
+                      color: mine ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.04),
+                      border: Border(left: BorderSide(color: t.subText.withValues(alpha: 0.4), width: 3)),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 12, fontStyle: FontStyle.italic)),
+                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 11)),
                   ),
                 if (isSearchTarget)
                   DecoratedBox(
@@ -2592,6 +2723,44 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildAtMemberList() {
+    final t = widget.config.theme;
+    final myId = this.myId;
+    final filtered = _groupMemberCache.where((m) {
+      final nick = (m['nickname'] ?? m['username'] ?? '').toString();
+      return nick.isNotEmpty && m['userId'] != myId && (_atFilter.isEmpty || nick.toLowerCase().contains(_atFilter.toLowerCase()));
+    }).toList();
+    // "所有人" 选项排第一
+    final all = <Map<String, dynamic>>[{'nickname': '所有人', 'userId': -1}];
+    all.addAll(filtered);
+    return ListView.builder(
+      itemCount: all.length,
+      padding: EdgeInsets.zero,
+      itemBuilder: (_, i) {
+        final m = all[i];
+        final nick = (m['nickname'] ?? m['username'] ?? '').toString();
+        final isAll = m['userId'] == -1;
+        return ListTile(
+          dense: true,
+          leading: CircleAvatar(
+            radius: 16,
+            backgroundColor: isAll ? _wechatGreen : Color((nick.hashCode & 0xFFFFFF) | 0xFF000000).withValues(alpha: 0.15),
+            child: Text(isAll ? '@' : (nick.isNotEmpty ? nick[0] : '?'), style: TextStyle(color: isAll ? Colors.white : t.text, fontSize: 13)),
+          ),
+          title: Text(isAll ? '@所有人' : nick, style: TextStyle(color: t.text, fontSize: 14)),
+          onTap: () {
+            if (isAll) {
+              input.text += '@所有人 ';
+            } else {
+              _insertAtMention(m);
+            }
+            inputFocus.requestFocus();
+          },
+        );
+      },
+    );
+  }
+
   Widget _composer() {
     final conv = selConv;
     final canSend = conv != null;
@@ -2601,6 +2770,13 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: Border(top: BorderSide(color: t.div))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
+      // @提及群成员弹窗
+      if (_showAtPopup && _groupMemberCache.isNotEmpty)
+        Container(
+          height: 200,
+          decoration: BoxDecoration(color: t.card, border: Border(top: BorderSide(color: t.div)), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, offset: const Offset(0, -2))]),
+          child: _buildAtMemberList(),
+        ),
       Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         IconButton(tooltip: recording ? '停止录音' : '语音消息', onPressed: _toggleRecording, icon: Icon(recording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, color: recording ? Colors.red : t.text)),
         if (recording) ...[SizedBox(width: 6), _PulseIndicator(color: Colors.red), SizedBox(width: 4), Text((_recordingDuration ~/ 60).toString().padLeft(2, '0') + ':' + (_recordingDuration % 60).toString().padLeft(2, '0'), style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)), SizedBox(width: 4), Text('录音中...', style: TextStyle(color: Colors.red, fontSize: 12))],
@@ -2612,7 +2788,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           minLines: 1,
           maxLines: 4,
           style: TextStyle(color: t.text),
-          onChanged: (_) { if (mounted) setState(() {}); _sendTyping(); },
+          onChanged: (_) {
+            if (mounted) setState(() {});
+            _sendTyping();
+            // @提及检测：群聊输入框中出现@时弹出成员选择列表
+            _checkAtMention();
+          },
           decoration: InputDecoration(hintText: '输入消息', hintStyle: TextStyle(color: t.subText), filled: true, fillColor: t.inputBg.withValues(alpha: 0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
         )),
         const SizedBox(width: 8),

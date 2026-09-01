@@ -82,6 +82,7 @@ class AppConfig extends ChangeNotifier {
   static const _kBubble = 'cfg_bubble';
   static const _kBlurPanel = 'cfg_blur_panel';
   static const _kVoiceToText = 'cfg_voice_to_text';
+  static const _kSound = 'cfg_sound';
 
   ThemeModeEx mode = ThemeModeEx.light;
   WindowEffectKind effect = WindowEffectKind.acrylic;
@@ -93,6 +94,7 @@ class AppConfig extends ChangeNotifier {
   bool enterSend = false;
   bool showTimestamp = true;
   bool voiceToText = false; // 语音消息自动转文字（服务端配置 STT 后生效）
+  bool soundEnabled = true; // 新消息提示音
   bool accentText = true;
   bool showStatusbar = true;
   bool haptic = false;
@@ -128,6 +130,7 @@ class AppConfig extends ChangeNotifier {
       ..enterSend = sp.getBool(_kEnterSend) ?? false
       ..showTimestamp = sp.getBool(_kTimestamp) ?? true
       ..voiceToText = sp.getBool(_kVoiceToText) ?? false
+      ..soundEnabled = sp.getBool(_kSound) ?? true
       ..accentText = sp.getBool(_kAccentText) ?? true
       ..showStatusbar = sp.getBool(_kShowStatusbar) ?? true
       ..haptic = sp.getBool(_kEnterHaptick) ?? false
@@ -209,6 +212,12 @@ class AppConfig extends ChangeNotifier {
   void setVoiceToText(bool v) {
     voiceToText = v;
     sp.setBool(_kVoiceToText, v);
+    notifyListeners();
+  }
+
+  void setSoundEnabled(bool v) {
+    soundEnabled = v;
+    sp.setBool(_kSound, v);
     notifyListeners();
   }
 
