@@ -51,6 +51,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   pointycastle: ^4.0.0
   flutter_svg: ^2.3.0
+  webview_flutter: ^4.14.1
+  webview_flutter_windows: ^1.2.0
+  webview_flutter_android: ^4.14.1
 
 dev_dependencies:
   flutter_test:

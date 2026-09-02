@@ -289,21 +289,21 @@ class SecureChatApi {
     return _json('GET', '/api/captcha/config', auth: false);
   }
 
-  Future<void> sendEmailCode(String email, {String? captchaId, String? captchaText}) async {
-    await _json('POST', '/api/email/code', body: {'email': email, 'purpose': 'login', if (captchaId != null && captchaText != null) ...{'captchaId': captchaId, 'captchaText': captchaText}}, auth: false);
+  Future<void> sendEmailCode(String email, {String? captchaId, String? captchaText, String? turnstileToken}) async {
+    await _json('POST', '/api/email/code', body: {'email': email, 'purpose': 'login', if (captchaId != null && captchaText != null) ...{'captchaId': captchaId, 'captchaText': captchaText}, if (turnstileToken != null) 'turnstileToken': turnstileToken}, auth: false);
   }
 
-  Future<Map<String, dynamic>> loginByCode(String email, String code, {String? captchaId, String? captchaText}) async {
+  Future<Map<String, dynamic>> loginByCode(String email, String code, {String? captchaId, String? captchaText, String? turnstileToken}) async {
     await _initDeviceInfoIfNeeded();
-    final data = await _json('POST', '/api/login/code', body: {'email': email, 'code': code, 'deviceId': deviceId.isEmpty ? null : deviceId, if (captchaId != null && captchaText != null) ...{'captchaId': captchaId, 'captchaText': captchaText}}, auth: false);
+    final data = await _json('POST', '/api/login/code', body: {'email': email, 'code': code, 'deviceId': deviceId.isEmpty ? null : deviceId, if (captchaId != null && captchaText != null) ...{'captchaId': captchaId, 'captchaText': captchaText}, if (turnstileToken != null) 'turnstileToken': turnstileToken}, auth: false);
     _setSession(data);
     await persistSession();
     await _registerDevice();
     return data;
   }
 
-  Future<void> sendResetCode(String email, {String? captchaId, String? captchaText}) async {
-    await _json('POST', '/api/email/code', body: {'email': email, 'purpose': 'reset', if (captchaId != null && captchaText != null) ...{'captchaId': captchaId, 'captchaText': captchaText}}, auth: false);
+  Future<void> sendResetCode(String email, {String? captchaId, String? captchaText, String? turnstileToken}) async {
+    await _json('POST', '/api/email/code', body: {'email': email, 'purpose': 'reset', if (captchaId != null && captchaText != null) ...{'captchaId': captchaId, 'captchaText': captchaText}, if (turnstileToken != null) 'turnstileToken': turnstileToken}, auth: false);
   }
 
   Future<void> resetPassword(String email, String code, String newPassword) async {

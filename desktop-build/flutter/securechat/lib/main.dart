@@ -13,6 +13,7 @@ import 'package:pointycastle/export.dart' as pc;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'widgets/turnstile_widget.dart';
 import 'chat_features.dart';
 import 'contact_detail_page.dart';
 import 'scan_page.dart';
@@ -140,10 +141,13 @@ class _LoginPageState extends State<LoginPage> {
   final password = TextEditingController();
   final email = TextEditingController();
   final code = TextEditingController();
-  // 人机验证（图形数字验证码）
+  // 人机验证（图形数字验证码 / Cloudflare Turnstile）
   String? captchaId;
   String? captchaSvg;
   final captchaCtrl = TextEditingController();
+  String? turnstileSite;
+  String? turnstileToken;
+  bool useTurnstile = true;
 
   @override
   void dispose() {
@@ -171,20 +175,54 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> loadTurnstileConfig() async {
+    try {
+      final data = await api.getCaptchaConfig();
+      if (!mounted) return;
+      setState(() {
+        if (data['turnstile'] is Map) {
+          turnstileSite = (data['turnstile']['site'] as String?) ?? '0x4AAAAAAEknUV0niF2E259J';
+        } else {
+          turnstileSite = '0x4AAAAAAEknUV0niF2E259J';
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() => turnstileSite = '0x4AAAAAAEknUV0niF2E259J');
+    }
+  }
+
+  void switchVerifyMode() {
+    setState(() {
+      useTurnstile = !useTurnstile;
+      turnstileToken = null;
+      if (!useTurnstile) loadCaptcha();
+    });
+  }
+
   Future<void> sendEmailCode() async {
     final em = email.text.trim();
     if (em.isEmpty) {
       if (mounted) setState(() => error = '请先输入邮箱地址');
       return;
     }
-    if (captchaId == null || captchaCtrl.text.trim().isEmpty) {
-      if (mounted) setState(() => error = '请先输入图形验证码');
-      return;
+    if (useTurnstile) {
+      if (turnstileToken == null || turnstileToken!.isEmpty) {
+        if (mounted) setState(() => error = '请先完成人机验证');
+        return;
+      }
+    } else {
+      if (captchaId == null || captchaCtrl.text.trim().isEmpty) {
+        if (mounted) setState(() => error = '请先输入图形验证码');
+        return;
+      }
     }
     if (countdown > 0) return;
     setState(() { busy = true; error = null; });
     try {
-      await api.sendEmailCode(em, captchaId: captchaId, captchaText: captchaCtrl.text.trim());
+      await api.sendEmailCode(em,
+        turnstileToken: useTurnstile ? turnstileToken : null,
+        captchaId: useTurnstile ? null : captchaId,
+        captchaText: useTurnstile ? null : captchaCtrl.text.trim());
       if (!mounted) return;
       countdown = 60;
       error = '验证码已发送，请查收邮箱';
@@ -198,8 +236,7 @@ class _LoginPageState extends State<LoginPage> {
       });
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
-      loadCaptcha();
-      captchaCtrl.clear();
+      if (!useTurnstile) { loadCaptcha(); captchaCtrl.clear(); }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -212,11 +249,13 @@ class _LoginPageState extends State<LoginPage> {
       if (mode == 0) {
         await api.login(account.text.trim(), password.text);
       } else if (mode == 1) {
-        if (captchaId == null || captchaCtrl.text.trim().isEmpty) {
-          setState(() => error = '请先输入图形验证码');
-          return;
+        if (useTurnstile) {
+          if (turnstileToken == null || turnstileToken!.isEmpty) { setState(() => error = '请先完成人机验证'); return; }
+          await api.loginByCode(email.text.trim(), code.text.trim(), turnstileToken: turnstileToken);
+        } else {
+          if (captchaId == null || captchaCtrl.text.trim().isEmpty) { setState(() => error = '请先输入图形验证码'); return; }
+          await api.loginByCode(email.text.trim(), code.text.trim(), captchaId: captchaId, captchaText: captchaCtrl.text.trim());
         }
-        await api.loginByCode(email.text.trim(), code.text.trim(), captchaId: captchaId, captchaText: captchaCtrl.text.trim());
       } else {
         if (qrText == null) await beginQr();
         return;
@@ -369,29 +408,48 @@ class _LoginPageState extends State<LoginPage> {
         const SizedBox(height: 12),
         Row(children: [Expanded(child: TextField(controller: code, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '验证码', labelStyle: TextStyle(color: t.subText)))), const SizedBox(width: 10), OutlinedButton(onPressed: busy ? null : sendEmailCode, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))]),
         const SizedBox(height: 12),
-        // 图形验证码（人机验证）
+        // 人机验证：默认 Cloudflare Turnstile，可切换图形数字验证码
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(color: t.inputBg, borderRadius: BorderRadius.circular(10)),
-          child: Row(children: [
-            GestureDetector(
-              onTap: loadCaptcha,
-              child: SizedBox(
-                width: 120, height: 40,
-                child: captchaSvg == null
-                    ? Center(child: Icon(Icons.refresh, size: 22, color: t.subText))
-                    : SvgPicture.string(captchaSvg!, fit: BoxFit.contain),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: TextField(
-              controller: captchaCtrl,
-              style: TextStyle(color: t.text, fontSize: 15, letterSpacing: 4),
-              maxLength: 6,
-              decoration: InputDecoration(labelText: '图中数字', labelStyle: TextStyle(color: t.subText), counterText: '', isDense: true),
-            )),
-            IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: Icon(Icons.refresh_rounded, size: 20, color: t.subText)),
-          ]),
+          child: useTurnstile
+              ? Column(children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 70,
+                    child: turnstileSite == null
+                        ? Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: t.subText)))
+                        : TurnstileWidget(
+                            siteKey: turnstileSite!,
+                            onToken: (tk) { setState(() => turnstileToken = tk); error = null; },
+                            onError: () { if (mounted) setState(() => turnstileToken = null); },
+                          ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: t.subText), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12))),
+                  ),
+                ])
+              : Row(children: [
+                  GestureDetector(
+                    onTap: loadCaptcha,
+                    child: SizedBox(
+                      width: 120, height: 40,
+                      child: captchaSvg == null
+                          ? Center(child: Icon(Icons.refresh, size: 22, color: t.subText))
+                          : SvgPicture.string(captchaSvg!, fit: BoxFit.contain),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(
+                    controller: captchaCtrl,
+                    style: TextStyle(color: t.text, fontSize: 15, letterSpacing: 4),
+                    maxLength: 6,
+                    decoration: InputDecoration(labelText: '图中数字', labelStyle: TextStyle(color: t.subText), counterText: '', isDense: true),
+                  )),
+                  IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: Icon(Icons.refresh_rounded, size: 20, color: t.subText)),
+                  TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: t.subText), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12))),
+                ]),
         ),
       ] else if (mode == 2) ...[
         Center(child: Column(children: [
@@ -438,7 +496,7 @@ class _LoginPageState extends State<LoginPage> {
       child: GestureDetector(
         onTap: () {
           setState(() => mode = value);
-          if (value == 1) loadCaptcha();
+          if (value == 1) { loadTurnstileConfig(); if (!useTurnstile) loadCaptcha(); }
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -4849,11 +4907,31 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   String? captchaId;
   String? captchaSvg;
   final captchaCtrl = TextEditingController();
+  // Turnstile
+  String? turnstileSite;
+  String? turnstileToken;
+  bool useTurnstile = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => loadCaptcha());
+    WidgetsBinding.instance.addPostFrameCallback((_) { loadTurnstileConfig(); loadCaptcha(); });
+  }
+
+  Future<void> loadTurnstileConfig() async {
+    try {
+      final data = await widget.api.getCaptchaConfig();
+      if (!mounted) return;
+      setState(() {
+        turnstileSite = (data['turnstile'] is Map ? (data['turnstile']['site'] as String?) : null) ?? '0x4AAAAAAEknUV0niF2E259J';
+      });
+    } catch (e) {
+      if (mounted) setState(() => turnstileSite = '0x4AAAAAAEknUV0niF2E259J');
+    }
+  }
+
+  void switchVerifyMode() {
+    setState(() { useTurnstile = !useTurnstile; turnstileToken = null; if (!useTurnstile) loadCaptcha(); });
   }
 
   @override
@@ -4883,10 +4961,17 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   Future<void> send() async {
     final em = email.text.trim();
     if (em.isEmpty) return setState(() => error = '请先输入邮箱地址');
-    if (captchaId == null || captchaCtrl.text.trim().isEmpty) return setState(() => error = '请先输入图形验证码');
+    if (useTurnstile) {
+      if (turnstileToken == null || turnstileToken!.isEmpty) return setState(() => error = '请先完成人机验证');
+    } else {
+      if (captchaId == null || captchaCtrl.text.trim().isEmpty) return setState(() => error = '请先输入图形验证码');
+    }
     setState(() { busy = true; error = null; });
     try {
-      await widget.api.sendResetCode(em, captchaId: captchaId, captchaText: captchaCtrl.text.trim());
+      await widget.api.sendResetCode(em,
+        turnstileToken: useTurnstile ? turnstileToken : null,
+        captchaId: useTurnstile ? null : captchaId,
+        captchaText: useTurnstile ? null : captchaCtrl.text.trim());
       if (!mounted) return;
       setState(() { sent = true; countdown = 60; busy = false; });
       timer?.cancel();
@@ -4896,7 +4981,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       });
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
-      loadCaptcha();
+      if (!useTurnstile) loadCaptcha();
       captchaCtrl.clear();
     }
   }
@@ -4937,18 +5022,24 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                 SizedBox(height: 48, child: OutlinedButton(onPressed: busy ? null : send, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))),
               ]),
               const SizedBox(height: 12),
+              // 人机验证：默认 Turnstile，可切换图形验证码
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: const Color(0xfff5f6f8), borderRadius: BorderRadius.circular(8)),
-                child: Row(children: [
-                  GestureDetector(
-                    onTap: loadCaptcha,
-                    child: SizedBox(width: 120, height: 38, child: captchaSvg == null ? const Center(child: Icon(Icons.refresh, size: 20, color: Color(0xff999999))) : SvgPicture.string(captchaSvg!, fit: BoxFit.contain)),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: captchaCtrl, enabled: !busy, maxLength: 6, style: const TextStyle(fontSize: 15, letterSpacing: 4), decoration: const InputDecoration(labelText: '图中数字', counterText: '', isDense: true))),
-                  IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xff999999))),
-                ]),
+                child: useTurnstile
+                    ? Column(children: [
+                        SizedBox(height: 68, child: turnstileSite == null
+                            ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                            : TurnstileWidget(siteKey: turnstileSite!, onToken: (tk) { setState(() => turnstileToken = tk); error = null; }, onError: () { if (mounted) setState(() => turnstileToken = null); })),
+                        Align(alignment: Alignment.centerRight, child: TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12)))),
+                      ])
+                    : Row(children: [
+                        GestureDetector(onTap: loadCaptcha, child: SizedBox(width: 120, height: 38, child: captchaSvg == null ? const Center(child: Icon(Icons.refresh, size: 20, color: Color(0xff999999))) : SvgPicture.string(captchaSvg!, fit: BoxFit.contain))),
+                        const SizedBox(width: 10),
+                        Expanded(child: TextField(controller: captchaCtrl, enabled: !busy, maxLength: 6, style: const TextStyle(fontSize: 15, letterSpacing: 4), decoration: const InputDecoration(labelText: '图中数字', counterText: '', isDense: true))),
+                        IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xff999999))),
+                        TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12))),
+                      ]),
               ),
               const SizedBox(height: 12),
               TextField(controller: password, enabled: !busy, obscureText: true, decoration: const InputDecoration(labelText: '新密码')),
