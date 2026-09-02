@@ -12,6 +12,7 @@ import 'package:record/record.dart';
 import 'package:pointycastle/export.dart' as pc;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'chat_features.dart';
 import 'contact_detail_page.dart';
 import 'scan_page.dart';
@@ -139,6 +140,10 @@ class _LoginPageState extends State<LoginPage> {
   final password = TextEditingController();
   final email = TextEditingController();
   final code = TextEditingController();
+  // 人机验证（图形数字验证码）
+  String? captchaId;
+  String? captchaSvg;
+  final captchaCtrl = TextEditingController();
 
   @override
   void dispose() {
@@ -148,7 +153,22 @@ class _LoginPageState extends State<LoginPage> {
     password.dispose();
     email.dispose();
     code.dispose();
+    captchaCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> loadCaptcha() async {
+    try {
+      setState(() { captchaId = null; captchaSvg = null; });
+      final data = await api.getCaptcha();
+      if (!mounted) return;
+      setState(() {
+        captchaId = data['id'] as String?;
+        captchaSvg = data['svg'] as String?;
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = '验证码加载失败，请重试');
+    }
   }
 
   Future<void> sendEmailCode() async {
@@ -157,10 +177,14 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => error = '请先输入邮箱地址');
       return;
     }
+    if (captchaId == null || captchaCtrl.text.trim().isEmpty) {
+      if (mounted) setState(() => error = '请先输入图形验证码');
+      return;
+    }
     if (countdown > 0) return;
     setState(() { busy = true; error = null; });
     try {
-      await api.sendEmailCode(em);
+      await api.sendEmailCode(em, captchaId: captchaId, captchaText: captchaCtrl.text.trim());
       if (!mounted) return;
       countdown = 60;
       error = '验证码已发送，请查收邮箱';
@@ -174,6 +198,8 @@ class _LoginPageState extends State<LoginPage> {
       });
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+      loadCaptcha();
+      captchaCtrl.clear();
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -186,7 +212,11 @@ class _LoginPageState extends State<LoginPage> {
       if (mode == 0) {
         await api.login(account.text.trim(), password.text);
       } else if (mode == 1) {
-        await api.loginByCode(email.text.trim(), code.text.trim());
+        if (captchaId == null || captchaCtrl.text.trim().isEmpty) {
+          setState(() => error = '请先输入图形验证码');
+          return;
+        }
+        await api.loginByCode(email.text.trim(), code.text.trim(), captchaId: captchaId, captchaText: captchaCtrl.text.trim());
       } else {
         if (qrText == null) await beginQr();
         return;
@@ -338,6 +368,31 @@ class _LoginPageState extends State<LoginPage> {
         TextField(controller: email, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '邮箱地址', labelStyle: TextStyle(color: t.subText))),
         const SizedBox(height: 12),
         Row(children: [Expanded(child: TextField(controller: code, style: TextStyle(color: t.text), decoration: InputDecoration(labelText: '验证码', labelStyle: TextStyle(color: t.subText)))), const SizedBox(width: 10), OutlinedButton(onPressed: busy ? null : sendEmailCode, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))]),
+        const SizedBox(height: 12),
+        // 图形验证码（人机验证）
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: t.inputBg, borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [
+            GestureDetector(
+              onTap: loadCaptcha,
+              child: SizedBox(
+                width: 120, height: 40,
+                child: captchaSvg == null
+                    ? Center(child: Icon(Icons.refresh, size: 22, color: t.subText))
+                    : SvgPicture.string(captchaSvg!, fit: BoxFit.contain),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(
+              controller: captchaCtrl,
+              style: TextStyle(color: t.text, fontSize: 15, letterSpacing: 4),
+              maxLength: 6,
+              decoration: InputDecoration(labelText: '图中数字', labelStyle: TextStyle(color: t.subText), counterText: '', isDense: true),
+            )),
+            IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: Icon(Icons.refresh_rounded, size: 20, color: t.subText)),
+          ]),
+        ),
       ] else if (mode == 2) ...[
         Center(child: Column(children: [
           Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: t.div), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
@@ -381,7 +436,10 @@ class _LoginPageState extends State<LoginPage> {
     final selected = mode == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => mode = value),
+        onTap: () {
+          setState(() => mode = value);
+          if (value == 1) loadCaptcha();
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 11),
@@ -4784,6 +4842,16 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   bool busy = false;
   bool sent = false;
   String? error;
+  // 图形验证码
+  String? captchaId;
+  String? captchaSvg;
+  final captchaCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => loadCaptcha());
+  }
 
   @override
   void dispose() {
@@ -4791,15 +4859,31 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     email.dispose();
     code.dispose();
     password.dispose();
+    captchaCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> loadCaptcha() async {
+    try {
+      setState(() { captchaId = null; captchaSvg = null; });
+      final data = await widget.api.getCaptcha();
+      if (!mounted) return;
+      setState(() {
+        captchaId = data['id'] as String?;
+        captchaSvg = data['svg'] as String?;
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = '验证码加载失败，请重试');
+    }
   }
 
   Future<void> send() async {
     final em = email.text.trim();
     if (em.isEmpty) return setState(() => error = '请先输入邮箱地址');
+    if (captchaId == null || captchaCtrl.text.trim().isEmpty) return setState(() => error = '请先输入图形验证码');
     setState(() { busy = true; error = null; });
     try {
-      await widget.api.sendResetCode(em);
+      await widget.api.sendResetCode(em, captchaId: captchaId, captchaText: captchaCtrl.text.trim());
       if (!mounted) return;
       setState(() { sent = true; countdown = 60; busy = false; });
       timer?.cancel();
@@ -4809,6 +4893,8 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       });
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
+      loadCaptcha();
+      captchaCtrl.clear();
     }
   }
 
@@ -4847,6 +4933,20 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                 const SizedBox(width: 10),
                 SizedBox(height: 48, child: OutlinedButton(onPressed: busy ? null : send, child: Text(countdown > 0 ? '$countdown s' : '获取验证码'))),
               ]),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xfff5f6f8), borderRadius: BorderRadius.circular(8)),
+                child: Row(children: [
+                  GestureDetector(
+                    onTap: loadCaptcha,
+                    child: SizedBox(width: 120, height: 38, child: captchaSvg == null ? const Center(child: Icon(Icons.refresh, size: 20, color: Color(0xff999999))) : SvgPicture.string(captchaSvg!, fit: BoxFit.contain)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(controller: captchaCtrl, enabled: !busy, maxLength: 6, style: const TextStyle(fontSize: 15, letterSpacing: 4), decoration: const InputDecoration(labelText: '图中数字', counterText: '', isDense: true))),
+                  IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xff999999))),
+                ]),
+              ),
               const SizedBox(height: 12),
               TextField(controller: password, enabled: !busy, obscureText: true, decoration: const InputDecoration(labelText: '新密码')),
               if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 13))),
