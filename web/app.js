@@ -4559,7 +4559,7 @@ function openSettingsPage() {
       title: '帮助与反�?,
       items: [
         { label: '意见反馈', desc: '提交问题或建�?, icon: '�?, fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
-        { label: '关于我们', desc: 'SecureChat v1.70.0', icon: '�?, fn: () => {
+        { label: '关于我们', desc: 'SecureChat v1.80.4', icon: '�?, fn: () => {
           modal('关于 SecureChat', (body) => {
             body.innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊�?/div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本�?.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快�?- 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>';
             const ghBtn = body.querySelector('#aboutGithubBtn');
