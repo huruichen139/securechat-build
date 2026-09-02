@@ -4439,7 +4439,20 @@ wss.on('connection', (ws, req) => {
 
     if (type === P.C_TYPING) {
       if (!ws.uid) return;
-      const { to } = payload || {};
+      const { to, groupId } = payload || {};
+      if (groupId) {
+        // 群聊输入：广播给所有群成员（排除自己）
+        const gid = Number(groupId);
+        if (Number.isInteger(gid)) {
+          try {
+            const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
+            for (const m of members) {
+              if (m.user_id !== ws.uid && onlineAny(m.user_id)) sendToUser(m.user_id, P.S_TYPING, { from: ws.uid, groupId: gid });
+            }
+          } catch (e) {}
+        }
+        return;
+      }
       const toId = Number(to);
       if (Number.isInteger(toId) && onlineAny(toId)) sendToUser(toId, P.S_TYPING, { from: ws.uid });
       return;

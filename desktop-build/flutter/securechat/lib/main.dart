@@ -682,6 +682,8 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   bool _isTyping = false;
   bool _peerTyping = false;
   final _peerTypingTimers = <int, dynamic>{};
+  final _groupTyping = <int>{};
+  final _groupTypingTimers = <int, dynamic>{};
   final _drafts = <String, String>{}; // 会话草稿 keyed by 'f$fid' or 'g$gid'
   final _chatBgColors = <String, Color>{}; // 会话背景色 keyed by convKey
   bool _multiSelectMode = false;
@@ -1650,7 +1652,15 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         } else if (type == 'typing') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           final fromId = p['from'] as int?;
+          final groupId = p['groupId'] as int?;
           final conv = selConv;
+          if (groupId != null && fromId != null && conv != null && conv['kind'] == 'group' && conv['id'] == groupId && mounted) {
+            setState(() => _groupTyping.add(fromId));
+            _groupTypingTimers[fromId]?.cancel();
+            _groupTypingTimers[fromId] = Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) setState(() => _groupTyping.remove(fromId));
+            });
+          }
           if (fromId != null && conv != null && conv['kind'] == 'friend' && conv['id'] == fromId && mounted) {
             setState(() => _peerTyping = true);
             _peerTypingTimers[fromId]?.cancel();
@@ -1741,6 +1751,14 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       if (name != null && name.isNotEmpty) return name;
     }
     return '用户$id';
+  }
+
+  /// 群聊：正在输入的用户名列表（逗号拼接）
+  String _groupTypingNames() {
+    final names = _groupTyping.map((uid) => _resolveUserName(uid)).toList();
+    if (names.isEmpty) return '';
+    if (names.length == 1) return '${names.first} 正在输入...';
+    return '${names.take(2).join('、')} 正在输入...';
   }
 
   /// 生成通知弹窗的消息预览文本
@@ -2171,6 +2189,10 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
               const SizedBox(width: 6),
               Text('对方正在输入...', style: TextStyle(color: _wechatGreen, fontSize: 11, fontWeight: FontWeight.w500)),
             ],
+            if (_groupTyping.isNotEmpty && selConv != null && selConv!['kind'] == 'group') ...[
+              const SizedBox(width: 6),
+              Text(_groupTypingNames(), style: TextStyle(color: _wechatGreen, fontSize: 11, fontWeight: FontWeight.w500)),
+            ],
           ]),
         ]),
         const Spacer(),
@@ -2372,8 +2394,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   }
 
   /// 聊天顶栏/资料卡状态行：在线 或「上次在线 xxx前」
-  String _convStatusLine(Map<String, dynamic> conv) {
-    if (conv['kind'] == 'group') return _groupOnlineCount >= 0 ? '群聊 · ' : '群聊';
+  String _convStatusLine(Map<String, dynamic> conv) {    if (conv['kind'] == 'group') return _groupOnlineCount >= 0 ? '群聊 · ' : '群聊';
     if (conv['online'] == true) return '在线';
     return _lastSeenLabel(conv['lastSeen'] as int?);
   }
@@ -3286,11 +3307,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   int _lastTypingSent = 0;
   void _sendTyping() {
     final conv = selConv;
-    if (conv == null || conv['kind'] != 'friend') return;
+    if (conv == null) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     if (now - _lastTypingSent < 3000) return;
     _lastTypingSent = now;
-    socket?.sink.add(jsonEncode({'type': 'typing', 'payload': {'to': conv['id']}}));
+    final payload = conv['kind'] == 'group' ? {'groupId': conv['id']} : {'to': conv['id']};
+    socket?.sink.add(jsonEncode({'type': 'typing', 'payload': payload}));
   }
 
   Future<void> _sendText() async {
