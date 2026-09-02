@@ -2566,8 +2566,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                 Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? _wechatGreen : t.subText, size: 20),
                 const SizedBox(width: 6),
               ],
-              if (!mine) ...[
-                CircleAvatar(radius: 16, backgroundColor: t.primary.withValues(alpha: t.isDark ? 0.25 : 0.14), child: const Icon(Icons.person, size: 17, color: _wechatGreen)),
+              if (!mine && !(sameSender && selConv != null && selConv!['kind'] == 'group')) ...[
+                // 群聊显示发送者名字首字母头像（微信式），私聊用默认 person 图标
+                (selConv != null && selConv!['kind'] == 'group' && msg['sender'] != null)
+                    ? CircleAvatar(radius: 16, backgroundColor: Color((msg['sender'].toString().hashCode & 0xFFFFFF) | 0xFF000000).withValues(alpha: t.isDark ? 0.3 : 0.15), child: Text((msg['sender'].toString().isNotEmpty ? msg['sender'].toString()[0] : '?').toUpperCase(), style: TextStyle(fontSize: 13, color: Color((msg['sender'].toString().hashCode & 0xFFFFFF) | 0xFF000000), fontWeight: FontWeight.w600)))
+                    : CircleAvatar(radius: 16, backgroundColor: t.primary.withValues(alpha: t.isDark ? 0.25 : 0.14), child: const Icon(Icons.person, size: 17, color: _wechatGreen)),
                 const SizedBox(width: 8),
               ],
               Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
