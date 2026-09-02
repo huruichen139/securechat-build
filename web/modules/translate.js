@@ -24,10 +24,9 @@
   }
 
   async function translateText(text, target) {
-    const lang = target === 'en' ? 'en' : 'zh';
     if (!apiFn) { toast('翻译服务不可用', 'error'); return null; }
     try {
-      const d = await apiFn('POST', '/api/translate', { body: { text: String(text), target: lang } });
+      const d = await apiFn('POST', '/api/translate', { body: { text: String(text), target: target || 'auto' } });
       return { translated: d.translated, source: d.source, detected: d.detected };
     } catch (e) {
       toast('翻译失败：' + (e.message || e), 'error');
@@ -81,7 +80,8 @@
       b.onmouseleave = () => { b.style.background = 'none'; };
       b.onclick = async () => {
         wrap.remove();
-        const target = act === 'en-zh' ? 'zh' : 'en';
+        const langMap = {'en-zh': 'zh', 'to-zh': 'zh', 'to-en': 'en', 'to-ja': 'ja', 'to-ko': 'ko', 'to-yue': 'yue', 'to-auto': 'auto'};
+        const target = langMap[act] || 'auto';
         const res = await translateText(text, target);
         if (res) showResult(text, res, target);
       };
@@ -90,6 +90,10 @@
     mkItem(isZh ? '翻译成英文' : '翻译成中文', 'en-zh');
     mkItem('翻译成中文', 'to-zh');
     mkItem('翻译成英文', 'to-en');
+    mkItem('翻译成日文', 'to-ja');
+    mkItem('翻译成韩文', 'to-ko');
+    mkItem('翻译成粤语', 'to-yue');
+    mkItem('自动检测翻译', 'to-auto');
     mkItem('复制原文', 'copy');
     const bCopy = Array.from(acts.children).find((b) => b.textContent === '复制原文');
     bCopy.onclick = () => { wrap.remove(); copyText(text); };
