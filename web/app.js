@@ -1857,6 +1857,16 @@ case P.S_MSG:
       toast(payload.reason || '已被强制下线', 'error');
       logout();
       break;
+    case 'payment_arrival':
+      // 到账语音通知：SecureChat到账 xx元
+      try {
+        const amt = Number(payload && payload.amount);
+        if (Number.isFinite(amt) && amt > 0) {
+          speakArrival(amt, (payload && payload.fromName) || '好友');
+          toast('已到账 ' + fmtMoney2(amt) + ' 元', 'success');
+        }
+      } catch (e) {}
+      break;
     case 'group_member_change':
       if (payload && payload.groupId) {
         const actionText = payload.action === 'dissolved' ? '该群已被解散' : (payload.action === 'removed' ? '你已被移出该群' : '你已退出该群');
@@ -3179,8 +3189,18 @@ function appendMessage(m, prepend) {
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
   let readLabel = '';
   if (mine) {
-    if (m.groupId) readLabel = (m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读';
-    else readLabel = m.read ? '已读' : '未读';
+    if (m.groupId) {
+      // 群聊：双勾 + 已读人数（微信式）
+      const cnt = m.readCount > 1 ? '已读 ' + m.readCount + '人' : '已读';
+      readLabel = '__GRPREAD__';
+      // 在插入处用统一 icon；先存人数标记
+      readLabel = '<span class="read-state read" title="' + cnt + '"><svg viewBox="0 0 24 24" width="15" height="15" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#07c160" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/><path fill="none" stroke="#07c160" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 13l3 3 8-8" opacity="0.9"/></svg></span><span class="read-state" title="' + cnt + '">' + cnt + '</span>';
+    } else {
+      // 单聊：双勾=已读(绿)，单勾=未读(灰)（微信式图标）
+      readLabel = m.read
+        ? '<span class="read-state read" title="已读"><svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#07c160" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/><path fill="none" stroke="#07c160" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 13l3 3 8-8" opacity="0.9"/></svg></span>'
+        : '<span class="read-state" title="未读"><svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/></svg></span>';
+    }
   }
   // 群聊他人消息：显示发送者头像 + 名字（微信式），私聊/本人不显示
   const isGroupOther = state.activeGroup && !mine;
@@ -4185,6 +4205,29 @@ function sendAttachmentFile(f) {
 })();
 // 进入会话后强制滚动到最新消息（双保险：渲染后 + 图片异步加载后）
 
+
+// ===== 到账语音播报 + 金额格式化 =====
+function fmtMoney2(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '0';
+  return (Math.round(v * 100) / 100).toFixed(2);
+}
+function speakArrival(amount, fromName) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    const zh = 'SecureChat到账、' + fmtMoney2(amount) + '元';
+    const u = new SpeechSynthesisUtterance(zh);
+    u.lang = 'zh-CN';
+    u.rate = 1.0;
+    u.volume = 1.0;
+    // 优先中文语音
+    const voices = window.speechSynthesis.getVoices();
+    const zhv = voices.find(v => /zh|Chinese|Mandarin/i.test(v.lang + ' ' + v.name));
+    if (zhv) u.voice = zhv;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
 // ===== 消息滚动节流：同帧多次只滚最后一次，避免批量消息导致渲染卡死 =====
 let __msgScrollRaf = null;
 function __msgScrollToBottom() {

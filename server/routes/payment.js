@@ -266,6 +266,13 @@ module.exports = function registerPayment(app, db, auth) {
       writeCharge(toId, 'in', amount, fromId, remark);
       addBill(fromId, 'out', category, amount, toId, remark + '（转出）', category, refId || null);
       addBill(toId, 'in', category, amount, fromId, remark + '（收入）', category, refId || null);
+      // 到账语音通知：推送给收款方（ws 在线连接），客户端播放"SecureChat到账 xx元"
+      try {
+        const sender = getUserRow(fromId);
+        const senderName = sender ? (sender.nickname || sender.username || ('用户' + fromId)) : ('用户' + fromId);
+        const notifier = (app && app.get && app.get('arrivalNotifier'));
+        if (typeof notifier === 'function') notifier(toId, { amount, fromId, fromName: senderName, remark: remark || '转账', category: category || 'transfer' });
+      } catch (e) {}
       try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
     } catch (e) {
       try { prepare('ROLLBACK').run(); } catch (e2) {}

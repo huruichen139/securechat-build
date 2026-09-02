@@ -4821,6 +4821,22 @@ function mountFeatureRoutes(app, db) {
   rx('./routes/rtc', [app, db, apiUser]);
   rx('./routes/media', [app, db, apiUser]);
   rx('./routes/lifestyle', [app, db, apiUser]);
+  // 到账语音通知注入：payment.js 的 doPay 到账后回调 → 推送到账事件给收款方所有在线连接
+  try {
+    app.set('arrivalNotifier', (toId, info) => {
+      try {
+        if (toId == null) return;
+        sendToUser(toId, 'payment_arrival', {
+          amount: info && info.amount,
+          fromId: info && info.fromId,
+          fromName: info && info.fromName,
+          remark: info && info.remark,
+          category: info && info.category,
+          ts: Date.now()
+        });
+      } catch (e) {}
+    });
+  } catch (e) {}
   rx('./routes/payment', [app, db, null]);
   rx('./epaygw', [app, db, null]);
   rx('./routes/status-collar', [app, db, apiUser]);
