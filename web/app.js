@@ -3174,7 +3174,19 @@ function appendMessage(m, prepend) {
     if (m.groupId) readLabel = (m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读';
     else readLabel = m.read ? '已读' : '未读';
   }
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + readLabel + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>`;
+  // 群聊他人消息：显示发送者头像 + 名字（微信式），私聊/本人不显示
+  const isGroupOther = state.activeGroup && !mine;
+  let rowAvatar = '', rowName = '';
+  if (isGroupOther) {
+    const fName = (m.fromUser && m.fromUser.nickname) || ('用户' + m.from);
+    const fAv = (m.fromUser && m.fromUser.avatar)
+      ? '<img src="' + escapeHtml(m.fromUser.avatar) + '">'
+      : avatarChar(fName);
+    rowAvatar = '<div class="row-avatar">' + fAv + '</div>';
+    rowName = '<div class="name">' + escapeHtml(fName) + '</div>';
+  }
+  if (m.from != null) row.setAttribute('data-from', String(m.from));
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}${rowAvatar}<div class="bubble-wrap">${rowName}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + readLabel + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
@@ -3193,6 +3205,13 @@ function appendMessage(m, prepend) {
   if (fwdBtn) fwdBtn.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   bindQuoteClicks(row);
   bindMobileLongPress(row);
+  // 群聊连续消息合并：与上一条同一发送者时标记 continue（藏头像、缩间距）
+  if (state.activeGroup && !mine) {
+    const prev = box.lastElementChild;
+    if (prev && prev.classList && prev.classList.contains('msg-row') && prev.getAttribute('data-from') === row.getAttribute('data-from')) {
+      row.classList.add('continue');
+    }
+  }
   box.appendChild(row);
   if (mine && m.createdAt && (Date.now() - m.createdAt) < 1500) {
     row.classList.add('just-sent');
