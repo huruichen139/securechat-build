@@ -4442,7 +4442,7 @@ wss.on('connection', (ws, req) => {
       for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
       // 推送离线未读消息（断线期间积累的消息，带 seq 供增量去重）
       try {
-        const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY seq ASC LIMIT 200').all(dbUser.id);
+        const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY seq ASC LIMIT 500').all(dbUser.id);
         for (const m of offlineMsgs) {
           send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading, seq: m.seq || null });
         }
@@ -4488,6 +4488,7 @@ wss.on('connection', (ws, req) => {
           .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
       }
       const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0, seq: wsMsgSeq };
+      console.log('[msg] ws.uid=' + ws.uid + ' -> to=' + toId + ' len=' + String(content).length + ' id=' + info.lastInsertRowid);
       let replyContent = null, replyFrom = null, replyRecalled = false;
       if (msgObj.replyTo) {
         try {

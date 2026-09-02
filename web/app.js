@@ -2678,7 +2678,7 @@ function appendGroupMessage(m, prepend) {
       }
     }
     box.appendChild(row);
-    if (!prepend) box.scrollTop = box.scrollHeight;
+    if (!prepend) __msgScrollToBottom();
     return;
   }
   const box = $('messages');
@@ -2699,7 +2699,7 @@ function appendGroupMessage(m, prepend) {
         <div class="bubble recalled">${escapeHtml(fromName)}撤回了一条消息</div>
       </div>`;
     box.appendChild(row);
-    if (!prepend) box.scrollTop = box.scrollHeight;
+    if (!prepend) __msgScrollToBottom();
     return;
   }
   const canGroupRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000;
@@ -2746,7 +2746,7 @@ function appendGroupMessage(m, prepend) {
     row.classList.add('just-sent');
     row.addEventListener('animationend', () => row.classList.remove('just-sent'), { once: true });
   }
-  if (!prepend) box.scrollTop = box.scrollHeight;
+  if (!prepend) __msgScrollToBottom();
 }
 
 async function recallGroupMessage(id) {
@@ -3173,7 +3173,7 @@ function appendMessage(m, prepend) {
   if (m.recalled) {
     row.innerHTML = `<div class="bubble recalled">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>`;
     box.appendChild(row);
-    if (!prepend) box.scrollTop = box.scrollHeight;
+    if (!prepend) __msgScrollToBottom();
     return;
   }
   const canRecall = mine && m.createdAt && (Date.now() - m.createdAt) < 5 * 60 * 1000 && !m.recalled;
@@ -3225,7 +3225,7 @@ function appendMessage(m, prepend) {
     row.classList.add('just-sent');
     row.addEventListener('animationend', () => row.classList.remove('just-sent'), { once: true });
   }
-  if (!prepend) box.scrollTop = box.scrollHeight;
+  if (!prepend) __msgScrollToBottom();
 }
 
 // ============ 消息本地删除（仅本端） ============
@@ -4184,10 +4184,27 @@ function sendAttachmentFile(f) {
   };
 })();
 // 进入会话后强制滚动到最新消息（双保险：渲染后 + 图片异步加载后）
+
+// ===== 消息滚动节流：同帧多次只滚最后一次，避免批量消息导致渲染卡死 =====
+let __msgScrollRaf = null;
+function __msgScrollToBottom() {
+  if (__msgScrollRaf) return; // 已在同一帧调度
+  __msgScrollRaf = requestAnimationFrame(() => {
+    __msgScrollRaf = null;
+    const box = $('messages');
+    if (box) box.scrollTop = box.scrollHeight;
+  });
+}
+function __msgScrollFlush() {
+  if (__msgScrollRaf) { cancelAnimationFrame(__msgScrollRaf); __msgScrollRaf = null; }
+  const box = $('messages');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
 function scrollToLatest() {
   const box = $('messages');
   if (!box) return;
-  box.scrollTop = box.scrollHeight;
+  __msgScrollToBottom();
   requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
   setTimeout(() => { box.scrollTop = box.scrollHeight; }, 200);
 }
@@ -4395,7 +4412,7 @@ function appendVoiceMsg(mine, durationSec, b64) {
     + '<span class="vdur">' + dur + '</span>'
     + '</div></div><span class="time">' + fmtTime(Date.now()) + '</span>';
   box.appendChild(row);
-  box.scrollTop = box.scrollHeight;
+  __msgScrollToBottom();
   if (b64) {
     row.querySelector('.voice-bubble')._b64 = b64;
     row.querySelector('.voice-bubble').onclick = function () {
