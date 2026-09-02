@@ -2650,7 +2650,8 @@ function appendGroupMessage(m, prepend) {
     const bars = '<span class="voice-bars">' + Array.from({ length: 5 }, (_, i) => '<span style="height:' + (6 + i * 2) + 'px"></span>').join('') + '</span>';
     if (m.id != null) row.setAttribute('data-id', String(m.id));
     if (m.clientMsgId) row.setAttribute('data-cmid', String(m.clientMsgId));
-    row.innerHTML = `<div class="avatar">${avHtml}</div>
+    if (m.from != null) row.setAttribute('data-from', String(m.from));
+    row.innerHTML = `<div class="row-avatar">${avHtml}</div>
       <div class="bubble-wrap">
         ${nameLine}
         <div class="bubble"><div class="voice-bubble">\u25B6${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
@@ -2668,6 +2669,13 @@ function appendGroupMessage(m, prepend) {
         audio.onended = () => { btn.textContent = '\u25B6'; };
         audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = '\u25B6'; };
       };
+    }
+    // 群聊连续消息合并（语音）
+    if (state.activeGroup && !mine) {
+      const prev = box.lastElementChild;
+      if (prev && prev.classList && prev.classList.contains('msg-row') && prev.getAttribute('data-from') === row.getAttribute('data-from')) {
+        row.classList.add('continue');
+      }
     }
     box.appendChild(row);
     if (!prepend) box.scrollTop = box.scrollHeight;
