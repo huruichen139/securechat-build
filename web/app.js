@@ -647,6 +647,8 @@ $('sendCodeBtn').onclick = async () => {
 };
 
 $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('authBtn').click(); });
+$('captchaText').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('authBtn').click(); });
+$('email').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (mode === 'register' || loginMode === 'code') $('sendCodeBtn').click(); else $('authBtn').click(); } });
 
 // ---------- 自动检查更新 ----------
 // 语义化版本比较：返回 -1/0/1
