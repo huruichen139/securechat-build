@@ -2289,10 +2289,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                    controller: _msgScroll,
                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 itemCount: messages.length,
-                itemBuilder: (_, i) {
+                 itemBuilder: (_, i) {
                   final msg = messages[i];
+                  final prevMsg = i > 0 ? messages[i - 1] : null;
                   final isSearchTarget = _chatSearchResults.isNotEmpty && _chatSearchIdx >= 0 && i == messages.indexOf(_chatSearchResults[_chatSearchIdx]);
-                  return TweenAnimationBuilder<double>(tween: Tween(begin: 0.03, end: 0.0), duration: const Duration(milliseconds: 200), curve: Curves.easeOut, key: ValueKey(msg['id']?.toString() ?? msg['cmid']?.toString()), builder: (_, v, child) => Transform.translate(offset: Offset(0, v * 100), child: Opacity(opacity: 1.0 - v.abs(), child: child)), child: _bubble(msg, isSearchTarget: isSearchTarget));
+                  return TweenAnimationBuilder<double>(tween: Tween(begin: 0.03, end: 0.0), duration: const Duration(milliseconds: 200), curve: Curves.easeOut, key: ValueKey(msg['id']?.toString() ?? msg['cmid']?.toString()), builder: (_, v, child) => Transform.translate(offset: Offset(0, v * 100), child: Opacity(opacity: 1.0 - v.abs(), child: child)), child: _bubble(msg, isSearchTarget: isSearchTarget, prevMsg: prevMsg));
                 },
               ),
             ),
@@ -2380,7 +2381,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     return Icon(read ? Icons.done_all : Icons.done, size: 14, color: read ? _wechatGreen : widget.config.theme.subText);
   }
 
-  Widget _bubble(Map<String, dynamic> msg, {bool isSearchTarget = false}) {
+  Widget _bubble(Map<String, dynamic> msg, {bool isSearchTarget = false, Map<String, dynamic>? prevMsg}) {
     if (msg['divider'] == true) {
       return Center(
         key: _unreadDividerKey,
@@ -2439,10 +2440,13 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             ? _fileBubble(mine, fileMeta, t)
             : _textBubble(mine, msg, t);
     final isSelected = _selectedMsgs.any((m) => m['id'] == msg['id'] || (msg['cmid'] != null && m['cmid'] == msg['cmid']));
+    // 连续同一人发消息时缩小间距
+    final sameSender = prevMsg != null && prevMsg['mine'] == msg['mine'] && prevMsg['divider'] != true && prevMsg['dateSep'] != true;
+    final bottomPad = sameSender ? 2.0 : 12.0;
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.only(bottom: bottomPad),
         child: GestureDetector(
           onTap: _multiSelectMode ? () => setState(() {
             if (isSelected) {
@@ -2466,7 +2470,8 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                 const SizedBox(width: 8),
               ],
               Column(crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group')
+                // 群聊：连续同一人发消息时隐藏发送者名（微信风格）
+                if (!mine && (msg['sender'] != null) && selConv != null && selConv!['kind'] == 'group' && !sameSender)
                   Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text(msg['sender'], style: TextStyle(color: Color((msg['sender'].hashCode & 0xFFFFFF) | 0xFF000000).withValues(alpha: 0.8), fontSize: 11))),
                 if (msg['forwardedFrom'] != null)
                   Padding(
@@ -2605,9 +2610,15 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     final name = (meta['name'] ?? '文件').toString();
     final mime = (meta['mime'] ?? '').toString();
     final isImage = mime.startsWith('image/');
+    final isVideo = mime.startsWith('video/');
+    final isPdf = mime.contains('pdf');
+    final isAudio = mime.startsWith('audio/');
     final fileId = meta['id']?.toString();
     final baseUrl = widget.api.baseUrl;
     final token = widget.api.token;
+    // 根据文件类型选择图标颜色
+    final iconColor = isImage ? const Color(0xff07c160) : isVideo ? const Color(0xff576b95) : isPdf ? const Color(0xffe74c3c) : isAudio ? const Color(0xffe67e22) : t.subText;
+    final iconData = isImage ? Icons.image_rounded : isVideo ? Icons.videocam_rounded : isPdf ? Icons.picture_as_pdf_rounded : isAudio ? Icons.audiotrack_rounded : Icons.insert_drive_file_rounded;
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
       decoration: BoxDecoration(
@@ -2622,21 +2633,34 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (isImage && fileId != null)
-          ClipRRect(
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
-            child: Image.network(
-              baseUrl + '/api/files/' + fileId,
-              width: 200, height: 160, fit: BoxFit.cover,
-              headers: {'Authorization': 'Bearer ' + (token ?? '')},
-              loadingBuilder: (_, child, progress) => progress == null ? child : SizedBox(width: 200, height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _wechatGreen))),
-              errorBuilder: (_, __, ___) => SizedBox(width: 200, height: 100, child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.broken_image, size: 36, color: t.subText), const SizedBox(height: 4), Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: t.subText))]))),
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+              child: Image.network(
+                baseUrl + '/api/files/' + fileId,
+                width: 200, height: 160, fit: BoxFit.cover,
+                headers: {'Authorization': 'Bearer ' + (token ?? '')},
+                loadingBuilder: (_, child, progress) => progress == null ? child : SizedBox(width: 200, height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _wechatGreen))),
+                errorBuilder: (_, __, ___) => SizedBox(width: 200, height: 100, child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.broken_image, size: 36, color: t.subText), const SizedBox(height: 4), Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: t.subText))]))),
+              ),
             ),
-          ),
+            // 渐变遮罩
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Container(
+                height: 30,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(4), bottomRight: Radius.circular(4)),
+                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black26]),
+                ),
+              ),
+            ),
+          ]),
         Padding(
           padding: const EdgeInsets.all(10),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             if (!isImage || fileId == null)
-              Icon(isImage ? Icons.image_search_outlined : Icons.insert_drive_file_outlined, size: 28, color: isImage ? _wechatGreen : t.subText),
+              Icon(iconData, size: 28, color: iconColor),
             if (!isImage || fileId == null) const SizedBox(width: 8),
             Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: mine ? const Color(0xff1a1a1a) : t.text)),
