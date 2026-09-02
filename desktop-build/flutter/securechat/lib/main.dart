@@ -2279,6 +2279,28 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           ]),
         ),
       ),
+      // 群公告横幅（群聊置顶显示）
+      if (selConv != null && selConv!['kind'] == 'group' && selConv!['announcement'] != null && (selConv!['announcement'] as String).isNotEmpty)
+        GestureDetector(
+          onTap: () {
+            final ann = selConv!['announcement'] as String;
+            showDialog(context: context, builder: (ctx) => AlertDialog(
+              title: const Text('群公告'),
+              content: Text(ann, style: const TextStyle(fontSize: 14)),
+              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭'))],
+            ));
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(color: const Color(0xfffff9e6), border: Border(bottom: BorderSide(color: const Color(0xffffe082)))),
+            child: Row(children: [
+              const Icon(Icons.volume_up_outlined, size: 14, color: Color(0xffe6a817)),
+              const SizedBox(width: 6),
+              Expanded(child: Text(selConv!['announcement'] as String, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xff8b6914), fontSize: 12))),
+              Icon(Icons.chevron_right, size: 14, color: t.subText),
+            ]),
+          ),
+        ),
       Expanded(
         child: Stack(children: [
           Positioned.fill(child: messages.isEmpty
