@@ -242,6 +242,143 @@ const MAX_MSG_CONTENT = 100 * 1024; // 100KB
 const emailCodes = new Map();
 function genCode() { return String(crypto.randomInt(100000, 1000000)); }
 function cleanCode() { const now = Date.now(); for (const [k, v] of emailCodes) if (v.expireAt < now) emailCodes.delete(k); }
+
+// ============ 人机验证码系统（图形数字验证码 + Cloudflare Turnstile） ============
+// Cloudflare Turnstile 配置（可被 .env 覆盖）
+const CF_TURNSTILE_SITE = process.env.CF_TURNSTILE_SITE || '0x4AAAAAAEknUV0niF2E259J';
+const CF_TURNSTILE_SECRET = process.env.CF_TURNSTILE_SECRET || '0x4AAAAAAEknUYAOZj5B8ZAinA71X3zSfc8';
+
+// 图形数字验证码存储：id -> { text, expireAt }
+const captchaStore = new Map();
+const CAPTCHA_TTL = 5 * 60 * 1000;
+const CAPTCHA_MAX = 20000;
+
+function cleanCaptcha() {
+  const now = Date.now();
+  if (captchaStore.size > CAPTCHA_MAX) {
+    for (const [k, v] of captchaStore) if (v.expireAt < now) captchaStore.delete(k);
+  }
+  for (const [k, v] of captchaStore) if (v.expireAt < now) captchaStore.delete(k);
+}
+
+// 生成 5 位数字验证码文本（不含易混淆的 0/O/1/I）
+function genCaptchaText() {
+  const chars = '23456789';
+  let t = '';
+  for (let i = 0; i < 5; i++) t += chars[crypto.randomInt(0, chars.length)];
+  return t;
+}
+
+// 生成干扰线条 SVG 图形数字验证码（纯 JS，无原生依赖，线条/噪点丰富）
+function genCaptchaSvg(text) {
+  const w = 140, h = 46;
+  // 每个字符颜色随机
+  const colors = ['#e45959', '#3b82f6', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2'];
+  const c = (a) => colors[crypto.randomInt(0, colors.length)];
+  const m = (max) => crypto.randomInt(0, max);
+  // 给每个字符一个随机 x/rotate/size
+  let chars = [];
+  const cw = (w - 20) / text.length;
+  for (let i = 0; i < text.length; i++) {
+    chars.push({
+      ch: text[i],
+      x: 12 + i * cw + m(6),
+      y: 18 + m(14),
+      fs: 24 + m(10),
+      rot: -18 + m(36),
+      color: c(),
+    });
+  }
+  // 干扰线
+  let lines = '';
+  for (let i = 0; i < 8; i++) {
+    const x1 = m(w), y1 = m(h), x2 = m(w), y2 = m(h);
+    lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c()}" stroke-width="${1 + m(2)}" opacity="${0.3 + m(40) / 100}"/>`;
+  }
+  // 噪点
+  let dots = '';
+  for (let i = 0; i < 40; i++) {
+    dots += `<circle cx="${m(w)}" cy="${m(h)}" r="${1 + m(2)}" fill="${c()}" opacity="${0.3 + m(50) / 100}"/>`;
+  }
+  // 干扰圆弧
+  let arcs = '';
+  for (let i = 0; i < 3; i++) {
+    arcs += `<path d="M${m(w)} ${m(h)} q ${m(40) - 20} ${m(30) - 15} ${m(40)} ${m(20)}" fill="none" stroke="${c()}" stroke-width="${1 + m(2)}" opacity="${0.3 + m(30) / 100}"/>`;
+  }
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+    `<rect width="${w}" height="${h}" fill="#f7f9fc"/>` +
+    lines + dots + arcs +
+    chars.map((k) => `<text x="${k.x}" y="${k.y}" font-size="${k.fs}" font-weight="700" font-family="Arial,Helvetica,sans-serif" fill="${k.color}" transform="rotate(${k.rot} ${k.x} ${k.y})">${k.ch}</text>`).join('') +
+    `</svg>`;
+  return svg;
+}
+
+// 生成图形验证码，返回 { id, svg }
+function createCaptcha() {
+  cleanCaptcha();
+  const text = genCaptchaText();
+  // 带过期 + 一次性（校验后即删）
+  let id;
+  do { id = crypto.randomUUID(); } while (captchaStore.has(id));
+  captchaStore.set(id, { text, expireAt: Date.now() + CAPTCHA_TTL });
+  return { id, svg: genCaptchaSvg(text) };
+}
+
+// 校验图形验证码：成功则删除（一次性）并返回 true
+function checkCaptcha(id, answer) {
+  if (!id || !answer) return false;
+  const v = captchaStore.get(id);
+  if (!v) return false;
+  captchaStore.delete(id);
+  if (v.expireAt < Date.now()) return false;
+  // 忽略大小写与首尾空格；数字验证码宽松比较
+  return String(answer).trim() === v.text;
+}
+
+// 校验 Cloudflare Turnstile token：调官方 siteverify
+async function checkTurnstile(token, ip) {
+  if (!token) return false;
+  return new Promise((resolve) => {
+    const url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    const data = `secret=${encodeURIComponent(CF_TURNSTILE_SECRET)}&response=${encodeURIComponent(token)}` + (ip ? `&remoteip=${encodeURIComponent(ip)}` : '');
+    const req = https.request(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(data) } }, (res) => {
+      let b = '';
+      res.on('data', (d) => b += d);
+      res.on('end', () => {
+        try { const j = JSON.parse(b); resolve(!!j.success); } catch (e) { resolve(false); }
+      });
+    });
+    req.on('error', () => resolve(false));
+    req.setTimeout(8000, () => { req.destroy(); resolve(false); });
+    req.write(data);
+    req.end();
+  });
+}
+
+// 统一人机校验：允许「图形验证码」或「Cloudflare Turnstile」二选一
+// req.body: { captchaId, captchaText } 或 { turnstileToken }
+// strict=true：必须通过（失败写 403）；strict=false：带了才验，不带则放行（兼容老客户端）
+// 通过返回 true；strict 且失败时已向 res 写 403 并返回 false
+async function verifyHuman(req, res, strict) {
+  const b = req.body || {};
+  const token = b.turnstileToken || b.cfTurnstile || b.cfToken || b.cloudflareToken;
+  if (token) {
+    const ok = await checkTurnstile(token, getIp(req));
+    if (ok) return true;
+    if (strict) res.status(403).json({ error: '人机验证失败（Cloudflare）' });
+    return ok;
+  }
+  const id = b.captchaId, answer = b.captchaText;
+  if (id || answer) {
+    if (checkCaptcha(id, answer)) return true;
+    if (strict) res.status(403).json({ error: '图形验证码错误或已过期，请刷新重试' });
+    return false;
+  }
+  // 未带任何验证数据：strict 时拒绝，兼容模式放行
+  if (strict) { res.status(403).json({ error: '请完成人机验证' }); return false; }
+  return true;
+}
 // 验证码校验尝试限制：防6位码在有效期内的暴力枚举
 const codeAttemptFail = new Map();
 function codeAttemptKey(email) { return 'codetry:' + String(email).toLowerCase(); }
@@ -287,12 +424,26 @@ async function sendMail(to, subject, html) {
   });
 }
 
+// 获取图形数字验证码：GET /api/captcha —— 返回 SVG + captchaId（一次性）
+app.get('/api/captcha', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const { id, svg } = createCaptcha();
+  res.json({ ok: true, id, svg, style: 'numeric' });
+});
+
+// 人机验证配置：GET /api/captcha/config —— 返回 Cloudflare Turnstile sitekey 等
+app.get('/api/captcha/config', (req, res) => {
+  res.json({ ok: true, turnstile: { site: CF_TURNSTILE_SITE }, methods: ['img', 'turnstile'] });
+});
+
 // 请求验证码：POST /api/email/code { email, purpose: "register"|"bind" }
 app.post('/api/email/code', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   cleanCode();
   const ip = getIp(req);
   if (rateLimit('email:' + ip, 5, 10 * 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请10分钟后再试' });
+  // 人机验证（图形验证码 或 Cloudflare Turnstile 二选一，均可切换）
+  if (!(await verifyHuman(req, res, true))) return;
   const { email, purpose } = req.body || {};
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
     return res.status(400).json({ error: '邮箱格式错误' });
@@ -340,7 +491,10 @@ app.post('/api/register', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const ip = getIp(req);
   if (rateLimit('register:' + ip, 5, 60 * 60 * 1000)) return res.status(429).json({ error: '注册过于频繁，请稍后再试' });
-  const { username, password, nickname, email, code, customUid } = req.body || {};
+  verifyHuman(req, res, true).then((ok) => {
+    if (!ok) return;
+    (function doRegister() {
+      const { username, password, nickname, email, code, customUid } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
   if (!email) return res.status(400).json({ error: '请填写邮箱' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
@@ -371,6 +525,8 @@ app.post('/api/register', (req, res) => {
   const user = prepare('SELECT * FROM users WHERE username=?').get(username);
   const token = signToken(user);
   res.json({ token, user: publicUser(user), uidChangedAt: now });
+    })();
+  });
 });
 
 // 修改自己的 ID：一个月只能改一次
@@ -417,6 +573,9 @@ app.post('/api/login', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const ip = getIp(req);
   if (rateLimit('login:' + ip, 10, 15 * 60 * 1000)) return res.status(429).json({ error: '登录尝试过多，请15分钟后再试' });
+  verifyHuman(req, res, false).then((ok) => {
+    if (!ok) return;
+    (function doLogin() {
   // account 可为用户名或邮箱（兼容旧字段 username）
   const account = String((req.body || {}).account || (req.body || {}).username || '').trim();
   const password = (req.body || {}).password;
@@ -442,11 +601,16 @@ app.post('/api/login', (req, res) => {
   }
   const token = signToken(user, loginDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
+    })();
+  });
 });
 
 // 邮箱验证码登录：POST /api/login/code { email, code }
 app.post('/api/login/code', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  verifyHuman(req, res, true).then((ok) => {
+    if (!ok) return;
+    (function doCodeLogin() {
   const { email, code } = req.body || {};
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式错误' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
@@ -469,6 +633,8 @@ app.post('/api/login/code', (req, res) => {
   }
   const token = signToken(user, codeDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
+    })();
+  });
 });
 
 // 忘记密码：POST /api/password/reset { email, code, newPassword }

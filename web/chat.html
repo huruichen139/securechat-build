@@ -164,6 +164,15 @@
         <input id="code" class="input code-input" placeholder="邮箱验证码" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
         <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
       </div>
+      <!-- 人机验证区域：图形数字验证码 / Cloudflare Turnstile 可切换 -->
+      <div id="humanVerify" class="hv-row" style="display:none">
+        <div id="hvImgBox" class="hv-img-box">
+          <div id="captchaSvg" class="hv-svg" title="点击刷新"></div>
+          <input id="captchaText" class="input hv-input" maxlength="6" placeholder="图中数字" autocomplete="off" />
+        </div>
+        <button type="button" id="hvSwitchBtn" class="hv-switch" title="切换验证方式">验证场景</button>
+      </div>
+      <div id="turnstileBox" style="display:none"></div>
       <button id="authBtn" class="btn" data-i18n="login">登录</button>
       <div id="qrLoginArea" style="display:none">
         <img id="qrImage" style="display:none" alt="扫码登录二维码" />

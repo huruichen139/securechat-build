@@ -50,6 +50,20 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 }
 .input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.12); }
 .input-sm { width: 200px; padding: 8px 10px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 12px; user-select: text; background: #f8f8f8; }
+/* 人机验证区域 */
+.hv-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.hv-img-box { display: flex; align-items: center; gap: 8px; flex: 1; background: rgba(255,255,255,.75); border: 1px solid transparent; border-radius: 2px; padding: 6px 10px; }
+.hv-svg { flex-shrink: 0; width: 116px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; background: #f7f9fc; overflow: hidden; }
+.hv-svg svg { display: block; }
+.hv-svg:hover { opacity: .85; }
+.hv-svg.loading { color: #999; font-size: 12px; }
+.hv-input { flex: 1; margin-bottom: 0; padding: 9px 10px; border: 1px solid transparent; border-radius: 2px; font-size: 14px; background: rgba(255,255,255,.75); }
+.hv-input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.12); }
+.hv-switch { flex-shrink: 0; padding: 9px 10px; font-size: 12px; color: var(--primary); background: none; border: 1px solid var(--primary); border-radius: 2px; cursor: pointer; white-space: nowrap; }
+.hv-switch:hover { background: rgba(7,193,96,.08); }
+#turnstileBox { margin-bottom: 14px; display: flex; justify-content: center; }
+
+
 .code-row { display: flex; gap: 8px; margin-bottom: 14px; }
 .code-row .code-input { flex: 1; margin-bottom: 0; padding: 12px 14px; border: 1px solid transparent; border-radius: 2px; font-size: 14px; background: rgba(255,255,255,.75); transition: all .15s; }
 .code-row .code-input:focus { border-color: var(--primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(7,193,96,.12); }

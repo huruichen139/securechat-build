@@ -312,6 +312,95 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
 let mode = 'login';
 let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
 let qrLoginTimer = null;
+// 人机验证状态：方法 'img'（图形数字验证码）或 'turnstile'（Cloudflare）
+let hvMethod = 'turnstile';
+let hvCaptchaId = null;
+let hvToken = null; // turnstile token
+let hvTurnstileRendered = false;
+
+// 加载图形数字验证码
+async function loadCaptcha() {
+  const box = $('captchaSvg');
+  if (!box) return;
+  box.classList.add('loading');
+  box.textContent = '加载中';
+  hvCaptchaId = null;
+  try {
+    const res = await fetch(state.serverHost + '/api/captcha');
+    const data = await res.json();
+    if (res.ok && data.svg) {
+      hvCaptchaId = data.id;
+      box.innerHTML = data.svg;
+    } else {
+      box.textContent = '点击刷新';
+    }
+  } catch (e) {
+    box.textContent = '点击刷新';
+  }
+  box.classList.remove('loading');
+}
+
+// 渲染/启用 Cloudflare Turnstile
+async function renderTurnstile() {
+  if (typeof turnstile === 'undefined') {
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.onload = () => renderTurnstileWidget();
+    document.head.appendChild(s);
+  } else {
+    renderTurnstileWidget();
+  }
+}
+function renderTurnstileWidget() {
+  const box = $('turnstileBox');
+  if (!box || !window.turnstile) return;
+  if (hvTurnstileRendered) { window.turnstile.reset(); return; }
+  try {
+    window.turnstile.render(box, {
+      sitekey: window.__cfSite || '0x4AAAAAAEknUV0niF2E259J',
+      callback: (tk) => { hvToken = tk; },
+      'expired-callback': () => { hvToken = null; },
+      'error-callback': () => { hvToken = null; },
+    });
+    hvTurnstileRendered = true;
+  } catch (e) {}
+}
+
+// 切换人机验证方式
+function switchHuman() {
+  hvMethod = hvMethod === 'img' ? 'turnstile' : 'img';
+  const imgBox = $('hvImgBox');
+  const tst = $('turnstileBox');
+  const btn = $('hvSwitchBtn');
+  if (hvMethod === 'img') {
+    if (imgBox) imgBox.style.display = 'flex';
+    if (tst) tst.style.display = 'none';
+    if (btn) btn.textContent = '切换到Turnstile';
+    loadCaptcha();
+  } else {
+    if (imgBox) imgBox.style.display = 'none';
+    if (tst) tst.style.display = 'flex';
+    if (btn) btn.textContent = '切换到图形验证码';
+    renderTurnstile();
+  }
+  initTurnstileSiteKey();
+}
+
+// 获取 turnstile sitekey（config 端点）
+async function initTurnstileSiteKey() {
+  try {
+    const res = await fetch(state.serverHost + '/api/captcha/config');
+    const data = await res.json();
+    if (data.turnstile && data.turnstile.site) window.__cfSite = data.turnstile.site;
+    else window.__cfSite = '0x4AAAAAAEknUV0niF2E259J';
+  } catch (e) { window.__cfSite = '0x4AAAAAAEknUV0niF2E259J'; }
+}
+
+// 收集当前人机验证数据，附加到请求体；未通过则返回 false
+function collectHumanBody() {
+  if (!window.__hvApi) return null;
+  return window.__hvApi();
+}
 
 // 根据当前 mode 与 loginMode 统一刷新登录/注册表单字段的显隐
 function applyLoginMode() {
@@ -334,6 +423,16 @@ function applyLoginMode() {
   $('authBtn').style.display = (showReg || !useQr) ? 'block' : 'none';
   const qa = $('qrLoginArea');
   if (qa) qa.style.display = useQr ? 'block' : 'none';
+  // 人机验证区域：扫码模式隐藏，其余显示
+  const hv = $('humanVerify');
+  const tst = $('turnstileBox');
+  if (hv) {
+    hv.style.display = useQr ? 'none' : 'flex';
+    const imgB = $('hvImgBox');
+    if (imgB) imgB.style.display = (hvMethod === 'img') ? 'flex' : 'none';
+    if (tst) tst.style.display = (useQr || hvMethod !== 'turnstile') ? 'none' : 'block';
+    if (!useQr && hvMethod === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
+  }
   if (useQr) {
     setQrLogin();
   } else if (qrLoginTimer) {
@@ -369,6 +468,22 @@ document.querySelectorAll('.login-mode-btn').forEach(b => {
 // 初始化登录页，首次打开时直接显示密码登录/验证码登录切换。
 applyLoginMode();
 
+// 人机验证：点击图形刷新 + 切换按钮
+(function () {
+  const svg = $('captchaSvg');
+  if (svg) svg.onclick = () => { if (hvMethod === 'img') loadCaptcha(); };
+  const sw = $('hvSwitchBtn');
+  if (sw) sw.onclick = switchHuman;
+  // 加载 turnstile sitekey
+  initTurnstileSiteKey();
+  // 首次加载（默认 Turnstile，若失败降级图形验证码）
+  if (hvMethod === 'turnstile') {
+    renderTurnstile();
+  } else {
+    loadCaptcha();
+  }
+})();
+
 $('authBtn').onclick = async () => {
   const username = $('username').value.trim();
   const password = $('password').value;
@@ -402,6 +517,16 @@ $('authBtn').onclick = async () => {
     endpoint = '/api/login';
     body = { account: username, password };
   }
+  // 附加人机验证数据（图形验证码 或 turnstile token）
+  if (hvMethod === 'turnstile') {
+    if (!hvToken) { $('authErr').textContent = '请完成人机验证'; return; }
+    body.turnstileToken = hvToken;
+  } else {
+    const ct = $('captchaText').value.trim();
+    if (!hvCaptchaId || !ct) { $('authErr').textContent = '请输入图中验证码'; return; }
+    body.captchaId = hvCaptchaId;
+    body.captchaText = ct;
+  }
   const btn = $('authBtn');
   btn.disabled = true;
   btn.textContent = t('loggingIn', '登录中…');
@@ -412,7 +537,12 @@ $('authBtn').onclick = async () => {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (!res.ok) { $('authErr').textContent = data.error || '请求失败'; return; }
+    if (!res.ok) {
+      $('authErr').textContent = data.error || '请求失败';
+      // 验证码错误时刷新图形验证码
+      if (/验证|captcha|人机/i.test(data.error || '')) { if (hvMethod === 'img') { loadCaptcha(); $('captchaText').value = ''; } else if (window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; } }
+      return;
+    }
     state.token = data.token;
     state.me = data.user;
     localStorage.setItem('sc_token', state.token);
@@ -473,15 +603,31 @@ $('sendCodeBtn').onclick = async () => {
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { $('authErr').textContent = '邮箱格式错误'; return; }
   // 根据当前状态决定验证码用途：注册 → register；登录+验证码登录 → login
   const purpose = mode === 'register' ? 'register' : 'login';
+  // 组构造请求：附加人机验证数据
+  const hvExtra = {};
+  if (hvMethod === 'turnstile') {
+    if (!hvToken) { $('authErr').textContent = '请先完成人机验证'; $('sendCodeBtn').disabled = false; return; }
+    hvExtra.turnstileToken = hvToken;
+  } else {
+    const ct = $('captchaText').value.trim();
+    if (!hvCaptchaId || !ct) { $('authErr').textContent = '请输入图中验证码'; $('sendCodeBtn').disabled = false; return; }
+    hvExtra.captchaId = hvCaptchaId;
+    hvExtra.captchaText = ct;
+  }
   $('sendCodeBtn').disabled = true;
   $('authErr').textContent = '正在发送验证码...';
   try {
     const res = await fetch(state.serverHost + '/api/email/code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, purpose })
+      body: JSON.stringify(Object.assign({ email, purpose }, hvExtra))
     });
     const data = await res.json();
-    if (!res.ok) { $('authErr').textContent = data.error || '发送失败'; $('sendCodeBtn').disabled = false; return; }
+    if (!res.ok) {
+      $('authErr').textContent = data.error || '发送失败';
+      $('sendCodeBtn').disabled = false;
+      if (/验证|captcha|人机/i.test(data.error || '')) { if (hvMethod === 'img') { loadCaptcha(); $('captchaText').value = ''; } else if (window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; } }
+      return;
+    }
     $('authErr').textContent = '';
     toast('验证码已发送，请查收邮箱', 'success');
     // 60s 倒计时
