@@ -555,6 +555,40 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
+      SectionTitle(config: config, title: '存储'),
+      SectionCard(
+        config: config,
+        children: [
+          ListCell(
+            config: config,
+            icon: Icons.cleaning_services_outlined,
+            title: '清除缓存',
+            subtitle: '清除本地缓存的图片和文件',
+            onTap: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('清除缓存'),
+                  content: const Text('确定要清除本地缓存吗？这不会删除聊天记录。'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('清除')),
+                  ],
+                ),
+              );
+              if (confirm == true && mounted) {
+                try {
+                  final sp = await SharedPreferences.getInstance();
+                  await sp.clear();
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除')));
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除失败：$e')));
+                }
+              }
+            },
+          ),
+        ],
+      ),
       SectionTitle(config: config, title: '帮助与反馈'),
       SectionCard(
         config: config,
