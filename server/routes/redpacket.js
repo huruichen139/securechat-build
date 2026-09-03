@@ -252,6 +252,16 @@ module.exports = function registerRedpacket(app, db, auth) {
     }
     persist();
 
+    // 到账语音通知：抢到红包入账
+    try {
+      const notifier = (app && app.get && app.get('arrivalNotifier'));
+      if (typeof notifier === 'function') {
+        const sender = prepare('SELECT nickname,username FROM users WHERE id=?').get(pkt.sender_id);
+        const fromName = sender ? (sender.nickname || sender.username || ('用户' + pkt.sender_id)) : ('用户' + pkt.sender_id);
+        notifier(me.id, { amount, fromId: pkt.sender_id, fromName, remark: '红包', category: 'redpacket' });
+      }
+    } catch (e) {}
+
     res.json({ ok: true, amount, myAmount: amount, balance: walletOf(me.id).balance });
   });
 

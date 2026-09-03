@@ -1002,14 +1002,14 @@ app.get('/api/keys/bundle/:userId', (req, res) => {
   const spk = prepare('SELECT key_id AS keyId, pub_key AS pubKey, signature FROM signed_prekeys WHERE user_id=? ORDER BY created_at DESC LIMIT 1').get(targetId) || null;
   let oneTimePreKey = null;
   try {
-    db.run('BEGIN IMMEDIATE');
+    prepare('BEGIN IMMEDIATE TRANSACTION').run();
     const opk = prepare('SELECT id, key_id AS keyId, pub_key AS pubKey FROM prekeys WHERE user_id=? AND used=0 ORDER BY created_at ASC LIMIT 1').get(targetId) || null;
     if (opk) {
       prepare('UPDATE prekeys SET used=1 WHERE id=?').run(opk.id);
       oneTimePreKey = { keyId: opk.keyId, pubKey: opk.pubKey };
     }
-    db.run('COMMIT');
-  } catch (e) { try { db.run('ROLLBACK'); } catch {} }
+    prepare('COMMIT').run();
+  } catch (e) { try { prepare('ROLLBACK').run(); } catch {} }
   res.json({
     identityKey: u.pubkey || null,
     signedPreKey: spk ? { keyId: spk.keyId, pubKey: spk.pubKey, signature: spk.signature } : null,
@@ -1855,19 +1855,19 @@ app.post('/api/wallet/redeem', (req, res) => {
   const code = String((req.body && req.body.code) || '').trim().toUpperCase();
   if (!code) return res.status(400).json({ error: '请输入兑换码' });
   try {
-    db.run('BEGIN IMMEDIATE');
+    prepare('BEGIN IMMEDIATE TRANSACTION').run();
     const c = prepare('SELECT code,value,claimed_by FROM redeem_codes WHERE code=?').get(code);
-    if (!c) { db.run('ROLLBACK'); return res.status(404).json({ error: '兑换码不存在' }); }
-    if (c.claimed_by) { db.run('ROLLBACK'); return res.status(409).json({ error: '兑换码已被使用' }); }
+    if (!c) { prepare('ROLLBACK').run(); return res.status(404).json({ error: '兑换码不存在' }); }
+    if (c.claimed_by) { prepare('ROLLBACK').run(); return res.status(409).json({ error: '兑换码已被使用' }); }
     prepare('UPDATE redeem_codes SET claimed_by=?,claimed_at=? WHERE code=?').run(payload.id, Date.now(), code);
     prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(payload.id, Date.now());
     prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(c.value, c.value, Date.now(), payload.id);
     prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)').run(payload.id, 'recharge', c.value, '兑换码充值', Date.now());
-    db.run('COMMIT');
+    prepare('COMMIT').run();
     persist();
     const w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
     res.json({ ok: true, balance: w.balance, value: c.value });
-  } catch (e) { try { db.run('ROLLBACK'); } catch {} res.status(500).json({ error: '兑换失败' }); }
+  } catch (e) { try { prepare('ROLLBACK').run(); } catch {} res.status(500).json({ error: '兑换失败' }); }
 });
 
 // 转账：POST /api/wallet/transfer { toUid, amount, remark }
@@ -2008,24 +2008,28 @@ app.all('/api/wallet/recharge/notify', (req, res) => {
   if (String(p.trade_status || '') !== 'TRADE_SUCCESS') return res.send('success');
   ensureRechargeTable();
   try {
-    db.run('BEGIN IMMEDIATE');
+    prepare('BEGIN IMMEDIATE TRANSACTION').run();
     const r = prepare('SELECT * FROM wallet_recharges WHERE order_no=?').get(String(p.out_trade_no || ''));
-    if (!r) { db.run('ROLLBACK'); return res.send('order not found'); }
-    if (r.status === 'paid') { db.run('ROLLBACK'); return res.send('success'); }
+    if (!r) { prepare('ROLLBACK').run(); return res.send('order not found'); }
+    if (r.status === 'paid') { prepare('ROLLBACK').run(); return res.send('success'); }
     if (Math.abs(Number(r.amount) - Number(p.money)) > 0.001) {
       console.log('[wallet] recharge money mismatch: order=' + r.amount + ' notify=' + p.money);
-      db.run('ROLLBACK'); return res.send('money mismatch');
+      prepare('ROLLBACK').run(); return res.send('money mismatch');
     }
     prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,0,0,?)').run(r.user_id, Date.now());
     prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(r.amount, r.amount, Date.now(), r.user_id);
     prepare('UPDATE wallet_recharges SET status=?,trade_no=?,paid_at=? WHERE order_no=?').run('paid', String(p.trade_no || ''), Date.now(), r.order_no);
     prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)')
       .run(r.user_id, 'recharge', r.amount, '在线充值(' + (p.trade_no || '') + ')', Date.now());
-    db.run('COMMIT');
+    prepare('COMMIT').run();
     persist();
     console.log('[wallet] recharged: user=' + r.user_id + ' +' + r.amount);
+    // 到账语音通知：充值到账
+    try {
+      sendToUser(r.user_id, 'payment_arrival', { amount: r.amount, fromId: null, fromName: '在线充值', remark: '充值到账', category: 'recharge', ts: Date.now() });
+    } catch (e) {}
     res.send('success');
-  } catch (e) { try { db.run('ROLLBACK'); } catch {} res.send('error'); }
+  } catch (e) { try { prepare('ROLLBACK').run(); } catch {} res.send('error'); }
 });
 
 // 状态：GET my status / SET 状态（聊天『我的状态』）
