@@ -13,6 +13,7 @@ import 'package:pointycastle/export.dart' as pc;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'widgets/turnstile_widget.dart';
 import 'chat_features.dart';
 import 'contact_detail_page.dart';
@@ -1760,6 +1761,13 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             } catch (_) {}
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => CallPage(service: service, peerName: peerName, config: widget.config)));
           }
+        } else if (type == 'payment_arrival') {
+          // 到账语音通知：SecureChat到账 xx元
+          final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          final amt = (p['amount'] as num?)?.toDouble();
+          if (mounted && amt != null && amt > 0) {
+            _speakArrival(amt, (p['fromName'] ?? '').toString());
+          }
         } else if (type == 'poke') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
           final nick = (p['fromNick'] ?? '某').toString();
@@ -1855,6 +1863,21 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   }
 
   bool get _soundEnabled => widget.config.soundEnabled;
+
+  FlutterTts? _tts;
+  final _ttsLock = false;
+
+  /// 到账语音播报："SecureChat到账 xx元"
+  void _speakArrival(double amount, String fromName) {
+    final txt = 'SecureChat到账、${amount.toStringAsFixed(2)}元';
+    try {
+      _tts ??= FlutterTts()
+        ..setLanguage('zh-CN')
+        ..setSpeechRate(0.5)
+        ..setVolume(1.0);
+      _tts!.speak(txt);
+    } catch (_) {}
+  }
 
   /// 根据 userId 查找用户名/昵称（优先从好友列表查找）
   String _resolveUserName(dynamic userId) {
