@@ -4,11 +4,13 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  flutter_tts
   flutter_webrtc
   record_windows
   screen_retriever_windows
   tray_manager
   url_launcher_windows
+  webview_flutter_windows
   window_manager
 )
 
