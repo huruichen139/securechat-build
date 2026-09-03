@@ -4213,6 +4213,8 @@ function fmtMoney2(n) {
   return (Math.round(v * 100) / 100).toFixed(2);
 }
 function speakArrival(amount, fromName) {
+  // WebAudio 兜底提示音：无论 TTS 是否可用都先播"叮"声，确保到账一定有声音
+  try { playArrivalChime(); } catch (e) {}
   try {
     if (!('speechSynthesis' in window)) return;
     const zh = 'SecureChat到账、' + fmtMoney2(amount) + '元';
@@ -4226,6 +4228,28 @@ function speakArrival(amount, fromName) {
     if (zhv) u.voice = zhv;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+// 到账提示音：WebAudio 生成"叮"声（无需外部音频文件，浏览器自动播放策略可能拦截 speechSynthesis，但 AudioContext 在用户交互后可用）
+let __arrivalCtx = null;
+function playArrivalChime() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!__arrivalCtx) __arrivalCtx = new AC();
+    if (__arrivalCtx.state === 'suspended') __arrivalCtx.resume();
+    const now = __arrivalCtx.currentTime;
+    // 两个短促的"叮"声（高音-低音）
+    [[880, 0], [660, 0.18]].forEach(([freq, t0], i) => {
+      const o = __arrivalCtx.createOscillator();
+      const g = __arrivalCtx.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, now + t0);
+      g.gain.exponentialRampToValueAtTime(0.5, now + t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + 0.16);
+      o.connect(g); g.connect(__arrivalCtx.destination);
+      o.start(now + t0); o.stop(now + t0 + 0.2);
+    });
   } catch (e) {}
 }
 // ===== 消息滚动节流：同帧多次只滚最后一次，避免批量消息导致渲染卡死 =====
