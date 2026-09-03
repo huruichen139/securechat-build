@@ -1883,18 +1883,24 @@ app.post('/api/wallet/transfer', (req, res) => {
   const value = parseFloat(amount);
   if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ error: '金额无效' });
   try {
-    db.run('BEGIN IMMEDIATE');
+    prepare('BEGIN IMMEDIATE TRANSACTION').run();
     const my = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
-    if (!my || my.balance < value) { db.run('ROLLBACK'); return res.status(400).json({ error: '余额不足' }); }
+    if (!my || my.balance < value) { prepare('ROLLBACK').run(); return res.status(400).json({ error: '余额不足' }); }
     prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), payload.id);
     prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(target.id, 0, 0, Date.now());
     prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(value, value, Date.now(), target.id);
     prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(payload.id, 'out', value, target.id, remark || '转账', Date.now());
     prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(target.id, 'in', value, payload.id, remark || '收到转账', Date.now());
-    db.run('COMMIT');
+    prepare('COMMIT').run();
     persist();
+    // 到账语音通知：SecureChat到账 xx元（推送给收款方在线连接）
+    try {
+      const meRow = prepare('SELECT nickname,username FROM users WHERE id=?').get(payload.id);
+      const senderName = meRow ? (meRow.nickname || meRow.username || ('用户' + payload.id)) : ('用户' + payload.id);
+      sendToUser(target.id, 'payment_arrival', { amount: value, fromId: payload.id, fromName: senderName, remark: remark || '转账', category: 'transfer', ts: Date.now() });
+    } catch (e) {}
     res.json({ ok: true, balance: (prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id)).balance });
-  } catch (e) { try { db.run('ROLLBACK'); } catch {} res.status(500).json({ error: '转账失败' }); }
+  } catch (e) { try { prepare('ROLLBACK').run(); } catch {} res.status(500).json({ error: '转账失败' }); }
 });
 
 // 我的交易记录：GET /api/wallet/txn
