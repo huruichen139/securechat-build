@@ -44,6 +44,7 @@ let state = {
   groups: [],
   activeGroup: null,
   groupUnread: {},
+  groupMention: {},
   groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当前/历史）
 };
 
@@ -2005,7 +2006,7 @@ function renderContacts() {
       const lastTime = state.groupLastMsgTime[g.id] || 0;
       const isPinned = !!chatPrefs().pinned[c.key];
       const isMuted = !!chatPrefs().muted[c.key];
-      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
+      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}${state.groupMention[g.id] ? '<span class="mention-tag">@我</span>' : ''}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
       bindConvContextMenu(div, c.key, g.name || ('群 #' + g.id), () => selectGroup(g.id));
       list.appendChild(div);
@@ -2577,6 +2578,7 @@ async function selectGroup(groupId) {
   const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.groupUnread[groupId] = 0;
+  state.groupMention[groupId] = false;
   send(P.C_GROUP_READ, { groupId });
   renderContacts();
   renderChatHeader();
@@ -2788,6 +2790,7 @@ function onIncomingGroupMsg(payload) {
     appendGroupMessage(payload, false);
   } else {
    	state.groupUnread[payload.groupId] = (state.groupUnread[payload.groupId] || 0) + 1;
+    if (payload.mentionMe) state.groupMention[payload.groupId] = true;
     const fromName = (payload.fromUser && payload.fromUser.nickname) || ('用户' + payload.from);
     const g = state.groups.find(x => x.id === payload.groupId);
     const gname = g ? g.name : ('群#' + payload.groupId);

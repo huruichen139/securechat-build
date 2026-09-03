@@ -4571,11 +4571,28 @@ wss.on('connection', (ws, req) => {
         } catch (e) {}
       }
       const msgObj = { id: info.lastInsertRowid, groupId: gid, from: ws.uid, fromUid: ws.user.uid, content, createdAt: now, clientMsgId: clientMsgId || null, replyTo: replyToId, replyContent, replyFrom, forwardedFrom: forwardedFromId || null, read: true, readCount: 1, seq: grpMsgSeq };
+      // @提及 解析：找出被 @ 的成员（@昵称 或 @所有人），这些成员收到消息时标记 mentionMe
+      let atAll = false;
+      const atUids = new Set();
+      try {
+        if (typeof content === 'string') {
+          const atMatches = content.match(/@([^\s@]{1,20})/g) || [];
+          const atNames = atMatches.map(x => x.slice(1)).filter(n => n && n !== '所有人' && n !== 'all');
+          if (atMatches.some(m => m.slice(1) === '所有人' || m.slice(1).toLowerCase() === 'all')) atAll = true;
+          if (atNames.length) {
+            const memberRows = prepare('SELECT gm.user_id, u.nickname, u.username FROM group_members gm JOIN users u ON u.id=gm.user_id WHERE gm.group_id=?').all(gid);
+            for (const r of memberRows) {
+              const nick = (r.nickname || r.username || '');
+              if (nick && atNames.includes(nick)) atUids.add(r.user_id);
+            }
+          }
+        }
+      } catch (e) {}
       // 给群里所有在线成员（包括自己）都推送，附带 fromUser 便于客户端显示昵称
       const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
       const fromUser = ws.user;
       for (const m of members) {
-        if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { ...msgObj, fromUser });
+        if (onlineAny(m.user_id)) sendToUser(m.user_id, P.S_GROUP_MSG, { ...msgObj, fromUser, mentionMe: (atAll || atUids.has(m.user_id)) ? true : false });
       }
       // 实时计数：群消息按 发1 + 在线成员接收 计
       sentMsgsThisMinCounter += 1;
