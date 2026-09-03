@@ -3214,7 +3214,7 @@ function appendMessage(m, prepend) {
     rowName = '<div class="name">' + escapeHtml(fName) + '</div>';
   }
   if (m.from != null) row.setAttribute('data-from', String(m.from));
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}${rowAvatar}<div class="bubble-wrap">${rowName}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel ? '<span class="read-state' + (m.read ? ' read' : '') + '">' + readLabel + '</span>' : ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}${rowAvatar}<div class="bubble-wrap">${rowName}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel || ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
