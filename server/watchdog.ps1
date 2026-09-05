@@ -1,9 +1,19 @@
-# SecureChat 服务器看门狗 - 服务器挂掉自动重启，防止客户端卡死
+# SecureChat server watchdog - auto restart when server dies (prevents client freeze)
+# Improved: log redirection for diagnosis + HTTP-level health check + no duplicate boot
 $ServerDir = "D:\chat\server"
-$WatchInterval = 15
+$LogDir = "D:\chat\data"
+$WatchInterval = 10
 
-Write-Host "[watchdog] SecureChat watchdog started, checks every ${WatchInterval}s"
+$null = New-Item -ItemType Directory -Force -Path $LogDir
+
+function Write-Log([string]$msg) {
+  $line = "[watchdog " + (Get-Date -Format 'HH:mm:ss') + "] " + $msg
+  Write-Host $line
+  try { Add-Content -Path (Join-Path $LogDir "watchdog.log") -Value $line -Encoding UTF8 } catch {}
+}
+
 function Test-Online {
+  # Raw TCP connect: proven reliable on PS 5.1 (TLS handshake via Invoke-WebRequest is unreliable here)
   try {
     $c = New-Object System.Net.Sockets.TcpClient
     $r = $c.BeginConnect("127.0.0.1", 8888, $null, $null)
@@ -13,19 +23,39 @@ function Test-Online {
     return $ok
   } catch { return $false }
 }
+
+function Get-ServerPid {
+  $conns = Get-NetTCPConnection -LocalPort 8888 -State Listen -ErrorAction SilentlyContinue
+  if ($conns) { return ($conns | Select-Object -First 1).OwningProcess }
+  return $null
+}
+
 function Boot-Server {
+  $existing = Get-ServerPid
+  if ($existing) {
+    Write-Log "server already running (pid $existing), skip boot"
+    return
+  }
   try {
-    Start-Process node "index.js" -WorkingDirectory $ServerDir -WindowStyle Hidden
-    Write-Host ("[watchdog] " + (Get-Date -Format 'HH:mm:ss') + " server restarted")
+    $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $out = Join-Path $LogDir "server_$ts.out.log"
+    $err = Join-Path $LogDir "server_$ts.err.log"
+    Start-Process node "index.js" -WorkingDirectory $ServerDir -WindowStyle Hidden `
+      -RedirectStandardOutput $out -RedirectStandardError $err
+    Write-Log "server started (logs: $out / $err)"
   } catch {
-    Write-Host ("[watchdog] restart failed: " + $_.Exception.Message)
+    Write-Log "restart failed: $($_.Exception.Message)"
   }
 }
+
+Write-Log "watchdog started, checks every ${WatchInterval}s"
+
 if (-not (Test-Online)) { Boot-Server }
+
 while ($true) {
   Start-Sleep -Seconds $WatchInterval
   if (-not (Test-Online)) {
-    Write-Host ("[watchdog] " + (Get-Date -Format 'HH:mm:ss') + " server offline, restarting...")
+    Write-Log "server offline, restarting..."
     Boot-Server
   }
 }

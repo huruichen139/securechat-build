@@ -2590,11 +2590,12 @@ async function selectGroup(groupId) {
       headers: { 'Authorization': 'Bearer ' + state.token }
     });
     const data = await res.json();
-    if (!res.ok) { $('messages').innerHTML = '<div style="color:#999;text-align:center">' + escapeHtml(data.error || '加载历史失败') + '</div>'; return; }
+    if (!res.ok) { if (state.activeGroup !== groupId) return; $('messages').innerHTML = '<div style="color:#999;text-align:center">' + escapeHtml(data.error || '加载历史失败') + '</div>'; return; }
     state.groupMsgs[groupId] = data.messages || [];
     if (state.activeGroup !== groupId) return;
     renderGroupMessages(data.messages || []);
   } catch (e) {
+    if (state.activeGroup !== groupId) return;
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
   // 移动端：选中群组后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
@@ -2788,6 +2789,11 @@ function onIncomingGroupMsg(payload) {
   state.groupLastMsgTime[payload.groupId] = payload.createdAt || Date.now();
   if (state.activeGroup === payload.groupId) {
     appendGroupMessage(payload, false);
+    const arr = state.groupMsgs[payload.groupId];
+    if (arr) {
+      const exists = arr.some(x => (x.id != null && payload.id != null && Number(x.id) === Number(payload.id)) || (x.clientMsgId && payload.clientMsgId && x.clientMsgId === payload.clientMsgId));
+      if (!exists) arr.push(payload);
+    }
   } else {
    	state.groupUnread[payload.groupId] = (state.groupUnread[payload.groupId] || 0) + 1;
     if (payload.mentionMe) state.groupMention[payload.groupId] = true;
@@ -2961,6 +2967,7 @@ async function selectPeer(peerId) {
     if (state.activePeer !== peerId) return;
     renderMessages(msgs);
   } catch (e) {
+    if (state.activePeer !== peerId) return;
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
   // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
