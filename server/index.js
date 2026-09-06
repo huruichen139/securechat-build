@@ -4362,19 +4362,25 @@ function sendToUser(uid, type, payload) {
   for (const ws of onlineWss(uid)) send(ws, type, payload);
 }
 // @提及 解析：返回 { atAll, atUids(Set) }，供 WebSocket 与 REST 两条群消息发送路径共用
+// 匹配字段：nickname / username / uid / 群内昵称 my_nickname（与 Flutter 端 @ 检测字段一致）
 function computeGroupMentions(groupId, content) {
   let atAll = false;
   const atUids = new Set();
   try {
-    if (typeof content !== 'string') return { atAll, atUids };
-    const atMatches = content.match(/@([^\s@]{1,20})/g) || [];
-    const atNames = atMatches.map(x => x.slice(1)).filter(n => n && n !== '所有人' && n.toLowerCase() !== 'all');
-    if (atMatches.some(m => m.slice(1) === '所有人' || m.slice(1).toLowerCase() === 'all')) atAll = true;
-    if (atNames.length) {
-      const memberRows = prepare('SELECT gm.user_id, u.nickname, u.username FROM group_members gm JOIN users u ON u.id=gm.user_id WHERE gm.group_id=?').all(groupId);
-      for (const r of memberRows) {
-        const nick = (r.nickname || r.username || '');
-        if (nick && atNames.includes(nick)) atUids.add(r.user_id);
+    if (typeof content !== 'string' || !content.includes('@')) return { atAll, atUids };
+    if (/@所有人|@all\b/i.test(content)) atAll = true;
+    const memberRows = prepare(
+      `SELECT gm.user_id, u.nickname, u.username, u.uid, gms.my_nickname
+       FROM group_members gm
+       JOIN users u ON u.id=gm.user_id
+       LEFT JOIN group_member_settings gms ON gms.group_id=gm.group_id AND gms.user_id=gm.user_id
+       WHERE gm.group_id=?`).all(groupId);
+    for (const r of memberRows) {
+      const names = [r.nickname, r.username, r.uid, r.my_nickname]
+        .filter(n => typeof n === 'string' && n.trim().length > 0)
+        .map(n => n.trim());
+      for (const n of names) {
+        if (content.includes('@' + n)) { atUids.add(r.user_id); break; }
       }
     }
   } catch (e) {}
