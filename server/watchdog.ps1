@@ -30,13 +30,28 @@ function Get-ServerPid {
   return $null
 }
 
+$script:lastBoot = [DateTime]::MinValue
+
 function Boot-Server {
+  # Throttle: avoid double-boot race with manual start / watchdog within 20s
+  if (([DateTime]::Now - $script:lastBoot).TotalSeconds -lt 20) {
+    Write-Log "boot throttled (recent boot), skip"
+    return
+  }
   $existing = Get-ServerPid
   if ($existing) {
     Write-Log "server already running (pid $existing), skip boot"
     return
   }
+  # Port not ready but node index.js is starting up, skip to avoid duplicate boot
+  $nodeProc = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like '*index.js*' }
+  if ($nodeProc) {
+    Write-Log "node index.js starting up, skip boot"
+    return
+  }
   try {
+    $script:lastBoot = [DateTime]::Now
     $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
     $out = Join-Path $LogDir "server_$ts.out.log"
     $err = Join-Path $LogDir "server_$ts.err.log"
