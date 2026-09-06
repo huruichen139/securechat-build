@@ -2579,6 +2579,7 @@ async function selectGroup(groupId) {
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.groupUnread[groupId] = 0;
   state.groupMention[groupId] = false;
+  groupReadCounted[groupId] = new Set();
   send(P.C_GROUP_READ, { groupId });
   renderContacts();
   renderChatHeader();
@@ -3503,8 +3504,16 @@ function markConversationRead() {
     el.classList.add('read');
   });
 }
+// 已读回执去重：记录当前群已计入的 userId，避免用户重复进群导致已读人数虚增
+const groupReadCounted = {};
 function markGroupConversationRead(userId) {
   if (userId == null) return;
+  const gid = state.activeGroup;
+  if (gid == null) return;
+  if (!groupReadCounted[gid]) groupReadCounted[gid] = new Set();
+  const counted = groupReadCounted[gid];
+  if (counted.has(userId)) return;
+  counted.add(userId);
   document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
     const cur = el.textContent;
     const m = /^已读 (\d+)人$/.exec(cur);
