@@ -1880,8 +1880,11 @@ app.post('/api/wallet/transfer', (req, res) => {
   const target = prepare('SELECT id FROM users WHERE uid=?').get(String(toUid || ''));
   if (!target) return res.status(404).json({ error: '收款人不存在' });
   if (target.id === payload.id) return res.status(400).json({ error: '不能转给自己' });
-  const value = parseFloat(amount);
+  let value = parseFloat(amount);
   if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ error: '金额无效' });
+  value = Math.round(value * 100) / 100;
+  if (value <= 0) return res.status(400).json({ error: '金额无效' });
+  if (value > 1000000) return res.status(400).json({ error: '单笔转账最多 100 万元' });
   try {
     prepare('BEGIN IMMEDIATE TRANSACTION').run();
     const my = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);

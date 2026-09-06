@@ -80,12 +80,16 @@ module.exports = function registerRedpacket(app, db, auth) {
     const me = apiUser(req);
     if (!me) return res.status(401).json({ error: '未授权' });
     const { to, groupId, amount, count, mode, greeting } = req.body || {};
-    const value = parseFloat(amount);
+    let value = parseFloat(amount);
     if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ error: '金额无效' });
+    value = Math.round(value * 100) / 100;
+    if (value <= 0) return res.status(400).json({ error: '金额无效' });
+    if (value > 1000000) return res.status(400).json({ error: '单个红包总额最多 100 万元' });
     const c = Math.max(1, parseInt(count, 10) || 1);
     if (c > 100) return res.status(400).json({ error: '单个红包最多 100 份' });
     const m = (mode === 'single' || mode === 'average') ? mode : 'random';
     if (m === 'single' && c > 1) return res.status(400).json({ error: '专属红包只能 1 份' });
+    if (value < c * 0.01) return res.status(400).json({ error: '金额过小，每份至少 0.01 元' });
 
     let targetType = 'dm', targetId = 0;
     if (groupId) {
