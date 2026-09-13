@@ -10,6 +10,25 @@ const LOG_DIR = 'D:\\chat\\data';
 const PORT = 8888;
 const INTERVAL = 10 * 1000;
 
+// 单实例锁：防止多个 watchdog 同时拉起服务器造成 EADDRINUSE 风暴
+const LOCK_FILE = path.join(LOG_DIR, 'watchdog.lock');
+try {
+  if (fs.existsSync(LOCK_FILE)) {
+    const prev = parseInt(fs.readFileSync(LOCK_FILE, 'utf8').trim(), 10);
+    if (Number.isInteger(prev)) {
+      let alive = false;
+      try { process.kill(prev, 0); alive = true; } catch (e) { alive = false; }
+      if (alive && prev !== process.pid) {
+        console.log('[watchdog] another instance running (pid ' + prev + '), exit.');
+        process.exit(0);
+      }
+    }
+  }
+} catch (e) {}
+try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch (e) {}
+fs.writeFileSync(LOCK_FILE, String(process.pid));
+process.on('exit', () => { try { if (fs.readFileSync(LOCK_FILE, 'utf8').trim() === String(process.pid)) fs.unlinkSync(LOCK_FILE); } catch (e) {} });
+
 function log(msg) {
   const line = '[watchdog ' + new Date().toLocaleString('zh-CN', { hour12: false }) + '] ' + msg;
   console.log(line);

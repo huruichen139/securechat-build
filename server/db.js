@@ -610,13 +610,25 @@ function init() {
 
 function doPersist() {
   if (!db) return;
-  try {
-    const data = db.export();
-    const tmpPath = dbPath + '.tmp.' + process.pid;
-    fs.writeFileSync(tmpPath, Buffer.from(data));
-    fs.renameSync(tmpPath, dbPath);
-  } catch (e) {
-    console.error('persist failed', e);
+  const tmpPath = dbPath + '.tmp.' + process.pid;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const data = db.export();
+      fs.writeFileSync(tmpPath, Buffer.from(data));
+      fs.renameSync(tmpPath, dbPath);
+      return;
+    } catch (e) {
+      // Windows 上杀毒/备份软件可能短暂锁住 db 文件（EPERM/EBUSY），退避重试
+      if (attempt < 2 && (e.code === 'EPERM' || e.code === 'EBUSY' || e.code === 'EACCES')) {
+        const waitMs = 200 * (attempt + 1);
+        const start = Date.now();
+        while (Date.now() - start < waitMs) {} // 同步退避（db.js 无异步上下文）
+        continue;
+      }
+      console.error('persist failed (attempt ' + (attempt + 1) + ')', e && e.code ? e.code : e);
+      try { fs.unlinkSync(tmpPath); } catch {}
+      return;
+    }
   }
 }
 
