@@ -68,6 +68,39 @@ setInterval(() => {
   }
 }, 30 * 1000);
 
+// ---------- Cap Core：自托管人机验证（替代 Turnstile） ----------
+const CAP_SECRET = process.env.CAP_SECRET || null;
+let _capCore = null;
+async function getCapCore() {
+  if (_capCore) return _capCore;
+  if (!CAP_SECRET) return null;
+  try {
+    _capCore = await import('capjs-core');
+    console.log('[cap] capjs-core loaded');
+    return _capCore;
+  } catch (e) { console.error('[cap] capjs-core load failed:', e.message); return null; }
+}
+
+// Token 存储：redeem 后存 tokenKey，verify 时消费（单次使用）
+const capTokenStore = new Map();
+function capTokenCleanup() {
+  const now = Date.now();
+  for (const [k, v] of capTokenStore) {
+    if (v.expiresAt <= now) capTokenStore.delete(k);
+  }
+}
+setInterval(capTokenCleanup, 60 * 1000);
+
+// Nonce 防重放：consumeNonce 回调
+const capNonceStore = new Set();
+function capNonceCleanup() {
+  // nonce TTL 由 capjs-core 控制，这里只做辅助清理（防内存泄漏）
+  // 实际 nonce 条目有过期时间，但 Set 无法高效过期
+  // 简单策略：超 5000 条时清空（极端情况）
+  if (capNonceStore.size > 5000) capNonceStore.clear();
+}
+setInterval(capNonceCleanup, 5 * 60 * 1000);
+
 // ---------- 管理员后台白名单 ----------
 // 仅 3529403074@qq.com 拥有管理员后台权限
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '3529403074@qq.com').split(',').map(s => s.trim().toLowerCase());
@@ -113,6 +146,68 @@ setInterval(() => {
 function parseExtra(s){ try { return JSON.parse(s || '{}') || {}; } catch { return {}; } }
 
 const app = express();
+
+// ---------- Cap Core：自托管人机验证路由 + token 验证 ----------
+// POST /api/cap/challenge：生成 PoW + instrumentation 挑战
+app.post('/api/cap/challenge', async (req, res) => {
+  const cap = await getCapCore();
+  if (!cap) return res.status(503).json({ error: 'CAPTCHA 未配置' });
+  try {
+    const ch = await cap.generateChallenge(CAP_SECRET, {
+      instrumentation: { blockAutomatedBrowsers: true, obfuscationLevel: 3 },
+    });
+    res.json(ch);
+  } catch (e) {
+    console.error('[cap] challenge error:', e.message);
+    res.status(500).json({ error: '验证挑战生成失败' });
+  }
+});
+
+// POST /api/cap/redeem：验证 PoW + instrumentation 解答，返回 token
+app.post('/api/cap/redeem', async (req, res) => {
+  const cap = await getCapCore();
+  if (!cap) return res.status(503).json({ error: 'CAPTCHA 未配置' });
+  try {
+    const { token, solutions, instr } = req.body || {};
+    if (!token || !solutions) return res.status(400).json({ error: '缺少验证参数' });
+    const result = await cap.validateChallenge(CAP_SECRET, { token, solutions, instr }, {
+      consumeNonce: async (sigHex, ttlMs) => {
+        if (capNonceStore.has(sigHex)) return false;
+        capNonceStore.add(sigHex);
+        setTimeout(() => capNonceStore.delete(sigHex), ttlMs);
+        return true;
+      },
+    });
+    if (!result.success) {
+      console.warn('[cap] redeem failed:', result.reason);
+      return res.status(403).json({ error: '验证失败', reason: result.reason });
+    }
+    const { createHash } = await import('crypto');
+    const [id, verToken] = result.token.split(':');
+    const tokenKey = id + ':' + createHash('sha256').update(verToken).digest('hex');
+    capTokenStore.set('cap-token:' + tokenKey, { expiresAt: result.expires });
+    res.json({ success: true, token: result.token, expires: result.expires });
+  } catch (e) {
+    console.error('[cap] redeem error:', e.message);
+    res.status(500).json({ error: '验证失败' });
+  }
+});
+
+// 验证 Cap token（表单提交时调用）
+async function verifyCapToken(token) {
+  if (!token) return false;
+  try {
+    const { createHash } = await import('crypto');
+    const [id, verToken] = String(token).split(':');
+    const tokenKey = id + ':' + createHash('sha256').update(verToken).digest('hex');
+    const storeKey = 'cap-token:' + tokenKey;
+    const entry = capTokenStore.get(storeKey);
+    if (!entry) return false;
+    if (entry.expiresAt <= Date.now()) { capTokenStore.delete(storeKey); return false; }
+    capTokenStore.delete(storeKey);
+    return true;
+  } catch (e) { return false; }
+}
 
 // ========== 请求追踪 ID ==========
 // 每个请求分配唯一 requestId，随 X-Request-ID 响应返回；日志可据此串起一条链路
@@ -362,6 +457,14 @@ async function checkTurnstile(token, ip) {
 // 通过返回 true；strict 且失败时已向 res 写 403 并返回 false
 async function verifyHuman(req, res, strict) {
   const b = req.body || {};
+  // 优先检查 Cap token
+  const capToken = b['cap-token'] || b.capToken;
+  if (capToken) {
+    const capOk = await verifyCapToken(capToken);
+    if (capOk) return true;
+    if (strict) res.status(403).json({ error: '人机验证失败（Cap）' });
+    return false;
+  }
   const token = b.turnstileToken || b.cfTurnstile || b.cfToken || b.cloudflareToken;
   if (token) {
     const ok = await checkTurnstile(token, getIp(req));

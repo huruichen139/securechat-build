@@ -313,11 +313,25 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
 let mode = 'login';
 let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
 let qrLoginTimer = null;
-// 人机验证状态：方法 'img'（图形数字验证码）或 'turnstile'（Cloudflare）
-let hvMethod = 'turnstile';
+// 人机验证状态：'cap'（默认）/ 'turnstile' / 'img'（图形数字验证码）
+let hvMethod = 'cap';
 let hvCaptchaId = null;
 let hvToken = null; // turnstile token
+let capToken = null; // cap token
 let hvTurnstileRendered = false;
+
+// 加载 Cap widget 脚本
+function loadCapWidget() {
+  if (window.__capLoaded) return;
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@cap.js/widget@0.1.56';
+  s.onload = () => {
+    window.__capLoaded = true;
+    const widget = document.getElementById('capWidget');
+    if (widget) widget.addEventListener('solve', (e) => { capToken = e.detail.token; });
+  };
+  document.head.appendChild(s);
+}
 
 // 加载图形数字验证码
 async function loadCaptcha() {
@@ -367,25 +381,32 @@ function renderTurnstileWidget() {
   } catch (e) {}
 }
 
-// 切换人机验证方式
-function switchHuman() {
-  hvMethod = hvMethod === 'img' ? 'turnstile' : 'img';
-  const imgBox = $('hvImgBox');
-  const tst = $('turnstileBox');
-  const btn = $('hvSwitchBtn');
-  if (hvMethod === 'img') {
-    if (imgBox) imgBox.style.display = 'flex';
-    if (tst) tst.style.display = 'none';
-    if (btn) btn.textContent = '切换到Turnstile';
-    loadCaptcha();
-  } else {
-    if (imgBox) imgBox.style.display = 'none';
-    if (tst) tst.style.display = 'flex';
-    if (btn) btn.textContent = '切换到图形验证码';
-    renderTurnstile();
-  }
-  initTurnstileSiteKey();
+// 切换人机验证方式（三选一 tab）
+function setupHvTabs() {
+  const bar = document.getElementById('hvMethodBar');
+  if (!bar) return;
+  bar.addEventListener('click', (e) => {
+    const tab = e.target.closest('.hv-tab');
+    if (!tab) return;
+    const method = tab.dataset.method;
+    if (method === hvMethod) return;
+    // 更新 tab 激活态
+    bar.querySelectorAll('.hv-tab').forEach(t => t.classList.toggle('active', t.dataset.method === method));
+    hvMethod = method;
+    // 切换显示区域
+    const capBox = $('capBox');
+    const tst = $('turnstileBox');
+    const imgB = $('hvImgBox');
+    if (capBox) capBox.style.display = method === 'cap' ? '' : 'none';
+    if (tst) tst.style.display = method === 'turnstile' ? '' : 'none';
+    if (imgB) imgB.style.display = method === 'img' ? '' : 'none';
+    // 按需加载
+    if (method === 'turnstile') renderTurnstile();
+    if (method === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
+    if (method === 'cap') loadCapWidget();
+  });
 }
+function switchHuman() { setupHvTabs(); }
 
 // 获取 turnstile sitekey（config 端点）
 async function initTurnstileSiteKey() {
@@ -424,15 +445,21 @@ function applyLoginMode() {
   $('authBtn').style.display = (showReg || !useQr) ? 'block' : 'none';
   const qa = $('qrLoginArea');
   if (qa) qa.style.display = useQr ? 'block' : 'none';
-  // 人机验证区域：扫码模式隐藏，其余显示
+  // 人机验证区域：扫码模式隐藏，其余显示（Cap 默认）
   const hv = $('humanVerify');
-  const tst = $('turnstileBox');
   if (hv) {
-    hv.style.display = useQr ? 'none' : 'flex';
+    hv.style.display = useQr ? 'none' : 'block';
+    const capBox = $('capBox');
+    const tst = $('turnstileBox');
     const imgB = $('hvImgBox');
-    if (imgB) imgB.style.display = (hvMethod === 'img') ? 'flex' : 'none';
-    if (tst) tst.style.display = (useQr || hvMethod !== 'turnstile') ? 'none' : 'block';
+    if (capBox) capBox.style.display = (hvMethod === 'cap') ? '' : 'none';
+    if (tst) tst.style.display = (hvMethod === 'turnstile') ? '' : 'none';
+    if (imgB) imgB.style.display = (hvMethod === 'img') ? '' : 'none';
     if (!useQr && hvMethod === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
+    if (!useQr && hvMethod === 'cap') loadCapWidget();
+    // 更新 tab 激活态
+    const tabs = document.querySelectorAll('#hvMethodBar .hv-tab');
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.method === hvMethod));
   }
   if (useQr) {
     setQrLogin();
@@ -473,12 +500,14 @@ applyLoginMode();
 (function () {
   const svg = $('captchaSvg');
   if (svg) svg.onclick = () => { if (hvMethod === 'img') loadCaptcha(); };
-  const sw = $('hvSwitchBtn');
-  if (sw) sw.onclick = switchHuman;
-  // 加载 turnstile sitekey
+  // 初始化三选一 tab 切换
+  setupHvTabs();
+  // 加载 turnstile sitekey（为切换到 Turnstile 做准备）
   initTurnstileSiteKey();
-  // 首次加载（默认 Turnstile，若失败降级图形验证码）
-  if (hvMethod === 'turnstile') {
+  // 默认加载 Cap widget
+  if (hvMethod === 'cap') {
+    loadCapWidget();
+  } else if (hvMethod === 'turnstile') {
     renderTurnstile();
   } else {
     loadCaptcha();
@@ -518,8 +547,11 @@ $('authBtn').onclick = async () => {
     endpoint = '/api/login';
     body = { account: username, password };
   }
-  // 附加人机验证数据（图形验证码 或 turnstile token）
-  if (hvMethod === 'turnstile') {
+  // 附加人机验证数据（cap / turnstile / 图形验证码）
+  if (hvMethod === 'cap') {
+    if (!capToken) { $('authErr').textContent = '请完成人机验证'; return; }
+    body['cap-token'] = capToken;
+  } else if (hvMethod === 'turnstile') {
     if (!hvToken) { $('authErr').textContent = '请完成人机验证'; return; }
     body.turnstileToken = hvToken;
   } else {
@@ -540,8 +572,12 @@ $('authBtn').onclick = async () => {
     const data = await res.json();
     if (!res.ok) {
       $('authErr').textContent = data.error || '请求失败';
-      // 验证码错误时刷新图形验证码
-      if (/验证|captcha|人机/i.test(data.error || '')) { if (hvMethod === 'img') { loadCaptcha(); $('captchaText').value = ''; } else if (window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; } }
+      // 验证码错误时重置当前验证方式
+      if (/验证|captcha|人机/i.test(data.error || '')) {
+        if (hvMethod === 'img') { loadCaptcha(); $('captchaText').value = ''; }
+        else if (hvMethod === 'turnstile' && window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; }
+        else if (hvMethod === 'cap') { capToken = null; }
+      }
       return;
     }
     state.token = data.token;
@@ -606,7 +642,10 @@ $('sendCodeBtn').onclick = async () => {
   const purpose = mode === 'register' ? 'register' : 'login';
   // 组构造请求：附加人机验证数据
   const hvExtra = {};
-  if (hvMethod === 'turnstile') {
+  if (hvMethod === 'cap') {
+    if (!capToken) { $('authErr').textContent = '请先完成人机验证'; $('sendCodeBtn').disabled = false; return; }
+    hvExtra['cap-token'] = capToken;
+  } else if (hvMethod === 'turnstile') {
     if (!hvToken) { $('authErr').textContent = '请先完成人机验证'; $('sendCodeBtn').disabled = false; return; }
     hvExtra.turnstileToken = hvToken;
   } else {
@@ -626,7 +665,11 @@ $('sendCodeBtn').onclick = async () => {
     if (!res.ok) {
       $('authErr').textContent = data.error || '发送失败';
       $('sendCodeBtn').disabled = false;
-      if (/验证|captcha|人机/i.test(data.error || '')) { if (hvMethod === 'img') { loadCaptcha(); $('captchaText').value = ''; } else if (window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; } }
+      if (/验证|captcha|人机/i.test(data.error || '')) {
+        if (hvMethod === 'img') { loadCaptcha(); $('captchaText').value = ''; }
+        else if (hvMethod === 'turnstile' && window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; }
+        else if (hvMethod === 'cap') { capToken = null; }
+      }
       return;
     }
     $('authErr').textContent = '';
