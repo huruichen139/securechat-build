@@ -1,6 +1,16 @@
 {
-  "latest": "1.80.4",
+  "latest": "1.80.5",
   "releaseNotes": [
+    {
+      "version": "1.80.5",
+      "date": "2026-09-15",
+      "changes": [
+        "Cap Core自托管人机验证替代Turnstile(默认,三选一切换)",
+        "转账/红包金额规范化(两位小数+百万上限+每份0.01下限)",
+        "数据库persist落盘EPERM重试(Windows文件锁容错)",
+        "看门狗单实例锁(防多watchdog拉起EADDRINUSE风暴)"
+      ]
+    },
     {
       "version": "1.80.4",
       "date": "2026-09-01",
