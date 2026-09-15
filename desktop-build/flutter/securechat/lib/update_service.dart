@@ -135,11 +135,16 @@ class UpdateService {
   }
 
   /// 打开/启动下载到的安装包。
+  /// Windows：用 Inno Setup 静默模式启动安装器，然后自动退出当前应用，
+  /// 让安装器覆盖安装（无需用户手动关程序）。
   Future<bool> launchInstaller(String path) async {
     try {
       if (Platform.isWindows) {
-        final result = await Process.run('cmd', ['/c', 'start', '', path]);
-        return result.exitCode == 0;
+        // /SILENT = 静默安装（有进度条无 UI）
+        // 先启动安装器，再退出当前进程，让安装器完成覆盖
+        await Process.run('cmd', ['/c', 'start', '', path, '/SILENT']);
+        Future.delayed(const Duration(milliseconds: 500), () => exit(0));
+        return true;
       } else if (Platform.isMacOS) {
         final result = await Process.run('open', [path]);
         return result.exitCode == 0;
