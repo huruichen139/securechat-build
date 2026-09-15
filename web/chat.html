@@ -164,13 +164,8 @@
         <input id="code" class="input code-input" placeholder="邮箱验证码" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
         <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
       </div>
-      <!-- 人机验证区域：Cap（默认）/ Turnstile / 图形验证码 三选一 -->
-      <div id="humanVerify" class="hv-row" style="display:none">
-        <div id="hvMethodBar" class="hv-method-bar">
-          <button type="button" class="hv-tab active" data-method="cap">安全验证</button>
-          <button type="button" class="hv-tab" data-method="turnstile">Turnstile</button>
-          <button type="button" class="hv-tab" data-method="img">图形验证码</button>
-        </div>
+      <!-- 人机验证区域：Cap 默认，可切换 -->
+      <div id="humanVerify" style="display:none">
         <div id="capBox" class="hv-cap-box">
           <cap-widget id="capWidget" data-cap-api-endpoint="https://mc.32768.top:8888/api/cap/"></cap-widget>
         </div>
@@ -178,6 +173,9 @@
         <div id="hvImgBox" class="hv-img-box" style="display:none">
           <div id="captchaSvg" class="hv-svg" title="点击刷新"></div>
           <input id="captchaText" class="input hv-input" maxlength="6" placeholder="图中数字" autocomplete="off" />
+        </div>
+        <div id="hvSwitchLink" class="hv-switch-link" style="display:none">
+          <a href="javascript:void(0)" id="hvSwitchBtn">其他验证方式</a>
         </div>
       </div>
       <button id="authBtn" class="btn" data-i18n="login">登录</button>

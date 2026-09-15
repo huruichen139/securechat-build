@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.80.4';
+const PACKAGE_VERSION = '1.80.5';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -381,30 +381,29 @@ function renderTurnstileWidget() {
   } catch (e) {}
 }
 
-// 切换人机验证方式（三选一 tab）
+// 切换人机验证方式（Cap默认，链接切换到Turnstile/图形验证码）
 function setupHvTabs() {
-  const bar = document.getElementById('hvMethodBar');
-  if (!bar) return;
-  bar.addEventListener('click', (e) => {
-    const tab = e.target.closest('.hv-tab');
-    if (!tab) return;
-    const method = tab.dataset.method;
-    if (method === hvMethod) return;
-    // 更新 tab 激活态
-    bar.querySelectorAll('.hv-tab').forEach(t => t.classList.toggle('active', t.dataset.method === method));
-    hvMethod = method;
-    // 切换显示区域
+  const btn = $('hvSwitchBtn');
+  if (!btn) return;
+  btn.onclick = () => {
+    // 轮转：cap → turnstile → img → cap
+    const methods = ['cap', 'turnstile', 'img'];
+    const idx = methods.indexOf(hvMethod);
+    const next = methods[(idx + 1) % methods.length];
+    hvMethod = next;
     const capBox = $('capBox');
     const tst = $('turnstileBox');
     const imgB = $('hvImgBox');
-    if (capBox) capBox.style.display = method === 'cap' ? '' : 'none';
-    if (tst) tst.style.display = method === 'turnstile' ? '' : 'none';
-    if (imgB) imgB.style.display = method === 'img' ? '' : 'none';
-    // 按需加载
-    if (method === 'turnstile') renderTurnstile();
-    if (method === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
-    if (method === 'cap') loadCapWidget();
-  });
+    if (capBox) capBox.style.display = next === 'cap' ? '' : 'none';
+    if (tst) tst.style.display = next === 'turnstile' ? '' : 'none';
+    if (imgB) imgB.style.display = next === 'img' ? '' : 'none';
+    if (next === 'turnstile') renderTurnstile();
+    if (next === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
+    if (next === 'cap') loadCapWidget();
+    // 更新链接文字
+    const labels = { cap: '切换到图形验证码', turnstile: '切换到图形验证码', img: '切换到安全验证' };
+    btn.textContent = labels[next] || '其他验证方式';
+  };
 }
 function switchHuman() { setupHvTabs(); }
 
@@ -452,14 +451,14 @@ function applyLoginMode() {
     const capBox = $('capBox');
     const tst = $('turnstileBox');
     const imgB = $('hvImgBox');
+    const switchLink = $('hvSwitchLink');
     if (capBox) capBox.style.display = (hvMethod === 'cap') ? '' : 'none';
     if (tst) tst.style.display = (hvMethod === 'turnstile') ? '' : 'none';
     if (imgB) imgB.style.display = (hvMethod === 'img') ? '' : 'none';
+    // "其他验证方式"链接：默认 Cap 时显示，切换后也显示
+    if (switchLink) switchLink.style.display = (!useQr) ? '' : 'none';
     if (!useQr && hvMethod === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
     if (!useQr && hvMethod === 'cap') loadCapWidget();
-    // 更新 tab 激活态
-    const tabs = document.querySelectorAll('#hvMethodBar .hv-tab');
-    tabs.forEach(t => t.classList.toggle('active', t.dataset.method === hvMethod));
   }
   if (useQr) {
     setQrLogin();
@@ -500,10 +499,13 @@ applyLoginMode();
 (function () {
   const svg = $('captchaSvg');
   if (svg) svg.onclick = () => { if (hvMethod === 'img') loadCaptcha(); };
-  // 初始化三选一 tab 切换
+  // 初始化验证方式切换
   setupHvTabs();
-  // 加载 turnstile sitekey（为切换到 Turnstile 做准备）
+  // 加载 turnstile sitekey
   initTurnstileSiteKey();
+  // 设置切换链接默认文字
+  const switchBtn = $('hvSwitchBtn');
+  if (switchBtn) switchBtn.textContent = '其他验证方式';
   // 默认加载 Cap widget
   if (hvMethod === 'cap') {
     loadCapWidget();
