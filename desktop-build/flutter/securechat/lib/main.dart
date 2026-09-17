@@ -148,7 +148,9 @@ class _LoginPageState extends State<LoginPage> {
   final captchaCtrl = TextEditingController();
   String? turnstileSite;
   String? turnstileToken;
-  bool useTurnstile = true;
+  int turnstileGen = 0;
+  int captchaSeq = 0;
+  bool useTurnstile = !Platform.isWindows;
 
   @override
   void dispose() {
@@ -163,16 +165,19 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> loadCaptcha() async {
+    if (!mounted || busy) return;
+    final seq = ++captchaSeq;
+    setState(() { captchaId = null; captchaSvg = null; captchaCtrl.clear(); });
     try {
-      setState(() { captchaId = null; captchaSvg = null; });
       final data = await api.getCaptcha();
-      if (!mounted) return;
+      if (!mounted || seq != captchaSeq) return;
       setState(() {
         captchaId = data['id'] as String?;
         captchaSvg = data['svg'] as String?;
       });
     } catch (e) {
-      if (mounted) setState(() => error = '验证码加载失败，请重试');
+      if (!mounted || seq != captchaSeq) return;
+      setState(() => error = '验证码加载失败，请重试');
     }
   }
 
@@ -193,14 +198,26 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void switchVerifyMode() {
+    if (!mounted || busy) return;
+    setState(() { useTurnstile = !useTurnstile; error = null; });
+    _resetVerification();
+  }
+
+  void _resetVerification() {
+    if (!mounted) return;
     setState(() {
-      useTurnstile = !useTurnstile;
       turnstileToken = null;
-      if (!useTurnstile) loadCaptcha();
+      turnstileGen++;
+      captchaSeq++;
+      captchaId = null;
+      captchaSvg = null;
+      captchaCtrl.clear();
     });
+    if (!useTurnstile) loadCaptcha();
   }
 
   Future<void> sendEmailCode() async {
+    if (!mounted || busy || countdown > 0) return;
     final em = email.text.trim();
     if (em.isEmpty) {
       if (mounted) setState(() => error = '请先输入邮箱地址');
@@ -217,7 +234,6 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
     }
-    if (countdown > 0) return;
     setState(() { busy = true; error = null; });
     try {
       await api.sendEmailCode(em,
@@ -237,24 +253,29 @@ class _LoginPageState extends State<LoginPage> {
       });
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
-      if (!useTurnstile) { loadCaptcha(); captchaCtrl.clear(); }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+        _resetVerification();
+      }
     }
   }
 
   Future<void> login() async {
-    if (busy) return;
+    if (!mounted || busy) return;
     setState(() { busy = true; error = null; });
+    var submittedCode = false;
     try {
       if (mode == 0) {
         await api.login(account.text.trim(), password.text);
       } else if (mode == 1) {
         if (useTurnstile) {
           if (turnstileToken == null || turnstileToken!.isEmpty) { setState(() => error = '请先完成人机验证'); return; }
+          submittedCode = true;
           await api.loginByCode(email.text.trim(), code.text.trim(), turnstileToken: turnstileToken);
         } else {
           if (captchaId == null || captchaCtrl.text.trim().isEmpty) { setState(() => error = '请先输入图形验证码'); return; }
+          submittedCode = true;
           await api.loginByCode(email.text.trim(), code.text.trim(), captchaId: captchaId, captchaText: captchaCtrl.text.trim());
         }
       } else {
@@ -266,7 +287,10 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+        if (submittedCode) _resetVerification();
+      }
     }
   }
 
@@ -384,7 +408,11 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _form(BuildContext context) {
     final t = widget.config.theme;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+    return LayoutBuilder(builder: (context, constraints) {
+      return SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
       Text('登录 SecureChat', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: t.text)),
       const SizedBox(height: 8),
       Text('你的消息，只属于你和收件人。', style: TextStyle(color: t.subText)),
@@ -414,42 +442,49 @@ class _LoginPageState extends State<LoginPage> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(color: t.inputBg, borderRadius: BorderRadius.circular(10)),
           child: useTurnstile
-              ? Column(children: [
+              ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   SizedBox(
                     width: double.infinity,
-                    height: 70,
                     child: turnstileSite == null
                         ? Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: t.subText)))
                         : TurnstileWidget(
+                            key: ValueKey('login-turnstile-$turnstileGen'),
                             siteKey: turnstileSite!,
-                            onToken: (tk) { setState(() => turnstileToken = tk); error = null; },
-                            onError: () { if (mounted) setState(() => turnstileToken = null); },
+                            baseUrl: api.baseUrl,
+                            onToken: (tk) { if (!mounted) return; setState(() => turnstileToken = tk); error = null; },
+                            onError: () { if (mounted) setState(() { turnstileToken = null; error = '人机验证加载失败，请重试'; }); },
                           ),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: t.subText), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12))),
+                    child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: t.subText), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12))),
                   ),
                 ])
-              : Row(children: [
-                  GestureDetector(
-                    onTap: loadCaptcha,
-                    child: SizedBox(
-                      width: 120, height: 40,
-                      child: captchaSvg == null
-                          ? Center(child: Icon(Icons.refresh, size: 22, color: t.subText))
-                          : SvgPicture.string(captchaSvg!, fit: BoxFit.contain),
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    GestureDetector(
+                      onTap: loadCaptcha,
+                      child: SizedBox(
+                        width: 120, height: 40,
+                        child: captchaSvg == null
+                            ? Center(child: Icon(Icons.refresh, size: 22, color: t.subText))
+                            : SvgPicture.string(captchaSvg!, fit: BoxFit.contain),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(
+                    const SizedBox(width: 10),
+                    IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: Icon(Icons.refresh_rounded, size: 20, color: t.subText)),
+                  ]),
+                  const SizedBox(height: 8),
+                  TextField(
                     controller: captchaCtrl,
                     style: TextStyle(color: t.text, fontSize: 15, letterSpacing: 4),
                     maxLength: 6,
                     decoration: InputDecoration(labelText: '图中数字', labelStyle: TextStyle(color: t.subText), counterText: '', isDense: true),
-                  )),
-                  IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: Icon(Icons.refresh_rounded, size: 20, color: t.subText)),
-                  TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: t.subText), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12))),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: t.subText), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12))),
+                  ),
                 ]),
         ),
       ] else if (mode == 2) ...[
@@ -488,7 +523,10 @@ class _LoginPageState extends State<LoginPage> {
       )),
       const SizedBox(height: 18),
       Center(child: Text('SecureChat $kAppVersion', style: TextStyle(color: t.subText, fontSize: 12))),
-    ]);
+          ]),
+        ),
+      );
+    });
   }
 
   Widget _mode(String label, int value, AppTheme t) {
@@ -4930,10 +4968,12 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   String? captchaId;
   String? captchaSvg;
   final captchaCtrl = TextEditingController();
+  int captchaSeq = 0;
   // Turnstile
   String? turnstileSite;
   String? turnstileToken;
-  bool useTurnstile = true;
+  int turnstileGen = 0;
+  bool useTurnstile = !Platform.isWindows;
 
   @override
   void initState() {
@@ -4954,7 +4994,22 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   }
 
   void switchVerifyMode() {
-    setState(() { useTurnstile = !useTurnstile; turnstileToken = null; if (!useTurnstile) loadCaptcha(); });
+    if (!mounted || busy) return;
+    setState(() { useTurnstile = !useTurnstile; error = null; });
+    _resetVerification();
+  }
+
+  void _resetVerification() {
+    if (!mounted) return;
+    setState(() {
+      turnstileToken = null;
+      turnstileGen++;
+      captchaSeq++;
+      captchaId = null;
+      captchaSvg = null;
+      captchaCtrl.clear();
+    });
+    if (!useTurnstile) loadCaptcha();
   }
 
   @override
@@ -4968,20 +5023,24 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   }
 
   Future<void> loadCaptcha() async {
+    if (!mounted || busy) return;
+    final seq = ++captchaSeq;
+    setState(() { captchaId = null; captchaSvg = null; captchaCtrl.clear(); });
     try {
-      setState(() { captchaId = null; captchaSvg = null; });
       final data = await widget.api.getCaptcha();
-      if (!mounted) return;
+      if (!mounted || seq != captchaSeq) return;
       setState(() {
         captchaId = data['id'] as String?;
         captchaSvg = data['svg'] as String?;
       });
     } catch (e) {
-      if (mounted) setState(() => error = '验证码加载失败，请重试');
+      if (!mounted || seq != captchaSeq) return;
+      setState(() => error = '验证码加载失败，请重试');
     }
   }
 
   Future<void> send() async {
+    if (!mounted || busy || countdown > 0) return;
     final em = email.text.trim();
     if (em.isEmpty) return setState(() => error = '请先输入邮箱地址');
     if (useTurnstile) {
@@ -4996,20 +5055,24 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
         captchaId: useTurnstile ? null : captchaId,
         captchaText: useTurnstile ? null : captchaCtrl.text.trim());
       if (!mounted) return;
-      setState(() { sent = true; countdown = 60; busy = false; });
+      setState(() { sent = true; countdown = 60; });
       timer?.cancel();
       timer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) { t.cancel(); return; }
         setState(() { countdown--; if (countdown <= 0) t.cancel(); });
       });
     } catch (e) {
-      if (mounted) setState(() { error = e.toString().replaceFirst('Bad state: ', ''); busy = false; });
-      if (!useTurnstile) loadCaptcha();
-      captchaCtrl.clear();
+      if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => busy = false);
+        _resetVerification();
+      }
     }
   }
 
   Future<void> submit() async {
+    if (!mounted || busy) return;
     final em = email.text.trim();
     final cd = code.text.trim();
     final pw = password.text;
@@ -5027,7 +5090,9 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => Dialog(
+  Widget build(BuildContext context) {
+    final generation = turnstileGen;
+    return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -5051,28 +5116,44 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                 decoration: BoxDecoration(color: const Color(0xfff5f6f8), borderRadius: BorderRadius.circular(8)),
                 child: useTurnstile
                     ? Column(children: [
-                        SizedBox(height: 68, child: turnstileSite == null
-                            ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
-                            : TurnstileWidget(siteKey: turnstileSite!, onToken: (tk) { setState(() => turnstileToken = tk); error = null; }, onError: () { if (mounted) setState(() => turnstileToken = null); })),
-                        Align(alignment: Alignment.centerRight, child: TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12)))),
-                      ])
-                    : Row(children: [
-                        GestureDetector(onTap: loadCaptcha, child: SizedBox(width: 120, height: 38, child: captchaSvg == null ? const Center(child: Icon(Icons.refresh, size: 20, color: Color(0xff999999))) : SvgPicture.string(captchaSvg!, fit: BoxFit.contain))),
-                        const SizedBox(width: 10),
-                        Expanded(child: TextField(controller: captchaCtrl, enabled: !busy, maxLength: 6, style: const TextStyle(fontSize: 15, letterSpacing: 4), decoration: const InputDecoration(labelText: '图中数字', counterText: '', isDense: true))),
-                        IconButton(onPressed: loadCaptcha, tooltip: '刷新', icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xff999999))),
-                        TextButton(onPressed: switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12))),
-                      ]),
+                         turnstileSite == null
+                             ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                             : TurnstileWidget(
+                                 key: ValueKey('forgot-turnstile-$generation'),
+                                 siteKey: turnstileSite!,
+                                 baseUrl: widget.api.baseUrl,
+                                 onToken: (tk) {
+                                   if (!mounted || busy || !useTurnstile || generation != turnstileGen) return;
+                                   setState(() { turnstileToken = tk; error = null; });
+                                 },
+                                 onError: () {
+                                   if (!mounted || busy || !useTurnstile || generation != turnstileGen) return;
+                                   setState(() { turnstileToken = null; error = '人机验证加载失败或已过期，请重试'; });
+                                 },
+                               ),
+                         Align(alignment: Alignment.centerRight, child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12)))),
+                       ])
+                     : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                         Row(children: [
+                           Flexible(child: GestureDetector(onTap: busy ? null : loadCaptcha, child: SizedBox(width: 120, height: 38, child: captchaSvg == null ? const Center(child: Icon(Icons.refresh, size: 20, color: Color(0xff999999))) : SvgPicture.string(captchaSvg!, fit: BoxFit.contain)))),
+                           const SizedBox(width: 10),
+                           IconButton(onPressed: busy ? null : loadCaptcha, tooltip: '刷新', icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xff999999))),
+                         ]),
+                         const SizedBox(height: 8),
+                         TextField(controller: captchaCtrl, enabled: !busy && captchaId != null, maxLength: 6, style: const TextStyle(fontSize: 15, letterSpacing: 4), decoration: const InputDecoration(labelText: '图中数字', counterText: '', isDense: true)),
+                         Align(alignment: Alignment.centerRight, child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12)))),
+                       ]),
               ),
               const SizedBox(height: 12),
               TextField(controller: password, enabled: !busy, obscureText: true, decoration: const InputDecoration(labelText: '新密码')),
               if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 13))),
-              const SizedBox(height: 18),
-              SizedBox(width: double.infinity, height: 46, child: FilledButton(onPressed: busy ? null : submit, child: Text(busy ? '提交中…' : '重置密码'))),
-            ]),
-          ),
-        ),
-      );
+               const SizedBox(height: 18),
+               SizedBox(width: double.infinity, height: 46, child: FilledButton(onPressed: busy ? null : submit, child: Text(busy ? '提交中…' : '重置密码'))),
+             ]),
+           ),
+         ),
+       );
+  }
 }
 
 // ─── 更新 Dialog ──────────────────────────────────────────────────────────────
