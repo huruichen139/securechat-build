@@ -444,10 +444,11 @@ function applyLoginMode() {
   $('authBtn').style.display = (showReg || !useQr) ? 'block' : 'none';
   const qa = $('qrLoginArea');
   if (qa) qa.style.display = useQr ? 'block' : 'none';
-  // 人机验证区域：扫码模式隐藏，其余显示（Cap 默认）
+  // 人机验证区域：仅注册/验证码登录显示（密码登录和扫码不需要人机验证）
   const hv = $('humanVerify');
   if (hv) {
-    hv.style.display = useQr ? 'none' : 'block';
+    const needHv = showReg || useCode;
+    hv.style.display = needHv ? 'block' : 'none';
     const capBox = $('capBox');
     const tst = $('turnstileBox');
     const imgB = $('hvImgBox');
@@ -455,10 +456,9 @@ function applyLoginMode() {
     if (capBox) capBox.style.display = (hvMethod === 'cap') ? '' : 'none';
     if (tst) tst.style.display = (hvMethod === 'turnstile') ? '' : 'none';
     if (imgB) imgB.style.display = (hvMethod === 'img') ? '' : 'none';
-    // "其他验证方式"链接：默认 Cap 时显示，切换后也显示
-    if (switchLink) switchLink.style.display = (!useQr) ? '' : 'none';
-    if (!useQr && hvMethod === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
-    if (!useQr && hvMethod === 'cap') loadCapWidget();
+    if (switchLink) switchLink.style.display = needHv ? '' : 'none';
+    if (needHv && hvMethod === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
+    if (needHv && hvMethod === 'cap') loadCapWidget();
   }
   if (useQr) {
     setQrLogin();
@@ -549,18 +549,21 @@ $('authBtn').onclick = async () => {
     endpoint = '/api/login';
     body = { account: username, password };
   }
-  // 附加人机验证数据（cap / turnstile / 图形验证码）
-  if (hvMethod === 'cap') {
-    if (!capToken) { $('authErr').textContent = '请完成人机验证'; return; }
-    body['cap-token'] = capToken;
-  } else if (hvMethod === 'turnstile') {
-    if (!hvToken) { $('authErr').textContent = '请完成人机验证'; return; }
-    body.turnstileToken = hvToken;
-  } else {
-    const ct = $('captchaText').value.trim();
-    if (!hvCaptchaId || !ct) { $('authErr').textContent = '请输入图中验证码'; return; }
-    body.captchaId = hvCaptchaId;
-    body.captchaText = ct;
+  // 附加人机验证数据：仅注册/验证码登录需要（密码登录服务端不强制）
+  const needHv = mode === 'register' || loginMode === 'code';
+  if (needHv) {
+    if (hvMethod === 'cap') {
+      if (!capToken) { $('authErr').textContent = '请完成人机验证'; return; }
+      body['cap-token'] = capToken;
+    } else if (hvMethod === 'turnstile') {
+      if (!hvToken) { $('authErr').textContent = '请完成人机验证'; return; }
+      body.turnstileToken = hvToken;
+    } else {
+      const ct = $('captchaText').value.trim();
+      if (!hvCaptchaId || !ct) { $('authErr').textContent = '请输入图中验证码'; return; }
+      body.captchaId = hvCaptchaId;
+      body.captchaText = ct;
+    }
   }
   const btn = $('authBtn');
   btn.disabled = true;
