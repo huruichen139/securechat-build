@@ -1,6 +1,6 @@
 // SecureChat server watchdog (node) - restarts the server if it goes down.
 // Reliable on Windows: node itself persists when spawned detached with stdio ignore.
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -46,7 +46,32 @@ function testOnline() {
   });
 }
 
+// 杀掉占用 8888 的残留 node 进程（防 EADDRINUSE：旧服务器未退出时新进程绑端口失败）
+function killStaleServer() {
+  try {
+    const out = childProcess.execSync(
+      'netstat -ano | findstr ":8888" | findstr "LISTENING"',
+      { windowsHide: true, timeout: 5000 }
+    ).toString();
+    const pids = new Set();
+    for (const line of out.split(/\r?\n/)) {
+      const m = line.match(/(\d+)\s*$/);
+      if (m) pids.add(m[1]);
+    }
+    pids.delete(String(process.pid));
+    for (const pid of pids) {
+      try { process.kill(pid, 'SIGTERM'); log('killed stale server pid ' + pid); } catch (e) {}
+    }
+    if (pids.size > 0) {
+      // 给旧进程一点时间释放端口
+      const start = Date.now();
+      while (Date.now() - start < 1500) {}
+    }
+  } catch (e) { /* 无监听则跳过 */ }
+}
+
 function bootServer() {
+  killStaleServer();
   try {
     const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
     const out = fs.openSync(path.join(LOG_DIR, 'server_' + ts + '.out.log'), 'a');
