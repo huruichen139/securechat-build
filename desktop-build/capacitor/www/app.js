@@ -394,9 +394,9 @@ function setupHvTabs() {
     const capBox = $('capBox');
     const tst = $('turnstileBox');
     const imgB = $('hvImgBox');
-    if (capBox) capBox.style.display = next === 'cap' ? '' : 'none';
-    if (tst) tst.style.display = next === 'turnstile' ? '' : 'none';
-    if (imgB) imgB.style.display = next === 'img' ? '' : 'none';
+    if (capBox) capBox.style.display = next === 'cap' ? 'flex' : 'none';
+    if (tst) tst.style.display = next === 'turnstile' ? 'flex' : 'none';
+    if (imgB) imgB.style.display = next === 'img' ? 'flex' : 'none';
     if (next === 'turnstile') renderTurnstile();
     if (next === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
     if (next === 'cap') loadCapWidget();
@@ -453,9 +453,9 @@ function applyLoginMode() {
     const tst = $('turnstileBox');
     const imgB = $('hvImgBox');
     const switchLink = $('hvSwitchLink');
-    if (capBox) capBox.style.display = (hvMethod === 'cap') ? '' : 'none';
-    if (tst) tst.style.display = (hvMethod === 'turnstile') ? '' : 'none';
-    if (imgB) imgB.style.display = (hvMethod === 'img') ? '' : 'none';
+    if (capBox) capBox.style.display = (hvMethod === 'cap') ? 'flex' : 'none';
+    if (tst) tst.style.display = (hvMethod === 'turnstile') ? 'flex' : 'none';
+    if (imgB) imgB.style.display = (hvMethod === 'img') ? 'flex' : 'none';
     if (switchLink) switchLink.style.display = needHv ? '' : 'none';
     if (needHv && hvMethod === 'img' && !$('captchaSvg').innerHTML) loadCaptcha();
     if (needHv && hvMethod === 'cap') loadCapWidget();
