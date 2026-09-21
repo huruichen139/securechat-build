@@ -1595,6 +1595,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           if (!mounted) return;
           final msgId = p['messageId'];
           if (msgId == null) return;
+          // 私聊撤回事件只能落在当前打开的私聊会话上,防 group/DM 的 id 碰撞
+          final fromId = p['from'];
+          final toId = p['to'];
+          final peerKey = (fromId == myId) ? toId : fromId;
+          final convR = selConv;
+          if (convR == null || convR['kind'] == 'group' || convR['id'] != peerKey) return;
           setState(() {
             for (int i = messages.length - 1; i >= 0; i--) {
               if (messages[i]['id'] == msgId) {
@@ -1606,10 +1612,6 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             }
           });
           // 只有当被撤回的消息是该会话的最后一条消息时，才更新 _lastMsg 预览
-          final fromId = p['from'];
-          final toId = p['to'];
-          // 确定对端 peerId（非本用户的那一方）
-          final peerKey = (fromId == myId) ? toId : fromId;
           if (peerKey != null) {
             final ck2 = 'f$peerKey';
             final lastEntry = _lastMsg[ck2];
@@ -1625,6 +1627,18 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           final msgId = p['messageId'];
           final newContent = (p['content'] ?? '').toString();
           if (msgId == null || newContent.isEmpty) return;
+          // 只处理当前会话的编辑:群编辑校验 groupId,私聊编辑校验会话 peer。
+          // group_messages 与 messages 是两套自增 id,不校验会碰撞,把无关会话的消息正文改掉。
+          final conv = selConv;
+          if (conv == null) return;
+          if (p['groupId'] != null) {
+            if (conv['kind'] != 'group' || conv['id'] != p['groupId']) return;
+          } else {
+            final fromId = p['from'];
+            final toId = p['to'];
+            final peer = (fromId == myId) ? toId : fromId;
+            if (conv['kind'] == 'group' || conv['id'] != peer) return;
+          }
           setState(() {
             for (int i = messages.length - 1; i >= 0; i--) {
               if (messages[i]['id'] == msgId) {

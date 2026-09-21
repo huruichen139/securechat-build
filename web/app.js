@@ -1847,11 +1847,26 @@ case P.S_MSG:
       }
       break;
     case P.S_ERROR: toast((payload && payload.error) || '服务器返回错误', 'error'); console.warn('server error', payload); break;
-    case P.S_MSG_RECALL:
-      if (payload && payload.messageId) markRecalled(payload.messageId, false);
+    case P.S_MSG_RECALL: {
+      // 与 S_MSG_EDIT 同理:私聊撤回事件不能落在群会话的消息行上(自增 id 碰撞)
+      if (!payload || payload.messageId == null) break;
+      const myIdR = state.me && state.me.id;
+      const otherR = payload.from === myIdR ? payload.to : payload.from;
+      if (state.activePeer !== otherR || state.activeGroup != null) break;
+      markRecalled(payload.messageId, false);
       break;
+    }
     case P.S_MSG_EDIT: {
       if (!payload || payload.messageId == null) break;
+      // 只处理当前打开会话的编辑:群编辑校验 groupId,私聊编辑校验会话 peer,
+      // 否则 group_messages 与 messages 的自增 id 碰撞会把无关会话的消息正文改掉
+      if (payload.groupId != null) {
+        if (state.activeGroup !== payload.groupId) break;
+      } else {
+        const myId = state.me && state.me.id;
+        const other = payload.from === myId ? payload.to : payload.from;
+        if (state.activePeer !== other || state.activeGroup != null) break;
+      }
       const c = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
       if (!c) break;
       const row = document.querySelector('.msg-row[data-id="' + String(payload.messageId).replace(/"/g, '\\"') + '"]');
@@ -1921,7 +1936,8 @@ case P.S_MSG:
         const actionText = payload.action === 'dissolved' ? '该群已被解散' : (payload.action === 'removed' ? '你已被移出该群' : '你已退出该群');
         toast(actionText, 'error');
         loadGroups();
-        if (state.activeGroup && state.activeGroup.id === payload.groupId) {
+        // activeGroup 存的是数字 groupId,曾误写成 .id 导致永不匹配,被踢/退群后聊天界面不清理
+        if (state.activeGroup === payload.groupId) {
           state.activeGroup = null;
           state.activeGroupMsgs = [];
           renderGroupMessages();
