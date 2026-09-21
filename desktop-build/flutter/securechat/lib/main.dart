@@ -2824,7 +2824,89 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     );
   }
 
+  /// 解析合并转发消息:[合并转发]\n{json}
+  Map<String, dynamic>? _parseMerged(String content) {
+    const prefix = '[合并转发]\n';
+    if (!content.startsWith(prefix)) return null;
+    try {
+      final obj = jsonDecode(content.substring(prefix.length));
+      if (obj is Map && obj['type'] == 'merged' && obj['items'] is List) {
+        return Map<String, dynamic>.from(obj);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Widget _mergedBubble(bool mine, Map<String, dynamic> merged, dynamic t) {
+    final items = (merged['items'] as List).cast<Map<dynamic, dynamic>>();
+    final note = (merged['note'] ?? '').toString();
+    return GestureDetector(
+      onTap: () => _showMergedDetail(items, note),
+      child: Container(
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: mine ? _wechatBubbleMine : t.bubbleOther,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(4),
+            topRight: const Radius.circular(4),
+            bottomLeft: Radius.circular(mine ? 4 : 14),
+            bottomRight: Radius.circular(mine ? 14 : 4),
+          ),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text('合并转发(${items.length}条)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: _fontSize, color: mine ? const Color(0xff191919) : t.text)),
+          for (final it in items.take(3))
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text('${it['fromName'] ?? ''}: ${it['content'] ?? ''}',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: _fontSize - 2, color: mine ? const Color(0xff191919).withValues(alpha: 0.6) : t.subText)),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text('点击查看全部', style: TextStyle(fontSize: 11, color: const Color(0xff07c160))),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  void _showMergedDetail(List<Map<dynamic, dynamic>> items, String note) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text('合并转发(${items.length}条)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+            ),
+            if (note.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(note, style: const TextStyle(color: Colors.grey, fontSize: 12))),
+            Flexible(child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (_, i) {
+                final it = items[i];
+                return ListTile(
+                  title: Text('${it['fromName'] ?? ''}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  subtitle: Text('${it['content'] ?? ''}', style: const TextStyle(fontSize: 14)),
+                );
+              },
+            )),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget _textBubble(bool mine, Map<String, dynamic> msg, dynamic t) {
+    // 合并转发:服务端把 payload 内嵌在消息文本([合并转发]\n{json})里,直接渲染会显示整段 JSON
+    final merged = _parseMerged('${msg['text'] ?? ''}');
+    if (merged != null) return _mergedBubble(mine, merged, t);
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),

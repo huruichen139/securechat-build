@@ -2701,6 +2701,56 @@ function renderGroupMessages(msgs) {
 }
 
 // 群聊消息气泡（带昵称）
+// ============ 合并转发卡片 ============
+// 服务端把合并转发的 payload 直接内嵌在消息文本([合并转发]\n{json})里,
+// 客户端必须识别该前缀并渲染成可点击卡片,否则会直接把整段 JSON 显示给用户
+const MERGED_PREFIX = '[合并转发]\n';
+function parseMerged(content) {
+  if (typeof content !== 'string' || !content.startsWith(MERGED_PREFIX)) return null;
+  try {
+    const obj = JSON.parse(content.slice(MERGED_PREFIX.length));
+    if (obj && obj.type === 'merged' && Array.isArray(obj.items)) return obj;
+  } catch (e) {}
+  return null;
+}
+function mergedCardHtml(m) {
+  const merged = parseMerged(m.content);
+  if (!merged) return null;
+  const preview = (merged.items || []).slice(0, 3).map((it) => {
+    const who = escapeHtml(String(it.fromName || ''));
+    const txt = escapeHtml(String(it.content || '').replace(/\n/g, ' ').slice(0, 40));
+    return '<div class="merged-item">' + who + ': ' + txt + '</div>';
+  }).join('');
+  return '<div class="bubble merged-card" data-merged="1">'
+    + '<div class="merged-title">合并转发(' + merged.items.length + '条)</div>'
+    + preview
+    + '<div class="merged-more">点击查看全部</div></div>';
+}
+function bindMergedCard(row, m) {
+  const card = row.querySelector('.merged-card[data-merged="1"]');
+  if (!card) return;
+  card.onclick = () => {
+    const merged = parseMerged(m.content);
+    if (!merged) { toast('无法解析合并转发内容', 'error'); return; }
+    const mask = document.createElement('div');
+    mask.className = 'profile-mask';
+    mask.innerHTML = '<div class="profile-card" style="max-width:460px">'
+      + '<div class="profile-head"><div class="profile-name">合并转发(' + merged.items.length + '条)</div>'
+      + (merged.note ? '<div class="profile-id">' + escapeHtml(merged.note) + '</div>' : '')
+      + '</div><div class="profile-members" style="flex-direction:column">'
+      + (merged.items || []).map((it) => {
+          const who = escapeHtml(String(it.fromName || ''));
+          const txt = escapeHtml(String(it.content || ''));
+          return '<div class="profile-member" style="width:100%;align-items:flex-start"><div class="avatar" style="width:30px;height:30px;border-radius:6px;flex:none">' + avatarChar(who) + '</div>'
+            + '<div style="min-width:0"><div style="font-size:12px;color:var(--muted)">' + who + '</div>'
+            + '<div style="white-space:pre-wrap;word-break:break-word;font-size:14px">' + txt + '</div></div></div>';
+        }).join('')
+      + '</div></div>';
+    document.body.appendChild(mask);
+    mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
+  };
+}
+
 function appendGroupMessage(m, prepend) {
   // 统一去重：同一条群消息（服务端 id 或 clientMsgId）只渲染一次
   const box0 = $('messages');
@@ -2797,12 +2847,13 @@ function appendGroupMessage(m, prepend) {
       }
     } catch {}
   }
+  const mergedHtmlG = mergedCardHtml(m);
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
       ${quoteBlockHtml(m)}
       ${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}
-      <div class="bubble">${escapeHtml(m.content)}</div>
+      ${mergedHtmlG || '<div class="bubble">' + escapeHtml(m.content) + '</div>'}
       <span class="time">${fmtTime(m.createdAt)}</span>
       ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
@@ -2823,6 +2874,7 @@ function appendGroupMessage(m, prepend) {
   if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   const delBtnG = row.querySelector('[data-action="del"]');
   if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在自己手机上消失，确定删除吗？')) deleteMsgLocal(m.id); };
+  bindMergedCard(row, m);
   bindQuoteClicks(row);
   bindMobileLongPress(row);
   box.appendChild(row);
@@ -3295,7 +3347,9 @@ function appendMessage(m, prepend) {
     rowName = '<div class="name">' + escapeHtml(fName) + '</div>';
   }
   if (m.from != null) row.setAttribute('data-from', String(m.from));
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}${rowAvatar}<div class="bubble-wrap">${rowName}<div class="bubble">${escapeHtml(m.content)}</div><span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel || ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
+  const mergedHtml = mergedCardHtml(m);
+  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}${rowAvatar}<div class="bubble-wrap">${rowName}${mergedHtml || '<div class="bubble">' + escapeHtml(m.content) + '</div>'}<span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel || ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
+  bindMergedCard(row, m);
   bindQuoteClicks(row);
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
