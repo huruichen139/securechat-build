@@ -1281,9 +1281,9 @@ app.get('/api/history/:peerId', (req, res) => {
   const rows = prepare(`SELECT m.*,mm.reply_to,mm.forwarded_from,mm.burn_after_reading,mm.pinned,
     pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
     FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
-    LEFT JOIN messages pm ON pm.id=mm.reply_to
+    LEFT JOIN messages pm ON pm.id=mm.reply_to AND ((pm.from_id=? AND pm.to_id=?) OR (pm.from_id=? AND pm.to_id=?))
     WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at DESC LIMIT ? OFFSET ?`)
-    .all(payload.id, peerId, peerId, payload.id, limit, offset);
+    .all(payload.id, peerId, peerId, payload.id, payload.id, peerId, peerId, payload.id, limit, offset);
   const msgs = rows.reverse().map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
   res.json({ messages: msgs });
 });
@@ -1295,8 +1295,9 @@ app.get('/api/search/messages', (req, res) => {
   const q = String(req.query.q || '').trim();
   if (!q) return res.json({ messages: [] });
   const qs = q.replace(/[\\%_]/g, '\\$&');
+  // 撤回的消息不出现在搜索结果中(撤回后正文仍留在库里,这里过滤掉)
   const rows = prepare(`SELECT m.id,m.from_id,m.to_id,m.content,m.created_at FROM messages m
-    WHERE (m.from_id=? OR m.to_id=?) AND m.content LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 50`)
+    WHERE (m.from_id=? OR m.to_id=?) AND m.recalled=0 AND m.content LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 50`)
     .all(payload.id, payload.id, '%' + qs + '%');
   const messages = rows.map(r => {
     const peerId = r.from_id === payload.id ? r.to_id : r.from_id;
@@ -1467,13 +1468,20 @@ app.post('/api/messages', (req, res) => {
     if (existing) return res.json({ ok: true, message: { id: existing.id, from: existing.senderId, to: existing.recipientId, content: existing.content, createdAt: existing.createdAt, clientMsgId } });
   }
   const createdAt = Date.now();
+  // 越权防护:replyTo/forwardedFrom 必须属于当前用户的会话,防 id 枚举读取任意私聊正文
+  const dmReplyTo = Number(replyTo) || null;
+  const dmFwdFrom = Number(forwardedFrom) || null;
+  const dmOwnsMsg = (mid) => !!prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(mid, payload.id, payload.id);
+  const okReply = dmReplyTo ? dmOwnsMsg(dmReplyTo) : true;
+  const okFwd = dmFwdFrom ? dmOwnsMsg(dmFwdFrom) : true;
+  if (!okReply || !okFwd) return res.status(403).json({ error: '引用的消息不存在或无权访问' });
   const msgSeq = nextSeq();
   const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)').run(payload.id, toId, content, clientMsgId || null, createdAt, msgSeq);
-  if (replyTo || forwardedFrom || burnAfterReading) {
+  if (dmReplyTo || dmFwdFrom || burnAfterReading) {
     prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
-      .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
+      .run(info.lastInsertRowid, dmReplyTo, dmFwdFrom, burnAfterReading ? 1 : 0, createdAt);
   }
-  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0, seq: msgSeq };
+  const message = { id: info.lastInsertRowid, from: payload.id, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: dmReplyTo, forwardedFrom: dmFwdFrom, burnAfterReading: !!burnAfterReading, read: 0, seq: msgSeq };
   const peer = onlineAny(toId);
   if (peer) sendToUser(toId, P.S_MSG, message);
   // 离线队列：对方不在线时入队，重连后推送（即使 WS 断开也能收到）
@@ -1990,9 +1998,9 @@ app.post('/api/wallet/transfer', (req, res) => {
   if (value > 1000000) return res.status(400).json({ error: '单笔转账最多 100 万元' });
   try {
     prepare('BEGIN IMMEDIATE TRANSACTION').run();
-    const my = prepare('SELECT balance FROM wallets WHERE user_id=?').get(payload.id);
-    if (!my || my.balance < value) { prepare('ROLLBACK').run(); return res.status(400).json({ error: '余额不足' }); }
-    prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=?').run(value, Date.now(), payload.id);
+    // CAS 余额扣款:与 doPay/红包一致,避免 check-then-act 模式脆弱
+    const deb = prepare('UPDATE wallets SET balance=balance-?,updated_at=? WHERE user_id=? AND balance>=?').run(value, Date.now(), payload.id, value);
+    if (!deb.changes) { prepare('ROLLBACK').run(); return res.status(400).json({ error: '余额不足' }); }
     prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(target.id, 0, 0, Date.now());
     prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(value, value, Date.now(), target.id);
     prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)').run(payload.id, 'out', value, target.id, remark || '转账', Date.now());
@@ -2099,14 +2107,10 @@ app.all('/api/wallet/recharge/notify', (req, res) => {
   const p = Object.assign({}, req.query || {}, req.body || {});
   const c = epayConfigRead();
   if (!c.key) return res.status(503).send('fail');
-  // 兼容两种签名密钥：商户密钥（外部易支付）与内置网关密钥（.epaygw_key.json）
-  let signOk = epaySignOf(p, c.key) === String(p.sign || '').toLowerCase();
-  if (!signOk) {
-    try {
-      const gw = JSON.parse(fs.readFileSync(path.join(__dirname, '.epaygw_key.json'), 'utf8'));
-      if (gw && gw.key) signOk = epaySignOf(p, gw.key) === String(p.sign || '').toLowerCase();
-    } catch (e) {}
-  }
+  // 只认商户密钥（epay_config.key）。曾有用 .epaygw_key.json 后备验签的逻辑,
+  // 但该文件存的是源码里的公开默认常量 securechat-mock-key,等于验签形同虚设,
+  // 任何人都能伪造回调无限充值,已删除。
+  const signOk = epaySignOf(p, c.key) === String(p.sign || '').toLowerCase();
   if (!signOk) {
     console.log('[wallet] recharge notify sign mismatch: ' + JSON.stringify(p).slice(0, 300));
     return res.send('sign error');
@@ -4274,7 +4278,7 @@ app.get('/api/conversations/preview', (req, res) => {
     const dp = prepare(
       `SELECT id, from_id AS "from", to_id AS "to", content, created_at AS createdAt, seq, mine
        FROM (
-         SELECT m.id, m.from_id, m.to_id, m.content, m.created_at, m.seq,
+         SELECT m.id, m.from_id, m.to_id, CASE WHEN m.recalled=1 THEN '' ELSE m.content END AS content, m.created_at, m.seq,
                 CASE WHEN m.from_id=? THEN 1 ELSE 0 END AS mine,
                 CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END AS peer,
                 ROW_NUMBER() OVER (PARTITION BY CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END ORDER BY m.id DESC) AS rn
@@ -4290,7 +4294,7 @@ app.get('/api/conversations/preview', (req, res) => {
     const gp = prepare(
       `SELECT id, group_id AS groupId, from_id AS "from", content, created_at AS createdAt, seq, mine
        FROM (
-         SELECT gm.id, gm.group_id, gm.from_id, gm.content, gm.created_at, gm.seq,
+         SELECT gm.id, gm.group_id, gm.from_id, CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content, gm.created_at, gm.seq,
                 CASE WHEN gm.from_id=? THEN 1 ELSE 0 END AS mine,
                 ROW_NUMBER() OVER (PARTITION BY gm.group_id ORDER BY gm.id DESC) AS rn
          FROM group_messages gm
@@ -4621,14 +4625,20 @@ wss.on('connection', (ws, req) => {
       if (blocked1 || blocked2) { send(ws, P.S_ERROR, { error: '无法发送（黑名单）' }); return; }
       // Cleartext path: from_id -> peer without E2EE. content 已被客户端加密为密文；服务端只存储/转发，不再加解密。
       const createdAt = Date.now();
+      // 越权防护:replyTo/forwardedFrom 必须属于当前会话
+      const dmR = Number(replyTo) || null;
+      const dmF = Number(forwardedFrom) || null;
+      const dmOwns = (mid) => !!prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(mid, ws.uid, ws.uid);
+      if (dmR && !dmOwns(dmR)) return send(ws, P.S_ERROR, { error: '引用的消息无权访问' });
+      if (dmF && !dmOwns(dmF)) return send(ws, P.S_ERROR, { error: '转发的消息无权访问' });
       const wsMsgSeq = nextSeq();
       const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
         .run(ws.uid, toId, content, clientMsgId || null, createdAt, wsMsgSeq);
       if (metaFlag) {
         prepare('INSERT INTO message_meta(message_id,reply_to,forwarded_from,burn_after_reading,updated_at) VALUES(?,?,?,?,?)')
-          .run(info.lastInsertRowid, Number(replyTo) || null, Number(forwardedFrom) || null, burnAfterReading ? 1 : 0, createdAt);
+          .run(info.lastInsertRowid, dmR, dmF, burnAfterReading ? 1 : 0, createdAt);
       }
-      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: Number(replyTo) || null, forwardedFrom: Number(forwardedFrom) || null, burnAfterReading: !!burnAfterReading, read: 0, seq: wsMsgSeq };
+      const msgObj = { id: info.lastInsertRowid, from: ws.uid, to: toId, content, createdAt, clientMsgId: clientMsgId || null, replyTo: dmR, forwardedFrom: dmF, burnAfterReading: !!burnAfterReading, read: 0, seq: wsMsgSeq };
       console.log('[msg] ws.uid=' + ws.uid + ' -> to=' + toId + ' len=' + String(content).length + ' id=' + info.lastInsertRowid);
       let replyContent = null, replyFrom = null, replyRecalled = false;
       if (msgObj.replyTo) {
@@ -4687,6 +4697,9 @@ wss.on('connection', (ws, req) => {
         .run(gid, ws.uid, enc, clientMsgId || null, now, grpMsgSeq);
       const replyToId = Number(replyTo) || null;
       const forwardedFromId = Number(forwardedFrom) || null;
+      // 越权防护:replyTo/forwardedFrom 必须是本群消息,防 id 枚举跨群泄露正文
+      if (replyToId && !prepare('SELECT 1 FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid)) replyToId = null;
+      if (forwardedFromId && !prepare('SELECT 1 FROM group_messages WHERE id=? AND group_id=?').get(forwardedFromId, gid)) forwardedFromId = null;
       let replyContent = null, replyFrom = null;
       if (replyToId) {
         try {

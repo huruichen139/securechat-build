@@ -273,10 +273,11 @@ module.exports = function registerPayment(app, db, auth) {
         const notifier = (app && app.get && app.get('arrivalNotifier'));
         if (typeof notifier === 'function') notifier(toId, { amount, fromId, fromName: senderName, remark: remark || '转账', category: category || 'transfer' });
       } catch (e) {}
-      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+      // COMMIT 失败必须抛出:否则事务已回滚却仍回报成功,用户白嫖
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} throw e; }
     } catch (e) {
+      // 扣款/入账/流水都在同一事务内,ROLLBACK 已全部撤销,不能再手动加余额(否则凭空造钱)
       try { prepare('ROLLBACK').run(); } catch (e2) {}
-      try { prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), fromId); } catch (e3) {}
       try { persist(); } catch (_) {}
       return cb({ code: 500, message: '支付失败已回滚' });
     }
@@ -992,13 +993,22 @@ module.exports = function registerPayment(app, db, auth) {
     if (String(p.trade_status || '').toUpperCase() !== 'TRADE_SUCCESS' && String(p.trade_status || '') !== '1') return res.send('success');
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(p.out_trade_no || ''));
     if (!order) return res.status(404).send('fail');
-    if (Number(p.money) !== Number(order.amount)) return res.status(400).send('fail');
+    if (Math.abs(Number(p.money) - Number(order.amount)) > 0.001) return res.status(400).send('fail');
     if (order.status !== 'paid') {
-      prepare('UPDATE pay_orders SET status=?,paid_at=? WHERE id=?').run('paid', Date.now(), order.id);
-      // 给商户入账（EPay 回调 = 用户外部已付款，需将金额转入商户钱包）
-      const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
-      if (merchant) {
-        try { writeCharge(merchant.user_id, 'in', order.amount, order.payer_id, '网关收入:' + order.subject); } catch (e) {}
+      // 状态翻转与商户入账必须原子:writeCharge 失败要回滚并回 fail 让 EPay 重试,
+      // 否则订单已 paid、商户永不到账、EPay 收到 success 不再重试 → 商户钱永久丢失
+      try {
+        prepare('BEGIN IMMEDIATE TRANSACTION').run();
+        prepare('UPDATE pay_orders SET status=?,paid_at=? WHERE id=?').run('paid', Date.now(), order.id);
+        const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
+        if (merchant) {
+          writeCharge(merchant.user_id, 'in', order.amount, order.payer_id, '网关收入:' + order.subject);
+        }
+        prepare('COMMIT').run();
+      } catch (e) {
+        try { prepare('ROLLBACK').run(); } catch (e2) {}
+        console.error('[epay-notify] merchant credit failed, order=' + order.order_no + ' err=' + (e && e.message || e));
+        return res.status(500).send('fail');
       }
       persist();
     }

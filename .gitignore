@@ -33,3 +33,5 @@ opencode.db-*
 data/epaygw_orders.json
 data/apk_done*.txt
 data/watchdog.lock
+
+server/.epaygw_key.json

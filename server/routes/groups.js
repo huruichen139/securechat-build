@@ -98,7 +98,7 @@ function myGroups(userId) {
     const note = p.get('SELECT note FROM group_setting_notes WHERE group_id=? AND user_id=?', g.id, userId);
     const mine = p.get('SELECT my_nickname, muted FROM group_member_settings WHERE group_id=? AND user_id=?', g.id, userId);
     const last = p.get(
-      `SELECT gm.id, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt, u.id AS userId, u.nickname, u.avatar
+      `SELECT gm.id, gm.from_id AS fromId, CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content, gm.created_at AS createdAt, u.id AS userId, u.nickname, u.avatar
        FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
        WHERE gm.group_id=? ORDER BY gm.created_at DESC LIMIT 1`, g.id);
     const members = p.all(
@@ -435,7 +435,7 @@ module.exports = function registerGroups(app, db, auth) {
     let sql = `SELECT gm.*,gmm.reply_to,gmm.forwarded_from,pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
        FROM group_messages gm
        LEFT JOIN group_message_meta gmm ON gmm.message_id=gm.id
-       LEFT JOIN group_messages pm ON pm.id=gmm.reply_to
+       LEFT JOIN group_messages pm ON pm.id=gmm.reply_to AND pm.group_id=gm.group_id
        WHERE gm.group_id=?`;
     const params = [groupId];
     if (before) { sql += ' AND gm.id<?'; params.push(before); }
@@ -455,14 +455,17 @@ module.exports = function registerGroups(app, db, auth) {
     if (!content) return fail(res, 400, '消息内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
     const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''));
-    const replyTo = Number((req.body || {}).replyTo) || null;
+    let replyTo = Number((req.body || {}).replyTo) || null;
     const forwardedFrom = Number((req.body || {}).forwardedFrom) || null;
+    // 越权防护:replyTo/forwardedFrom 必须是本群内的消息,否则 id 枚举可跨群泄露正文
+    if (replyTo && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', replyTo, groupId)) replyTo = null;
+    if (forwardedFrom && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', forwardedFrom, groupId)) return fail(res, 400, '被转发的消息不存在');
     if (replyTo || forwardedFrom) {
       try {
         p.run('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at', msgId.id, replyTo, forwardedFrom, Date.now());
       } catch (e) {}
     }
-    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, seq: msgId.seq || null, read: true, readCount: 1 } });
+    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, seq: msgId.seq || null, replyTo, read: true, readCount: 1 } });
   });
 
   // ---------- 群公告：POST /api/groups/:id/announcement { content } ----------

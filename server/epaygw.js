@@ -8,7 +8,11 @@ const QRCode = require('qrcode');
 
 const { loadKey, saveKey } = require('./epaygw_config');
 let _gwConfig = loadKey();
-function getGwKey() { return _gwConfig.key || 'securechat-mock-key'; }
+function getGwKey() {
+  const k = _gwConfig && _gwConfig.key;
+  if (!k) throw new Error('[epaygw] 网关密钥未配置');
+  return k;
+}
 const ORDERS_FILE = path.join(process.env.DATA_DIR || path.join(process.cwd(), 'data'), 'epaygw_orders.json');
 
 let orders = new Map();

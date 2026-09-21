@@ -265,14 +265,33 @@ module.exports = function register(app, db, auth) {
     res.json({ exists: true, remaining: Math.round(remaining), duration: timer.duration });
   });
 
-  // ========== 消息置顶 ==========
+  // ========== 消息置顶（越权修复：必须群成员 + 消息属于该群 + 发送者或群主）==========
+  function pinPermission(req, res, groupId, messageId) {
+    if (!groupId) {
+      // 私聊:消息必须属于当前用户的会话
+      const m = db.prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(messageId, req.user.id, req.user.id);
+      if (!m) return { err: [404, '消息不存在或无权操作'] };
+      return { dm: true };
+    }
+    const g = db.prepare('SELECT owner_id FROM groups WHERE id=?').get(groupId);
+    if (!g) return { err: [404, '群不存在'] };
+    if (!db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(groupId, req.user.id)) return { err: [403, '你不在此群'] };
+    const msg = db.prepare('SELECT from_id FROM group_messages WHERE id=? AND group_id=?').get(messageId, groupId);
+    if (!msg) return { err: [404, '消息不存在或不在该群'] };
+    if (!(req.user.id === g.owner_id || req.user.id === msg.from_id)) return { err: [403, '仅消息发送者或群主可操作'] };
+    return { dm: false };
+  }
+
   app.post('/api/message/pin', requireAuth, (req, res) => {
     const { messageId, groupId } = req.body || {};
     if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
+    const perm = pinPermission(req, res, groupId, messageId);
+    if (perm.err) return res.status(perm.err[0]).json({ error: perm.err[1] });
     if (groupId) {
-      db.run('UPDATE group_message_meta SET pinned=1 WHERE message_id=?', [messageId]);
+      // 用 upsert:多数消息没有 meta 行(仅引用/转发过才有),裸 UPDATE 会空操作导致置顶不生效
+      db.run('INSERT INTO group_message_meta(message_id,pinned,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET pinned=excluded.pinned,updated_at=excluded.updated_at', [messageId, 1, Date.now()]);
     } else {
-      db.run('UPDATE message_meta SET pinned=1 WHERE message_id=?', [messageId]);
+      db.run('INSERT INTO message_meta(message_id,pinned,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET pinned=excluded.pinned,updated_at=excluded.updated_at', [messageId, 1, Date.now()]);
     }
     res.json({ success: true });
   });
@@ -280,17 +299,19 @@ module.exports = function register(app, db, auth) {
   app.post('/api/message/unpin', requireAuth, (req, res) => {
     const { messageId, groupId } = req.body || {};
     if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
+    const perm = pinPermission(req, res, groupId, messageId);
+    if (perm.err) return res.status(perm.err[0]).json({ error: perm.err[1] });
     if (groupId) {
-      db.run('UPDATE group_message_meta SET pinned=0 WHERE message_id=?', [messageId]);
+      db.run('INSERT INTO group_message_meta(message_id,pinned,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET pinned=excluded.pinned,updated_at=excluded.updated_at', [messageId, 0, Date.now()]);
     } else {
-      db.run('UPDATE message_meta SET pinned=0 WHERE message_id=?', [messageId]);
+      db.run('INSERT INTO message_meta(message_id,pinned,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET pinned=excluded.pinned,updated_at=excluded.updated_at', [messageId, 0, Date.now()]);
     }
     res.json({ success: true });
   });
 
   app.get('/api/messages/pinned/:groupId', requireAuth, (req, res) => {
     if (!memberOf(req.params.groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
-    const rows = db.prepare('SELECT mm.*, gm.content, gm.created_at, u.nickname, u.avatar FROM group_message_meta mm JOIN group_messages gm ON mm.message_id=gm.id JOIN users u ON gm.from_id=u.id WHERE mm.pinned=1 AND gm.group_id=? ORDER BY mm.created_at ASC').all(req.params.groupId);
+    const rows = db.prepare('SELECT mm.*, gm.content, gm.created_at, u.nickname, u.avatar FROM group_message_meta mm JOIN group_messages gm ON mm.message_id=gm.id JOIN users u ON gm.from_id=u.id WHERE mm.pinned=1 AND gm.group_id=? ORDER BY mm.updated_at ASC').all(req.params.groupId);
     res.json({ messages: rows });
   });
 
@@ -382,6 +403,12 @@ module.exports = function register(app, db, auth) {
         if (!sendToUser) continue;
         const now = Date.now();
         if (m.is_group) {
+          // 投递前重校验:退群/被移除后不再以成员身份发言
+          const stillIn = db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(m.peer_id, m.user_id);
+          if (!stillIn) {
+            db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [now, m.id]);
+            continue;
+          }
           const grpSeq = db.nextSeq();
           const info = db.prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
             .run(m.peer_id, m.user_id, m.content, null, now, grpSeq);
@@ -391,6 +418,12 @@ module.exports = function register(app, db, auth) {
             sendToUser(mb.user_id, P.S_GROUP_MSG, { id: messageId, groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: now, scheduled: true, seq: grpSeq });
           }
         } else {
+          // 私聊:任一方拉黑则不投递
+          const blocked = db.prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(m.user_id, m.peer_id, m.peer_id, m.user_id);
+          if (blocked) {
+            db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [now, m.id]);
+            continue;
+          }
           const dmSeq = db.nextSeq();
           const info = db.prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
             .run(m.user_id, m.peer_id, m.content, null, now, dmSeq);

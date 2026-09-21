@@ -195,8 +195,8 @@ module.exports = function registerRedpacket(app, db, auth) {
 
     let amount;
     if (pkt.mode === 'average') {
-      // 均分（最后一份取剩余）
-      amount = (pkt.remaining_count === 1) ? pkt.remaining_amount : Math.floor(pkt.remaining_amount / pkt.remaining_count * 100) / 100;
+      // 均分（最后一份取剩余）;下取整后至少 1 分,避免 remaining/count<0.005 时抢到 0 元
+      amount = (pkt.remaining_count === 1) ? pkt.remaining_amount : Math.max(0.01, Math.floor(pkt.remaining_amount / pkt.remaining_count * 100) / 100);
     } else if (pkt.mode === 'single') {
       amount = pkt.total_amount;
     } else {
@@ -216,18 +216,19 @@ module.exports = function registerRedpacket(app, db, auth) {
     amount = Math.round(amount * 100) / 100;
     if (amount > pkt.remaining_amount) amount = pkt.remaining_amount;
 
-    // 整个抢单操作在事务内完成，remaining_amount 用 DB 当前值而非过时值
+    // 抢红包全流程(红包扣减 + 抢记录 + 钱包入账)必须在同一事务内,
+    // 原实现拆成两个事务,中间崩溃会出现份额已扣但用户从未入账的钱凭空消失
     try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
     try {
       const dec = prepare('UPDATE red_packets SET remaining_count=remaining_count-1,remaining_amount=remaining_amount-? WHERE id=? AND remaining_count>0 AND status=? AND remaining_amount>=?')
         .run(amount, id, 'active', amount);
-      if (!dec.changes) { try { prepare('COMMIT').run(); } catch (e) {} return res.status(400).json({ error: '红包已被抢完' }); }
+      if (!dec.changes) { try { prepare('ROLLBACK').run(); } catch (e) {} return res.status(400).json({ error: '红包已被抢完' }); }
       try {
         prepare('INSERT INTO red_packet_grabs(packet_id,user_id,amount,created_at) VALUES(?,?,?,?)').run(id, me.id, amount, Date.now());
       } catch (e) {
-        try { prepare('UPDATE red_packets SET remaining_count=remaining_count+1,remaining_amount=remaining_amount+? WHERE id=?').run(amount, id); } catch (e2) {}
-        try { prepare('COMMIT').run(); } catch (e3) {}
         if (String(e && e.message || e).includes('UNIQUE')) {
+          // 已抢过:直接回滚本次扣减,返回已抢金额
+          try { prepare('ROLLBACK').run(); } catch (e2) {}
           const g = prepare('SELECT * FROM red_packet_grabs WHERE packet_id=? AND user_id=?').get(id, me.id);
           return res.json({ ok: true, already: true, amount: g ? g.amount : 0, myAmount: g ? g.amount : 0, balance: walletOf(me.id).balance });
         }
@@ -237,25 +238,15 @@ module.exports = function registerRedpacket(app, db, auth) {
       const fresh = prepare('SELECT remaining_amount,remaining_count FROM red_packets WHERE id=?').get(id);
       const newStatus = (fresh && fresh.remaining_count <= 0) ? 'finished' : 'active';
       prepare('UPDATE red_packets SET status=? WHERE id=?').run(newStatus, id);
-      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
-    } catch (e) {
-      try { prepare('ROLLBACK').run(); } catch (e2) {}
-      return res.status(500).json({ error: '抢单失败' });
-    }
-
-    // 入账（使用事务保证扣款与入账原子性）
-    try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
-    try {
+      // 入账并入同一事务
       prepare('INSERT OR IGNORE INTO wallets(user_id,balance,total_received,updated_at) VALUES(?,?,?,?)').run(me.id, 0, 0, Date.now());
       prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(amount, amount, Date.now(), me.id);
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
         .run(me.id, 'in', amount, pkt.sender_id, '抢到红包', Date.now());
-      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} throw e; }
     } catch (e) {
       try { prepare('ROLLBACK').run(); } catch (e2) {}
-      // 入账失败，回滚红包扣减
-      try { prepare('UPDATE red_packets SET remaining_count=remaining_count+1,remaining_amount=remaining_amount+?,status=? WHERE id=?').run(amount, 'active', id); } catch (e3) {}
-      return res.status(500).json({ error: '入账失败' });
+      return res.status(500).json({ error: '抢单失败' });
     }
     persist();
 
