@@ -1756,6 +1756,9 @@ app.post('/api/group/invite', (req, res) => {
   if (!target) return res.status(404).json({ error: '该UID不存在' });
   const exists = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, target.id);
   if (exists) return res.status(409).json({ error: '该用户已是群成员' });
+  // 拉黑校验(与 groups.js 的新版邀请接口一致):任一方拉黑则不能邀请入群
+  const blk = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(payload.id, target.id, target.id, payload.id);
+  if (blk) return res.status(403).json({ error: '对方已把你拉黑，无法邀请' });
   prepare('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)')
     .run(groupId, target.id, Date.now());
   res.json({ ok: true, userId: target.id });

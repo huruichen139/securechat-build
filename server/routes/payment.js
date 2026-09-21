@@ -263,7 +263,13 @@ module.exports = function registerPayment(app, db, auth) {
       if (!deb.changes) { try { prepare('COMMIT').run(); } catch (e) {} return cb({ code: 400, message: '余额不足' }); }
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
         .run(fromId, 'out', amount, toId || null, remark || '转账', Date.now());
-      writeCharge(toId, 'in', amount, fromId, remark);
+      if (fromId === toId && allowSelf) {
+        // 自付自(生活缴费演示):余额净值不变,只记流水,不虚增 total_received
+        prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
+          .run(toId, 'in', amount, fromId, remark || '自付', Date.now());
+      } else {
+        writeCharge(toId, 'in', amount, fromId, remark);
+      }
       addBill(fromId, 'out', category, amount, toId, remark + '（转出）', category, refId || null);
       addBill(toId, 'in', category, amount, fromId, remark + '（收入）', category, refId || null);
       // 到账语音通知：推送给收款方（ws 在线连接），客户端播放"SecureChat到账 xx元"

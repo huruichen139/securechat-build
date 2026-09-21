@@ -27,6 +27,17 @@ try { fs.mkdirSync(GROUP_FILES_DIR, { recursive: true }); } catch (e) { /* 忽�
 // p 在 registerGroups 内被赋值；其余内部函数均通过闭包变量 p 访问。
 let P = null;
 let EDB = null;
+
+// 模块内限流(与 index.js 的 rateLimit 同实现):防止建群/邀请被刷,导致 DB 膨胀与垃圾邀请
+const _gRateBuckets = new Map();
+function groupRateLimit(key, max, windowMs) {
+  const now = Date.now();
+  let b = _gRateBuckets.get(key);
+  if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + windowMs }; _gRateBuckets.set(key, b); }
+  b.count++;
+  return b.count > max;
+}
+
 function eof(sp) { return gdb && typeof gdb.prepare === 'function'; }
 function prep() {
   // 退路：直接基于传入 EDB（不自动落盘，合并时可自行精简）
@@ -269,6 +280,8 @@ module.exports = function registerGroups(app, db, auth) {
 
   // ---------- 创建群：POST /api/groups { name, memberUids:[] } ----------
   app.post('/api/groups', mw, (req, res) => {
+    // 限流:每小时最多建 20 个群,防垃圾建群与 DB 膨胀
+    if (groupRateLimit('gcreate:' + req.user.id, 20, 60 * 60 * 1000)) return fail(res, 429, '建群过于频繁，请稍后再试');
     const name = String((req.body || {}).name || '').trim();
     if (!name) return fail(res, 400, '群名不能为空');
     const groupName = name.slice(0, 50);
@@ -333,6 +346,8 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    // 限流:每小时最多 50 次邀请操作
+    if (groupRateLimit('ginvite:' + req.user.id, 50, 60 * 60 * 1000)) return fail(res, 429, '邀请过于频繁，请稍后再试');
     const body = req.body || {};
     let uids = [];
     const userIds = Array.isArray(body.userIds) ? body.userIds.map(v => parseInt(v, 10)).filter(Number.isInteger) : [];
