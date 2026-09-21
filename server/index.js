@@ -663,8 +663,10 @@ app.post('/api/email/bind', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const { email, code } = req.body || {};
   if (!email || !code) return res.status(400).json({ error: '请填写邮箱和验证码' });
+  if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(email, code, 'bind');
-  if (codeErr) return res.status(400).json({ error: codeErr });
+  if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
+  clearCodeFails(email);
   const emailTaken = prepare('SELECT id FROM users WHERE email=? AND id<>?').get(email, payload.id);
   if (emailTaken) return res.status(409).json({ error: '该邮箱已被其他账号绑定' });
   prepare('UPDATE users SET email=? WHERE id=?').run(email, payload.id);
@@ -744,6 +746,8 @@ app.post('/api/login/code', (req, res) => {
 // 先向邮箱发送 purpose=reset 的验证码，再凭邮箱+验证码重置密码。
 app.post('/api/password/reset', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const ip = getIp(req);
+  if (rateLimit('reset:' + ip, 10, 15 * 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请15分钟后再试' });
   const { email, code, newPassword } = req.body || {};
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式错误' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
