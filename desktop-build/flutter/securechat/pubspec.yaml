@@ -1,4 +1,4 @@
-name: securechat
+﻿name: securechat
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.80.6+7
+version: 1.80.7+8
 
 environment:
   sdk: ^3.12.2
@@ -78,7 +78,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # 系统托盘图标（windows/runner 已有资源，注册为 Flutter 资产供 tray_manager 使用）
+  # 绯荤粺鎵樼洏鍥炬爣锛坵indows/runner 宸叉湁璧勬簮锛屾敞鍐屼负 Flutter 璧勪骇渚?tray_manager 浣跨敤锛?
   assets:
     - windows/runner/resources/app_icon.ico
 

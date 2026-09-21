@@ -35,3 +35,4 @@ data/apk_done*.txt
 data/watchdog.lock
 
 server/.epaygw_key.json
+.playwright-mcp/
