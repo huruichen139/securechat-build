@@ -2940,7 +2940,9 @@ async function sendCurrentGroup() {
   // 群聊不能复用单聊的 peer E2EE 会话：groupId 不是用户公钥 ID。
   // 先使用群消息协议发送明文，避免把群 ID 当成用户 ID 导致发送失败。
   const reply = pendingReply || null;
-  const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text, replyTo: reply });
+  // 生成 clientMsgId:乐观渲染 + 服务端去重,弱网重发不会重复入消息
+  const cmid = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+  const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text, replyTo: reply, clientMsgId: cmid });
   if (ok) {
     input.value = '';
     saveCurrentDraft();
@@ -2952,7 +2954,7 @@ async function sendCurrentGroup() {
     const res = await fetch(state.serverHost + '/api/groups/' + gid + '/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-      body: JSON.stringify({ content: text, replyTo: reply })
+      body: JSON.stringify({ content: text, replyTo: reply, clientMsgId: cmid })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '发送失败');

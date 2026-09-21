@@ -359,10 +359,12 @@ module.exports = function registerPayment(app, db, auth) {
     if (!code) return res.status(404).json({ error: '码不存在' });
     if (code.status !== 'active' || (code.expires_at && code.expires_at < Date.now())) return res.status(410).json({ error: '码已失效' });
     const owner = getUserRow(code.owner_id);
+    // 匿名端点(无需登录):只回显昵称/头像/uid,email 等敏感信息不暴露给扫码方
+    const anonUser = owner ? { id: owner.id, nickname: owner.nickname, avatar: owner.avatar, uid: owner.uid } : null;
     res.json({
       type: code.type, amount: code.amount, remark: code.remark, expiresAt: code.expires_at,
-      receiver: code.type === 'pay' ? null : publicUser(owner),
-      payer: code.type === 'pay' ? publicUser(owner) : null,
+      receiver: code.type === 'pay' ? null : anonUser,
+      payer: code.type === 'pay' ? anonUser : null,
       action: code.type === 'pay' ? 'request' : 'pay'
     });
   });
@@ -489,8 +491,14 @@ module.exports = function registerPayment(app, db, auth) {
     if (!c) return res.status(404).json({ error: '收款不存在' });
     if (!memberOf(c.group_id, userId)) return res.status(403).json({ error: '你不在此群' });
     if (c.status !== 'open') return res.status(400).json({ error: '收款已结束' });
-    const existing = prepare('SELECT id FROM collect_payments WHERE collect_id=? AND user_id=?').get(collectId, userId);
-    if (existing) return res.status(409).json({ error: '你已缴款' });
+    const existing = prepare('SELECT id,remark,created_at FROM collect_payments WHERE collect_id=? AND user_id=?').get(collectId, userId);
+    if (existing) {
+      // 崩溃残留的占位行(仍是"(处理中)")超过 5 分钟视为废弃,允许重试;
+      // 否则按在途/已完成处理,避免 UNIQUE 索引永久卡死用户
+      const stale = existing.remark === '(处理中)' && (Date.now() - (existing.created_at || 0)) > 5 * 60 * 1000;
+      if (!stale) return res.status(409).json({ error: '你已缴款或上一笔正在处理，请稍后重试' });
+      prepare('DELETE FROM collect_payments WHERE id=?').run(existing.id);
+    }
     try {
       prepare('INSERT INTO collect_payments(collect_id,user_id,amount,remark,created_at) VALUES(?,?,?,?,?)')
         .run(collectId, userId, c.amount, '(处理中)', Date.now());
@@ -778,6 +786,11 @@ module.exports = function registerPayment(app, db, auth) {
     if (req.body?.confirm !== true) return res.status(400).json({ error: '必须明确确认扣款' });
     const amount = Number(req.body?.amount);
     if (amount !== o.amount) return res.status(400).json({ error: '确认金额与订单金额不一致' });
+    // 授权金额上限服务端兜底:客户端校验可绕过,若存在有效授权则金额不得超过其 max_amount
+    const auth = prepare("SELECT max_amount FROM pay_authorizations WHERE user_id=? AND merchant_id=? AND status='active' AND (expires_at IS NULL OR expires_at>?) ORDER BY created_at DESC LIMIT 1").get(req.user.id, o.merchant_id, Date.now());
+    if (auth && Number(auth.max_amount) > 0 && amount > Number(auth.max_amount)) {
+      return res.status(403).json({ error: '超出授权金额上限(' + Number(auth.max_amount) + '元),请重新授权' });
+    }
     const claim = prepare("UPDATE pay_orders SET payer_id=?,status='paid',paid_at=? WHERE id=? AND status='pending'").run(req.user.id, Date.now(), o.id);
     if (!claim.changes) return res.status(409).json({ error: '订单已失效或已处理' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(o.merchant_id);
@@ -1016,12 +1029,14 @@ module.exports = function registerPayment(app, db, auth) {
   });
 
   // NewAPI 回调兜底：当商户把"回调地址"误配为本机时，把通知原样转发到真实 NewAPI 站点。
+  // 目标主机固定,SSRF 面有限;但仍限制方法并恢复证书校验,避免被当成开放代理
   app.all('/api/user/epay/*', (req, res) => {
+    if (!['GET', 'POST'].includes(req.method)) return res.status(405).send('method not allowed');
     const targetHost = 'ai.32768.top';
     const path = req.originalUrl;
     const body = Object.keys(req.body || {}).map((k) => encodeURIComponent(k) + '=' + encodeURIComponent(req.body[k])).join('&');
     const u = new URL('https://' + targetHost + path);
-    const r = https.request({ hostname: u.hostname, port: 443, path: u.pathname + u.search, method: req.method, rejectUnauthorized: false, headers: { 'Content-Type': req.get('content-type') || 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } }, (rr) => {
+    const r = https.request({ hostname: u.hostname, port: 443, path: u.pathname + u.search, method: req.method, headers: { 'Content-Type': req.get('content-type') || 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } }, (rr) => {
       let b = ''; rr.on('data', (c) => b += c); rr.on('end', () => res.status(rr.statusCode).send(b));
     });
     r.on('error', (e) => res.status(502).send('forward failed: ' + (e && e.message || e)));
