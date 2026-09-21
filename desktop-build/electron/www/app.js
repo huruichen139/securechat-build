@@ -1905,6 +1905,12 @@ case P.S_MSG:
       break;
     case P.S_GROUP_LIST:
       state.groups = payload.groups || [];
+      // 以服务端 message_reads 为准同步群未读角标(本地计数仅断线期间递增,重载后会丢失)
+      if (Array.isArray(state.groups)) {
+        for (const g of state.groups) {
+          if (g && typeof g.unread === 'number') state.groupUnread[g.id] = g.unread;
+        }
+      }
       renderContacts();
       // 若当前选中的群还在列表里，刷新一下顶部 header 与在线状态
       if (state.activeGroup && state.groups.find(g => g.id === state.activeGroup)) {

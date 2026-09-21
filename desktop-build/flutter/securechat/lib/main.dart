@@ -1083,6 +1083,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         }
       } catch (_) {}
       if (!mounted) return;
+      // 以服务端 message_reads 为准同步群未读角标(本地计数仅断线期间递增,重载后会丢失)
+      for (final g in groups) {
+        final gu = g['unread'];
+        if (gu is num) _unread['g${g['id']}'] = gu.toInt();
+      }
       setState(() {
         conversations.clear();
         for (final f in friends) {
@@ -1094,7 +1099,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         }
         for (final g in groups) {
           final settings = csMap[g['id']];
-          conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true});
+          conversations.add({'kind': 'group', 'id': g['id'], 'name': (g['name'] ?? '群聊').toString(), 'icon': Icons.groups_rounded, 'online': false, 'pinned': settings?['pinned'] == true, 'muted': settings?['muted'] == true, 'unread': (g['unread'] as num?)?.toInt() ?? 0});
         }
         conversations.sort((a, b) { final bp = (b['pinned'] == true) ? 1 : 0; final ap = (a['pinned'] == true) ? 1 : 0; if (bp != ap) return bp - ap; final bu = ((b['unread'] as num?)?.toInt() ?? 0); final au = ((a['unread'] as num?)?.toInt() ?? 0); return bu.compareTo(au); });
         // 重定位当前选中会话（若有），防止 sort/重建后 selected 索引错位

@@ -2406,7 +2406,7 @@ function buildGroupsForUser(userId) {
        WHERE m.group_id=? ORDER BY m.joined_at`
     ).all(g.id).map(m => ({ ...publicUser(m), online: onlineHas(m.id) }));
     const last = prepare(
-      `SELECT gm.id, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
+      `SELECT gm.id, gm.from_id AS fromId, CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content, gm.created_at AS createdAt,
               u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
        FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
        WHERE gm.group_id=? ORDER BY gm.created_at DESC LIMIT 1`
@@ -2418,7 +2418,17 @@ function buildGroupsForUser(userId) {
         fromUser: { id: last.userId, username: last.username, nickname: last.nickname, avatar: last.avatar, uid: last.userUid }
       };
     }
-    return { id: g.id, name: g.name, ownerId: g.ownerId, members, lastMessage, unread: 0 };
+    // 群未读:非自己发的、未登记已读的消息数(message_reads 表可能缺失,子查询报错时降级 0)
+    let unread = 0;
+    try {
+      const ur = prepare(
+        `SELECT COUNT(*) AS c FROM group_messages gm
+         WHERE gm.group_id=? AND gm.from_id<>? AND gm.recalled=0
+         AND NOT EXISTS (SELECT 1 FROM message_reads mr WHERE mr.message_id=gm.id AND mr.user_id=?)`
+      ).get(g.id, userId, userId);
+      unread = ur ? (Number(ur.c) || 0) : 0;
+    } catch (e) { /* message_reads 表缺失时为 0 */ }
+    return { id: g.id, name: g.name, ownerId: g.ownerId, members, lastMessage, unread };
   });
 }
 
@@ -4703,14 +4713,14 @@ wss.on('connection', (ws, req) => {
       let replyContent = null, replyFrom = null;
       if (replyToId) {
         try {
-          prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at')
+          prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=COALESCE(excluded.reply_to,group_message_meta.reply_to),forwarded_from=COALESCE(excluded.forwarded_from,group_message_meta.forwarded_from),updated_at=excluded.updated_at')
             .run(info.lastInsertRowid, replyToId, forwardedFromId || null, now);
           const pm = prepare('SELECT content,from_id FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid);
           if (pm) { replyContent = pm.content; replyFrom = pm.from_id; }
         } catch (e) {}
       } else if (forwardedFromId) {
         try {
-          prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at')
+          prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=COALESCE(excluded.reply_to,group_message_meta.reply_to),forwarded_from=COALESCE(excluded.forwarded_from,group_message_meta.forwarded_from),updated_at=excluded.updated_at')
             .run(info.lastInsertRowid, null, forwardedFromId, now);
         } catch (e) {}
       }

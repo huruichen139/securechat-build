@@ -106,6 +106,16 @@ function myGroups(userId) {
        JOIN users u ON u.id = m.user_id
        LEFT JOIN group_member_settings gms ON gms.group_id=m.group_id AND gms.user_id=m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at ASC`, g.id);
+    // 群未读:非自己发的、未登记已读的消息数
+    let unread = 0;
+    try {
+      const ur = p.get(
+        `SELECT COUNT(*) AS c FROM group_messages gm
+         WHERE gm.group_id=? AND gm.from_id<>? AND gm.recalled=0
+         AND NOT EXISTS (SELECT 1 FROM message_reads mr WHERE mr.message_id=gm.id AND mr.user_id=?)`,
+        g.id, userId, userId);
+      unread = ur ? (Number(ur.c) || 0) : 0;
+    } catch (e) { /* message_reads 表缺失时为 0 */ }
     return {
       id: g.id, name: g.name, ownerId: g.ownerId, createdAt: g.createdAt,
       displayName: (note && note.note) || g.name,
@@ -114,6 +124,7 @@ function myGroups(userId) {
       announcement: ann ? { content: ann.content, publisherId: ann.publisherId, pinned: !!ann.pinned, updatedAt: ann.updatedAt } : null,
       members: members.map(m => ({ ...publicUser(m), myNickname: m.my_nickname || null })),
       memberCount: members.length,
+      unread,
       lastMessage: last ? { id: last.id, from: last.fromId, content: last.content, createdAt: last.createdAt, fromUser: publicUser(last) } : null,
     };
   });
@@ -149,15 +160,17 @@ function groupMsgDto(r, viewerId) {
 }
 
 // 追加群消息并尝试实时分发（若巨石 worker 通过 require.cache 注入分发器）
-function insertGroupMessage(groupId, fromId, content, clientMsgId) {
+// opts.replyTo / opts.forwardedFrom:引用与转发来源,在广播前完成越权校验与 meta 写入,
+// 这样实时推送带得上引用块;P2-6:replyTo 与 forwardedFrom 拆开更新,避免互相置空
+function insertGroupMessage(groupId, fromId, content, clientMsgId, opts) {
   // 重试复用 clientMsgId 时返回原消息，避免重复插入与重复广播
   if (clientMsgId) {
     try {
       const existing = p.get(
-        'SELECT id, group_id, from_id, content, created_at FROM group_messages WHERE client_msg_id=? AND from_id=? AND group_id=?',
+        'SELECT id, group_id, from_id, content, created_at, seq FROM group_messages WHERE client_msg_id=? AND from_id=? AND group_id=?',
         clientMsgId, fromId, groupId);
       if (existing) {
-        return { id: existing.id, groupId: existing.group_id, from: existing.from_id, content: existing.content, createdAt: existing.created_at, clientMsgId };
+        return { id: existing.id, groupId: existing.group_id, from: existing.from_id, content: existing.content, createdAt: existing.created_at, clientMsgId, seq: existing.seq };
       }
     } catch (e) { /* 老库无该列时忽略 */ }
   }
@@ -167,7 +180,18 @@ function insertGroupMessage(groupId, fromId, content, clientMsgId) {
     'INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)',
     groupId, fromId, content, clientMsgId || null, now, seq);
   const id = info.lastInsertRowid;
-  const msg = { id, groupId, from: fromId, content, createdAt: now, clientMsgId: clientMsgId || null, seq };
+  // 越权防护:replyTo/forwardedFrom 必须是本群内的消息,否则 id 枚举可跨群泄露正文
+  let replyTo = (opts && Number(opts.replyTo)) || null;
+  let forwardedFrom = (opts && Number(opts.forwardedFrom)) || null;
+  if (replyTo && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', replyTo, groupId)) replyTo = null;
+  if (forwardedFrom && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', forwardedFrom, groupId)) forwardedFrom = null;
+  if (replyTo || forwardedFrom) {
+    try {
+      p.run('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=COALESCE(excluded.reply_to,group_message_meta.reply_to),forwarded_from=COALESCE(excluded.forwarded_from,group_message_meta.forwarded_from),updated_at=excluded.updated_at',
+        id, replyTo, forwardedFrom, now);
+    } catch (e) {}
+  }
+  const msg = { id, groupId, from: fromId, content, createdAt: now, clientMsgId: clientMsgId || null, seq, replyTo, forwardedFrom };
   // 事件分发钩子：registerGroups 会从 app.locals 读取合并方注入的可选广播
   broadcastHook && broadcastHook(groupId, msg);
   return msg;
@@ -439,7 +463,8 @@ module.exports = function registerGroups(app, db, auth) {
        WHERE gm.group_id=?`;
     const params = [groupId];
     if (before) { sql += ' AND gm.id<?'; params.push(before); }
-    sql += ' ORDER BY gm.created_at DESC LIMIT ?';
+    // 按 id DESC 排序:id 单调递增且唯一,游标 gm.id<? 稳定;按 created_at 排序时同毫秒消息会漏条/重复
+    sql += ' ORDER BY gm.id DESC LIMIT ?';
     params.push(limit);
     const rows = p.all(sql, ...params).reverse();
     res.json({ messages: rows.map(r => groupMsgDto(r, req.user.id)) });
@@ -454,18 +479,8 @@ module.exports = function registerGroups(app, db, auth) {
     const content = String((req.body || {}).content || '');
     if (!content) return fail(res, 400, '消息内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
-    const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''));
-    let replyTo = Number((req.body || {}).replyTo) || null;
-    const forwardedFrom = Number((req.body || {}).forwardedFrom) || null;
-    // 越权防护:replyTo/forwardedFrom 必须是本群内的消息,否则 id 枚举可跨群泄露正文
-    if (replyTo && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', replyTo, groupId)) replyTo = null;
-    if (forwardedFrom && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', forwardedFrom, groupId)) return fail(res, 400, '被转发的消息不存在');
-    if (replyTo || forwardedFrom) {
-      try {
-        p.run('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at', msgId.id, replyTo, forwardedFrom, Date.now());
-      } catch (e) {}
-    }
-    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, seq: msgId.seq || null, replyTo, read: true, readCount: 1 } });
+    const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''), { replyTo: (req.body || {}).replyTo, forwardedFrom: (req.body || {}).forwardedFrom });
+    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, seq: msgId.seq || null, replyTo: msgId.replyTo || null, read: true, readCount: 1 } });
   });
 
   // ---------- 群公告：POST /api/groups/:id/announcement { content } ----------
@@ -557,7 +572,8 @@ module.exports = function registerGroups(app, db, auth) {
   });
 
   // ---------- 群文件：上传 POST /api/groups/:id/files (application/octet-stream) ----------
-  app.post('/api/groups/:id/files', express.raw({ type: 'application/octet-stream', limit: '100mb' }), mw, (req, res) => {
+  // 鉴权必须在 express.raw 之前:否则未授权请求会先把 100MB body 读进内存才被 401,构成内存耗尽 DoS
+  app.post('/api/groups/:id/files', mw, express.raw({ type: 'application/octet-stream', limit: '100mb' }), (req, res) => {
     const groupId = parseInt(req.params.id, 10);
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
