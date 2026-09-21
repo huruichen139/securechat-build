@@ -13,6 +13,7 @@ const https = require('https');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
+const epaygwConfig = require('../epaygw_config');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
 
@@ -808,11 +809,12 @@ module.exports = function registerPayment(app, db, auth) {
       }
       persist();
       // 触发 epaygw 懒同步：置网关订单 TRADE_SUCCESS 并通知商户（NewAPI 等）
+      // 签名密钥必须与 epaygw.js 的验签密钥一致(网关密钥),否则 api.php 验签失败
       try {
-        const c = epayConfig(prepare);
-        const q = { act: 'order', pid: c.merchantPid || '1000', out_trade_no: o.order_no };
+        const gwKey = (epaygwConfig.loadKey() || {}).key;
+        const q = { act: 'order', pid: String((epayConfig(prepare).merchantPid) || '1000'), out_trade_no: o.order_no };
         const qs = Object.keys(q).sort().map((k) => k + '=' + encodeURIComponent(q[k])).join('&');
-        const sg = crypto.createHash('md5').update(qs + c.key).digest('hex').toUpperCase();
+        const sg = crypto.createHash('md5').update(qs + gwKey).digest('hex').toUpperCase();
         http.get('http://127.0.0.1:' + (process.env.EPAY_HTTP_PORT || 8889) + '/epaygw/api.php?' + qs + '&sign=' + sg, (r) => { r.resume(); }).on('error', () => {});
       } catch (e) { console.error('[pay] trigger epaygw sync failed: ' + (e && e.message || e)); }
       res.json({ ok: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(o.id)), balance: result.balance, callback: !!o.callback_url });

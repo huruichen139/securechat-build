@@ -315,6 +315,10 @@ module.exports = function (app, db, authMw) {
     const p = Object.assign({}, req.query || {}, req.body || {});
     const act = String(p.act || '');
     if (act === 'order') {
+      // 验签:此前该接口完全不校验,任何人可查询任意订单并触发同步
+      if (!verifySign(p, p.sign)) {
+        return res.json({ code: -1, msg: 'sign error' });
+      }
       const o = orders.get(String(p.out_trade_no || ''));
       if (o) {
         syncSecurechatOrder(o.out_trade_no);
