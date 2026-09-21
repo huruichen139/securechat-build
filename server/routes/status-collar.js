@@ -43,7 +43,8 @@ const path = require('path');
 const STATUS_TTL = 24 * 3600 * 1000; // 状态 24 小时自动消失
 
 module.exports = function registerStatusCollar(app, db, auth) {
-  const { prepare, persist } = db || {};
+  const { prepare, persist, nextSeq } = db || {};
+  const dbNextSeq = typeof nextSeq === 'function' ? nextSeq : (() => null);
   if (!prepare) throw new Error('[status-collar] db 参数必须是 require("../db")（需含 prepare）');
 
   let jwt;
@@ -632,12 +633,13 @@ module.exports = function registerStatusCollar(app, db, auth) {
     const text = composeForwardText(item.kind, data, (req.body || {}).content);
     if (text.length > 100 * 1024) return deny(res, 413, '内容过长');
     const now = Date.now();
-    const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)')
-      .run(me, to, text, now);
+    const fwdSeq = dbNextSeq();
+    const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at,seq) VALUES(?,?,?,?,?)')
+      .run(me, to, text, now, fwdSeq);
     // WS 实时推送接收方（与 index.js REST 发送一致）
     try {
       const fn = (typeof global.__scSendToUser === 'function') ? global.__scSendToUser : null;
-      if (fn) fn(to, 'msg', { id: info.lastInsertRowid, from: me, to, content: text, createdAt: now });
+      if (fn) fn(to, 'msg', { id: info.lastInsertRowid, from: me, to, content: text, createdAt: now, seq: fwdSeq });
     } catch (e) {}
     persist();
     res.json({ ok: true, messageId: info.lastInsertRowid });

@@ -10,6 +10,7 @@ module.exports = function registerRedpacket(app, db, auth) {
     throw new Error('[redpacket] 需要 db.prepare（require("../db")）');
   }
   const prepare = db.prepare;
+  const nextSeq = (typeof db.nextSeq === 'function') ? db.nextSeq.bind(db) : (() => null);
   const persist = (typeof db.persist === 'function') ? db.persist.bind(db) : (() => {});
   const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
   const jwt = require('jsonwebtoken');
@@ -127,10 +128,12 @@ module.exports = function registerRedpacket(app, db, auth) {
 
       // 写消息（单聊进 messages，群聊进 group_messages），再把 msg_id 回写红包记录
       if (targetType === 'dm') {
-        const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)').run(me.id, targetId, msgContent, Date.now());
+        const rpSeq = nextSeq();
+        const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at,seq) VALUES(?,?,?,?,?)').run(me.id, targetId, msgContent, Date.now(), rpSeq);
         msgId = info.lastInsertRowid;
       } else {
-        const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)').run(targetId, me.id, msgContent, Date.now());
+        const rpSeq = nextSeq();
+        const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)').run(targetId, me.id, msgContent, Date.now(), rpSeq);
         msgId = info.lastInsertRowid;
       }
       prepare('UPDATE red_packets SET msg_id=? WHERE id=?').run(msgId, packetId);

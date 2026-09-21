@@ -139,6 +139,7 @@ function groupMsgDto(r, viewerId) {
     id: r.id, groupId: r.group_id, from: r.from_id,
     content: r.content, createdAt: r.created_at,
     clientMsgId: r.client_msg_id || null,
+    seq: r.seq || null,
     fromUser: { id: r.from_id, username: sender && sender.username, nickname: name, avatar: sender && sender.avatar, uid: sender && sender.uid },
     replyTo: r.reply_to || null, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled,
     forwardedFrom: r.forwarded_from || null,
@@ -161,11 +162,12 @@ function insertGroupMessage(groupId, fromId, content, clientMsgId) {
     } catch (e) { /* 老库无该列时忽略 */ }
   }
   const now = Date.now();
+  const seq = gdb.nextSeq();
   const info = p.run(
-    'INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)',
-    groupId, fromId, content, clientMsgId || null, now);
+    'INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)',
+    groupId, fromId, content, clientMsgId || null, now, seq);
   const id = info.lastInsertRowid;
-  const msg = { id, groupId, from: fromId, content, createdAt: now, clientMsgId: clientMsgId || null };
+  const msg = { id, groupId, from: fromId, content, createdAt: now, clientMsgId: clientMsgId || null, seq };
   // 事件分发钩子：registerGroups 会从 app.locals 读取合并方注入的可选广播
   broadcastHook && broadcastHook(groupId, msg);
   return msg;
@@ -395,12 +397,10 @@ module.exports = function registerGroups(app, db, auth) {
     const g = p.get('SELECT * FROM groups WHERE id=?', groupId);
     if (!g) return fail(res, 404, '群不存在');
     if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可解散群');
-    // 先通知所有在线成员群已解散（然后再删数据）
+    // 先快照成员列表（删除后查不到了），删完数据再通知：否则 S_GROUP_LIST 刷新会读到未删除的幽灵群
+    let dissMembers = [];
     try {
-      const dissMembers = p.all('SELECT user_id FROM group_members WHERE group_id=?', groupId);
-      for (const dm of dissMembers) {
-        try { memberChangeHook && memberChangeHook(groupId, dm.user_id, 'dissolved'); } catch (e) {}
-      }
+      dissMembers = p.all('SELECT user_id FROM group_members WHERE group_id=?', groupId);
     } catch (e) {}
     try { p.run('DELETE FROM group_message_meta WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)', groupId); } catch (e) {}
     try { p.run('DELETE FROM message_reads WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)', groupId); } catch (e) {}
@@ -416,7 +416,11 @@ module.exports = function registerGroups(app, db, auth) {
     for (const f of files) { try { fs.unlinkSync(path.join(GROUP_FILES_DIR, f.id + '.bin')); } catch (e) { /* 忽略 */ } }
     p.run('DELETE FROM group_files WHERE group_id=?', groupId);
     p.run('DELETE FROM groups WHERE id=?', groupId);
-    persist();
+    // 数据删干净后再广播：每个成员收到 dissolved 事件，客户端清理会话与消息
+    for (const dm of dissMembers) {
+      try { memberChangeHook && memberChangeHook(groupId, dm.user_id, 'dissolved'); } catch (e) {}
+    }
+    gdb.persistNow();
     res.json({ ok: true });
   });
 
@@ -458,7 +462,7 @@ module.exports = function registerGroups(app, db, auth) {
         p.run('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,forwarded_from=excluded.forwarded_from,updated_at=excluded.updated_at', msgId.id, replyTo, forwardedFrom, Date.now());
       } catch (e) {}
     }
-    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, read: true, readCount: 1 } });
+    res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, seq: msgId.seq || null, read: true, readCount: 1 } });
   });
 
   // ---------- 群公告：POST /api/groups/:id/announcement { content } ----------

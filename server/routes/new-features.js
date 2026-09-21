@@ -382,17 +382,19 @@ module.exports = function register(app, db, auth) {
         if (!sendToUser) continue;
         const now = Date.now();
         if (m.is_group) {
-          const info = db.prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-            .run(m.peer_id, m.user_id, m.content, null, now);
+          const grpSeq = db.nextSeq();
+          const info = db.prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
+            .run(m.peer_id, m.user_id, m.content, null, now, grpSeq);
           const messageId = info.lastInsertRowid;
           const members = db.prepare('SELECT user_id FROM group_members WHERE group_id=?').all(m.peer_id);
           for (const mb of members) {
-            sendToUser(mb.user_id, P.S_GROUP_MSG, { id: messageId, groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: now, scheduled: true });
+            sendToUser(mb.user_id, P.S_GROUP_MSG, { id: messageId, groupId: m.peer_id, from: m.user_id, content: m.content, createdAt: now, scheduled: true, seq: grpSeq });
           }
         } else {
-          const info = db.prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-            .run(m.user_id, m.peer_id, m.content, null, now);
-          sendToUser(m.peer_id, P.S_MSG, { id: info.lastInsertRowid, from: m.user_id, to: m.peer_id, content: m.content, createdAt: now, scheduled: true });
+          const dmSeq = db.nextSeq();
+          const info = db.prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
+            .run(m.user_id, m.peer_id, m.content, null, now, dmSeq);
+          sendToUser(m.peer_id, P.S_MSG, { id: info.lastInsertRowid, from: m.user_id, to: m.peer_id, content: m.content, createdAt: now, scheduled: true, seq: dmSeq });
         }
         db.run('UPDATE scheduled_messages SET sent_at=? WHERE id=?', [now, m.id]);
       }

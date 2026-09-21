@@ -5001,7 +5001,7 @@ function mountFeatureRoutes(app, db) {
   try { rawDb.run('ALTER TABLE group_message_meta ADD COLUMN forwarded_from INTEGER'); } catch (e) { /* 已存在则忽略 */ }
   const routeDb = {
     prepare, run: (...a) => rawDb.run(...a), exec: (...a) => rawDb.exec(...a),
-    persist, persistNow, getDb, genUid
+    persist, persistNow, getDb, genUid, nextSeq
   };
   mountFeatureRoutes(app, routeDb);
 

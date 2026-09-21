@@ -6,7 +6,8 @@
 //   registerLifestyleMsg(app, db, apiUser);   // apiUser(req) 解析 Authorization 返回 JWT payload（或 null）
 // 依赖：require('../db') 的 prepare（media.js 同款）；提醒定时任务用 setTimeout 队列 + 关闭时清空。
 const jwt = require('jsonwebtoken');
-const { prepare } = require('../db');
+const { prepare, nextSeq: dbNextSeq } = require('../db');
+const nextSeq = typeof dbNextSeq === 'function' ? dbNextSeq : (() => null);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
 
@@ -439,11 +440,13 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       let inserted = null;
       if (cur.target_type === 'group') {
         if (groupExists(cur.target_id)) {
-          const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)').run(cur.target_id, 0, content, now);
+          const grpSeq = nextSeq();
+          const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)').run(cur.target_id, 0, content, now, grpSeq);
           inserted = { kind: 'group', id: info.lastInsertRowid, groupId: cur.target_id };
         }
       } else {
-        const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)').run(0, cur.target_id, content, null, now);
+        const dmSeq = nextSeq();
+        const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)').run(0, cur.target_id, content, null, now, dmSeq);
         inserted = { kind: 'direct', id: info.lastInsertRowid, toId: cur.target_id };
       }
       prepare('UPDATE reminders SET fired=1 WHERE id=?').run(id);
@@ -620,9 +623,10 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!fileId) return deny(res, 400, '缺少语音文件id');
     const marker = '[语音消息:' + fileId + ']';
     const now = Date.now();
-    const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
-      .run(groupId, payload.id, marker, now);
-    okay(res, { message: { id: info.lastInsertRowid, groupId, from: payload.id, content: marker, createdAt: now } });
+    const voiceSeq = nextSeq();
+    const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)')
+      .run(groupId, payload.id, marker, now, voiceSeq);
+    okay(res, { message: { id: info.lastInsertRowid, groupId, from: payload.id, content: marker, createdAt: now, seq: voiceSeq } });
   });
 
   // ============================================================

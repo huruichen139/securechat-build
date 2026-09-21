@@ -23,6 +23,7 @@ const RECALL_WINDOW_MS = 2 * 60 * 1000; // 撤回限 2 分钟
 
 module.exports = function registerChatExt(app, db, auth) {
   const prepare = resolvePrepare(db);
+  const nextSeq = (db && typeof db.nextSeq === 'function') ? db.nextSeq.bind(db) : (() => null);
   const helpers = auth || {};
   const P = helpers.P || {
     S_MSG: 'msg',
@@ -137,8 +138,9 @@ module.exports = function registerChatExt(app, db, auth) {
   // 写入一条私聊消息（含增强元数据）
   function insertMessage(fromId, toId, content, extra, opts) {
     const now = Date.now();
-    const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-      .run(fromId, toId, content, (opts && opts.clientMsgId) || null, now);
+    const dmSeq = nextSeq();
+    const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
+      .run(fromId, toId, content, (opts && opts.clientMsgId) || null, now, dmSeq);
     const mid = info.lastInsertRowid;
     // message_meta：转发来源
     if (extra.forwardedFrom) {
@@ -147,7 +149,7 @@ module.exports = function registerChatExt(app, db, auth) {
           VALUES(?,NULL,?,0,0,?)`).run(mid, Number(extra.forwardedFrom) || null, now);
       } catch (e) {}
     }
-    return { id: mid, from_id: fromId, to_id: toId, content, created_at: now };
+    return { id: mid, from_id: fromId, to_id: toId, content, created_at: now, seq: dmSeq };
   }
 
   // 给某个私聊目标投递（写入 + 在线推送）
@@ -211,13 +213,14 @@ module.exports = function registerChatExt(app, db, auth) {
     for (const t of targets) {
       if (!isValidTarget(t, payload.id)) continue;
       if (t.kind === 'group') {
-        const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
-          .run(t.id, payload.id, content, Date.now());
+        const fwdSeq = nextSeq();
+        const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)')
+          .run(t.id, payload.id, content, Date.now(), fwdSeq);
         try {
           prepare('INSERT OR REPLACE INTO chat_ext(message_id,owner_id,kind,value,updated_at) VALUES(?,?,?,?,?)')
             .run(info.lastInsertRowid, 0, 'forward', JSON.stringify({ kind: 'forward', fromName: publicName(payload.id), from: srcMsg.from_id, sourceMessageId: id, content: srcMsg.content }), Date.now());
         } catch (e) {}
-        const out = { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'forward', fromUser: { nickname: publicName(payload.id) } };
+        const out = { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'forward', fromUser: { nickname: publicName(payload.id) }, seq: fwdSeq };
         broadcastGroup(t.id, out);
         results.push(out);
       } else {
@@ -278,13 +281,14 @@ module.exports = function registerChatExt(app, db, auth) {
       for (const t of targets) {
         if (!isValidTarget(t, payload.id)) continue;
         if (t.kind === 'group') {
-          const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
-            .run(t.id, payload.id, content, Date.now());
+          const mgSeq = nextSeq();
+          const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)')
+            .run(t.id, payload.id, content, Date.now(), mgSeq);
           try {
             prepare('INSERT OR REPLACE INTO chat_ext(message_id,owner_id,kind,value,updated_at) VALUES(?,?,?,?,?)')
               .run(info.lastInsertRowid, 0, 'merged', JSON.stringify(merged), Date.now());
           } catch (e) {}
-          const out = { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'merged', fromUser: { nickname: publicName(payload.id) } };
+          const out = { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'merged', fromUser: { nickname: publicName(payload.id) }, seq: mgSeq };
           broadcastGroup(t.id, out);
           results.push(out);
         } else {
@@ -300,13 +304,14 @@ module.exports = function registerChatExt(app, db, auth) {
         for (const t of targets) {
           if (!isValidTarget(t, payload.id)) continue;
           if (t.kind === 'group') {
-            const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at) VALUES(?,?,?,?)')
-              .run(t.id, payload.id, content, Date.now());
+            const fwdSeq = nextSeq();
+            const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)')
+              .run(t.id, payload.id, content, Date.now(), fwdSeq);
             try {
               prepare('INSERT OR REPLACE INTO chat_ext(message_id,owner_id,kind,value,updated_at) VALUES(?,?,?,?,?)')
                 .run(info.lastInsertRowid, 0, 'forward', JSON.stringify({ kind: 'forward', fromName: publicName(payload.id), from: m.from_id, sourceMessageId: m.id }), Date.now());
             } catch (e) {}
-            results.push({ id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'forward' });
+            results.push({ id: info.lastInsertRowid, groupId: t.id, from: payload.id, content, kind: 'forward', seq: fwdSeq });
             broadcastGroup(t.id, { id: info.lastInsertRowid, groupId: t.id, from: payload.id, content });
           } else {
             const out = deliverToFriend(payload.id, t.id, content, { kind: 'forward', forwardedFrom: m.id }, m);
@@ -342,17 +347,18 @@ module.exports = function registerChatExt(app, db, auth) {
     const me = publicName(payload.id);
     const content = '[系统]' + me + '拍了拍你';
     const now = Date.now();
-    const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at) VALUES(?,?,?,?,?)')
-      .run(payload.id, to, content, null, now);
+    const pokeSeq = nextSeq();
+    const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
+      .run(payload.id, to, content, null, now, pokeSeq);
     const mid = info.lastInsertRowid;
     try {
       prepare('INSERT OR REPLACE INTO chat_ext(message_id,owner_id,kind,value,updated_at) VALUES(?,?,?,?,?)')
         .run(mid, 0, 'pok', JSON.stringify({ kind: 'poke', fromId: payload.id, fromNick: me, at: now }), now);
     } catch (e) {}
-    const sysMsg = { id: mid, from: payload.id, to, content, createdAt: now, type: 'poke', fromNick: me, kind: 'poke' };
+    const sysMsg = { id: mid, from: payload.id, to, content, createdAt: now, type: 'poke', fromNick: me, kind: 'poke', seq: pokeSeq };
     // 推送系统消息 + poke 信号（客户端据此振动/提示）
     if (onlineAny(to)) {
-      sendToUser(to, P.S_MSG, { id: mid, from: payload.id, to, content, createdAt: now, replyTo: null, forwardedFrom: null, kind: 'poke' });
+      sendToUser(to, P.S_MSG, { id: mid, from: payload.id, to, content, createdAt: now, replyTo: null, forwardedFrom: null, kind: 'poke', seq: pokeSeq });
       if (P.S_POKE) sendToUser(to, P.S_POKE, { fromId: payload.id, fromNick: me, messageId: mid, at: now });
     }
     res.json({ ok: true, message: sysMsg });

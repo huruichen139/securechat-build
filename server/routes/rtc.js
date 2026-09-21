@@ -32,8 +32,9 @@ const crypto = require('crypto');
 // 保留的「文件传输助手」虚拟 peer id。messages.to_id 为 INTEGER，负值可正常存取。
 // /api/history/-1 也能用（index.js 用 parseInt，不校验用户存在）。
 module.exports = function registerRtc(app, db, auth) {
-  const { prepare, persist } = db || {};
+  const { prepare, persist, nextSeq } = db || {};
   if (!prepare) throw new Error('[rtc] db 参数必须是 require("../db")（需含 prepare）');
+  const dbNextSeq = typeof nextSeq === 'function' ? nextSeq : (() => null);
 
   const FILEHELPER_ID = -1;
   const FILEHELPER_NAME = '文件传输助手';
@@ -196,8 +197,9 @@ module.exports = function registerRtc(app, db, auth) {
         await fs.promises.writeFile(filePath, req.body);
         // messages 表：from=self , to=FILEHELPER_ID；content 携带文件元信息供端上解析。
         const marker = '文件:' + id + ':' + JSON.stringify({ name, mime, size: req.body.length, at: now });
-        prepare('INSERT INTO messages(from_id,to_id,content,created_at) VALUES(?,?,?,?)')
-          .run(me, FILEHELPER_ID, marker, now);
+        const fhSeq = dbNextSeq();
+        prepare('INSERT INTO messages(from_id,to_id,content,created_at,seq) VALUES(?,?,?,?,?)')
+          .run(me, FILEHELPER_ID, marker, now, fhSeq);
         persist();
         res.json({ ok: true, id, name, mime, size: req.body.length });
       } catch (e) {
