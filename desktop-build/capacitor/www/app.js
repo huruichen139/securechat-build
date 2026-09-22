@@ -4758,6 +4758,7 @@ function showMobilePage(pageId) {
 function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
+  const openAiView = () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
   const items = [
     { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
     { name: '视频号', icon: '视频', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
@@ -4768,7 +4769,6 @@ function renderDiscoverPage() {
     { name: '购物', icon: '购', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('购物功能开发中', 'info'); } },
     { name: '游戏', icon: '游', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('游戏功能开发中', 'info'); } },
     { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
-    { name: 'AI 助手', icon: 'AI', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); } },
   ];
   // 分组：顶部常用，中间小程序区
   const group1 = items.slice(0, 3);
@@ -4779,9 +4779,22 @@ function renderDiscoverPage() {
       <div class="wx-discover-name">${it.name}</div>
       <span class="wx-discover-arrow">›</span>
     </div>`;
-  list.innerHTML = `
+  const aiSvg = '<svg class="ai-banner-bg" viewBox="0 0 132 132" fill="none"><circle cx="30" cy="30" r="26" fill="#fff"/><circle cx="104" cy="48" r="40" fill="#fff"/><circle cx="66" cy="110" r="22" fill="#fff"/></svg>';
+  const aiBanner = `
+    <div class="ai-banner" id="discoverAiBanner">
+      <div class="ai-banner-ico">AI</div>
+      <div style="position:relative;z-index:1">
+        <div class="ai-banner-name">AI 助手</div>
+        <div class="ai-banner-sub">快速问答、智能创作、会议听记</div>
+      </div>
+      <span class="ai-banner-arrow">›</span>
+      ${aiSvg}
+    </div>`;
+  list.innerHTML = aiBanner + `
     <div class="wx-group">${group1.map((it, i) => itemHtml(it, i)).join('')}</div>
     <div class="wx-group">${group2.map((it, i) => itemHtml(it, i + group1.length)).join('')}</div>`;
+  const aiBannerEl = document.getElementById('discoverAiBanner');
+  if (aiBannerEl) aiBannerEl.onclick = openAiView;
   list.querySelectorAll('.wx-discover-item').forEach((el, i) => {
     el.onclick = () => items[i].action();
   });
@@ -4974,6 +4987,7 @@ function openSettingsPage() {
     },
     {
       title: 'AI 助手',
+      banner: true,
       items: [
         { label: 'AI 设置', desc: 'API Key / 模型 / 端点', icon: 'AI', fn: () => { if (window.openAiSettings) window.openAiSettings(); else toast('AI 设置开发中', 'info'); } },
       ]
@@ -4987,6 +5001,20 @@ function openSettingsPage() {
     title.textContent = grp.title;
     title.style.cssText = 'font-size:13px;color:var(--muted,#999);margin-bottom:8px;padding-left:4px';
     section.appendChild(title);
+    if (grp.banner) {
+      const bann = document.createElement('div');
+      bann.className = 'ai-banner-sm';
+      const svg = '<svg class="ai-banner-bg-sm" viewBox="0 0 92 92" fill="none"><circle cx="22" cy="22" r="18" fill="#fff"/><circle cx="74" cy="36" r="26" fill="#fff"/></svg>';
+      bann.innerHTML = '<div style="display:flex;align-items:center;position:relative;z-index:1">'
+        + '<div class="ai-banner-ico">AI</div>'
+        + '<div style="position:relative;z-index:1"><div class="ai-banner-name" style="font-size:16px">' + escapeHtml(grp.items[0].label) + '</div><div class="ai-banner-sub">' + escapeHtml(grp.items[0].desc) + '</div></div>'
+        + '<span class="ai-banner-arrow">›</span>'
+        + svg + '</div>';
+      bann.onclick = grp.items[0].fn;
+      section.appendChild(bann);
+      content.appendChild(section);
+      return;
+    }
     const card = document.createElement('div');
     card.style.cssText = 'background:var(--surface,#fff);border-radius:12px;overflow:hidden;border:1px solid var(--border,#e5e5e5)';
     grp.items.forEach((item, idx) => {

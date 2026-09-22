@@ -1878,6 +1878,31 @@ html.is-mobile .day-divider { margin: 4px 0 10px; font-size: 11px; }
 .wx-discover-name, .wx-me-name { flex: 1; font-size: 15px; color: var(--text); }
 .wx-discover-arrow { color: #ccc; font-size: 16px; margin-left: 8px; }
 
+/* AI 助手图片卡片（发现页顶部横幅 + 设置页小横幅） */
+.ai-banner, .ai-banner-sm {
+  position: relative; overflow: hidden; cursor: pointer;
+  background: linear-gradient(135deg, #07c160 0%, #0a9f55 55%, #0b7a44 100%);
+  color: #fff; -webkit-tap-highlight-color: transparent;
+}
+.ai-banner { display: flex; align-items: center; margin: 8px 12px; border-radius: 12px; padding: 16px 18px; min-height: 86px; }
+.ai-banner-sm { display: block; border-radius: 10px; margin: 6px 12px; padding: 14px 16px; min-height: 56px; }
+.ai-banner:active, .ai-banner-sm:active { filter: brightness(0.92); }
+.ai-banner .ai-banner-ico, .ai-banner-sm .ai-banner-ico {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 14px; margin-right: 14px;
+  background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.25);
+  color: #fff; font-size: 20px; font-weight: 800;
+}
+.ai-banner-sm .ai-banner-ico { width: 40px; height: 40px; border-radius: 11px; font-size: 17px; margin-right: 12px; }
+.ai-banner-name { font-size: 19px; font-weight: 700; letter-spacing: 1px; }
+.ai-banner-sub { font-size: 12px; margin-top: 5px; color: rgba(255,255,255,0.88); }
+.ai-banner-arrow { margin-left: auto; color: rgba(255,255,255,0.75); font-size: 18px; padding-left: 10px; }
+.ai-banner-bg {
+  position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
+  width: 132px; height: 132px; opacity: 0.16; pointer-events: none;
+}
+.ai-banner-bg-sm { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 92px; height: 92px; opacity: 0.14; pointer-events: none; }
+
 /* 我页：分组卡片 */
 .wx-me-group { background: #fff; margin: 8px 0; border-radius: 8px; overflow: hidden; }
 .wx-me-icon { background: #00b26a; }
