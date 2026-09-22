@@ -265,7 +265,8 @@ module.exports = function registerPayment(app, db, auth) {
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
         .run(fromId, 'out', amount, toId || null, remark || '转账', Date.now());
       if (fromId === toId && allowSelf) {
-        // 自付自(生活缴费演示):余额净值不变,只记流水,不虚增 total_received
+        // 自付自(生活缴费演示):余额净值不变,补回上面扣掉的余额,只记流水,不虚增 total_received
+        prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), fromId);
         prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
           .run(toId, 'in', amount, fromId, remark || '自付', Date.now());
       } else {
@@ -649,12 +650,13 @@ module.exports = function registerPayment(app, db, auth) {
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
     const cat = { water: '水费', electric: '电费', gas: '燃气费', phone: '手机充值', broadband: '宽带', traffic: '交通违章', tuition: '学杂费' };
     const label = cat[category] || category;
-    doPay(userId, userId, amount, label + '（演示）', 'life', null, true, (err, result) => {      if (err) return res.status(err.code || 400).json({ error: err.message });
+    doPay(userId, userId, amount, label + '（演示）', 'life', null, (err, result) => {
+      if (err) return res.status(err.code || 400).json({ error: err.message });
       const info = prepare('INSERT INTO life_payments(user_id,category,provider,account,amount,status,created_at) VALUES(?,?,?,?,?,?,?)')
         .run(userId, category, provider, account, amount, 'paid', Date.now());
       try { persist(); } catch (e) {}
       res.json({ ok: true, payment: { id: info.lastInsertRowid, category, provider, account, amount, status: 'paid', balance: result.balance }, note: '演示环境，未发生真实扣款到账' });
-    });
+    }, true);
   });
 
   // 缴费历史：GET /api/pay/life/history
@@ -998,9 +1000,15 @@ module.exports = function registerPayment(app, db, auth) {
     if (order.status !== 'pending' || (order.expires_at && order.expires_at < Date.now())) return res.status(409).json({ error: '订单已失效或已处理' });
     const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
     if (!merchant) return res.status(404).json({ error: '商户不存在' });
+    // 先原子抢占订单再扣款,避免并发双请求对同一订单重复扣款
+    const claim = prepare("UPDATE pay_orders SET payer_id=?,status='paid',paid_at=? WHERE id=? AND status='pending'").run(req.user.id, Date.now(), order.id);
+    if (!claim.changes) return res.status(409).json({ error: '订单已失效或已处理' });
     doPay(req.user.id, merchant.user_id, Number(order.amount), '支付 ' + order.subject, 'epay', order.id, (err, result) => {
-      if (err) return res.status(err.code || 400).json({ error: err.message });
-      prepare('UPDATE pay_orders SET payer_id=?,status=?,paid_at=? WHERE id=?').run(req.user.id, 'paid', Date.now(), order.id);
+      if (err) {
+        prepare("UPDATE pay_orders SET status='pending',payer_id=NULL,paid_at=NULL WHERE id=? AND status='paid'").run(order.id);
+        persist();
+        return res.status(err.code || 400).json({ error: err.message });
+      }
       persist();
       res.json({ ok: true, sandbox: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id)), balance: result.balance, note: '支付成功（钱包扣款）' });
     });
@@ -1020,10 +1028,13 @@ module.exports = function registerPayment(app, db, auth) {
       // 否则订单已 paid、商户永不到账、EPay 收到 success 不再重试 → 商户钱永久丢失
       try {
         prepare('BEGIN IMMEDIATE TRANSACTION').run();
-        prepare('UPDATE pay_orders SET status=?,paid_at=? WHERE id=?').run('paid', Date.now(), order.id);
-        const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
-        if (merchant) {
-          writeCharge(merchant.user_id, 'in', order.amount, order.payer_id, '网关收入:' + order.subject);
+        // 条件更新防止 EPay 并发重试对同一订单重复入账
+        const flip = prepare("UPDATE pay_orders SET status='paid',paid_at=? WHERE id=? AND status<>'paid'").run(Date.now(), order.id);
+        if (flip.changes) {
+          const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
+          if (merchant) {
+            writeCharge(merchant.user_id, 'in', order.amount, order.payer_id, '网关收入:' + order.subject);
+          }
         }
         prepare('COMMIT').run();
       } catch (e) {
