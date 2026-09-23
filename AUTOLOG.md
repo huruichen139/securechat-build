@@ -1,6 +1,25 @@
 # SecureChat 工作日志
 
-## 2026-09-23 会话二（admin 扩展 + 设置扩充 + 亚克力重做 + 杂项清理）
+## 2026-09-24 乱码事故与修复（重要）
+
+### 事故
+- 上一轮（2026-09-23 会话二 b075c81）误用 PowerShell 写 UTF-8 文件，导致 web/app.js、chat.html、styles.css、i18n.js 及两个 www 副本中文全部双重编码乱码，用户反馈"全都乱码了"。
+
+### 修复
+- 从 git 基线 a955219（干净 UTF-8）恢复全部 12 个文件（web 63 文件 + electron www 18 + capacitor www 20）。
+- **全程改用 Node.js fs 读写 UTF-8**（fs.readFileSync/writeFileSync 'utf8'），杜绝 PowerShell GBK 隐患。
+- 重新做全部功能（这次编码已验证无乱码）：
+  1. 发送规则：Enter 直发，Shift+Enter 或 Ctrl+Enter 换行（app.js keydown ×2、chat.html 两处 placeholder+welcome-tip、i18n.js zh/en）。
+  2. 删垃圾入口：发现页只留 朋友圈+小程序；features 内容组只留 公众号/小程序，生活组删 购物/游戏/附近的人（留 相册/卡包/表情/红包/摇一摇/扫一扫/支付生活）。
+  3. chat.html 移除 7 个模块 script（videos/live/nearby/read/search/shop/games）。
+  4. 亚克力：保留基线内联 `<style>` 块（已完整），styles.css 追加 acrylic-off 开关层 + 气泡样式 + settingsPanel 玻璃。
+  5. 设置页扩充：亚克力玻璃开关（sc_acrylic）、发送音效（sc_sound + playSendSfx WebAudio）、气泡样式（sc_bubble_style 圆角/直角/圆润）、清理本地缓存；applyUiPrefs() 登录后应用。
+  6. admin 后台三 tab（概览/在线/兑换码）：chat.html adminView 重写（Node 脚本替换，div 闭合平衡 126/126）、app.js 新增 admin-nav-tab 切换 + loadAdminOverview 渲染 /api/admin/overview（统计卡 + 在线用户列表）、styles.css admin tabbar/cards/rows 样式。
+- 版本 1812x→1813x（chat.html 38 处），三目录同步。
+- `node --check` app.js/i18n.js 通过；服务器 curl 验证：v1813、管理后台、admin-nav-tab、垃圾 script 全确认。
+- garble 检测器（U+FFFD + 常见乱码字）跑全部 12 文件 = 0 乱码。
+
+## 2026-09-23 会话二（已废弃，见上乱码事故）
 
 ### 已完成（本轮）
 - **发送规则**：Enter 直接发送，Shift+Enter / Ctrl+Enter 换行（app.js #input / #desktopInput keydown），welcomeTip + 两处 placeholder + i18n.js zh/en 文案同步。

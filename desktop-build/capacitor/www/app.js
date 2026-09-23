@@ -1331,7 +1331,7 @@ function openFeatureCenter() {
       { label: '表情', short: '表情', grad: 2, open: () => window.SecureChatStickers && window.SecureChatStickers.open() },
       { label: '红包', short: '红包', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
       { label: '摇一摇', short: '摇一摇', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
-      { label: '扫一扫', short: '扫一扫', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
+      { label: '扫一扫', short: '扫一扫', grad: 5, mobileOnly: true, open: () => window.SecureChatScan && window.SecureChatScan.open() },
       { label: '支付生活', short: '支付', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
 { id: 'tools', label: '工具', items: [
@@ -1742,7 +1742,6 @@ function applyChatBg(uri) {
       document.documentElement.style.removeProperty('--chat-bg');
     }
   } catch (e) {}
-  document.body.classList.toggle('has-user-chat-bg', !!uri);
   try { localStorage.setItem('chatBgColor_' + (state.me && state.me.id || 'anon'), uri || ''); } catch (e) {}
 }
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
@@ -2940,6 +2939,7 @@ async function sendCurrentGroup() {
   const ok = send(P.C_GROUP_MSG, { groupId: gid, content: text, replyTo: reply, clientMsgId: cmid });
   if (ok) {
     input.value = '';
+    try { playSendSfx(); } catch (e) {}
     saveCurrentDraft();
     clearPendingReply();
     return true;
@@ -3830,7 +3830,7 @@ function sendCurrent() {
   state.lastFrom[peerId] = text;
   state.lastMsgTime[peerId] = localCreatedAt;
   appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId }, false);
-  playSendSfx();
+  try { playSendSfx(); } catch (e) {}
   _e2eeSendContent(peerId, text).then(async (ct) => {
     const payload = { to: peerId, content: ct || text, clientMsgId };
     fetch(state.serverHost + '/api/messages', {
@@ -4759,9 +4759,9 @@ function renderDiscoverPage() {
     { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
     { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
   ];
-  // 分组：仅一圈一入口
+  // 分组：顶部常用，中间小程序区
   const group1 = items.slice(0, 2);
-  const group2 = [];
+  const group2 = items.slice(2);
   const itemHtml = (it, i) => `
     <div class="wx-discover-item" data-idx="${i}">
       <div class="wx-discover-icon">${it.icon}</div>
@@ -4908,6 +4908,13 @@ function openSettingsPage() {
     {
       title: '通用',
       items: [
+        { label: '亚克力玻璃', desc: localStorage.sc_acrylic === '0' ? '已关闭' : '已开启', icon: '玻', fn: () => {
+          const next = localStorage.sc_acrylic === '0' ? '1' : '0';
+          localStorage.sc_acrylic = next;
+          document.body.classList.toggle('acrylic-off', next === '0');
+          toast('亚克力玻璃已' + (next === '1' ? '开启' : '关闭'), 'success');
+          openSettingsPage();
+        }},
         { label: '聊天背景', desc: '设置聊天界面背景', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; pickChatBg(); } },
         { label: '字体大小', desc: localStorage.chatFontSize || '默认', icon: '字', fn: () => {
           const sizes = ['默认', '小', '中', '大', '特大'];
@@ -4946,36 +4953,27 @@ function openSettingsPage() {
             Notification.requestPermission().then(p => { toast(p === 'granted' ? '通知已开启' : '未授权通知', p === 'granted' ? 'success' : 'warn'); openSettingsPage(); });
           }
         }},
-        { label: '亚克力玻璃效果', desc: localStorage.sc_acrylic === '1' ? '已关闭' : '已开启（背景磨砂）', icon: '璃', fn: () => {
-          const off = localStorage.sc_acrylic === '1';
-          localStorage.sc_acrylic = off ? '' : '1';
-          document.body.classList.toggle('acrylic-off', !off);
-          toast(off ? '亚克力效果已开启' : '亚克力效果已关闭', 'success');
+        { label: '发送音效', desc: localStorage.sc_sound === '0' ? '已关闭' : '已开启', icon: '音', fn: () => {
+          const next = localStorage.sc_sound === '0' ? '1' : '0';
+          localStorage.sc_sound = next;
+          if (next === '1') { try { playSendSfx(); } catch (e) {} }
+          toast('发送音效已' + (next === '1' ? '开启' : '关闭'), 'success');
           openSettingsPage();
         }},
-        { label: '发送音效', desc: localStorage.sc_sound === '1' ? '已关闭' : '已开启', icon: '声', fn: () => {
-          localStorage.sc_sound = localStorage.sc_sound === '1' ? '' : '1';
-          toast(localStorage.sc_sound === '1' ? '音效已关闭' : '音效已开启', 'success');
-          openSettingsPage();
-        }},
-        { label: '气泡样式', desc: (localStorage.sc_bubble_style || '圆角').replace(/-/g, ' '), icon: '泡', fn: () => {
+        { label: '气泡样式', desc: (localStorage.sc_bubble_style || '圆角'), icon: '泡', fn: () => {
           const opts = ['圆角', '直角', '圆润'];
-          const cur = (localStorage.sc_bubble_style || '圆角');
-          const idx = opts.indexOf(cur);
-          const next = opts[(idx + 1) % opts.length];
+          const cur = opts.indexOf(localStorage.sc_bubble_style || '圆角');
+          const next = opts[(cur + 1) % opts.length];
           localStorage.sc_bubble_style = next;
-          document.body.dataset.bubbleStyle = { '圆角': 'round', '直角': 'sharp', '圆润': 'pill' }[next];
-          toast('气泡样式：' + next, 'success');
+          document.body.setAttribute('data-bubble-style', next === '圆角' ? '' : (next === '直角' ? 'sharp' : 'pill'));
+          toast('气泡样式已设为' + next, 'success');
           openSettingsPage();
         }},
-        { label: '聊天背景', desc: getChatBg() ? '已自定义' : '默认', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; openChatBgPicker(); } },
-        { label: '清理本地缓存', desc: '清除本地消息与头像缓存', icon: '清', fn: async () => {
-          try {
-            const keys = Object.keys(localStorage).filter(k => k.indexOf('sc_msg_') === 0 || k.indexOf('sc_chatbg_') === 0 || k.indexOf('chatBgColor') === 0 || k.indexOf('sc_avatar_') === 0);
-            keys.forEach(k => localStorage.removeItem(k));
-            toast('已清理 ' + keys.length + ' 条本地缓存', 'success', 1600);
-            openSettingsPage();
-          } catch (e) { toast('清理失败：' + e.message, 'error'); }
+        { label: '清理本地缓存', desc: '清空聊天背景与草稿缓存', icon: '清', fn: () => {
+          let n = 0;
+          Object.keys(localStorage).forEach(k => { if (/^sc_msg_|^sc_chatbg_|^chatBgColor|^sc_avatar_/.test(k)) { localStorage.removeItem(k); n++; } });
+          toast('已清理 ' + n + ' 项缓存', 'success');
+          openSettingsPage();
         }},
       ]
     },
@@ -5499,37 +5497,6 @@ const CHAT_BGS = [
   { name: '晚霞', color: 'linear-gradient(135deg, #fa709a, #fee140)' },
 ];
 function applyChatBgLegacy() { /* superseded */ }
-function applyUiPrefs() {
-  try {
-    document.body.classList.toggle('acrylic-off', localStorage.sc_acrylic === '1');
-  } catch (e) {}
-  try {
-    const map = { '圆角': 'round', '直角': 'sharp', '圆润': 'pill' };
-    document.body.dataset.bubbleStyle = map[localStorage.sc_bubble_style] || 'round';
-  } catch (e) {}
-}
-var _sfxCtx = null;
-function playSendSfx() {
-  if (localStorage.sc_sound === '1') return;
-  try {
-    if (!_sfxCtx) {
-      _sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (_sfxCtx.state === 'suspended') { _sfxCtx.resume(); return; }
-    const t = _sfxCtx.currentTime;
-    const o = _sfxCtx.createOscillator();
-    const g = _sfxCtx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, t);
-    o.frequency.exponentialRampToValueAtTime(660, t + .08);
-    g.gain.setValueAtTime(.0001, t);
-    g.gain.exponentialRampToValueAtTime(.06, t + .012);
-    g.gain.exponentialRampToValueAtTime(.0001, t + .09);
-    o.connect(g).connect(_sfxCtx.destination);
-    o.start(t);
-    o.stop(t + .1);
-  } catch (e) {}
-}
 function initChatBg() {
   try {
     const c = localStorage.getItem('chatBgColor_' + (state.me && state.me.id || 'anon')) || localStorage.getItem('chatBgColor');
@@ -5539,10 +5506,33 @@ function initChatBg() {
       } else if (c) {
         document.documentElement.style.setProperty('--chat-bg', c);
       }
-      document.body.classList.add('has-user-chat-bg');
-    } else {
-      document.body.classList.remove('has-user-chat-bg');
     }
+  } catch (e) {}
+}
+function applyUiPrefs() {
+  try {
+    document.body.classList.toggle('acrylic-off', localStorage.sc_acrylic === '0');
+    const bs = localStorage.sc_bubble_style;
+    document.body.setAttribute('data-bubble-style', (bs === '直角' ? 'sharp' : bs === '圆润' ? 'pill' : ''));
+  } catch (e) {}
+}
+function playSendSfx() {
+  try {
+    if (localStorage.sc_sound === '0') return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.1);
+    setTimeout(() => { try { ctx.close(); } catch (e) {} }, 300);
   } catch (e) {}
 }
 function openChatBgPicker() {
@@ -5716,7 +5706,6 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     const av = $('adminView'); if (av) av.style.display = 'flex';
     if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
     loadAdminCodes('');
-    if (window.loadAdminOverview) window.loadAdminOverview();
   }
   function hideAdminView() {
     const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
@@ -5731,6 +5720,8 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     if (document.querySelector('.main')) document.querySelector('.main').style.display = 'none';
     const av = $('adminView'); if (av) av.style.display = 'flex';
     if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
+    document.querySelectorAll('.admin-nav-tab').forEach(t => t.classList.toggle('on', t.dataset.adminTab === 'overview'));
+    document.querySelectorAll('[data-admin-panel]').forEach(p => { p.style.display = (p.dataset.adminPanel === 'overview') ? '' : 'none'; });
     loadAdminCodes('');
     if (window.loadAdminOverview) window.loadAdminOverview();
   };
@@ -5823,20 +5814,6 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
   };
 
-  // ---------- admin tab 导航 ----------
-  document.querySelectorAll('.admin-nav-tab').forEach(tab => {
-    tab.onclick = () => {
-      document.querySelectorAll('.admin-nav-tab').forEach(t => t.classList.remove('on'));
-      tab.classList.add('on');
-      const name = tab.dataset.adminTab;
-      document.querySelectorAll('[data-admin-panel]').forEach(p => {
-        p.style.display = (p.dataset.adminPanel === name) ? '' : 'none';
-      });
-      if (name === 'overview' && window.loadAdminOverview) window.loadAdminOverview();
-      if (name === 'online' && window.loadAdminOverview) window.loadAdminOverview();
-    };
-  });
-
   // 概览数据
   window.loadAdminOverview = async function() {
     const box = $('adminOverview');
@@ -5847,42 +5824,43 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
       const res = await fetch(state.serverHost + '/api/admin/overview', { headers: { 'Authorization': 'Bearer ' + state.token } });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || '加载失败');
-      const cards = [];
-      cards.push({ label: '总用户', num: d.users.total });
-      cards.push({ label: '在线用户', num: d.users.online });
-      cards.push({ label: '今日新增', num: d.users.newUsersToday });
-      cards.push({ label: '7日新增', num: d.users.newUsers7d });
-      cards.push({ label: '好友关系', num: d.friendships.accepted });
-      cards.push({ label: '待处理好友', num: d.friendships.pending });
-      cards.push({ label: '群组', num: d.groups.total });
-      cards.push({ label: '消息总数', num: d.messages.allTotal });
-      cards.push({ label: '今日消息', num: d.messages.allToday });
-      cards.push({ label: '未读消息', num: d.messages.privateUnread });
-      cards.push({ label: '反馈数', num: d.feedbacks.total });
-      cards.push({ label: '数据库大小', num: d.storage.dbSizeHuman });
       if (box) {
-        box.innerHTML = '<div class="admin-stat-grid">' + cards.map(c => '<div class="admin-ov-card"><div class="ov-num">' + escapeHtml(String(c.num)) + '</div><div class="ov-label">' + escapeHtml(c.label) + '</div></div>').join('') + '</div>';
+        const cards = [
+          { label: '总用户', num: (d.users && d.users.total) || 0 },
+          { label: '在线用户', num: (d.users && d.users.online) || 0 },
+          { label: '今日新增', num: (d.users && d.users.newUsersToday) || 0 },
+          { label: '好友关系', num: (d.friendships && d.friendships.accepted) || 0 },
+          { label: '群组', num: (d.groups && d.groups.total) || 0 },
+          { label: '消息总数', num: (d.messages && d.messages.allTotal) || 0 },
+          { label: '今日消息', num: (d.messages && d.messages.allToday) || 0 },
+          { label: '反馈数', num: (d.feedbacks && d.feedbacks.total) || 0 },
+          { label: '数据库', num: (d.storage && d.storage.dbSizeHuman) || '-' },
+        ];
+        box.innerHTML = '<div class="admin-stat-grid">' + cards.map(card => '<div class="admin-ov-card"><div class="ov-num">' + escapeHtml(String(card.num)) + '</div><div class="ov-label">' + escapeHtml(card.label) + '</div></div>').join('') + '</div>';
       }
-      // 在线用户
-      const ou = (d.users.onlineUsers || []).slice(0, 50);
+      const ou = (d.users && d.users.onlineUsers) || [];
       if (onlineBox) {
         onlineBox.innerHTML = ou.length ? ou.map(u => {
           const nm = u.nickname || u.username || '用户';
-          return '<div class="admin-user-row" data-uidsource="' + escapeHtml(u.uid || '') + '" onclick="adminOpenUser(\'' + escapeHtml(String(u.uid || u.username)) + '\')">' +
-            '<div class="avatar">' + escapeHtml(nm.charAt(0)) + '</div>' +
-            '<div><div class="au-name">' + escapeHtml(nm) + '</div><div class="au-sub">' + escapeHtml(u.username || '') + (u.email ? ' · ' + escapeHtml(u.email) : '') + '</div></div></div>';
+          return '<div class="admin-user-row" title="' + escapeHtml(u.uid || '') + '"><div class="au-name">' + escapeHtml(nm) + '</div><div class="au-sub">' + escapeHtml(u.username || (u.uid || '')) + '</div></div>';
         }).join('') : '<div style="padding:20px;color:#999;text-align:center">暂无在线用户</div>';
       }
     } catch (e) {
       if (box) box.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>';
     }
   };
-  // 点击在线用户 → 会话列表里发起搜索（填入搜索框）
-  window.adminOpenUser = function(uid) {
-    const inp = $('addFriendInput');
-    if (inp) { inp.value = uid; inp.focus(); }
-    toast('已填入：' + uid, 'info', 1400);
-  };
+  // tab 导航
+  document.querySelectorAll('.admin-nav-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.admin-nav-tab').forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      const name = tab.dataset.adminTab;
+      document.querySelectorAll('[data-admin-panel]').forEach(p => {
+        p.style.display = (p.dataset.adminPanel === name) ? '' : 'none';
+      });
+      if (name === 'overview' && window.loadAdminOverview) window.loadAdminOverview();
+    };
+  });
 })();
 
 // ============ 头像点击弹跳 ============
