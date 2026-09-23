@@ -785,6 +785,7 @@ function enterChat() {
   }
 // 恢复该用户自定义聊天背景图（每个用户独立存储）
   applyChatBg(getChatBg());
+  applyUiPrefs();
   applyMsgFont();
   connectWS();
   loadFriends();
@@ -1321,23 +1322,16 @@ function openFeatureCenter() {
       { label: '朋友圈增强', short: '朋友圈', grad: 5, open: () => openContainerFeature(get('moment-ext'), '朋友圈管理') },
     ]},
     { id: 'content', label: '内容', items: [
-      { label: '看一看', short: '看一看', grad: 6, open: () => window.SecureChatRead && window.SecureChatRead.open() },
-      { label: '搜一搜', short: '搜一搜', grad: 7, open: () => window.SecureChatSearch && window.SecureChatSearch.open() },
-      { label: '视频号', short: '视频号', grad: 8, open: () => window.SecureChatVideos && window.SecureChatVideos.open() },
       { label: '公众号', short: '公众号', grad: 9, open: () => window.SecureChatOa && window.SecureChatOa.open() },
-      { label: '直播', short: '直播', grad: 10, open: () => window.SecureChatLive && window.SecureChatLive.open() },
       { label: '小程序', short: '小程序', grad: 11, open: () => window.SecureChatMiniApp && window.SecureChatMiniApp.open() },
     ]},
     { id: 'life', label: '生活', items: [
       { label: '相册', short: '相册', grad: 0, open: () => window.SecureChatAlbum && window.SecureChatAlbum.open() },
       { label: '卡包', short: '卡包', grad: 1, open: () => window.SecureChatCards && window.SecureChatCards.open() },
       { label: '表情', short: '表情', grad: 2, open: () => window.SecureChatStickers && window.SecureChatStickers.open() },
-      { label: '购物', short: '购物', grad: 3, open: () => window.SecureChatShop && window.SecureChatShop.open() },
-      { label: '游戏', short: '游戏', grad: 4, open: () => window.SecureChatGames && window.SecureChatGames.open() },
       { label: '红包', short: '红包', grad: 4, open: () => window.SecureChatRedpacket && window.SecureChatRedpacket.open() },
-      { label: '附近的人', short: '附近', grad: 10, open: () => window.SecureChatNearby && window.SecureChatNearby.open() },
       { label: '摇一摇', short: '摇一摇', grad: 11, open: () => window.SecureChatShake && window.SecureChatShake.open() },
-      { label: '扫一扫', short: '扫一扫', grad: 5, mobileOnly: true, open: () => window.SecureChatScan && window.SecureChatScan.open() },
+      { label: '扫一扫', short: '扫一扫', grad: 5, open: () => window.SecureChatScan && window.SecureChatScan.open() },
       { label: '支付生活', short: '支付', grad: 6, open: () => openFeatureModalFrom(get('pay'), 'homePanel') },
     ]},
 { id: 'tools', label: '工具', items: [
@@ -1748,6 +1742,7 @@ function applyChatBg(uri) {
       document.documentElement.style.removeProperty('--chat-bg');
     }
   } catch (e) {}
+  document.body.classList.toggle('has-user-chat-bg', !!uri);
   try { localStorage.setItem('chatBgColor_' + (state.me && state.me.id || 'anon'), uri || ''); } catch (e) {}
 }
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
@@ -3835,6 +3830,7 @@ function sendCurrent() {
   state.lastFrom[peerId] = text;
   state.lastMsgTime[peerId] = localCreatedAt;
   appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId }, false);
+  playSendSfx();
   _e2eeSendContent(peerId, text).then(async (ct) => {
     const payload = { to: peerId, content: ct || text, clientMsgId };
     fetch(state.serverHost + '/api/messages', {
@@ -3867,11 +3863,11 @@ $('sendBtn').onclick = (event) => { event.preventDefault(); sendCurrent(); };
 const desktopSendBtnEl = document.getElementById('desktopSendBtn');
 if (desktopSendBtnEl) { desktopSendBtnEl.type = 'button'; desktopSendBtnEl.onclick = (event) => { event.preventDefault(); sendCurrent(); }; }
 $('input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); sendCurrent(); }
 });
 const desktopInput = document.getElementById('desktopInput');
 if (desktopInput) desktopInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); sendCurrent(); }
 });
 let typingSent = 0;
 // ============ 输入框字数统计 ============
@@ -4761,18 +4757,11 @@ function renderDiscoverPage() {
   const openAiView = () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
   const items = [
     { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
-    { name: '视频号', icon: '视频', action: () => { if (window.SecureChatVideos) window.SecureChatVideos.open(); else toast('视频号功能开发中', 'info'); } },
-    { name: '看一看', icon: '看', action: () => { if (window.SecureChatRead) window.SecureChatRead.open(); else toast('看一看功能开发中', 'info'); } },
-    { name: '搜一搜', icon: '搜', action: () => { if (window.SecureChatSearch) window.SecureChatSearch.open(); else toast('搜一搜功能开发中', 'info'); } },
-    { name: '直播', icon: '直播', action: () => { if (window.SecureChatLive) window.SecureChatLive.open(); else toast('直播功能开发中', 'info'); } },
-    { name: '附近', icon: '附', action: () => { if (window.SecureChatNearby) window.SecureChatNearby.open(); else toast('附近功能开发中', 'info'); } },
-    { name: '购物', icon: '购', action: () => { if (window.SecureChatShop) window.SecureChatShop.open(); else toast('购物功能开发中', 'info'); } },
-    { name: '游戏', icon: '游', action: () => { if (window.SecureChatGames) window.SecureChatGames.open(); else toast('游戏功能开发中', 'info'); } },
     { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
   ];
-  // 分组：顶部常用，中间小程序区
-  const group1 = items.slice(0, 3);
-  const group2 = items.slice(3);
+  // 分组：仅一圈一入口
+  const group1 = items.slice(0, 2);
+  const group2 = [];
   const itemHtml = (it, i) => `
     <div class="wx-discover-item" data-idx="${i}">
       <div class="wx-discover-icon">${it.icon}</div>
@@ -4956,6 +4945,37 @@ function openSettingsPage() {
           } else {
             Notification.requestPermission().then(p => { toast(p === 'granted' ? '通知已开启' : '未授权通知', p === 'granted' ? 'success' : 'warn'); openSettingsPage(); });
           }
+        }},
+        { label: '亚克力玻璃效果', desc: localStorage.sc_acrylic === '1' ? '已关闭' : '已开启（背景磨砂）', icon: '璃', fn: () => {
+          const off = localStorage.sc_acrylic === '1';
+          localStorage.sc_acrylic = off ? '' : '1';
+          document.body.classList.toggle('acrylic-off', !off);
+          toast(off ? '亚克力效果已开启' : '亚克力效果已关闭', 'success');
+          openSettingsPage();
+        }},
+        { label: '发送音效', desc: localStorage.sc_sound === '1' ? '已关闭' : '已开启', icon: '声', fn: () => {
+          localStorage.sc_sound = localStorage.sc_sound === '1' ? '' : '1';
+          toast(localStorage.sc_sound === '1' ? '音效已关闭' : '音效已开启', 'success');
+          openSettingsPage();
+        }},
+        { label: '气泡样式', desc: (localStorage.sc_bubble_style || '圆角').replace(/-/g, ' '), icon: '泡', fn: () => {
+          const opts = ['圆角', '直角', '圆润'];
+          const cur = (localStorage.sc_bubble_style || '圆角');
+          const idx = opts.indexOf(cur);
+          const next = opts[(idx + 1) % opts.length];
+          localStorage.sc_bubble_style = next;
+          document.body.dataset.bubbleStyle = { '圆角': 'round', '直角': 'sharp', '圆润': 'pill' }[next];
+          toast('气泡样式：' + next, 'success');
+          openSettingsPage();
+        }},
+        { label: '聊天背景', desc: getChatBg() ? '已自定义' : '默认', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; openChatBgPicker(); } },
+        { label: '清理本地缓存', desc: '清除本地消息与头像缓存', icon: '清', fn: async () => {
+          try {
+            const keys = Object.keys(localStorage).filter(k => k.indexOf('sc_msg_') === 0 || k.indexOf('sc_chatbg_') === 0 || k.indexOf('chatBgColor') === 0 || k.indexOf('sc_avatar_') === 0);
+            keys.forEach(k => localStorage.removeItem(k));
+            toast('已清理 ' + keys.length + ' 条本地缓存', 'success', 1600);
+            openSettingsPage();
+          } catch (e) { toast('清理失败：' + e.message, 'error'); }
         }},
       ]
     },
@@ -5479,6 +5499,37 @@ const CHAT_BGS = [
   { name: '晚霞', color: 'linear-gradient(135deg, #fa709a, #fee140)' },
 ];
 function applyChatBgLegacy() { /* superseded */ }
+function applyUiPrefs() {
+  try {
+    document.body.classList.toggle('acrylic-off', localStorage.sc_acrylic === '1');
+  } catch (e) {}
+  try {
+    const map = { '圆角': 'round', '直角': 'sharp', '圆润': 'pill' };
+    document.body.dataset.bubbleStyle = map[localStorage.sc_bubble_style] || 'round';
+  } catch (e) {}
+}
+var _sfxCtx = null;
+function playSendSfx() {
+  if (localStorage.sc_sound === '1') return;
+  try {
+    if (!_sfxCtx) {
+      _sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_sfxCtx.state === 'suspended') { _sfxCtx.resume(); return; }
+    const t = _sfxCtx.currentTime;
+    const o = _sfxCtx.createOscillator();
+    const g = _sfxCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, t);
+    o.frequency.exponentialRampToValueAtTime(660, t + .08);
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(.06, t + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t + .09);
+    o.connect(g).connect(_sfxCtx.destination);
+    o.start(t);
+    o.stop(t + .1);
+  } catch (e) {}
+}
 function initChatBg() {
   try {
     const c = localStorage.getItem('chatBgColor_' + (state.me && state.me.id || 'anon')) || localStorage.getItem('chatBgColor');
@@ -5488,6 +5539,9 @@ function initChatBg() {
       } else if (c) {
         document.documentElement.style.setProperty('--chat-bg', c);
       }
+      document.body.classList.add('has-user-chat-bg');
+    } else {
+      document.body.classList.remove('has-user-chat-bg');
     }
   } catch (e) {}
 }
@@ -5662,6 +5716,7 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     const av = $('adminView'); if (av) av.style.display = 'flex';
     if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
     loadAdminCodes('');
+    if (window.loadAdminOverview) window.loadAdminOverview();
   }
   function hideAdminView() {
     const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
@@ -5677,6 +5732,7 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     const av = $('adminView'); if (av) av.style.display = 'flex';
     if (window.IS_MOBILE) document.getElementById('chatView').classList.add('mobile-chat-active');
     loadAdminCodes('');
+    if (window.loadAdminOverview) window.loadAdminOverview();
   };
   // 返回按钮
   const adminBackBtn = $('adminBackBtn');
@@ -5765,6 +5821,67 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
         };
       });
     } catch (e) { tbl.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>'; }
+  };
+
+  // ---------- admin tab 导航 ----------
+  document.querySelectorAll('.admin-nav-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.admin-nav-tab').forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      const name = tab.dataset.adminTab;
+      document.querySelectorAll('[data-admin-panel]').forEach(p => {
+        p.style.display = (p.dataset.adminPanel === name) ? '' : 'none';
+      });
+      if (name === 'overview' && window.loadAdminOverview) window.loadAdminOverview();
+      if (name === 'online' && window.loadAdminOverview) window.loadAdminOverview();
+    };
+  });
+
+  // 概览数据
+  window.loadAdminOverview = async function() {
+    const box = $('adminOverview');
+    if (box) box.innerHTML = '<div style="padding:20px;color:#999;text-align:center">加载中...</div>';
+    const onlineBox = $('adminOnlineList');
+    if (onlineBox) onlineBox.innerHTML = '<div style="padding:20px;color:#999;text-align:center">加载中...</div>';
+    try {
+      const res = await fetch(state.serverHost + '/api/admin/overview', { headers: { 'Authorization': 'Bearer ' + state.token } });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || '加载失败');
+      const cards = [];
+      cards.push({ label: '总用户', num: d.users.total });
+      cards.push({ label: '在线用户', num: d.users.online });
+      cards.push({ label: '今日新增', num: d.users.newUsersToday });
+      cards.push({ label: '7日新增', num: d.users.newUsers7d });
+      cards.push({ label: '好友关系', num: d.friendships.accepted });
+      cards.push({ label: '待处理好友', num: d.friendships.pending });
+      cards.push({ label: '群组', num: d.groups.total });
+      cards.push({ label: '消息总数', num: d.messages.allTotal });
+      cards.push({ label: '今日消息', num: d.messages.allToday });
+      cards.push({ label: '未读消息', num: d.messages.privateUnread });
+      cards.push({ label: '反馈数', num: d.feedbacks.total });
+      cards.push({ label: '数据库大小', num: d.storage.dbSizeHuman });
+      if (box) {
+        box.innerHTML = '<div class="admin-stat-grid">' + cards.map(c => '<div class="admin-ov-card"><div class="ov-num">' + escapeHtml(String(c.num)) + '</div><div class="ov-label">' + escapeHtml(c.label) + '</div></div>').join('') + '</div>';
+      }
+      // 在线用户
+      const ou = (d.users.onlineUsers || []).slice(0, 50);
+      if (onlineBox) {
+        onlineBox.innerHTML = ou.length ? ou.map(u => {
+          const nm = u.nickname || u.username || '用户';
+          return '<div class="admin-user-row" data-uidsource="' + escapeHtml(u.uid || '') + '" onclick="adminOpenUser(\'' + escapeHtml(String(u.uid || u.username)) + '\')">' +
+            '<div class="avatar">' + escapeHtml(nm.charAt(0)) + '</div>' +
+            '<div><div class="au-name">' + escapeHtml(nm) + '</div><div class="au-sub">' + escapeHtml(u.username || '') + (u.email ? ' · ' + escapeHtml(u.email) : '') + '</div></div></div>';
+        }).join('') : '<div style="padding:20px;color:#999;text-align:center">暂无在线用户</div>';
+      }
+    } catch (e) {
+      if (box) box.innerHTML = '<div style="padding:20px;color:#c0392b;text-align:center">加载失败：' + escapeHtml(e.message) + '</div>';
+    }
+  };
+  // 点击在线用户 → 会话列表里发起搜索（填入搜索框）
+  window.adminOpenUser = function(uid) {
+    const inp = $('addFriendInput');
+    if (inp) { inp.value = uid; inp.focus(); }
+    toast('已填入：' + uid, 'info', 1400);
   };
 })();
 
