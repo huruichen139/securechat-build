@@ -109,6 +109,7 @@ module.exports = function registerPayment(app, db, auth) {
       " remark TEXT,\n" +
       " created_at INTEGER NOT NULL\n)").run();
     prepare("CREATE INDEX IF NOT EXISTS idx_solection_entry_sol ON solection_entries(solection_id)").run();
+    try { prepare("CREATE UNIQUE INDEX IF NOT EXISTS uq_solection_once ON solection_entries(solection_id,user_id)").run(); } catch (e) {}
 
     prepare("CREATE TABLE IF NOT EXISTS life_payments (\n" +
       " id INTEGER PRIMARY KEY AUTOINCREMENT,\n" +
@@ -501,10 +502,17 @@ module.exports = function registerPayment(app, db, auth) {
     if (c.status !== 'open') return res.status(400).json({ error: '收款已结束' });
     const existing = prepare('SELECT id,remark,created_at FROM collect_payments WHERE collect_id=? AND user_id=?').get(collectId, userId);
     if (existing) {
-      // 崩溃残留的占位行(仍是"(处理中)")超过 5 分钟视为废弃,允许重试;
-      // 否则按在途/已完成处理,避免 UNIQUE 索引永久卡死用户
+      // 崩溃残留的占位行(仍是"(处理中)")超过 5 分钟视为可疑:先查扣款流水,
+      // 若 doPay 已成功但 UPDATE remark 未执行(进程中途崩溃/超时),不能删除占位行重扣,
+      // 直接把占位行转正,避免重复扣款
       const stale = existing.remark === '(处理中)' && (Date.now() - (existing.created_at || 0)) > 5 * 60 * 1000;
       if (!stale) return res.status(409).json({ error: '你已缴款或上一笔正在处理，请稍后重试' });
+      const paidRow = prepare("SELECT id FROM wallet_txn WHERE user_id=? AND kind='out' AND peer_id=? AND amount=? AND created_at>=? AND remark LIKE ?").get(userId, c.creator_id, c.amount, existing.created_at, '群收款%');
+      if (paidRow) {
+        prepare("UPDATE collect_payments SET remark=? WHERE id=?").run('已缴款(断点恢复)', existing.id);
+        try { persist(); } catch (e) {}
+        return res.status(409).json({ error: '你已缴款，请刷新查看' });
+      }
       prepare('DELETE FROM collect_payments WHERE id=?').run(existing.id);
     }
     try {
@@ -586,8 +594,13 @@ module.exports = function registerPayment(app, db, auth) {
     const existing = prepare('SELECT id FROM solection_entries WHERE solection_id=? AND user_id=?').get(s.id, userId);
     if (existing) return res.status(409).json({ error: '你已报名' });
     const remark = String((req.body && req.body.remark) || '').trim() || '';
-    prepare('INSERT INTO solection_entries(solection_id,user_id,remark,created_at) VALUES(?,?,?,?)')
-      .run(s.id, userId, remark, Date.now());
+    try {
+      prepare('INSERT INTO solection_entries(solection_id,user_id,remark,created_at) VALUES(?,?,?,?)')
+        .run(s.id, userId, remark, Date.now());
+    } catch (e) {
+      if (String(e && e.message || e).includes('UNIQUE')) return res.status(409).json({ error: '你已报名' });
+      throw e;
+    }
     try { persist(); } catch (e) {}
     res.json({ ok: true, solection: solectionDetail(s.id) });
   });
