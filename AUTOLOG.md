@@ -1,5 +1,13 @@
 # SecureChat 工作日志
 
+## 2026-09-24 撤回视觉重造（用户："换回来！！！不要这个"）
+
+- 对 3358f9a（去 AI 味重造）执行 git revert → 8647644，web/chat.html、styles.css 及 electron/capacitor www 全部回到 5d63995（亚克力+渐变+毛玻璃旧版）。
+- 备份重造版到 backups/web_restoreback_20260924_213031\（app.js/chat.html/i18n.js/styles.css + 两个 www 的 chat.html）。
+- 恢复后 3 目录逐字节一致、缓存版本回到 1813x（38 处）、无乱码、node --check 通过。
+- 浏览器实测：rail 已回浅色 #f2f3f5、body::before 亚克力 radial-gradient 渐变恢复、?v=1813x 由服务器实际提供。
+- 已推送 3358f9a..8647644 到 remote main。
+
 ## 2026-09-24 乱码事故与修复（重要）
 
 ### 事故
