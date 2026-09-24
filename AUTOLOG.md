@@ -1,5 +1,17 @@
 # SecureChat 工作日志
 
+## 2026-09-24 重造视觉：去 AI 味翻新版（用户："全部重造，这个太像ai了"）
+
+### 目标与做法
+- 去掉 AI 模板痕迹：彩色径向渐变、毛玻璃 backdrop-filter、装饰光斑/白圈、渐变按钮、大卡片圆角阴影、字母间距大写 kicker。换成微信式工具界面：中性灰工作台、白色平板面板、小圆角(5-8px)、绿色 #07c160 仅用于动作/激活态、气泡 #95ec69(我)/白(对方) radius 6px 无阴影、消息背景 #ececec、深色微信式竖条侧栏 #2c2c2c。
+- 备份：backups/web_redesign_20260924_200449\（app.js/chat.html/i18n.js/styles.css）。
+- chat.html：删除整块内联亚克力 `<style>`（body::before 光斑、radial-gradient、backdrop-filter 面板、暗色渐变体）；欢迎面板文案 "SECURE COMMUNICATION"→"SECURECHAT"。
+- styles.css 尾部追加扁平覆盖层（约 13.8KB）：rail 深灰/白 sidebar/平铺 contact/扁平 header/messages #ececec/微信气泡/克制欢迎面板/扁平 discover 与 me 列表/无装饰圈 AI banner（.ai-banner-bg,.ai-banner-bg-sm{display:none!important}）/扁平 modal/按钮/登录卡 radius 6/admin 扁平 tab/动画抑制（ripple-fx、bounce、viewIn 关闭）/暗色扁平变体。
+- 修正轮：`#settingsPanel`+sidebar/header/composer/mobile-bottom-nav/contact-alphabet-index 全部 backdrop-filter:none!important（纯底下 blur 冗余）；`body.dark-mode .brand-status`、`.composer-tools .tool{border-radius:5px!important}`（被 .composer-tools .tool 特异性压制的 10px 圆角）。
+- 浏览器实测（127.0.0.1:8888，playwright，登录 xa）：rail #2c2c2c、sidebar 白无阴影、messages #ececec、.tool radius 5px、auth-card 6px 白卡、全 backdrop-filter:none、0 console 错误、无文字乱码；`?v=1814x` 已由服务器实际提供。
+- 缓存版本 1813x→1814x（chat.html 38 处），同步 electron/capacitor www ×4 文件（与 web 逐字节一致）。
+- 未提交未推送。
+
 ## 2026-09-24 乱码事故与修复（重要）
 
 ### 事故

@@ -2987,3 +2987,423 @@ body[data-bubble-style=""] .msg .bubble { border-radius: 10px !important; }
 body.dark-mode .admin-nav-tab { background: #1f2023; border-color: #333; color: #94a3b8; }
 body.dark-mode .admin-nav-tab.on { background: var(--primary, #07c160); border-color: var(--primary, #07c160); color: #fff; }
 body.dark-mode .admin-ov-card { background: rgba(30,32,36,.75); }
+
+
+/* =========================================================
+   新视觉：工具型即时通讯（重造层，追加于文件末尾，UTF-8）
+   原则：去掉"AI 展示页"的渐变/毛玻璃/发光/大圆角，走
+   稳定浅灰工作区 + 白色面板 + 绿色只用于操作与状态。
+   ========================================================= */
+:root {
+  --bg: #f0f0f0;
+  --side-bg: #f6f6f6;
+  --primary: #07c160;
+  --primary-soft: #e8f6ed;
+  --text: #1b1b1b;
+  --muted: #8a8a8a;
+  --border: #e4e4e4;
+}
+
+/* 全局滚动条：朴素 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #c8c8c8; border: 0; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+/* 布局骨架：扁平、无装饰阴影 */
+body { background: var(--bg); }
+.chat-wrap, .main, .auth-wrap { background: var(--bg) !important; }
+
+/* ---------- 左侧 rail：工具导航 ---------- */
+.sidebar-rail {
+  background: #2c2c2c !important;
+  border-right: 1px solid #222 !important;
+}
+.sidebar-rail-brand {
+  margin: 14px 0 20px;
+  border-radius: 8px;
+  background: #1f1f1f;
+  color: #fff;
+  font-size: 17px;
+  box-shadow: none;
+}
+.sidebar-rail .side-tab {
+  border-radius: 8px !important;
+  color: #9a9a9a !important;
+  font-size: 10px;
+}
+.sidebar-rail .side-tab:hover { background: #3a3a3a !important; color: #fff !important; }
+.sidebar-rail .side-tab.on { background: #07c160 !important; color: #fff !important; box-shadow: none !important; }
+.rail-icon { font-size: 12px; }
+.rail-icon svg { width: 19px; height: 19px; }
+.rail-action { color: #9a9a9a !important; }
+.rail-action:hover { background: #3a3a3a !important; color: #07c160 !important; }
+.rail-dot { background: #07c160; box-shadow: none; }
+
+/* ---------- 侧栏主体：白面板 + 细分隔 ---------- */
+.sidebar {
+  width: 320px;
+  flex-basis: 320px;
+  background: #ffffff !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+.sidebar .sidebar-brand {
+  background: #fafafa !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  flex-basis: 60px;
+}
+.brand-mark { border-radius: 6px; box-shadow: none; }
+.brand-copy strong { font-size: 14px; }
+.brand-copy span { letter-spacing: 0; font-size: 11px; }
+.brand-status { box-shadow: none; }
+.sidebar-tools {
+  margin: 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fafafa;
+  box-shadow: none;
+}
+.section-label { margin-bottom: 8px; color: #555; font-size: 12px; }
+.search, .sidebar .search {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: none;
+}
+.search:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.list-heading {
+  margin: 2px 12px;
+  min-height: 34px;
+  color: #666 !important;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-mini-stats { color: #999; font-size: 11px; }
+.sidebar-mini-stats b { color: #444; }
+.sidebar-mini-stats i { width: 6px; height: 6px; }
+
+/* ---------- 会话/联系人列表：紧凑行 ---------- */
+.contact-list { padding: 4px 6px 12px; }
+.contact {
+  margin: 0;
+  padding: 10px 12px;
+  min-height: 58px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  transition: background .1s;
+}
+.contact:hover { background: #f5f5f5 !important; }
+.contact.active {
+  background: #ecf5f1 !important;
+  border-left-color: var(--primary) !important;
+  box-shadow: none !important;
+}
+.contact .avatar { border-radius: 6px; }
+.contact .name { font-size: 14px; color: #222; }
+.contact .last { font-size: 12px; color: #999; }
+.contact .time { font-size: 11px; color: #b0b0b0; }
+.contact .dot { background: #ccc; }
+.contact .dot.online { background: var(--primary); box-shadow: none; }
+.badge { border-radius: 9px; background: #fa5151; font-size: 11px; padding: 1px 6px; }
+.badge.dot { border-radius: 50%; }
+.account-card {
+  margin: 6px 10px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+.account-card .avatar { border-radius: 6px; }
+.account-toolbar { border-top: 1px solid var(--border); }
+.theme-switch { border-radius: 6px; }
+
+/* ---------- 聊天头部 ---------- */
+.header {
+  min-height: 56px;
+  background: #fafafa !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  padding: 0 20px;
+  font-size: 15px;
+}
+.header::before { content: none; }
+.head-tool {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  color: #666;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.head-tool:hover, .head-tool.active {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: #f2fbf5;
+}
+.chat-head-actions { gap: 5px; }
+
+/* ---------- 消息区：微信式浅灰底 ---------- */
+.messages {
+  background: #ececec !important;
+  padding: 22px clamp(18px, 5vw, 64px);
+}
+.msg-row { margin-bottom: 12px; }
+.msg-row .row-avatar { border-radius: 6px; }
+.msg-row .name { font-size: 11px; color: #9a9a9a; margin: 0 12px 2px; }
+.bubble-wrap { max-width: min(72%, 520px); }
+.bubble {
+  border-radius: 6px !important;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.msg-row.other .bubble {
+  background: #ffffff;
+  border: 1px solid #e3e3e3;
+  box-shadow: none;
+}
+.msg-row.me .bubble { background: #95ec69; color: #17330a; }
+.time { font-size: 11px; color: #ababab; }
+.day-divider.wx-divider { margin: 10px 0; }
+.day-divider.wx-divider span {
+  background: #cdcdcd;
+  color: #fff;
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 2px 10px;
+}
+
+/* ---------- 输入区 ---------- */
+.composer {
+  background: #fafafa !important;
+  border-top: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  padding: 10px clamp(16px, 4vw, 40px) 16px;
+}
+.composer-tools { gap: 4px; }
+.tool {
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #555;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.tool:hover { background: #eef0ef; color: var(--primary); }
+.composer textarea, .composer-input-wrap textarea {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: none;
+}
+.composer textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.composer .send, .composer-send-btn {
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.composer-send-btn { padding: 8px 18px; }
+.draft-state { color: #b0b0b0; font-size: 10px; }
+
+/* ---------- 欢迎面板：克制、居中 ---------- */
+.welcome-panel { padding-top: clamp(28px, 7vh, 72px); }
+.welcome-orb {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  background: var(--primary);
+  font-size: 26px;
+  box-shadow: none;
+}
+.welcome-kicker {
+  margin-top: 14px;
+  color: #999;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.welcome-panel h1 { font-size: 22px; letter-spacing: 0; color: #222; }
+.welcome-sub { font-size: 13px; color: #888; }
+.welcome-actions {
+  margin-top: 24px;
+  gap: 12px;
+  max-width: 460px;
+}
+.welcome-action {
+  min-height: 108px;
+  border-radius: 8px;
+  border: 1px solid #e2e2e2;
+  background: #fff;
+  box-shadow: none;
+  transition: border-color .12s ease, background .12s ease;
+}
+.welcome-action:hover { transform: none; border-color: var(--primary); background: #f7fbf8; box-shadow: none; }
+.welcome-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: #f0f6f2;
+  color: var(--primary);
+  font-size: 13px;
+}
+.welcome-features { color: #999; font-size: 12px; }
+.welcome-tip { color: #aaa; font-size: 11px; }
+
+/* ---------- 发现页 / 我的页 / 通讯录：微信式分组列表 ---------- */
+.wechat-page { background: #efefef; }
+.page-header {
+  background: #f6f6f6 !important;
+  border-bottom: 1px solid var(--border) !important;
+  height: 46px;
+}
+.page-header h2 { font-size: 16px; color: #222; }
+.page-header .back-btn { color: #555; }
+.wx-discover-list, .discover-list { background: #efefef; padding: 8px 0; }
+.wx-group, .wx-me-group {
+  background: #fff;
+  margin: 0 0 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.wx-discover-item, .wx-me-item {
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+.wx-discover-item:last-child, .wx-me-item:last-child { border-bottom: 0; }
+.wx-discover-item:active, .wx-me-item:active, .wx-discover-item:hover, .wx-me-item:hover { background: #f4f4f4; }
+.wx-discover-icon, .wx-me-icon {
+  width: 34px; height: 34px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+.wx-discover-name, .wx-me-name { font-size: 15px; color: #222; }
+.wx-discover-arrow, .me-card-arrow, .wx-me-item .wx-discover-arrow { color: #c4c4c4; }
+.discover-list .discover-item { background: #fff; margin: 0 0 10px; border-top: 1px solid var(--border); }
+.me-page { background: #efefef; }
+.me-header { background: #fff; }
+.me-avatar { border-radius: 6px; box-shadow: none; }
+.me-card { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.me-card-item { background: #fff; border-bottom: 1px solid #f0f0f0; }
+.me-card-icon { border-radius: 7px; }
+
+/* AI banner：白底简洁卡片（去掉绿色渐变与水印圆） */
+.ai-banner, .ai-banner-sm {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  color: #222;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.ai-banner { margin: 8px 12px 10px; min-height: 68px; padding: 13px 16px; }
+.ai-banner-sm { margin: 4px 0 10px; min-height: 52px; padding: 10px 14px; }
+.ai-banner .ai-banner-ico, .ai-banner-sm .ai-banner-ico {
+  background: var(--primary);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  width: 40px; height: 40px;
+}
+.ai-banner-sm .ai-banner-ico { width: 36px; height: 36px; font-size: 14px; }
+.ai-banner-name { color: #222; font-size: 16px; letter-spacing: 0; }
+.ai-banner-sub { color: #888; font-size: 12px; }
+.ai-banner-arrow { color: #c4c4c4; }
+.ai-banner-bg, .ai-banner-bg-sm { display: none !important; }
+
+/* ---------- 弹窗：静态遮罩 + 白卡 ---------- */
+.modal-mask { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: rgba(0,0,0,.45); }
+.modal { border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+.modal-actions button { border-radius: 6px; }
+.modal .field input, .modal .field-row input { border-radius: 5px; }
+.modal-actions .ok { box-shadow: none; }
+
+/* 按钮：统一小圆角、绿底、无发光 */
+.add-btn, .btn, .btn-cn, .send {
+  border-radius: 5px;
+  box-shadow: none !important;
+}
+.btn:hover, .add-btn:hover { filter: none; background: #06ad58; }
+.btn:active { transform: translateY(0); box-shadow: none; }
+.theme-btn, .login-mode-btn, .code-btn { border-radius: 5px; }
+
+/* 登录卡 */
+.auth-card { border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.1); }
+.tabs { border-radius: 6px; }
+.tab { border-radius: 4px; }
+.tab.on { box-shadow: none; }
+.input, .input-sm, .code-row .code-input { border-radius: 5px; }
+.input:focus { box-shadow: 0 0 0 2px var(--primary-soft); }
+.hv-svg, .hv-img-box { border-radius: 5px; }
+
+/* ---------- admin 概览：扁平板 ---------- */
+.admin-tabbar { gap: 6px; padding: 12px 14px 0; }
+.admin-nav-tab {
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 7px 16px;
+  border: 1px solid #ddd;
+  color: #666;
+  background: #fff;
+  box-shadow: none;
+}
+.admin-nav-tab:hover { border-color: var(--primary); color: var(--primary); }
+.admin-nav-tab.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.admin-ov-card { background: #fff; border-radius: 8px; border: 1px solid var(--border); box-shadow: none; backdrop-filter: none !important; }
+.admin-ov-card .ov-num { font-size: 20px; font-weight: 700; }
+.admin-panel { border-radius: 8px; border: 1px solid #e2e2e2; box-shadow: none; }
+.admin-user-row { padding: 9px 14px; background: #fff; }
+
+/* 隐藏：所有允许的装饰动画保持克制（消息进入仍轻量） */
+.msg-row.just-sent { animation: none; }
+#chatView { animation: none; }
+.hist-anim, .av-bounce, .skel-row, .dot.online::after { animation: none !important; }
+.adminPanelIn, .viewIn { animation: none !important; }
+.ripple-fx { display: none; }
+
+/* 深色模式：同套扁平逻辑 */
+body.dark-mode { --bg: #17181a; --side-bg: #202124; --border: #303236; --text: #e8e6e3; }
+body.dark-mode .sidebar, body.dark-mode .sidebar-tools,
+body.dark-mode .header, body.dark-mode .composer,
+body.dark-mode .account-card, body.dark-mode .welcome-action { background: #1f2022 !important; border-color: #34363a !important; box-shadow: none !important; }
+body.dark-mode .sidebar-rail { background: #141517 !important; border-right-color: #2a2b2e !important; }
+body.dark-mode .sidebar-rail .side-tab.on { background: #07c160 !important; }
+body.dark-mode .messages { background: #202124 !important; }
+body.dark-mode .msg-row.other .bubble { background: #2a2c2f; border-color: #383a3e; }
+body.dark-mode .msg-row.me .bubble { background: #2e7d4f; color: #e8faef; }
+body.dark-mode .contact:hover { background: #2a2b2e !important; }
+body.dark-mode .contact.active { background: #233b30 !important; border-left-color: var(--primary); }
+body.dark-mode .search { background: #26282b; border-color: #3a3c40; color: #e8e6e3; }
+body.dark-mode .composer textarea { background: #26282b; border-color: #3a3c40; color: #e8e6e3; }
+body.dark-mode .tool:hover { background: #2e3033; }
+body.dark-mode .welcome-orb { background: #07c160; }
+body.dark-mode .wx-group, body.dark-mode .wx-me-group, body.dark-mode .me-header, body.dark-mode .me-card-item {
+  background: #1f2022 !important;
+  border-color: #34363a;
+}
+body.dark-mode .wx-discover-item, body.dark-mode .wx-me-item { background: #1f2022 !important; border-bottom-color: #2d2f32; }
+body.dark-mode .wx-discover-name, body.dark-mode .wx-me-name, body.dark-mode .me-name, body.dark-mode .ai-banner-name { color: #e8e6e3; }
+body.dark-mode .ai-banner, body.dark-mode .ai-banner-sm { background: #1f2022; border-color: #34363a; }
+body.dark-mode .admin-ov-card, body.dark-mode .admin-panel { background: #1f2022; border-color: #34363a; }
+body.dark-mode .page-header { background: #202124 !important; border-bottom-color: #34363a; }
+body.dark-mode.brand-status { box-shadow: none; }
+
+
+/* ---- 修正：去除所有残留毛玻璃（纯背景时 blur 无意义且多余） ---- */
+.sidebar, .header, .composer, .ai-view .ai-header, .ai-view .ai-composer,
+.sidebar-tools, .mobile-bottom-nav, .modal-mask,
+#settingsPanel, .profile-mask, .contact-group-label, .contact-alphabet-index {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#settingsPanel { background: #f6f6f6 !important; }
+body.dark-mode #settingsPanel { background: #1f2022 !important; }
+body.dark-mode .header, body.dark-mode .composer { background: #1f2022 !important; }
+body.dark-mode .brand-status { box-shadow: none; }
+
+/* 工具栏按钮圆角修正 */
+.composer-tools .tool, .chat-composer .composer-icon-btn { border-radius: 5px !important; }
