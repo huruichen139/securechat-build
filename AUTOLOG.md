@@ -1,5 +1,20 @@
 # SecureChat 工作日志
 
+## 2026-09-25 服务端安全审计（reactions 越权修复）
+
+### 审计范围
+- 路由清单共 163 条，核对鉴权：认证区（cap/email code/register/login/reset/change）、扫码登录（qr create/image/status/confirm/consume）、消息区（recall/edit/reply/pin/favorite/history 越权检查）、文件区（files 上传下载、call-recordings 双方+admin 校验、路径遍历防护已存在）、朋友圈（moments feed 仅好友+自己、like/comment 好友+黑名单守卫）、视频/公众号/拍一拍/笔记/反馈（有鉴权+限流+存在性校验）、admin 全路由经 adminGuard（还核对 ADMIN_EMAILS 鉴权无法被 /api/profile 篡改）。
+- verifyToken 已含 banned + token_version 校验，封禁/改密即作废旧 token；`/api/history/:peerId` WHERE 限定本人收发，无法越权读他人消息；群消息/成员接口有成员校验。
+
+### 发现并修复（commit db12837，已推送）
+- **P1 越权：`GET /api/messages/:id/reactions` 无鉴权**——未登录可枚举任意消息 id 的回应数据。
+- **P1 越权：`POST /api/messages/:id/reactions` 只校验消息存在，不校验归属**——可对与本人无关的私聊消息添加回应/探测消息存在性。
+- 修复：新增 `reactionMsgAuth(msgId,userId)`（私聊消息须 from/to 含本人，或本人为群成员），POST/GET 均先鉴权再校验归属；未登录 401、无归属 403。
+- 实测（真实登录 xa）：无 token GET→401、非归属消息 POST→403 生效。
+
+### 检查过无问题
+- 封禁/改密 token 失效链路、moments 可见性（双向好友）、friends accept 双向写行、admin 全路由鉴权、JWT_SECRET/.env 已设强值、call-recordings 越权保护。
+
 ## 2026-09-24 撤回视觉重造（用户："换回来！！！不要这个"）
 
 - 对 3358f9a（去 AI 味重造）执行 git revert → 8647644，web/chat.html、styles.css 及 electron/capacitor www 全部回到 5d63995（亚克力+渐变+毛玻璃旧版）。
