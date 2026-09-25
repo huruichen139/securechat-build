@@ -5036,6 +5036,14 @@ function mountFeatureRoutes(app, db) {
   mountFeatureRoutes(app, routeDb);
 
   // ========== 表情回应 API ==========
+  // 归属校验：只能对与自己相关的消息（私聊收发双方，或所在群成员）添加/查询回应
+  function reactionMsgAuth(msgId, userId) {
+    const dm = prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(msgId, userId, userId);
+    if (dm) return true;
+    const gm = prepare('SELECT 1 FROM group_messages gm JOIN group_members m ON m.group_id=gm.group_id AND m.user_id=? WHERE gm.id=?').get(userId, msgId);
+    return !!gm;
+  }
+
   app.post('/api/messages/:id/reactions', (req, res) => {
     if (!ready) return res.status(503).json({ error: '服务初始化中' });
     const user = apiUser(req);
@@ -5046,6 +5054,7 @@ function mountFeatureRoutes(app, db) {
     try {
       const msg = prepare('SELECT id FROM messages WHERE id=?').get(msgId);
       if (!msg) return res.status(404).json({ error: '消息不存在' });
+      if (!reactionMsgAuth(msgId, user.id)) return res.status(403).json({ error: '无权操作该消息' });
       // toggle: 已存在则删除，不存在则添加
       const existing = prepare('SELECT id FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?').get(msgId, user.id, emoji);
       if (existing) {
@@ -5061,9 +5070,12 @@ function mountFeatureRoutes(app, db) {
 
   app.get('/api/messages/:id/reactions', (req, res) => {
     if (!ready) return res.status(503).json({ error: '服务初始化中' });
+    const user = apiUser(req);
+    if (!user) return res.status(401).json({ error: '未登录' });
     const msgId = Number(req.params.id);
     if (!msgId) return res.status(400).json({ error: '参数无效' });
     try {
+      if (!reactionMsgAuth(msgId, user.id)) return res.status(403).json({ error: '无权查看该消息' });
       const reactions = prepare('SELECT user_id, emoji, COUNT(*) as cnt FROM message_reactions WHERE message_id=? GROUP BY emoji').all(msgId);
       res.json({ ok: true, reactions });
     } catch (e) { res.status(500).json({ error: '查询失败' }); }
