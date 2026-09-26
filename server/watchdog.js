@@ -39,7 +39,8 @@ function testOnline() {
   return new Promise((resolve) => {
     const req = https.get({ hostname: '127.0.0.1', port: PORT, path: '/api/version', timeout: 5000, rejectUnauthorized: false }, (res) => {
       res.resume();
-      resolve(res.statusCode === 200);
+      // 200=就绪；503=服务初始化中（进程活着，但不能当 offline 误杀重启）
+      resolve(res.statusCode === 200 || res.statusCode === 503);
     });
     req.on('error', () => resolve(false));
     req.on('timeout', () => { req.destroy(); resolve(false); });
