@@ -48,27 +48,24 @@ function testOnline() {
 }
 
 // 杀掉占用 8888 的残留 node 进程（防 EADDRINUSE：旧服务器未退出时新进程绑端口失败）
+// 仅当 watchdog 已确认 server offline 时才调用；只杀命令行匹配 index.js 的进程
 function killStaleServer() {
   try {
-    const out = childProcess.execSync(
-      'netstat -ano | findstr ":8888" | findstr "LISTENING"',
+    const out = execSync(
+      'wmic process where "name=\'node.exe\'" get processid,commandline /value 2>nul | findstr /i "index.js"',
       { windowsHide: true, timeout: 5000 }
     ).toString();
     const pids = new Set();
-    for (const line of out.split(/\r?\n/)) {
-      const m = line.match(/(\d+)\s*$/);
-      if (m) pids.add(m[1]);
-    }
+    for (let m of out.matchAll(/ProcessId=(\d+)/g)) pids.add(m[1]);
     pids.delete(String(process.pid));
     for (const pid of pids) {
       try { process.kill(pid, 'SIGTERM'); log('killed stale server pid ' + pid); } catch (e) {}
     }
     if (pids.size > 0) {
-      // 给旧进程一点时间释放端口
       const start = Date.now();
       while (Date.now() - start < 1500) {}
     }
-  } catch (e) { /* 无监听则跳过 */ }
+  } catch (e) { /* 无进程则跳过 */ }
 }
 
 function bootServer() {
@@ -91,19 +88,28 @@ function bootServer() {
 }
 
 let lastBoot = 0;
+let startPass = 0;
 
 async function main() {
   log('watchdog started, checks every ' + (INTERVAL / 1000) + 's');
-  if (!(await testOnline())) bootServer();
+  // 启动探活：服务器可能刚 bind 完还在初始化，给足耐心，不要一探失败就强杀重启
+  let online = await testOnline();
+  for (let i = 0; i < 5 && !online; i++) {
+    log('startup probe ' + (i + 1) + '/5 offline, wait ' + (INTERVAL / 1000) + 's');
+    await new Promise(r => setTimeout(r, INTERVAL));
+    online = await testOnline();
+  }
+  if (!online) { startPass = Date.now(); bootServer(); }
+  startPass = Date.now();
   setInterval(async () => {
-    const online = await testOnline();
-    if (!online) {
-      const now = Date.now();
-      if (now - lastBoot < 20000) { log('boot throttled, skip'); return; }
-      log('server offline, restarting...');
-      lastBoot = now;
-      bootServer();
-    }
+    const onlineNow = await testOnline();
+    if (onlineNow) { lastBoot = 0; return; }
+    const now = Date.now();
+    if (now - startPass < 60000) { log('within startup grace, skip'); return; }
+    if (now - lastBoot < 30000) { log('boot throttled, skip'); return; }
+    log('server offline, restarting...');
+    lastBoot = now;
+    bootServer();
   }, INTERVAL);
 }
 
