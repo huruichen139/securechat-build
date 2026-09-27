@@ -47,25 +47,26 @@ function testOnline() {
   });
 }
 
-// 杀掉占用 8888 的残留 node 进程（防 EADDRINUSE：旧服务器未退出时新进程绑端口失败）
-// 仅当 watchdog 已确认 server offline 时才调用；只杀命令行匹配 index.js 的进程
+// 杀掉所有 index.js 残留进程（防 EADDRINUSE：旧服务器未退出时新进程绑端口失败）
+// 仅当 watchdog 已确认 server offline 时才调用。
+// Windows 新版已移除 wmic，改用 PowerShell CIM（实测验证可取回命令行匹配的 PID）
 function killStaleServer() {
+  let pids = [];
   try {
-    const out = execSync(
-      'wmic process where "name=\'node.exe\'" get processid,commandline /value 2>nul | findstr /i "index.js"',
-      { windowsHide: true, timeout: 5000 }
-    ).toString();
-    const pids = new Set();
-    for (let m of out.matchAll(/ProcessId=(\d+)/g)) pids.add(m[1]);
-    pids.delete(String(process.pid));
-    for (const pid of pids) {
-      try { process.kill(pid, 'SIGTERM'); log('killed stale server pid ' + pid); } catch (e) {}
-    }
-    if (pids.size > 0) {
-      const start = Date.now();
-      while (Date.now() - start < 1500) {}
-    }
-  } catch (e) { /* 无进程则跳过 */ }
+    const out = execSync('powershell -NoProfile -ExecutionPolicy Bypass -File "' + path.join(__dirname, 'kill_stale.ps1') + '"', { windowsHide: true, timeout: 10000, encoding: 'utf8' });
+    pids = String(out).split(/\r?\n/).map(s => s.trim()).filter(s => /^\d+$/.test(s));
+  } catch (e) { /* 查询失败则按无残留处理 */ }
+  const selfPid = String(process.pid);
+  let killed = 0;
+  for (const pid of pids) {
+    if (pid === selfPid) continue;
+    try { process.kill(parseInt(pid, 10), 'SIGTERM'); killed++; log('killed stale server pid ' + pid); } catch (e) {}
+  }
+  if (killed > 0) {
+    // 给旧进程时间释放端口再接续（用真实定时器避免忙等）
+    const deadline = Date.now() + 3000;
+    (function wait(){ if (Date.now() < deadline) { execSync('ping -n 1 127.0.0.1 >nul', { windowsHide: true }); wait(); } })();
+  }
 }
 
 function bootServer() {
