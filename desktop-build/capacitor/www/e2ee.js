@@ -15,6 +15,8 @@
   const STORE_PUB = 'sc_e2ee_pub';     // 身份公钥 SPKI base64
   const SESSION_PREFIX = 'sc_ratchet_'; // 每 peer 会话状态
   const SK_PREFIX = 'sc_ratchet_sk_';   // 每 peer E2E sk (hex)
+  const PROTOCOL_STAMP = 'sc_ratchet_protocol_stamp';
+  const PROTOCOL_VERSION = '4';
 
   // ---------- base64 / buffer 工具 ----------
   function bufToB64(buf) {
@@ -50,13 +52,34 @@
     return true;
   }
 
-  // ---------- HKDF-SHA256 (WebCrypto deriveBits) ----------
-  // pointycastle 的 HKDF：salt == null 时内部用 32 字节全 0；传入短盐（如 x3dh 的 [0x00]）按原样使用。
+  // ---------- HKDF-SHA256（对齐 pointycastle 的 HKDFKeyDerivator）----------
+  // pointycastle 的 HKDFKeyDerivator.deriveKey(ikm) 会把 ikm 追加到 info（expand 阶段用 info||ikm），
+  // 与标准 RFC5869（WebCrypto）不同。Web 端必须复刻 pointycastle 行为，否则与 Flutter 端密钥不一致。
+  //   extract: PRK = HMAC-SHA256(salt, ikm)；salt 为空/null 时用 32 字节全 0。
+  //   expand : T(i) = HMAC-SHA256(PRK, T(i-1) || info || ikm || i)
   async function hkdf(ikm, salt, info, len) {
-    const key = await crypto.subtle.importKey('raw', ikm, { name: 'HKDF' }, false, ['deriveBits']);
-    const bits = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt, info }, key, len * 8);
-    return new Uint8Array(bits);
+    const ikmU = ikm instanceof Uint8Array ? ikm : new Uint8Array(ikm);
+    const saltU = (salt instanceof Uint8Array && salt.length > 0) ? salt : new Uint8Array(32);
+    const infoU = info instanceof Uint8Array ? info : new Uint8Array(info || []);
+    // extract
+    const skKey = await crypto.subtle.importKey('raw', saltU, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const prk = new Uint8Array(await crypto.subtle.sign('HMAC', skKey, ikmU));
+    // expand（pointycastle 风格：info || ikm）
+    const expandInfo = concatA(infoU, ikmU);
+    const ek = await crypto.subtle.importKey('raw', prk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const out = [];
+    let t = new Uint8Array(0);
+    let n = 0;
+    let total = 0;
+    while (total < len) {
+      n++;
+      const data = concatA(t, expandInfo, Uint8Array.from([n]));
+      t = new Uint8Array(await crypto.subtle.sign('HMAC', ek, data));
+      out.push(t);
+      total += t.length;
+    }
+    const res = concatA(...out);
+    return res.slice(0, len);
   }
   // _kdfRk: (newRK 32B, CK 32B)
   async function kdfRk(rootKey, dhOut) {
@@ -70,9 +93,10 @@
     const newCk = await hkdf(chainKey, salt, Uint8Array.from([0x02]), 32);
     return [newCk, mk];
   }
-  // x3dhKdf: sk = HKDF(dh, salt=[0x00], info=kosong, len=64)[0:32]
+  // x3dhKdf: sk = HKDF(dh, salt=32零字节, info=[0x00], len=64)[0:32]
+  // 与 Flutter x3dhKdf 对齐：null salt 在 pointycastle 中为 32 字节全 0
   async function x3dhKdf(dhBytes) {
-    const out = await hkdf(dhBytes, Uint8Array.from([0x00]), new Uint8Array(0), 64);
+    const out = await hkdf(dhBytes, new Uint8Array(32), Uint8Array.from([0x00]), 64);
     return out.slice(0, 32);
   }
 
@@ -155,6 +179,17 @@
       nS: s.nS, nR: s.nR, pn: s.pn
     }));
   }
+  function cloneSession(s) {
+    return {
+      rk: s.rk.slice(),
+      dhS_priv: s.dhS_priv ? JSON.parse(JSON.stringify(s.dhS_priv)) : null,
+      dhS_pub: s.dhS_pub,
+      dhR: s.dhR ? s.dhR.slice() : null,
+      ckS: s.ckS ? s.ckS.slice() : null,
+      ckR: s.ckR ? s.ckR.slice() : null,
+      nS: s.nS, nR: s.nR, pn: s.pn
+    };
+  }
   function loadSk(peerId) {
     const h = localStorage.getItem(skKey(peerId));
     if (!h || h.length !== 64) return null;
@@ -163,6 +198,37 @@
     return out;
   }
   function saveSk(peerId, sk) { localStorage.setItem(skKey(peerId), hex(sk)); }
+
+  function clearPeerSession(peerId) {
+    const k = String(peerId);
+    localStorage.removeItem(sessionKey(k));
+    localStorage.removeItem(skKey(k));
+    pubCache.delete(k);
+  }
+
+  function resetLegacySessions() {
+    const userId = state.me && state.me.id != null ? String(state.me.id) : '';
+    const stamp = PROTOCOL_VERSION + ':' + userId;
+    if (localStorage.getItem(PROTOCOL_STAMP) === stamp) return;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i) || '';
+      if (key.startsWith(SESSION_PREFIX) || key.startsWith(SK_PREFIX)) localStorage.removeItem(key);
+    }
+    pubCache.clear();
+    localStorage.setItem(PROTOCOL_STAMP, stamp);
+  }
+
+  const peerQueues = new Map();
+  const staleFailCount = new Map();
+  function withPeerQueue(peerId, task) {
+    const k = String(peerId);
+    const previous = peerQueues.get(k) || Promise.resolve();
+    const current = previous.catch(() => {}).then(task);
+    peerQueues.set(k, current);
+    return current.finally(() => {
+      if (peerQueues.get(k) === current) peerQueues.delete(k);
+    });
+  }
 
   // 服务器身份公钥缓存：peerId -> SPKI base64
   let pubCache = new Map();
@@ -173,14 +239,15 @@
     try {
       const res = await fetch(state.serverHost + '/api/keys/bundle/' + encodeURIComponent(k),
         { headers: { 'Authorization': 'Bearer ' + state.token } });
-      if (!res.ok) return null;
+      if (!res.ok) { console.warn('[E2EE] getPeerIdentityPub bundle HTTP ' + res.status + ' for peer=' + k + ' serverHost=' + state.serverHost + ' hasToken=' + !!state.token); return null; }
       const b = await res.json();
       const idKey = b.identityKey;
-      if (typeof idKey === 'string' && idKey.length > 0) return idKey;
+      if (typeof idKey === 'string' && idKey.length > 0) { console.log('[E2EE] getPeerIdentityPub(' + k + ') identityKey len=' + idKey.length); return idKey; }
       const spk = b.signedPreKey;
       if (spk && typeof spk.pubKey === 'string' && spk.pubKey.length > 0) return spk.pubKey;
+      console.warn('[E2EE] getPeerIdentityPub(' + k + ') no identityKey, response=' + JSON.stringify(b));
       return null;
-    } catch { return null; }
+    } catch (e) { console.warn('[E2EE] getPeerIdentityPub(' + k + ') fetch error: ' + (e && e.message)); return null; }
   }
 
   // ============================================================
@@ -188,12 +255,13 @@
   // ============================================================
   async function initAsSender(sk, peerIdentitySpkiB64) {
     const identity = await getOrCreateIdentity();
-    const dh = await genEcKeyPair();
-    const dhOut = await ecdhShare(dh.privJwk, peerIdentitySpkiB64);
+    // 使用身份密钥对作为 DH 密钥对，与 Flutter 端的 identity-only 模式对齐：
+    // Flutter x3dhInitReceiver 用 web 的身份私钥作为 dhSelf，web 也必须用身份私钥才能解密。
+    const dhOut = await ecdhShare(identity.privJwk, peerIdentitySpkiB64);
     const parts = await kdfRk(sk, dhOut);
     return {
       rk: parts[0],
-      dhS_priv: dh.privJwk, dhS_pub: dh.pubSpki,
+      dhS_priv: identity.privJwk, dhS_pub: identity.pubB64,
       dhR: b64ToArr(peerIdentitySpkiB64),
       ckS: parts[1],
       ckR: null,
@@ -211,6 +279,7 @@
     const peerPub = await getPeerIdentityPub(peerId);
     if (!peerPub) return null;
     const identity = await getOrCreateIdentity();
+    console.log('[E2EE] x3dhInitSender(' + peerId + ') myPubPrefix=' + identity.pubB64.slice(0, 20) + ' peerPubPrefix=' + peerPub.slice(0, 20));
     const dhOut = await ecdhShare(identity.privJwk, peerPub);
     const sk = await x3dhKdf(dhOut);
     saveSk(peerId, sk);
@@ -235,16 +304,17 @@
   // ============================================================
   async function encryptMessage(state, plain) {
     if (!state.dhR) throw new Error('RatchetState.dhRemote 为空');
+    // DH-step：生成新的 DH 密钥对与远端身份公钥做 ECDH（与 Flutter encryptMessage 对齐）
     if (!state.ckS) {
-      // 需要 DH-step：pn = sendN，新 dh，与 dhRemote 做 ECDH
       state.pn = state.nS;
       const dh = await genEcKeyPair();
       const dhOut = await ecdhShare(dh.privJwk, arrB64(state.dhR));
       const parts = await kdfRk(state.rk, dhOut);
       state.rk = parts[0];
       state.ckS = parts[1];
-      state.dhS_priv = dh.privJwk; state.dhS_pub = dh.pubSpki;
-      state.nS = 0; state.nR = 0;
+      state.dhS_priv = dh.privJwk;
+      state.dhS_pub = dh.pubSpki;
+      state.nS = 0;
     }
     const ck = await kdfChain(state.ckS);
     state.ckS = ck[0];
@@ -282,6 +352,8 @@
       state.ckS = null; // 下次我方发送会触发新的 DH-step
     }
     if (!state.ckR) throw new Error('接收链未初始化');
+    if (n < state.nR) throw new Error('消息已处理或序号过旧');
+    if (n - state.nR > 1000) throw new Error('消息序号跳跃过大');
     while (state.nR < n) {
       const k = await kdfChain(state.ckR);
       state.ckR = k[0];
@@ -299,6 +371,7 @@
   window.SCE2EE = {
     // 保证当前账号有身份密钥对，并上传到服务器（幂等）。
     ensureKeyPair: async function () {
+      resetLegacySessions();
       const id = await getOrCreateIdentity();
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -319,52 +392,85 @@
     // 先建立/复用会话，再加密。会话建立失败返回 null（调用方回退明文，与 Flutter e2eeEncrypt 一致）。
     async encryptFor(peerId, plain) {
       const k = String(peerId);
-      let s = loadSession(k);
-      if (!s) {
-        s = await x3dhInitSender(k);
-        if (!s) return null;
-      }
-      const ct = await encryptMessage(s, plain);
-      saveSession(k, s);
-      return ct;
+      return withPeerQueue(k, async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          let s = loadSession(k);
+          if (!s) {
+            s = await x3dhInitSender(k);
+            if (!s) { console.warn('[E2EE] encryptFor(' + k + ') x3dhInitSender 返回 null，降级明文'); return null; }
+            s.ckS = null;
+          }
+          try {
+            const ct = await encryptMessage(s, plain);
+            saveSession(k, s);
+            console.log('[E2EE] encryptFor(' + k + ') OK ctLen=' + ct.length);
+            return ct;
+          } catch (e) {
+            console.warn('[E2EE] 加密失败, 重建会话重试: peer=' + k, e && e.message);
+            clearPeerSession(k);
+          }
+        }
+        return null;
+      });
     },
     // 若是 0x02 密文则解密；否则（明文/媒体占位）原样返回。
     async decryptFrom(peerId, b64) {
       if (!isRatchetCipher(b64)) return b64;
       const k = String(peerId);
-      // 优先复用已有会话
-      let s = loadSession(k);
-      if (s) {
+      return withPeerQueue(k, async () => {
+        let s = loadSession(k);
+        const hadSession = !!s;
+        if (s) {
+          try {
+            const candidate = cloneSession(s);
+            const plain = await decryptMessage(candidate, b64ToArr(b64));
+            saveSession(k, candidate);
+            console.log('[E2EE] decryptFrom(' + k + ') OK plain=' + plain.slice(0, 20));
+            return plain;
+          } catch (e) {
+            // 坏包不能清除已验证的会话；仅移除首条消息建立但认证失败的新会话（与客户端一致）。
+            console.warn('[E2EE] 消息解密失败: peer=' + k, e && e.message);
+            const msg = String((e && e.message) || e);
+            if (msg.indexOf('序号过旧') >= 0 || msg.indexOf('已处理') >= 0) {
+              // 连续多次序号失败才重建会话（防死锁），偶发重复投递不清除有效会话
+              const c = (staleFailCount.get(k) || 0) + 1;
+              staleFailCount.set(k, c);
+              if (c >= 3) { clearPeerSession(k); staleFailCount.set(k, 0); }
+              return b64;
+            }
+            if (!hadSession) clearPeerSession(k);
+            return b64;
+          }
+        }
         try {
-          const plain = await decryptMessage(s, b64ToArr(b64));
-          saveSession(k, s);
+          s = await x3dhInitReceiver(k);
+          if (!s) { console.warn('[E2EE] decryptFrom(' + k + ') x3dhInitReceiver 返回 null'); return b64; }
+        } catch (e) {
+          console.warn('[E2EE] x3dhInitReceiver 失败: peer=' + k, e && e.message);
+          return b64;
+        }
+        try {
+          const candidate = cloneSession(s);
+          const plain = await decryptMessage(candidate, b64ToArr(b64));
+          saveSession(k, candidate);
+          console.log('[E2EE] decryptFrom(' + k + ') OK(新会话) plain=' + plain.slice(0, 20));
           return plain;
         } catch (e) {
-          // 已有会话解密失败：很可能是旧/坏会话或密钥被更换，丢弃后重建一次
+          console.warn('[E2EE] 首条消息解密失败: peer=' + k, e && e.message);
+          clearPeerSession(k);
+          return b64;
         }
-      }
-      try {
-        s = await x3dhInitReceiver(k);
-        if (!s) return b64;
-      } catch (e) {
-        return b64;
-      }
-      try {
-        const plain = await decryptMessage(s, b64ToArr(b64));
-        saveSession(k, s);
-        return plain;
-      } catch (e) {
-        return b64;
-      }
+      });
     },
     // 显式初始化接收会话（在渲染前先建会话，避免乱序）。
     async primeReceiver(peerId) {
       const k = String(peerId);
-      if (!loadSession(k)) { await x3dhInitReceiver(k); }
+      return withPeerQueue(k, async () => {
+        if (!loadSession(k)) await x3dhInitReceiver(k);
+      });
     },
     clearSession: function (peerId) {
-      localStorage.removeItem(sessionKey(String(peerId)));
-      localStorage.removeItem(skKey(String(peerId)));
+      clearPeerSession(peerId);
     },
     isRatchetCipher
   };

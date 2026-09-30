@@ -1165,6 +1165,44 @@ function openModal(title, fields, onOk) {
   if (fields[0] && fields[0]._el) fields[0]._el.focus();
 }
 
+// 纯内容展示弹窗（无表单）。复用 openModal 的 .modal-mask/.modal 结构，视觉与表单弹窗一致。
+// html 仅供内部固定内容使用；调用方需自行保证不含用户可控数据。
+function showInfoModal(title, html) {
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const h3 = document.createElement('h3');
+  h3.textContent = title;
+  const xBtn = document.createElement('button');
+  xBtn.className = 'modal-x';
+  xBtn.type = 'button';
+  xBtn.setAttribute('aria-label', '关闭');
+  xBtn.innerHTML = '&times;';
+  head.appendChild(h3);
+  head.appendChild(xBtn);
+  const body = document.createElement('div');
+  body.className = 'modal-body-info';
+  body.innerHTML = html;
+  const acts = document.createElement('div');
+  acts.className = 'modal-actions';
+  const ok = document.createElement('button');
+  ok.className = 'ok';
+  ok.textContent = '知道了';
+  acts.appendChild(ok);
+  box.appendChild(head); box.appendChild(body); box.appendChild(acts);
+  mask.appendChild(box);
+  document.body.appendChild(mask);
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  ok.onclick = close;
+  xBtn.onclick = close;
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+}
+
 // ---------- 特性发现中心（更多功能入口）----------
 // 聚合各业务模块（groups/chat-ext/rtc/media/lifestyle/payment/status-collar 等）的
 // 入口到一个分类面板。所有模块都通过 window.SecureChatExt.registerFeature 登记，
@@ -2598,7 +2636,7 @@ async function openGroupProfile(groupId) {
       openGroupProfile(groupId);
     } catch (e) { toast('发布失败：' + e.message, 'error'); }
   };
-  mask.querySelector('#groupInviteBtn').onclick = () => { mask.remove(); const btn = $('inviteBtn'); if (btn) btn.click(); };
+    mask.querySelector('#groupInviteBtn').onclick = () => { mask.remove(); const btn = $('inviteGroupBtn'); if (btn) btn.click(); };
   const leaveBtn = mask.querySelector('#groupLeaveBtn');
   if (leaveBtn) leaveBtn.onclick = async () => {
     if (!confirm('确定退出该群聊？')) return;
@@ -4995,11 +5033,7 @@ function openSettingsPage() {
       items: [
         { label: '意见反馈', desc: '提交问题或建议', icon: '反', fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
         { label: '关于我们', desc: 'SecureChat v' + PACKAGE_VERSION, icon: '关', fn: () => {
-          modal('关于 SecureChat', (body) => {
-            body.innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>';
-            const ghBtn = body.querySelector('#aboutGithubBtn');
-            if (ghBtn) ghBtn.onclick = () => window.open('https://github.com/huruichen139/securechat-build', '_blank');
-          });
+          showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
         }},
       ]
     },

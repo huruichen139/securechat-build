@@ -15,8 +15,9 @@
 
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
+    // 映射值必须是 HTML 实体；之前这里写成了字符本身，等于没转义（XSS）
     return String(s).replace(/[&<>"']/g, c => ({
-      '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
   }
   function fmtTime(ts) {
@@ -45,13 +46,18 @@
     const q = (el('adminUserSearch') && el('adminUserSearch').value || '').trim().toLowerCase();
     const filtered = q ? list.filter(u => [u.username, u.nickname, u.uid, u.email].some(v => String(v || '').toLowerCase().includes(q))) : list;
     el('onlineCountTag').textContent = '(' + filtered.length + (q ? '/' + list.length : '') + ')';
-    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">没有匹配的用户</td></tr>'; return; }
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">没有匹配的用户</td></tr>'; return; }
     tb.innerHTML = filtered.map(u => {
       const onlineBadge = u.online ? '<span class="admin-badge online">在线</span>' : '<span class="admin-badge offline">离线</span>';
       const banBadge = u.banned ? '<span class="admin-badge banned" title="' + escapeHtml(u.banReason || '') + '">已封禁</span>' : '';
-      const action = u.banned
-        ? '<button class="admin-action-btn" data-unban="' + u.id + '">解封</button>'
-        : '<button class="admin-action-btn danger" data-ban="' + u.id + '">封禁</button>';
+      const roleText = (u.role || 'user') === 'admin' ? '管理员' : ((u.role || 'user') === 'vip' ? 'VIP' : '普通');
+      const actions = [];
+      if (u.banned) actions.push('<button class="admin-action-btn" data-unban="' + u.id + '">解封</button>');
+      else actions.push('<button class="admin-action-btn danger" data-ban="' + u.id + '">封禁</button>');
+      if (u.online) actions.push('<button class="admin-action-btn" data-kick="' + u.id + '">踢下线</button>');
+      actions.push('<button class="admin-action-btn" data-role="' + u.id + '" data-role-cur="' + escapeHtml(u.role || 'user') + '">改角色</button>');
+      actions.push('<button class="admin-action-btn" data-nick="' + u.id + '">改昵称</button>');
+      actions.push('<button class="admin-action-btn" data-resetpw="' + u.id + '">重置密码</button>');
       return `
       <tr>
         <td>${u.id}</td>
@@ -59,13 +65,92 @@
         <td>${escapeHtml(u.nickname)}</td>
         <td><code>${escapeHtml(u.uid)}</code></td>
         <td>${escapeHtml(u.email || '-')}</td>
+        <td>${roleText}</td>
         <td>${onlineBadge} ${banBadge}</td>
         <td>${fmtTime(u.createdAt)}</td>
-        <td>${action}</td>
+        <td class="admin-actions-col">${actions.join(' ')}</td>
       </tr>`;
     }).join('');
     tb.querySelectorAll('[data-ban]').forEach(btn => btn.addEventListener('click', () => toggleBan(Number(btn.dataset.ban), true)));
     tb.querySelectorAll('[data-unban]').forEach(btn => btn.addEventListener('click', () => toggleBan(Number(btn.dataset.unban), false)));
+    tb.querySelectorAll('[data-kick]').forEach(btn => btn.addEventListener('click', () => kickUser(Number(btn.dataset.kick))));
+    tb.querySelectorAll('[data-role]').forEach(btn => btn.addEventListener('click', () => changeRole(Number(btn.dataset.role), btn.dataset.roleCur)));
+    tb.querySelectorAll('[data-nick]').forEach(btn => btn.addEventListener('click', () => changeNick(Number(btn.dataset.nick))));
+    tb.querySelectorAll('[data-resetpw]').forEach(btn => btn.addEventListener('click', () => resetPassword(Number(btn.dataset.resetpw))));
+  }
+
+  // 踢下线
+  async function kickUser(id) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认强制下线该用户？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/kick', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '操作失败', 'error'); return; }
+      toast('已强制下线', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 修改角色
+  async function changeRole(id, cur) {
+    const next = window.prompt('输入新角色（user / vip / admin），当前：' + cur, cur || 'user');
+    if (next === null) return;
+    const role = next.trim().toLowerCase();
+    if (!['user', 'vip', 'admin'].includes(role)) { toast('角色无效', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/user/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, role })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '修改失败', 'error'); return; }
+      toast('角色已修改', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 修改昵称
+  async function changeNick(id) {
+    const nick = window.prompt('输入新昵称：', '');
+    if (nick === null || !nick.trim()) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/user/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, nickname: nick.trim() })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '修改失败', 'error'); return; }
+      toast('昵称已修改', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 重置密码
+  async function resetPassword(id) {
+    const pwd = window.prompt('输入新密码（至少6位），该用户将被强制下线：', '');
+    if (pwd === null || !pwd.trim()) return;
+    if (pwd.trim().length < 6) { toast('密码至少6位', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/user/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id, password: pwd.trim() })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '重置失败', 'error'); return; }
+      toast('密码已重置并强制下线', 'success');
+      await loadAllUsers();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
   }
 
   // 封禁 / 解封
@@ -104,14 +189,96 @@
 
   function renderGroups(rows) {
     const tb = el('groupsTbody');
-    if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="4" class="empty">暂无群组</td></tr>'; return; }
+    if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">暂无群组</td></tr>'; return; }
     tb.innerHTML = rows.map(g => `
       <tr>
         <td>${g.id}</td>
         <td>${escapeHtml(g.name)}</td>
         <td>${g.ownerId}</td>
         <td>${g.memberCount}</td>
+        <td>${g.msgCount || 0}</td>
+        <td class="admin-actions-col">
+          <button class="admin-action-btn" data-gdetail="${g.id}">成员</button>
+          <button class="admin-action-btn danger" data-gdissolve="${g.id}" data-gname="${escapeHtml(g.name)}">解散</button>
+        </td>
       </tr>`).join('');
+    tb.querySelectorAll('[data-gdetail]').forEach(btn => btn.addEventListener('click', () => loadGroupDetail(Number(btn.dataset.gdetail))));
+    tb.querySelectorAll('[data-gdissolve]').forEach(btn => btn.addEventListener('click', () => dissolveGroup(Number(btn.dataset.gdissolve), btn.dataset.gname)));
+  }
+
+  // 加载全部群组（可搜索）
+  async function loadAllGroups(kw) {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const q = kw ? ('?q=' + encodeURIComponent(kw)) : '';
+      const resp = await fetch(API + '/api/admin/groups' + q, { headers: { 'Authorization': 'Bearer ' + token } });
+      if (resp.status !== 200) return;
+      const data = await resp.json();
+      renderGroups(data.groups || []);
+    } catch {}
+  }
+
+  // 解散群
+  async function dissolveGroup(id, name) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认解散群「' + name + '」？将删除该群所有成员和消息，不可恢复！')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/group/dissolve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ id })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '解散失败', 'error'); return; }
+      toast('群已解散', 'success');
+      hide(el('groupDetail'));
+      await loadAllGroups();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 群详情
+  async function loadGroupDetail(id) {
+    const token = getToken();
+    if (!token) return;
+    const detail = el('groupDetail');
+    if (!detail) return;
+    try {
+      const resp = await fetch(API + '/api/admin/group/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '加载失败', 'error'); return; }
+      show(detail);
+      el('groupDetailInfo').innerHTML = '群名：<b>' + escapeHtml(data.group.name) + '</b>　群主ID：' + data.group.ownerId + '　创建：' + fmtTime(data.group.createdAt);
+      const tb = el('groupDetailTbody');
+      const members = data.members || [];
+      if (!members.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">暂无成员</td></tr>'; return; }
+      tb.innerHTML = members.map(m => `
+        <tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.username)}</td>
+          <td>${escapeHtml(m.nickname)}</td>
+          <td><code>${escapeHtml(m.uid || '')}</code></td>
+          <td>${m.banned ? '<span class="admin-badge banned">已封禁</span>' : '<button class="admin-action-btn danger" data-grm="${id}" data-grmu="${m.id}">移除</button>'}</td>
+        </tr>`).join('');
+      tb.querySelectorAll('[data-grm]').forEach(btn => btn.addEventListener('click', () => removeGroupMember(Number(btn.dataset.grm), Number(btn.dataset.grmu))));
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // 移除群成员
+  async function removeGroupMember(groupId, userId) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认从群中移除该成员？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/group/remove-member', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ groupId, userId })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '移除失败', 'error'); return; }
+      toast('成员已移除', 'success');
+      loadGroupDetail(groupId);
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
   }
 
   function renderFeedbacks(list, byKind) {
@@ -198,7 +365,7 @@
       const card = document.querySelector('#sysGrid .stat-card .stat-value');
       // 第一个卡片就是运行时长
       if (card) card.textContent = humanMsLocal(cur - (serverStartedAt || cur));
-    }, 1); // 每 1ms 跳
+    }, 100); // 每100ms跳
   }
   function humanMsLocal(ms) {
     if (ms < 0) ms = 0;
@@ -344,6 +511,45 @@
 
   let pkgLatestVersion = '1.0.0';
 
+  // releaseNotes 数组 -> 可编辑文本（每版本一块：vX.Y.Z（日期）+ 缩进条目）
+  function notesToEditText(releaseNotes) {
+    if (!releaseNotes) return '';
+    if (Array.isArray(releaseNotes)) {
+      return releaseNotes.map(e => {
+        const lines = ['v' + (e.version || '') + (e.date ? '（' + e.date + '）' : '')];
+        (Array.isArray(e.notes) ? e.notes : []).forEach(n => lines.push('  - ' + n));
+        return lines.join('\n');
+      }).join('\n');
+    }
+    return String(releaseNotes);
+  }
+
+  // 编辑文本 -> 数组（解析失败按字符串保存）
+  function notesFromEditText(text) {
+    text = String(text || '').trim();
+    if (!text) return '';
+    if (text.charAt(0) === '[') {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) { /* 走块格式解析 */ }
+    }
+    const entries = [];
+    let cur = null;
+    text.split(/\r?\n/).forEach(line => {
+      const m = line.trim().match(/^v?(\d+\.\d+\.\d+)(?:\s*[（(]\s*(\d{4}-\d{2}-\d{2})\s*[）)])?\s*$/);
+      if (m) {
+        cur = { version: m[1], date: m[2] || '', notes: [] };
+        entries.push(cur);
+        return;
+      }
+      const note = line.replace(/^[\s]*[-•*]\s*/, '').trim();
+      if (cur && note) cur.notes.push(note);
+    });
+    if (entries.length) return entries;
+    return text;
+  }
+
   async function loadVersionPanel() {
     const token = getToken();
     if (!token) return;
@@ -361,7 +567,7 @@
       ]);
 
       el('verLatest').value = v.latest || '1.0.0';
-      el('verNotes').value = v.releaseNotes || '';
+      el('verNotes').value = notesToEditText(v.releaseNotes || '');
       el('verSavedAt').textContent = v.updatedAt ? '上次更新 ' + fmtTime(v.updatedAt) : '尚未发布更新';
 
       // 安装包状态
@@ -388,7 +594,7 @@
 
   async function saveVersion() {
     const latest = el('verLatest').value.trim();
-    const notes = el('verNotes').value.trim();
+    const notes = notesFromEditText(el('verNotes').value);
     if (!/^\d+\.\d+\.\d+$/.test(latest)) { toast('版本号格式错误：应为 x.y.z', 'error'); return; }
     const token = getToken();
     try {
@@ -617,7 +823,461 @@
     } catch {}
   }
 
-  // 启动
+  // ============ 公告管理 ============
+  async function publishAnnouncement() {
+    const btn = el('annPublishBtn');
+    if (btn && btn.disabled) return;
+    const title = (el('annTitle').value || '').trim();
+    const content = (el('annContent').value || '').trim();
+    const level = el('annLevel').value;
+    const top = el('annTop').checked;
+    if (!title || !content) { toast('标题和内容不能为空', 'warn'); return; }
+    if (content.length > 2000) { toast('公告内容不能超过2000字', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    if (btn) btn.disabled = true;
+    try {
+      const resp = await fetch(API + '/api/admin/announcements', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ title, content, level, top })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '发布失败', 'error'); return; }
+      toast('公告已发布并广播', 'success');
+      el('annTitle').value = ''; el('annContent').value = '';
+      el('annResult').textContent = '已发布 #' + data.announcement.id;
+      loadAnnouncements();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+    finally { if (btn) btn.disabled = false; }
+  }
+  async function loadAnnouncements() {
+    const token = getToken();
+    if (!token) return;
+    const list = el('annList');
+    if (!list) return;
+    try {
+      const resp = await fetch(API + '/api/admin/announcements', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const anns = data.announcements || [];
+      if (!anns.length) { list.innerHTML = '<div class="admin-empty">暂无公告</div>'; return; }
+      list.innerHTML = anns.map(a => `
+        <div class="fb-item">
+          <div class="fb-head">
+            <span class="fb-id">#${a.id}</span>
+            <span class="fb-kind kind-${escapeHtml(a.level)}">${escapeHtml(a.level)}</span>
+            ${a.top ? '<span class="admin-badge banned">置顶</span>' : ''}
+            <span class="fb-time">${fmtTime(a.createdAt)}</span>
+          </div>
+          <div class="fb-body"><b>${escapeHtml(a.title)}</b><br>${escapeHtml(a.content)}</div>
+          <div class="fb-actions"><button class="admin-action-btn danger" data-ann-del="${a.id}">删除</button></div>
+        </div>`).join('');
+      list.querySelectorAll('[data-ann-del]').forEach(btn => btn.addEventListener('click', () => deleteAnnouncement(Number(btn.dataset.annDel))));
+    } catch {}
+  }
+  async function deleteAnnouncement(id) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认删除该公告？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/announcements?id=' + id, {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '删除失败', 'error'); return; }
+      toast('公告已删除', 'success');
+      loadAnnouncements();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 封禁 IP ============
+  async function banIp() {
+    const ip = (el('ipInput').value || '').trim();
+    const reason = (el('ipReason').value || '').trim();
+    if (!ip) { toast('请输入IP', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/ban-ip', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ ip, reason })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '封禁失败', 'error'); return; }
+      toast('IP 已封禁', 'success');
+      el('ipInput').value = ''; el('ipReason').value = '';
+      loadBannedIps();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+  async function loadBannedIps() {
+    const token = getToken();
+    if (!token) return;
+    const tb = el('ipTbody');
+    if (!tb) return;
+    try {
+      const resp = await fetch(API + '/api/admin/banned-ips', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const ips = data.ips || [];
+      if (!ips.length) { tb.innerHTML = '<tr><td colspan="4" class="empty">暂无封禁IP</td></tr>'; return; }
+      tb.innerHTML = ips.map(r => `
+        <tr>
+          <td><code>${escapeHtml(r.ip)}</code></td>
+          <td>${escapeHtml(r.reason || '-')}</td>
+          <td>${fmtTime(r.created_at)}</td>
+          <td><button class="admin-action-btn" data-unbanip="${escapeHtml(r.ip)}">解封</button></td>
+        </tr>`).join('');
+      tb.querySelectorAll('[data-unbanip]').forEach(btn => btn.addEventListener('click', () => unbanIp(btn.dataset.unbanip)));
+    } catch {}
+  }
+  async function unbanIp(ip) {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('确认解封IP ' + ip + '？')) return;
+    try {
+      const resp = await fetch(API + '/api/admin/banned-ips?ip=' + encodeURIComponent(ip), {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '解封失败', 'error'); return; }
+      toast('IP 已解封', 'success');
+      loadBannedIps();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 敏感词 ============
+  async function addSensitiveWord() {
+    const word = (el('sensitiveInput').value || '').trim();
+    if (!word) { toast('请输入敏感词', 'warn'); return; }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/sensitive-words', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ word })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '添加失败', 'error'); return; }
+      toast('敏感词已添加', 'success');
+      el('sensitiveInput').value = '';
+      loadSensitiveWords();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+  async function loadSensitiveWords() {
+    const token = getToken();
+    if (!token) return;
+    const list = el('sensitiveList');
+    if (!list) return;
+    try {
+      const resp = await fetch(API + '/api/admin/sensitive-words', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const words = data.words || [];
+      if (!words.length) { list.innerHTML = '<div class="admin-empty">暂无敏感词</div>'; return; }
+      list.innerHTML = words.map(w => '<span class="admin-code-item" title="点击删除" data-sens="' + escapeHtml(w.word) + '">' + escapeHtml(w.word) + ' ×</span>').join('');
+      list.querySelectorAll('[data-sens]').forEach(span => span.addEventListener('click', () => removeSensitiveWord(span.dataset.sens)));
+    } catch {}
+  }
+  async function removeSensitiveWord(word) {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/sensitive-words?word=' + encodeURIComponent(word), {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '删除失败', 'error'); return; }
+      toast('已删除', 'success');
+      loadSensitiveWords();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 审计日志 ============
+  // ============ 聊天回放 ============
+  // 明文存储后服务端可读消息原文，这里做只读审计视图。
+  let replayConvs = [];
+  let replayCur = null;      // 当前会话的消息数组
+  let replayTimer = null;    // 逐条回放定时器
+
+  async function loadReplayConversations() {
+    const token = getToken();
+    if (!token) return;
+    const box = el('replayConvList');
+    if (!box) return;
+    box.innerHTML = '<div class="empty" style="padding:12px">加载中…</div>';
+    try {
+      const resp = await fetch(API + '/api/admin/replay/conversations?limit=300', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { box.innerHTML = '<div class="empty" style="padding:12px">' + escapeHtml(data.error || '加载失败') + '</div>'; return; }
+      replayConvs = data.conversations || [];
+      renderReplayConvs();
+    } catch (e) {
+      box.innerHTML = '<div class="empty" style="padding:12px">网络错误</div>';
+    }
+  }
+
+  function renderReplayConvs() {
+    const box = el('replayConvList');
+    if (!box) return;
+    const kw = ((el('replayFilter') || {}).value || '').trim().toLowerCase();
+    const list = kw ? replayConvs.filter(c => (c.title || '').toLowerCase().includes(kw)) : replayConvs;
+    if (!list.length) { box.innerHTML = '<div class="empty" style="padding:12px">无会话</div>'; return; }
+    box.innerHTML = list.map(c => {
+      const badge = c.kind === 'group' ? '群' : '单';
+      return '<div class="replay-conv" data-key="' + escapeHtml(c.key) + '"'
+        + ' style="padding:10px 12px;border-bottom:1px solid #e5e5e5;cursor:pointer">'
+        + '<div style="font-size:14px;color:#191919">[' + badge + '] ' + escapeHtml(c.title) + '</div>'
+        + '<div style="font-size:12px;color:#999">' + c.messageCount + ' 条 · ' + fmtTime(c.lastAt) + '</div>'
+        + '</div>';
+    }).join('');
+    box.querySelectorAll('.replay-conv').forEach(node => {
+      node.addEventListener('click', () => openReplay(node.dataset.key));
+    });
+  }
+
+  async function openReplay(key) {
+    const token = getToken();
+    if (!token || !key) return;
+    const conv = replayConvs.find(c => c.key === key);
+    if (!conv) return;
+    stopReplay();
+    const stream = el('replayStream');
+    if (stream) stream.innerHTML = '<div class="empty" style="padding:12px">加载中…</div>';
+    let url;
+    if (conv.kind === 'group') {
+      url = API + '/api/admin/replay/messages?kind=group&groupId=' + encodeURIComponent(conv.groupId) + '&limit=2000';
+    } else {
+      url = API + '/api/admin/replay/messages?kind=direct&a=' + encodeURIComponent(conv.peerA.id)
+        + '&b=' + encodeURIComponent(conv.peerB.id) + '&limit=2000';
+    }
+    try {
+      const resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { if (stream) stream.innerHTML = '<div class="empty" style="padding:12px">' + escapeHtml(data.error || '加载失败') + '</div>'; return; }
+      replayCur = data.messages || [];
+      if (el('replayTitle')) el('replayTitle').textContent = data.title || '会话';
+      if (el('replayPlayBtn')) el('replayPlayBtn').disabled = !replayCur.length;
+      if (el('replayExportBtn')) el('replayExportBtn').disabled = !replayCur.length;
+      renderReplayStream(replayCur.length);
+    } catch (e) {
+      if (stream) stream.innerHTML = '<div class="empty" style="padding:12px">网络错误</div>';
+    }
+  }
+
+  // 渲染前 n 条（回放时逐条递增）
+  function renderReplayStream(n) {
+    const stream = el('replayStream');
+    if (!stream || !replayCur) return;
+    const items = replayCur.slice(0, n);
+    if (!items.length) { stream.innerHTML = '<div class="empty" style="padding:12px">无消息</div>'; return; }
+    stream.innerHTML = items.map(m => {
+      const recalled = m.recalled ? ' <span style="color:#c00">[已撤回]</span>' : '';
+      return '<div style="margin-bottom:10px">'
+        + '<div style="font-size:12px;color:#999">' + escapeHtml(m.fromName || ('#' + m.from)) + ' · ' + fmtTime(m.createdAt) + recalled + '</div>'
+        + '<div style="display:inline-block;background:#fff;border-radius:6px;padding:8px 12px;font-size:15px;color:#191919;max-width:75%;word-break:break-word;white-space:pre-wrap">'
+        + escapeHtml(m.content || '') + '</div></div>';
+    }).join('');
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  function stopReplay() {
+    if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
+    const btn = el('replayPlayBtn');
+    if (btn) btn.textContent = '▶ 回放';
+  }
+
+  // 逐条播放，再点一次停止
+  function toggleReplay() {
+    if (replayTimer) { stopReplay(); renderReplayStream(replayCur ? replayCur.length : 0); return; }
+    if (!replayCur || !replayCur.length) return;
+    let i = 0;
+    const btn = el('replayPlayBtn');
+    if (btn) btn.textContent = '⏸ 停止';
+    renderReplayStream(0);
+    replayTimer = setInterval(() => {
+      i++;
+      renderReplayStream(i);
+      if (i >= replayCur.length) stopReplay();
+    }, 600);
+  }
+
+  function exportReplay() {
+    if (!replayCur || !replayCur.length) return;
+    const title = (el('replayTitle') || {}).textContent || '会话';
+    const lines = replayCur.map(m => '[' + fmtTime(m.createdAt) + '] ' + (m.fromName || ('#' + m.from))
+      + (m.recalled ? '（已撤回）' : '') + ': ' + (m.content || ''));
+    const blob = new Blob([title + '\r\n\r\n' + lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '聊天记录-' + title.replace(/[\\/:*?"<>|]/g, '_') + '.txt';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);  // 及时释放，避免泄漏
+  }
+
+  async function loadAuditLogs() {
+    const token = getToken();
+    if (!token) return;
+    const tb = el('auditTbody');
+    if (!tb) return;
+    const action = el('auditActionFilter').value;
+    try {
+      const q = action ? ('?action=' + encodeURIComponent(action)) : '';
+      const resp = await fetch(API + '/api/admin/audit' + q, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const logs = data.logs || [];
+      if (!logs.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">暂无日志</td></tr>'; return; }
+      tb.innerHTML = logs.map(l => `
+        <tr>
+          <td>${fmtTime(l.createdAt)}</td>
+          <td>${l.adminId || '-'}</td>
+          <td>${escapeHtml(l.action)}</td>
+          <td>${l.targetType ? escapeHtml(l.targetType) + ':' + (l.targetId || '-') : '-'}</td>
+          <td>${escapeHtml(l.detail || '-')}</td>
+          <td><code>${escapeHtml(l.ip || '-')}</code></td>
+        </tr>`).join('');
+    } catch {}
+  }
+
+  // ============ EPay 商户审核 ============
+  async function loadMerchants() {
+    const token = getToken();
+    if (!token) return;
+    const tb = el('merchantTbody');
+    if (!tb) return;
+    try {
+      const resp = await fetch(API + '/api/admin/pay/merchants', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      const list = data.merchants || [];
+      if (!list.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">暂无商户申请</td></tr>'; return; }
+      tb.innerHTML = list.map(m => `
+        <tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.name || '-')}</td>
+          <td>${m.userId || '-'}</td>
+          <td>${escapeHtml(m.callbackUrl || '-')}</td>
+          <td>${escapeHtml(m.authMode || 'local')}</td>
+          <td>${m.status === 'approved' ? '<span class="admin-badge online">已通过</span>' : (m.status === 'pending' ? '<span class="admin-badge">审核中</span>' : '<span class="admin-badge banned">已拒绝</span>')}</td>
+          <td>${fmtTime(m.createdAt)}</td>
+          <td>
+            ${m.status !== 'approved' ? `<button class="admin-action-btn" data-merchant-review="${m.id}" data-status="approved">通过</button>` : ''}
+            ${m.status !== 'rejected' ? `<button class="admin-action-btn danger" data-merchant-review="${m.id}" data-status="rejected">拒绝</button>` : ''}
+          </td>
+        </tr>`).join('');
+      document.querySelectorAll('[data-merchant-review]').forEach(btn => {
+        btn.addEventListener('click', () => reviewMerchant(Number(btn.dataset.merchantReview), btn.dataset.status));
+      });
+    } catch { tb.innerHTML = '<tr><td colspan="8" class="empty">加载失败</td></tr>'; }
+  }
+
+  async function reviewMerchant(id, status) {
+    const token = getToken();
+    if (!token) return;
+    let reason = '';
+    if (status === 'rejected') {
+      reason = prompt('拒绝原因：') || '';
+    } else if (status === 'approved') {
+      if (!window.confirm('确认通过商户 #' + id + ' 的审核？')) return;
+    }
+    try {
+      const resp = await fetch(API + '/api/admin/pay/merchants/' + id + '/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ status, reason })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '操作失败', 'error'); return; }
+      toast(status === 'approved' ? '已通过审核' : '已拒绝', 'success');
+      loadMerchants();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ EPay 通道配置 ============
+  async function loadEpayConfig() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(API + '/api/admin/pay/epay/config', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { el('epaySaveTip').textContent = '加载失败：' + (data.error || resp.status); return; }
+      const c = data.config || {};
+      el('epayEnabled').checked = !!c.enabled;
+      el('epaySandbox').checked = !!c.sandbox;
+      el('epayBase').value = c.baseUrl || '';
+      el('epayGateway').value = c.gatewayUrl || '';
+      el('epayGatewayId').value = c.gatewayId || '';
+      el('epayPid').value = c.merchantPid || '';
+      el('epayKey').value = (c.key && c.key !== '********') ? c.key : '';
+      el('epayNotify').value = c.notifyUrl || '';
+      el('epayReturn').value = c.returnUrl || '';
+      el('epaySaveTip').textContent = '已加载（Key 已隐藏，留空保存则不改动）';
+    } catch (e) { el('epaySaveTip').textContent = '加载失败：' + e.message; }
+  }
+
+  async function saveEpayConfig() {
+    const token = getToken();
+    if (!token) return;
+    const body = {
+      enabled: el('epayEnabled').checked,
+      sandbox: el('epaySandbox').checked,
+      baseUrl: el('epayBase').value.trim(),
+      gatewayUrl: el('epayGateway').value.trim(),
+      gatewayId: el('epayGatewayId').value.trim(),
+      merchantPid: el('epayPid').value.trim(),
+      key: el('epayKey').value.trim(),
+      notifyUrl: el('epayNotify').value.trim(),
+      returnUrl: el('epayReturn').value.trim()
+    };
+    try {
+      const resp = await fetch(API + '/api/admin/pay/epay/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { toast(data.error || '保存失败', 'error'); return; }
+      toast('EPay 配置已保存', 'success');
+      loadEpayConfig();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  }
+
+  // ============ 本站网关密钥（易支付入站） ============
+  function gwAdminKey() {
+    let k = localStorage.getItem('sc_epaygw_admin_key') || '';
+    if (!k) {
+      k = window.prompt('请输入网关管理密钥（服务器环境变量 EPAYGW_ADMIN_KEY）', '') || '';
+      if (k) { try { localStorage.setItem('sc_epaygw_admin_key', k); } catch (e) {} }
+    }
+    return k;
+  }
+  function gwAdminHeaders() {
+    return { 'Content-Type': 'application/json', 'x-admin-key': gwAdminKey() };
+  }
+  async function loadGatewayKey() {
+    try {
+      const resp = await fetch(API + '/epaygw/settings', { headers: gwAdminHeaders() });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.status === 403) { el('gwKeyTip').textContent = '需要管理密钥（EPAYGW_ADMIN_KEY）'; return; }
+      if (!resp.ok || data.code !== 1) { el('gwKeyTip').textContent = '加载失败'; return; }
+      el('gwKeyCurrent').value = data.data.gatewayKey || '';
+      el('gwKeyCurrent').type = 'password';
+    } catch (e) { el('gwKeyTip').textContent = '加载失败：' + e.message; }
+  }
+
+  async function saveGatewayKey() {
+    const v = el('gwKeyNew').value.trim();
+    if (!v) { el('gwKeyTip').textContent = '请输入新密钥'; return; }
+    if (v.length < 4) { el('gwKeyTip').textContent = '密钥至少 4 位'; return; }
+    try {
+      const resp = await fetch(API + '/epaygw/settings', {
+        method: 'POST',
+        headers: gwAdminHeaders(),
+        body: JSON.stringify({ key: v })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.code !== 1) { el('gwKeyTip').textContent = data.msg || ('保存失败 ' + resp.status); return; }
+      el('gwKeyTip').textContent = '已保存，立即生效';
+      el('gwKeyNew').value = '';
+      loadGatewayKey();
+    } catch (e) { el('gwKeyTip').textContent = '请求失败：' + e.message; }
+  }
   document.addEventListener('DOMContentLoaded', () => {
     // 左侧后台分区导航：只切换内容面板，不刷新页面、不丢失滚动位置
     document.querySelectorAll('.admin-nav-item').forEach(btn => {
@@ -629,6 +1289,16 @@
         });
         const main = el('adminMain');
         if (main) main.scrollTop = 0;
+        // 按需加载分区数据
+        if (target === 'social') loadAllGroups();
+        if (target === 'announce') loadAnnouncements();
+        if (target === 'ips') loadBannedIps();
+        if (target === 'sensitive') loadSensitiveWords();
+        if (target === 'audit') loadAuditLogs();
+        if (target === 'replay') { loadReplayConversations(); loadAdminCallReplays(); }
+        if (target !== 'replay') stopReplay();   // 离开分区就停掉回放定时器
+        if (target === 'merchants') loadMerchants();
+        if (target === 'epay') { loadEpayConfig(); loadGatewayKey(); }
       });
     });
     el('refreshBtn').addEventListener('click', refresh);
@@ -645,6 +1315,35 @@
     if (el('loginEmail')) el('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') adminSendCode(); });
     el('verSaveBtn').addEventListener('click', saveVersion);
     bindPkgUploads();
+    // 公告
+    if (el('annPublishBtn')) el('annPublishBtn').addEventListener('click', publishAnnouncement);
+    // 封禁IP
+    if (el('ipBanBtn')) el('ipBanBtn').addEventListener('click', banIp);
+    // 敏感词
+    if (el('sensitiveAddBtn')) el('sensitiveAddBtn').addEventListener('click', addSensitiveWord);
+    // 审计日志
+    if (el('auditRefreshBtn')) el('auditRefreshBtn').addEventListener('click', loadAuditLogs);
+    // 聊天回放
+    if (el('replayRefreshBtn')) el('replayRefreshBtn').addEventListener('click', loadReplayConversations);
+    if (el('replayFilter')) el('replayFilter').addEventListener('input', renderReplayConvs);
+    if (el('replayPlayBtn')) el('replayPlayBtn').addEventListener('click', toggleReplay);
+    if (el('replayExportBtn')) el('replayExportBtn').addEventListener('click', exportReplay);
+    if (el('merchantRefreshBtn')) el('merchantRefreshBtn').addEventListener('click', loadMerchants);
+    if (el('epaySaveBtn')) el('epaySaveBtn').addEventListener('click', saveEpayConfig);
+    $('keyCopyBtn') && 0; // noop guard
+    if (el('gwKeyShowBtn')) el('gwKeyShowBtn').addEventListener('click', () => {
+      const inp = el('gwKeyCurrent');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+    if (el('gwKeySaveBtn')) el('gwKeySaveBtn').addEventListener('click', saveGatewayKey);
+    // 钱包管理
+    if (el('walQueryBtn')) el('walQueryBtn').addEventListener('click', queryWallet);
+    if (el('walQuery')) el('walQuery').addEventListener('keydown', e => { if (e.key === 'Enter') queryWallet(); });
+    if (el('walAddBtn')) el('walAddBtn').addEventListener('click', adjustWallet);
+    // 群组
+    if (el('groupSearchBtn')) el('groupSearchBtn').addEventListener('click', () => loadAllGroups(el('groupSearch').value.trim()));
+    if (el('groupLoadBtn')) el('groupLoadBtn').addEventListener('click', () => loadAllGroups());
+    if (el('groupDetailClose')) el('groupDetailClose').addEventListener('click', () => hide(el('groupDetail')));
     // 自动刷新开关
     el('autoBtn').addEventListener('click', () => {
       autoRefreshEnabled = !autoRefreshEnabled;
@@ -657,4 +1356,154 @@
   });
 
   window.addEventListener('beforeunload', () => { if (refreshTimer) clearInterval(refreshTimer); });
+
+  // ============ 兑换码管理 ============
+  let redeemClaimedFilter = '';
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); if (done) done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  function loadRedeemCodes(claimed) {
+    redeemClaimedFilter = claimed || '';
+    const tb = el('redeemTbody');
+    if (!tb) return;
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">加载中...</td></tr>';
+    const token = getToken();
+    if (!token) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c0392b">请先登录</td></tr>'; return; }
+    fetch(API + '/api/admin/redeem' + (claimed !== undefined && claimed !== '' ? '?claimed=' + claimed : ''), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(r => r.json()).then(data => {
+      const codes = data.codes || [];
+      if (!codes.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">暂无兑换码</td></tr>'; return; }
+      tb.innerHTML = codes.map(c => {
+        const used = !!c.claimed_by;
+        const statusHtml = used
+          ? '<span class="admin-badge banned">已使用</span>'
+          : '<span class="admin-badge online">未使用</span>';
+        const claimedAt = c.claimed_at ? fmtTime(c.claimed_at) : '-';
+        const claimer = c.claimed_by ? String(c.claimed_by).slice(0, 8) : '-';
+        return `<tr>
+          <td><code>${escapeHtml(c.code)}</code> <button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c.code)}" style="padding:2px 8px;font-size:11px;margin-left:6px">${used ? '复制' : '复制'}</button></td>
+          <td>${c.value}元</td>
+          <td>${statusHtml}</td>
+          <td>${claimedAt}</td>
+          <td>${escapeHtml(claimer)}</td>
+        </tr>`;
+      }).join('');
+      tb.querySelectorAll('.redeem-copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const code = btn.dataset.code;
+          const done = () => { const o = btn.textContent; btn.textContent = '已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
+          else fallbackCopy(code, done);
+        });
+      });
+    }).catch(e => { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c0392b">加载失败: ' + escapeHtml(e.message) + '</td></tr>'; });
+  }
+  function renderRedeemResult(codes, value) {
+    const list = el('redeemCodeList');
+    const countEl = el('redeemResultCount');
+    const resultDiv = el('redeemResult');
+    if (!list || !countEl || !resultDiv) return;
+    countEl.textContent = codes.length;
+    list.innerHTML = codes.map(c => `<span style="display:inline-flex;align-items:center;gap:4px;margin:3px"><code class="admin-redeem-code">${escapeHtml(c)}</code><button class="admin-btn small redeem-copy-btn" data-code="${escapeHtml(c)}" style="padding:2px 8px;font-size:11px">复制</button></span>`).join('');
+    resultDiv.style.display = '';
+    list.querySelectorAll('.redeem-copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code;
+        const done = () => { const o = btn.textContent; btn.textContent = '已复制'; setTimeout(() => { btn.textContent = o; }, 1200); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
+        else fallbackCopy(code, done);
+      });
+    });
+  }
+  el('redeemIssueBtn').addEventListener('click', () => {
+    const value = parseFloat(el('redeemValue').value);
+    const count = Math.min(parseInt(el('redeemCount').value) || 1, 500);
+    if (!value || value <= 0) { alert('请输入有效面值'); return; }
+    const btn = el('redeemIssueBtn');
+    btn.disabled = true; btn.textContent = '生成中...';
+    const token = getToken();
+    fetch(API + '/api/admin/redeem/issue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ value, count })
+    }).then(r => r.json()).then(data => {
+      if (!data.ok) throw new Error(data.error || '生成失败');
+      renderRedeemResult(data.codes, value);
+      loadRedeemCodes(redeemClaimedFilter);
+    }).catch(e => { alert('生成失败: ' + e.message); }).finally(() => { btn.disabled = false; btn.textContent = '生成兑换码'; });
+  });
+  el('redeemCopyAllBtn').addEventListener('click', () => {
+    const codes = Array.from(el('redeemCodeList').querySelectorAll('.admin-redeem-code')).map(e => e.textContent);
+    navigator.clipboard.writeText(codes.join('\n')).then(() => alert('已复制 ' + codes.length + ' 个兑换码'));
+  });
+  document.querySelectorAll('.admin-redeem-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.admin-redeem-tab').forEach(t => t.classList.remove('on'));
+      tab.classList.add('on');
+      loadRedeemCodes(tab.dataset.claimed);
+    });
+  });
+  // 切换到兑换码面板时自动加载
+  document.querySelectorAll('.admin-nav-item').forEach(btn => {
+    if (btn.dataset.adminSection === 'redeem') {
+      btn.addEventListener('click', () => loadRedeemCodes(redeemClaimedFilter));
+    }
+  });
+
+  // ============ 通话回放（语音/视频，管理员全量） ============
+  async function loadAdminCallReplays() {
+    const btn = el('callReplayLoadBtn');
+    const box = el('callReplayList');
+    const hint = el('callReplayHint');
+    if (!btn || !box) return;
+    const token = getToken();
+    if (!token) return;
+    btn.disabled = true;
+    btn.textContent = '加载中...';
+    try {
+      const resp = await fetch(API + '/api/call-recordings?all=1', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || resp.status);
+      const list = data.recordings || [];
+      hint.textContent = '共 ' + list.length + ' 条';
+      if (!list.length) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#999">还没有任何通话回放</div>'; return; }
+      const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+      box.innerHTML = list.map(r => {
+        const kindBadge = r.kind === 'video'
+          ? '<span class="admin-badge online">视频通话</span>'
+          : '<span class="admin-badge">语音通话</span>';
+        const fromName = escapeHtml(r.fromNickname || r.fromUsername || ('用户' + r.fromId));
+        const toName = escapeHtml(r.toNickname || r.toUsername || ('用户' + r.toId));
+        const when = new Date(r.createdAt).toLocaleString();
+        // 媒体直接内联播放：视频用 video 标签，语音用 audio 标签
+        const player = r.kind === 'video'
+          ? `<video controls preload="none" src="${API}/api/call-recordings/${r.id}" style="width:100%;max-width:420px;border-radius:8px;background:#000;margin-top:6px"></video>`
+          : `<audio controls preload="none" src="${API}/api/call-recordings/${r.id}" style="width:100%;max-width:420px;margin-top:6px"></audio>`;
+        return `<div style="border:1px solid #e5e5e5;border-radius:10px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${kindBadge}
+            <b>${fromName}</b><span style="color:#999">→</span><b>${toName}</b>
+            <span style="color:#888;font-size:12px">${when}</span>
+            <span style="color:#aaa;font-size:12px">${fmtSize(r.size)}</span>
+          </div>
+          ${player}
+        </div>`;
+      }).join('');
+    } catch (e) {
+      box.innerHTML = '<div style="padding:16px;color:#c0392b">加载失败：' + escapeHtml(e.message) + '</div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '加载全部通话回放';
+    }
+  }
+  document.querySelectorAll('.admin-nav-item').forEach(btn => {
+    if (btn.dataset.adminSection === 'replay') {
+      btn.addEventListener('click', () => loadAdminCallReplays());
+    }
+  });
 })();

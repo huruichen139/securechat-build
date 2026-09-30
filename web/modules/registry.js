@@ -86,7 +86,7 @@
   // WS：复用巨石 socket（若存在），否则返回 null（Web<->Flutter 用 REST 信令兜底）
   function wsCycleSend(sub, to, data) {
     try {
-      if (window.socket && typeof window.send === 'function') {
+      if (window.state && window.state.ws && typeof window.send === 'function') {
         window.send('signal', { to, sub, data });
         return true;
       }

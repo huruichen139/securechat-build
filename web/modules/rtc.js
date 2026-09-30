@@ -141,9 +141,9 @@
       toast('当前端不支持 WebRTC，无法发起通话', 'error');
       return false;
     }
-    // 有 WS 就走 WS 信令；否则确保轮询桥在跑
-    if (!u.wsCycleSend('call', peerId, { kind: callKind })) startPolling();
-    else startPolling(); // WS 为主，rest 兜底（若 WS 断则轮询接管）
+    // 信令双通道：WS 为主（低延迟），同时保持 REST 轮询兜底（WS 断线时由轮询接管）
+    u.wsCycleSend('call', peerId, { kind: callKind });
+    startPolling();
     const ok = await getAndAddLocal();
     if (ok) {
       try { await rtc.startCall(peerId, callKind, localStream); } catch (e) {

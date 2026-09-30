@@ -1,442 +1,1689 @@
-﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SecureChat</title>
-<meta name="theme-color" content="#07c160" />
-<link rel="manifest" href="manifest.json" />
-<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<title>SecureChat - 端到端加密即时通讯</title>
+<meta name="theme-color" content="#ffffff" />
+<meta name="description" content="SecureChat - 安全、快速、可靠的端到端加密即时通讯工具。" />
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=wechat-pages-fix-20260815-7" />
-  <style>
-    /* ============ 真·亚克力效果 (内联，UTF-8，优先级高于外部 CSS) ============ */
-    /* 1) 给 body / .chat-wrap / .auth-wrap 加彩色渐变流动背景（这样 backdrop-filter 才有东西可模糊） */
-    html, body {
-      min-height: 100%;
-      background:
-        radial-gradient(1200px 800px at 8% -5%, rgba(124, 196, 245, .28), transparent 60%),
-        radial-gradient(1100px 700px at 100% 15%, rgba(180, 145, 245, .26), transparent 60%),
-        radial-gradient(900px 700px at 50% 110%, rgba(255, 200, 130, .22), transparent 60%),
-        linear-gradient(120deg, #f3f6fb 0%, #eef1f8 35%, #f6eef6 70%, #eef5f3 100%);
-      background-attachment: fixed;
-    }
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background:
-        radial-gradient(800px 600px at 25% 30%, rgba(7,193,96,.10), transparent 60%),
-        radial-gradient(700px 500px at 75% 70%, rgba(59,130,246,.12), transparent 60%),
-        radial-gradient(600px 400px at 60% 20%, rgba(236,72,153,.10), transparent 60%);
-      animation: sc-blob 18s ease-in-out infinite alternate;
-      filter: saturate(1.05);
-    }
-    @keyframes sc-blob {
-      0%   { transform: translate(0,0) scale(1); }
-      50%  { transform: translate(2%, -1%) scale(1.06); }
-      100% { transform: translate(-2%, 1%) scale(.96); }
-    }
-    /* 2) 真半透明面板：让 backdrop-filter 模糊能看到底色 */
-    .chat-wrap, .auth-wrap { background: transparent !important; }
-    .sidebar {
-      background: rgba(255, 255, 255, .55) !important;
-      backdrop-filter: blur(22px) saturate(1.6) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(1.6) !important;
-      box-shadow: 1px 0 0 rgba(255,255,255,.4);
-    }
-    .header, .composer, .ai-view .ai-header, .ai-view .ai-composer {
-      background: rgba(255, 255, 255, .6) !important;
-      backdrop-filter: blur(22px) saturate(1.6) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(1.6) !important;
-    }
-    .auth-card {
-      background: rgba(255, 255, 255, .6) !important;
-      backdrop-filter: blur(28px) saturate(1.7) !important;
-      -webkit-backdrop-filter: blur(28px) saturate(1.7) !important;
-      box-shadow: 0 20px 60px rgba(15, 23, 42, .18) !important;
-      border: 1px solid rgba(255, 255, 255, .5) !important;
-    }
-    .contact-list, .messages, .ai-view .ai-msgs {
-      background: transparent !important;
-    }
-    .modal, .modal-mask > * {
-      backdrop-filter: blur(30px) saturate(1.6) !important;
-      -webkit-backdrop-filter: blur(30px) saturate(1.6) !important;
-    }
-    /* 3) 暗色模式：深色亚克力 + 同样有彩色光晕可模糊 */
-    body.dark-mode, html.dark-mode, .dark-mode .chat-wrap {
-      background:
-        radial-gradient(1200px 800px at 8% -5%, rgba(30, 58, 138, .42), transparent 60%),
-        radial-gradient(1100px 700px at 100% 15%, rgba(76, 29, 149, .42), transparent 60%),
-        radial-gradient(900px 700px at 50% 110%, rgba(15, 118, 110, .30), transparent 60%),
-        linear-gradient(120deg, #0b1220 0%, #0f1530 35%, #181030 70%, #0d1a18 100%) !important;
-      background-attachment: fixed;
-    }
-    .dark-mode .sidebar {
-      background: rgba(17, 24, 39, .55) !important;
-      backdrop-filter: blur(22px) saturate(1.4) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(1.4) !important;
-    }
-    .dark-mode .header, .dark-mode .composer, .dark-mode .ai-view .ai-header, .dark-mode .ai-view .ai-composer {
-      background: rgba(17, 24, 39, .55) !important;
-      backdrop-filter: blur(22px) saturate(1.4) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(1.4) !important;
-    }
-    .dark-mode .auth-card {
-      background: rgba(17, 24, 39, .6) !important;
-      backdrop-filter: blur(28px) saturate(1.4) !important;
-      -webkit-backdrop-filter: blur(28px) saturate(1.4) !important;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, .4) !important;
-      border: 1px solid rgba(255, 255, 255, .08) !important;
-    }
-    /* 让所有面板表面内文字保持高对比度 */
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#fff;--bg2:#f7f8fa;--bg3:#f0f1f5;
+  --border:#e8e9ee;--border2:#dcdde3;
+  --text:#17181c;--text2:#5b5d66;--text3:#9a9ca6;
+  --brand:#07c160;--brand-dark:#06ad56;--blue:#3376ff;
+  --shadow-s:0 1px 4px rgba(20,24,40,.05);
+  --shadow-m:0 6px 24px rgba(20,24,40,.08);
+  --shadow-l:0 16px 48px rgba(20,24,40,.12);
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:rgba(7,193,96,.18)}
 
-    /* 4) 滚动条 */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.35); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,.55); }
-  </style>
-<script>
-  // API / WebSocket 自动跟随当前页面来源（同源），避免硬编码地址连不通。
-  (function () {
-    var host = location.hostname || '';
-    window.SERVER_HOST = location.origin;
-    // 移动端独立 UI：m.chat.32768.top 或窄屏（<= 720px）启用单栏模式
-    window.IS_MOBILE = host.indexOf('m.') === 0 || window.matchMedia('(max-width: 720px)').matches;
-    if (window.IS_MOBILE) document.documentElement.classList.add('is-mobile');
-  })();
-</script>
+/* ===== NAV ===== */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:60px;padding:0 max(40px,calc((100% - 1200px)/2));display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.72);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
+.nav.scrolled{border-bottom-color:var(--border);box-shadow:var(--shadow-s)}
+.nav-logo{font-size:17px;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
+.logo-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--brand),#00a854);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;box-shadow:0 2px 8px rgba(7,193,96,.3);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.nav-logo:hover .logo-mark{transform:rotate(-8deg) scale(1.08)}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a.nl{font-size:14px;color:var(--text2);text-decoration:none;position:relative;padding:4px 0;transition:color .2s}
+.nav-links a.nl::after{content:'';position:absolute;left:50%;bottom:0;width:0;height:2px;border-radius:2px;background:var(--brand);transition:all .25s cubic-bezier(.22,1,.36,1);transform:translateX(-50%)}
+.nav-links a.nl:hover{color:var(--text)}
+.nav-links a.nl:hover::after{width:100%}
+.btn-open{padding:8px 20px;font-size:14px;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-block}
+.btn-open:hover{background:var(--brand-dark);transform:translateY(-1px);box-shadow:0 6px 18px rgba(7,193,96,.35)}
+.btn-open:active{transform:scale(.97)}
+
+/* ===== HERO ===== */
+.hero{position:relative;padding:150px 24px 90px;text-align:center;overflow:hidden}
+.hero-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:900px;height:500px;background:radial-gradient(ellipse at center,rgba(7,193,96,.13),rgba(51,118,255,.07) 45%,transparent 70%);filter:blur(20px);pointer-events:none;animation:breathe 8s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.8;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.08)}}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;margin-bottom:28px;font-size:13px;font-weight:600;color:var(--brand-dark);background:rgba(7,193,96,.08);border:1px solid rgba(7,193,96,.2);border-radius:99px;cursor:pointer;transition:all .25s}
+.hero-badge:hover{background:rgba(7,193,96,.14);transform:translateY(-2px);box-shadow:0 4px 14px rgba(7,193,96,.2)}
+.hero-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(7,193,96,.5)}50%{box-shadow:0 0 0 6px rgba(7,193,96,0)}}
+.hero h1{font-size:clamp(38px,6vw,68px);font-weight:800;line-height:1.12;letter-spacing:-.03em;color:var(--text)}
+.hero h1 em{font-style:normal;background:linear-gradient(120deg,var(--brand),#3376ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{margin:22px auto 0;font-size:clamp(15px,1.8vw,18px);color:var(--text2);max-width:520px;line-height:1.75}
+.hero-actions{margin-top:40px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn-main{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;padding:14px 36px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--brand),#00a854);border:none;border-radius:12px;cursor:pointer;text-decoration:none;transition:all .25s cubic-bezier(.22,1,.36,1);box-shadow:0 8px 24px rgba(7,193,96,.3)}
+.btn-main::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.35),transparent 70%);transform:translateX(-110%);transition:transform .6s}
+.btn-main:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(7,193,96,.42)}
+.btn-main:hover::before{transform:translateX(110%)}
+.btn-main:active{transform:scale(.96)}
+.btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;font-size:16px;font-weight:600;color:var(--text);background:#fff;border:1px solid var(--border2);border-radius:12px;cursor:pointer;text-decoration:none;transition:all .25s;box-shadow:var(--shadow-s)}
+.btn-ghost:hover{border-color:var(--brand);color:var(--brand);transform:translateY(-3px);box-shadow:0 10px 26px rgba(7,193,96,.14)}
+.btn-ghost:active{transform:scale(.96)}
+.hero-note{margin-top:18px;font-size:13px;color:var(--text3)}
+
+/* ===== CLIENT MOCKUP ===== */
+.mockup-stage{max-width:1020px;margin:70px auto 0;padding:0 24px;perspective:1400px}
+.mockup{position:relative;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 30px 80px rgba(20,24,40,.16),0 4px 16px rgba(20,24,40,.06);overflow:hidden;transform:rotateX(6deg);transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.mockup-stage:hover .mockup{transform:rotateX(0)}
+.mk-titlebar{height:40px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 16px}
+.mk-dot{width:11px;height:11px;border-radius:50%}
+.mk-dot:nth-child(1){background:#ff5f57}.mk-dot:nth-child(2){background:#febc2e}.mk-dot:nth-child(3){background:#28c840}
+.mk-title{flex:1;text-align:center;font-size:12px;color:var(--text3)}
+.mk-body{display:flex;height:420px}
+.mk-side{width:230px;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
+.mk-search{margin:12px;padding:8px 12px;background:#ececf0;border-radius:8px;font-size:12px;color:var(--text3)}
+.mk-item{display:flex;gap:10px;padding:11px 14px;align-items:center;transition:background .15s}
+.mk-item.on{background:#e3e7ea}
+.mk-item:hover{background:#e9edf0}
+.mk-ava{width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
+.mk-info b{display:block;font-size:13px;color:var(--text);line-height:1.3}
+.mk-info span{display:block;font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.mk-chat{flex:1;display:flex;flex-direction:column;background:var(--bg2)}
+.mk-head{padding:12px 18px;background:#fff;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+.mk-msgs{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.mk-row{display:flex;gap:8px;align-items:flex-start}
+.mk-row.me{flex-direction:row-reverse}
+.mk-miniava{width:28px;height:28px;border-radius:6px;flex-shrink:0}
+.mk-bubble{max-width:65%;padding:8px 12px;border-radius:3px 12px 12px 12px;font-size:13px;line-height:1.5;background:#fff;color:var(--text);box-shadow:var(--shadow-s)}
+.mk-row.me .mk-bubble{background:#95ec69;border-radius:12px 3px 12px 12px}
+.mk-inputbar{background:#fff;border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px;align-items:center}
+.mk-tools span{display:inline-block;width:24px;height:24px;border-radius:6px;background:var(--bg3);margin-right:6px}
+.mk-send{margin-left:auto;padding:6px 18px;background:var(--brand);color:#fff;font-size:12px;border-radius:6px}
+.float-chip{position:absolute;z-index:3;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-l);padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;animation:floaty 5s ease-in-out infinite}
+.chip-a{top:-20px;right:6%;animation-delay:.5s}
+.chip-b{bottom:40px;left:-24px;animation-delay:1.6s}
+.chip-c{top:38%;right:-30px;animation-delay:2.8s}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.chip-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+
+/* ===== SECTIONS COMMON ===== */
+.section{padding:110px max(24px,calc((100% - 1160px)/2));position:relative}
+.sec-head{text-align:center;max-width:620px;margin:0 auto 64px}
+.kicker{display:inline-block;font-size:13px;font-weight:700;color:var(--brand);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.sec-head h2{font-size:clamp(28px,4.4vw,44px);font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.sec-head p{margin-top:14px;font-size:16px;color:var(--text2);line-height:1.75}
+
+/* scroll reveal */
+.rv{animation:rvUp .7s cubic-bezier(.22,1,.36,1) both}
+@keyframes rvUp{0%{opacity:0;transform:translateY(34px)}100%{opacity:1;transform:none}}
+.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}.rv.d4{transition-delay:.32s}.rv.d5{transition-delay:.4s}
+
+/* ===== FEATURES ===== */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feat-card{position:relative;background:#fff;border:1px solid var(--border);border-radius:16px;padding:32px 28px;cursor:pointer;transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s,border-color .35s;overflow:hidden}
+.feat-card::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--brand),#3376ff);transform:scaleX(0);transform-origin:left;transition:transform .4s cubic-bezier(.22,1,.36,1)}
+.feat-card:hover{transform:translateY(-8px);box-shadow:var(--shadow-l);border-color:transparent}
+.feat-card:hover::after{transform:scaleX(1)}
+.feat-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:20px;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.feat-card:hover .feat-ico{transform:scale(1.12) rotate(-6deg)}
+.fi-green{background:rgba(7,193,96,.1);color:var(--brand)}
+.fi-blue{background:rgba(51,118,255,.09);color:var(--blue)}
+.fi-orange{background:rgba(255,148,62,.12);color:#f07800}
+.fi-purple{background:rgba(136,84,255,.1);color:#8854ff}
+.fi-red{background:rgba(250,81,81,.1);color:#fa5151}
+.fi-teal{background:rgba(0,180,180,.1);color:#00a8a8}
+.feat-card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.feat-card p{font-size:14px;color:var(--text2);line-height:1.7}
+
+/* ===== SHOWCASE (scroll steps like video) ===== */
+.showcase{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 30%,var(--bg2) 70%,var(--bg) 100%);padding:110px max(24px,calc((100% - 1080px)/2))}
+.sc-step{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center;min-height:480px;margin-bottom:90px}
+.sc-step:last-child{margin-bottom:0}
+.sc-step.flip .sc-media{order:2}
+.sc-copy h3{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-bottom:16px}
+.sc-copy h3 em{font-style:normal;color:var(--brand)}
+.sc-copy p{font-size:15.5px;color:var(--text2);line-height:1.8;margin-bottom:20px;max-width:440px}
+.sc-tags{display:flex;gap:10px;flex-wrap:wrap}
+.sc-tag{padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--text2);background:#fff;border:1px solid var(--border);border-radius:99px;transition:all .2s;cursor:default}
+.sc-tag:hover{color:var(--brand);border-color:rgba(7,193,96,.4);background:rgba(7,193,96,.05);transform:translateY(-2px)}
+/* phone mockups */
+.phone-wrap{display:flex;justify-content:center;perspective:1200px}
+.phone{width:280px;height:560px;background:#111;border-radius:38px;padding:10px;box-shadow:0 30px 70px rgba(20,24,40,.25);transform:rotateY(-8deg) rotateX(3deg);transition:transform .6s cubic-bezier(.22,1,.36,1)}
+.sc-step.flip .phone{transform:rotateY(8deg) rotateX(3deg)}
+.phone-wrap:hover .phone{transform:rotateY(0) rotateX(0)}
+.screen{width:100%;height:100%;background:#ededed;border-radius:30px;overflow:hidden;display:flex;flex-direction:column}
+.scr-head{background:#ededed;padding:14px 16px 10px;font-size:14px;font-weight:600;text-align:center;border-bottom:1px solid #ddd}
+.scr-body{flex:1;padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.scr-row{display:flex;gap:6px;animation:msgIn .5s cubic-bezier(.22,1,.36,1) both}
+.scr-row.me{flex-direction:row-reverse}
+.scr-row:nth-child(1){animation-delay:.1s}.scr-row:nth-child(2){animation-delay:.3s}.scr-row:nth-child(3){animation-delay:.5s}.scr-row:nth-child(4){animation-delay:.7s}.scr-row:nth-child(5){animation-delay:.9s}.scr-row:nth-child(6){animation-delay:1.1s}
+@keyframes msgIn{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:none}}
+.scr-ava{width:26px;height:26px;border-radius:5px;flex-shrink:0}
+.scr-bub{max-width:70%;padding:7px 11px;font-size:12px;line-height:1.45;background:#fff;border-radius:2px 10px 10px 10px;color:#222;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.scr-row.me .scr-bub{background:#95ec69;border-radius:10px 2px 10px 10px}
+.scr-foot{background:#f7f7f7;border-top:1px solid #e2e2e2;padding:9px 12px;display:flex;align-items:center;gap:8px}
+.scr-field{flex:1;height:28px;background:#fff;border-radius:6px;border:1px solid #e0e0e0}
+
+/* ===== STATS BAR ===== */
+.stats-band{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden;max-width:1000px;margin:0 auto}
+.stat-c{background:#fff;padding:38px 20px;text-align:center;transition:background .25s}
+.stat-c:hover{background:var(--bg2)}
+.stat-n{font-size:clamp(30px,4.4vw,44px);font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,#17181c,#07c160);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-l{margin-top:4px;font-size:13px;color:var(--text2);font-weight:500}
+
+/* ===== DOWNLOAD ===== */
+.dl-section{text-align:center;padding:110px 24px}
+.os-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:860px;margin:52px auto 0}
+.os-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:34px 24px;text-decoration:none;color:var(--text);transition:all .35s cubic-bezier(.22,1,.36,1);cursor:pointer;display:block;position:relative;overflow:hidden}
+.os-card:hover{transform:translateY(-8px);box-shadow:0 20px 44px rgba(7,193,96,.16);border-color:rgba(7,193,96,.35)}
+.os-ic{font-size:38px;margin-bottom:12px;display:block;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.os-card:hover .os-ic{transform:scale(1.18)}
+.os-name{font-size:16px;font-weight:700}
+.os-ver{margin-top:4px;font-size:12.5px;color:var(--text3)}
+.os-btn{margin-top:16px;display:inline-flex;align-items:center;gap:6px;padding:8px 22px;font-size:13px;font-weight:600;color:var(--brand);background:rgba(7,193,96,.08);border-radius:8px;transition:all .2s}
+.os-card:hover .os-btn{background:var(--brand);color:#fff}
+
+/* ===== FOOTER ===== */
+.footer{border-top:1px solid var(--border);padding:36px 24px;text-align:center}
+.footer p{font-size:13px;color:var(--text3)}
+.footer a{color:var(--text2);text-decoration:none;transition:color .2s}
+.footer a:hover{color:var(--brand)}
+
+/* ===== EXTRA ANIMATIONS ===== */
+.progress-top{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;background:linear-gradient(90deg,var(--brand),#3376ff);transition:width .1s linear;border-radius:0 2px 2px 0}
+.hero h1,.hero-sub,.hero-actions,.hero-note,.hero-badge{opacity:0;transform:translateY(26px);animation:heroIn .8s cubic-bezier(.22,1,.36,1) forwards}
+.hero-badge{animation-delay:.05s}.hero h1{animation-delay:.15s}.hero-sub{animation-delay:.3s}.hero-actions{animation-delay:.45s}.hero-note{animation-delay:.6s}
+@keyframes heroIn{to{opacity:1;transform:none}}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none;animation:blobMove 14s ease-in-out infinite alternate}
+.blob-1{width:340px;height:340px;background:rgba(7,193,96,.16);top:-60px;left:-120px}
+.blob-2{width:280px;height:280px;background:rgba(51,118,255,.13);top:120px;right:-100px;animation-delay:-4s}
+.blob-3{width:240px;height:240px;background:rgba(136,84,255,.1);bottom:-80px;left:30%;animation-delay:-8s}
+@keyframes blobMove{from{transform:translate(0,0) scale(1)}to{transform:translate(50px,-40px) scale(1.18)}}
+.ticker-wrap{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:#fff;padding:16px 0}
+.ticker{display:flex;gap:56px;width:max-content;animation:ticker 26s linear infinite;font-size:14px;font-weight:600;color:var(--text3);white-space:nowrap}
+.ticker b{color:var(--brand);font-weight:700;margin-right:10px}
+.ticker-wrap:hover .ticker{animation-play-state:paused}
+@keyframes ticker{to{transform:translateX(-50%)}}
+.feat-ico svg{display:block}
+.os-ic{width:64px;height:64px;margin:0 auto 12px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.os-w{background:rgba(51,118,255,.1);color:#3376ff}
+.os-m{background:rgba(23,24,28,.06);color:#17181c}
+.os-a{background:rgba(7,193,96,.1);color:#07c160}
+.os-i{background:rgba(136,84,255,.1);color:#8854ff}
+.os-z{background:rgba(255,148,62,.12);color:#f07800}
+.os-g{background:rgba(0,168,168,.1);color:#00a8a8}
+[data-tilt]{will-change:transform;transition:transform .18s ease-out}
+.ripple{position:absolute;border-radius:50%;background:rgba(7,193,96,.25);transform:scale(0);animation:rip .6s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(3);opacity:0}}
+.btn-main,.btn-open,.os-btn{position:relative;overflow:hidden}
+.mk-row.me:last-child .mk-bubble::after{content:'';display:inline-block;width:5px;height:11px;margin-left:3px;vertical-align:-1px;background:#333;animation:caret .9s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+
+/* ===== ANIMATION OVERDOSE ===== */
+/* 1. 光标跟随光晕 */
+.cursor-glow{position:fixed;width:340px;height:340px;border-radius:50%;pointer-events:none;z-index:1;background:radial-gradient(circle,rgba(7,193,96,.07),transparent 65%);transform:translate(-50%,-50%);transition:opacity .3s}
+/* 2. 背景动态网格 */
+.animated-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(7,193,96,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(7,193,96,.035) 1px,transparent 1px);background-size:56px 56px;animation:gridDrift 22s linear infinite}
+@keyframes gridDrift{to{background-position:56px 112px}}
+/* 3. 章节标题逐词浮现 */
+.sec-head h2 .w{display:inline-block;opacity:0;transform:translateY(.6em) rotate(4deg);transition:all .55s cubic-bezier(.22,1,.36,1)}
+.sec-head.in h2 .w{opacity:1;transform:none}
+/* 4. 手机滚动视差 */
+.phone{will-change:transform}
+/* 5. 桌面 mockup 气泡入场（默认可见，play 时重播动画） */
+.mockup-stage.play .mk-row{animation:mkPop .55s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes mkPop{0%{opacity:0;transform:translateY(18px) scale(.95)}100%{opacity:1;transform:none}}
+/* 6. 打字中三点 */
+.typing-dots{display:inline-flex;gap:3px;padding:10px 14px;background:#fff;border-radius:3px 12px 12px 12px;box-shadow:var(--shadow-s);margin-top:-24px;margin-left:36px;opacity:0}
+.mockup-stage.play .typing-dots{animation:mkPop .5s 1.45s cubic-bezier(.34,1.56,.64,1) forwards}
+.typing-dots i{width:5px;height:5px;border-radius:50%;background:#bbb;animation:tdot 1s ease-in-out infinite}
+.typing-dots i:nth-child(2){animation-delay:.18s}.typing-dots i:nth-child(3){animation-delay:.36s}
+@keyframes tdot{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-4px);opacity:1}}
+/* 7. 功能卡图标常驻微动 + hover 弹跳 */
+.feat-ico{animation:icoFloat 3.6s ease-in-out infinite}
+.feat-card:nth-child(2n) .feat-ico{animation-delay:-1.2s}
+.feat-card:nth-child(3n) .feat-ico{animation-delay:-2.3s}
+@keyframes icoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+/* 8. 下载卡扫光循环 */
+.os-card::before{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(7,193,96,.06),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
+.os-card:nth-child(2)::before{animation-delay:1.2s}.os-card:nth-child(3)::before{animation-delay:2.4s}.os-card:nth-child(4)::before{animation-delay:.6s}.os-card:nth-child(5)::before{animation-delay:1.8s}.os-card:nth-child(6)::before{animation-delay:3s}
+@keyframes sheen{0%,55%{left:-80%}90%,100%{left:140%}}
+/* 9. 统计带流光边框 */
+.stats-band{position:relative}
+.stats-band::after{content:'';position:absolute;inset:-1px;border-radius:17px;padding:1px;background:linear-gradient(120deg,rgba(7,193,96,.4),transparent 30%,transparent 70%,rgba(51,118,255,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;background-size:220% 220%;animation:borderFlow 6s linear infinite;pointer-events:none}
+@keyframes borderFlow{0%{background-position:0% 0}100%{background-position:200% 0}}
+/* 10. 徽章摇摆 */
+.hero-badge:hover .dot{animation:wiggle .5s ease-in-out infinite}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(20deg) scale(1.2)}75%{transform:rotate(-20deg) scale(1.2)}}
+/* 11. Logo 常驻呼吸 */
+.logo-mark{animation:logoBreath 4s ease-in-out infinite}
+@keyframes logoBreath{0%,100%{box-shadow:0 2px 8px rgba(7,193,96,.3)}50%{box-shadow:0 4px 18px rgba(7,193,96,.55)}}
+/* 12. 波浪分隔 */
+.wave-sep{display:block;width:100%;height:60px;color:var(--bg2)}
+/* 13. 跑马灯项 hover 跳起 */
+.ticker span{transition:all .2s;cursor:default}
+.ticker span:hover{color:var(--text);transform:translateY(-3px)}
+/* 14. 平台徽章波浪入场 */
+.platforms a{opacity:0;animation:heroIn .5s cubic-bezier(.34,1.56,.64,1) forwards}
+.platforms a:nth-child(1){animation-delay:.75s}.platforms a:nth-child(2){animation-delay:.83s}.platforms a:nth-child(3){animation-delay:.91s}.platforms a:nth-child(4){animation-delay:.99s}.platforms a:nth-child(5){animation-delay:1.07s}.platforms a:nth-child(6){animation-delay:1.15s}
+/* 15. 下载成功彩带 */
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:300;pointer-events:none;animation:confFall linear forwards}
+@keyframes confFall{to{transform:translateY(105vh) rotate(720deg);opacity:.6}}
+
+/* ===== ANIMATION OVERDOSE II ===== */
+/* 16. 导航随滚动方向隐藏/显现 */
+.nav{transition:transform .35s cubic-bezier(.22,1,.36,1)}
+.nav.hidden-nav{transform:translateY(-100%)}
+/* 17. Hero 标题渐变流光循环 */
+.hero h1 em{background-size:200% 200%;animation:gradFlow 5s ease-in-out infinite}
+@keyframes gradFlow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+/* 18. 章节左右交替入场 */
+.sc-copy.rvL{animation:slideL .8s cubic-bezier(.22,1,.36,1) both}
+.sc-media.rvR{animation:slideR .8s .12s cubic-bezier(.22,1,.36,1) both}
+@keyframes slideL{0%{opacity:0;transform:translateX(-60px)}100%{opacity:1;transform:none}}
+@keyframes slideR{0%{opacity:0;transform:translateX(60px)}100%{opacity:1;transform:none}}
+/* 19. 功能卡滚动波浪弹入 */
+.feat-card.pop{animation:popIn .6s cubic-bezier(.34,1.56,.64,1) both}
+.feat-card.pop:nth-child(3n+1){animation-delay:.05s}
+.feat-card.pop:nth-child(3n+2){animation-delay:.15s}
+.feat-card.pop:nth-child(3n){animation-delay:.25s}
+@keyframes popIn{0%{opacity:0;transform:translateY(40px) scale(.9) rotate(-2deg)}100%{opacity:1;transform:none}}
+.feat-card.pop.in:nth-child(3n+1){transition-delay:.05s}
+.feat-card.pop.in:nth-child(3n+2){transition-delay:.15s}
+.feat-card.pop.in:nth-child(3n){transition-delay:.25s}
+/* 20. 统计数字流光扫过 */
+.stat-n{position:relative;overflow:hidden}
+.stats-band.play .stat-n::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55),transparent);animation:statSheen 2.4s ease-in-out infinite}
+.stats-band.play .stat-c:nth-child(2) .stat-n::after{animation-delay:.3s}
+.stats-band.play .stat-c:nth-child(3) .stat-n::after{animation-delay:.6s}
+.stats-band.play .stat-c:nth-child(4) .stat-n::after{animation-delay:.9s}
+@keyframes statSheen{0%{left:-100%}60%,100%{left:150%}}
+/* 21. 悬浮芯片随滚动微旋转 */
+.float-chip{will-change:transform;transition:rotate .2s linear}
+/* 22. 下载卡弹跳入场 */
+.os-card.bounce-in{animation:bounceIn .65s cubic-bezier(.34,1.56,.64,1) both}
+.os-card.bounce-in.d2{animation-delay:.12s}.os-card.bounce-in.d3{animation-delay:.24s}
+@keyframes bounceIn{0%{opacity:0;transform:scale(.7) translateY(30px)}100%{opacity:1;transform:none}}
+/* 23. 双向跑马灯第二行 */
+.ticker-wrap.two{padding-top:0;border-top:none}
+.ticker.rev{animation-direction:reverse;color:var(--text2)}
+.ticker.rev b{color:#3376ff}
+/* 24. 手机消息无限循环播放 */
+.scr-body.looping .scr-row{animation:msgIn .5s cubic-bezier(.22,1,.36,1) both, msgFade 12s linear infinite}
+@keyframes msgFade{0%,88%{opacity:1}94%{opacity:0}100%{opacity:0}}
+/* 25. 鼠标磁性按钮 */
+.btn-main,.btn-ghost{will-change:transform}
+/* 26. 波浪分隔动画 */
+.wave-sep path{animation:waveShift 8s linear infinite}
+@keyframes waveShift{to{transform:translateX(-50%)}}
+/* 27. logo 点击旋转跳跃 */
+.logo-mark.spin{animation:logoSpin .7s cubic-bezier(.34,1.56,.64,1)}
+@keyframes logoSpin{to{transform:rotate(360deg) scale(1.15)}}
+
+/* ===== 3D 感强化 ===== */
+/* 全站 3D 透视基础 */
+.hero,.section,.showcase{perspective:1200px;transform-style:preserve-3d}
+/* 客户端 mockup：更强 3D 悬浮 + 底部倒影 */
+.mockup-stage{perspective:1600px}
+.mockup{transform:rotateX(10deg) rotateY(-4deg);box-shadow:0 50px 100px -20px rgba(20,24,40,.28),0 30px 60px -30px rgba(7,193,96,.18),inset 0 1px 0 rgba(255,255,255,.8)}
+.mockup::after{content:'';position:absolute;left:6%;right:6%;bottom:-34px;height:34px;background:linear-gradient(180deg,rgba(20,24,40,.14),transparent 80%);transform:rotateX(80deg);filter:blur(10px);border-radius:50%}
+/* 3D 分层悬浮芯片 */
+.float-chip{transform-style:preserve-3d;box-shadow:0 18px 36px rgba(20,24,40,.16),inset 0 1px 0 rgba(255,255,255,.9)}
+.float-chip:hover{transform:translateZ(40px) rotateX(-6deg) rotateY(6deg) scale(1.06);animation-play-state:paused;transition:transform .3s}
+/* 功能卡 3D 翻转按压 */
+.feat-card{transform-style:preserve-3d}
+.feat-card:hover{transform:translateY(-10px) rotateX(4deg) rotateY(-3deg) translateZ(24px)}
+.feat-ico{transform:translateZ(30px);box-shadow:0 8px 18px rgba(20,24,40,.12)}
+/* 3D 按钮：厚度 + 按压 */
+.btn-main{box-shadow:0 6px 0 var(--brand-dark),0 16px 30px rgba(7,193,96,.32);transform-style:preserve-3d}
+.btn-main:hover{transform:translateY(-3px);box-shadow:0 9px 0 var(--brand-dark),0 22px 44px rgba(7,193,96,.4)}
+.btn-main:active{transform:translateY(3px);box-shadow:0 2px 0 var(--brand-dark),0 8px 16px rgba(7,193,96,.3)}
+.btn-ghost{box-shadow:0 4px 0 var(--border2)}
+.btn-ghost:hover{transform:translateY(-3px);box-shadow:0 7px 0 var(--border2),0 16px 30px rgba(20,24,40,.1)}
+.btn-ghost:active{transform:translateY(2px);box-shadow:0 1px 0 var(--border2)}
+/* 手机 3D 双机悬浮 + 镜面反光 */
+.phone{box-shadow:0 40px 80px rgba(20,24,40,.32),inset 0 0 0 2px rgba(255,255,255,.06)}
+.phone::before{content:'';position:absolute;inset:0;border-radius:38px;background:linear-gradient(115deg,rgba(255,255,255,.22) 0%,transparent 28%,transparent 72%,rgba(255,255,255,.1) 100%);pointer-events:none;z-index:5}
+.phone-wrap{transform-style:preserve-3d}
+.phone-wrap:hover .phone{translate:0 -14px!important}
+/* 下载卡 3D 立体 */
+.os-card{transform-style:preserve-3d}
+.os-card:hover{transform:translateY(-10px) rotateX(6deg) translateZ(20px);box-shadow:0 30px 60px -12px rgba(7,193,96,.22)}
+.os-ic{transform:translateZ(34px);box-shadow:0 12px 26px rgba(20,24,40,.14)}
+/* 统计带 3D 浮起 */
+.stats-band{transform-style:preserve-3d;box-shadow:0 24px 50px -18px rgba(20,24,40,.16)}
+.stats-band:hover{transform:translateY(-4px) rotateX(1.5deg)}
+.stat-c{transition:transform .3s}
+.stat-c:hover{transform:translateZ(26px)}
+/* 跑马灯 3D 斜面 */
+.ticker-wrap{transform:rotateX(8deg);transform-origin:center;box-shadow:0 14px 34px -14px rgba(20,24,40,.14)}
+/* 导航 3D 悬浮 */
+.nav{transform-style:preserve-3d}
+.nav.scrolled{box-shadow:0 10px 34px -12px rgba(20,24,40,.16)}
+/* logo 3D 硬币感 */
+.logo-mark{box-shadow:0 3px 0 #047a3c,0 8px 16px rgba(7,193,96,.35);transform:translateZ(0)}
+.logo-mark:hover{transform:rotateX(18deg) rotateY(-18deg)}
+/* hero 徽章 3D */
+.hero-badge{box-shadow:0 4px 0 rgba(7,193,96,.25),0 10px 22px -8px rgba(7,193,96,.3)}
+.hero-badge:hover{transform:translateY(-2px) rotateX(8deg)}
+
+
+/* ===== 第四批动画：粒子+逐字波浪+渐变旋转 ===== */
+.particles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.particles i{position:absolute;bottom:-10px;border-radius:50%;background:radial-gradient(circle,rgba(7,193,96,.5),rgba(7,193,96,0) 70%);animation:particleUp linear infinite}
+@keyframes particleUp{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:.85}88%{opacity:.5}100%{transform:translateY(-92vh) scale(.4);opacity:0}}
+.hero h1 .ch{display:inline-block;opacity:0;transform:translateY(.5em) rotate(6deg);animation:chIn .5s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes chIn{to{opacity:1;transform:none}}
+.kicker{position:relative}
+.kicker::after{content:'';position:absolute;left:50%;bottom:-6px;width:0;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--brand),#3376ff);transform:translateX(-50%);transition:width .5s cubic-bezier(.22,1,.36,1)}
+.sec-head:hover .kicker::after{width:100%}
+.btn-main{background:linear-gradient(135deg,var(--brand),#00a854,#3376ff);background-size:220% 220%;animation:btnGrad 5s ease-in-out infinite}
+@keyframes btnGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.blob{will-change:transform}
+.mockup{animation:mockFloat 6s ease-in-out infinite}
+@keyframes mockFloat{0%,100%{translate:0 0}50%{translate:0 -10px}}
+.os-card .os-btn{transition:all .25s}
+.os-card:hover .os-btn{transform:translateY(2px)}
+.stat-c{position:relative;overflow:hidden}
+.stat-c::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--brand),#3376ff);transform:scaleX(0);transition:transform .4s cubic-bezier(.22,1,.36,1)}
+.stat-c:hover::before{transform:scaleX(1)}
+.sc-tag{position:relative;overflow:hidden}
+.sc-tag::after{content:'';position:absolute;bottom:0;left:0;width:0;height:1.5px;background:var(--brand);transition:width .3s}
+.sc-tag:hover::after{width:100%}
+@media (prefers-reduced-motion:reduce){.particles i,.hero h1 .ch,.btn-main,.mockup{animation:none!important}}
+
+/* ===== 多设备全家福 + 加密流程 ===== */
+.device-stage{animation:stageReveal 1s cubic-bezier(.22,1,.36,1) both}
+@keyframes stageReveal{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(30px)}100%{opacity:1;clip-path:inset(0 0 0% 0);transform:none}}
+.device-stage{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:34px;padding:40px 20px 30px;perspective:1200px}
+.dev{position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.dev-screen{background:#0f1115;border-radius:10px;padding:6px;box-shadow:0 24px 50px -14px rgba(20,24,40,.3),inset 0 0 0 1.5px rgba(255,255,255,.08);position:relative;overflow:hidden}
+.dev-screen::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.13) 0%,transparent 30%);pointer-events:none}
+.dev-ui{display:flex;gap:5px;height:100%;background:#ededed;border-radius:5px;padding:7px}
+.du-side{width:26%;background:#e0e3e6;border-radius:3px}
+.du-chat{flex:1;background:#fff;border-radius:3px;padding:6px;display:flex;flex-direction:column;gap:5px}
+.du-chat b{display:block;height:5px;border-radius:3px;background:#d6dade}
+.dev-desktop .dev-screen{width:340px;height:200px}
+.dev-stand{width:14px;height:26px;background:linear-gradient(180deg,#2a2d33,#17191d);margin:0 auto}
+.dev-base{width:110px;height:7px;border-radius:4px;background:#17191d;margin:0 auto}
+.dev-laptop .dev-screen{width:250px;height:150px}
+.dev-keyboard{width:290px;height:9px;border-radius:4px 4px 8px 8px;background:linear-gradient(180deg,#2a2d33,#17191d);margin:2px auto 0}
+.dev-tablet .dev-screen{width:150px;height:196px;border-radius:14px}
+.dev-phone .dev-screen{width:96px;height:186px;border-radius:18px;padding:4px}
+.dev-phone .dev-ui{padding:5px;border-radius:12px}
+.dev{animation:devIn .7s cubic-bezier(.34,1.56,.64,1) both}
+.dev:nth-child(1){animation-delay:.15s}.dev:nth-child(2){animation-delay:.3s}.dev:nth-child(3){animation-delay:.45s}.dev:nth-child(4){animation-delay:.6s}
+@keyframes devIn{0%{opacity:0;transform:translateY(40px) scale(.85)}100%{opacity:1;transform:none}}
+.dev:hover{transform:translateY(-12px) rotateX(4deg)}
+.dev-glow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:70%;height:26px;background:radial-gradient(ellipse,rgba(7,193,96,.2),transparent 70%);filter:blur(8px);animation:glowPulse 4s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{opacity:.6;width:70%}50%{opacity:1;width:82%}}
+/* 加密流程管道 */
+.pipe{display:flex;align-items:stretch;justify-content:center;gap:14px;flex-wrap:wrap;max-width:980px;margin:0 auto}
+.pipe-step{flex:1;min-width:170px;max-width:210px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px 18px;text-align:center;transition:all .35s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
+.pipe-step:hover{transform:translateY(-8px);box-shadow:var(--shadow-l);border-color:rgba(7,193,96,.35)}
+.pipe-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:14px;background:rgba(51,118,255,.09);color:#3376ff;display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.pipe-step:hover .pipe-ico{transform:scale(1.14) rotate(-6deg)}
+.pi-lock{background:rgba(7,193,96,.1);color:var(--brand)}
+.pi-server{background:rgba(255,148,62,.12);color:#f07800}
+.pi-unlock{background:rgba(136,84,255,.1);color:#8854ff}
+.pipe-step h4{font-size:15px;font-weight:700;margin-bottom:4px}
+.pipe-step p{font-size:13px;color:var(--text2)}
+.pipe-arrow{align-self:center;color:var(--text3);animation:arrowNudge 1.6s ease-in-out infinite}
+@keyframes arrowNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+/* 密文演示条 */
+.cipher-demo{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:44px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:22px 30px;max-width:760px;margin-left:auto;margin-right:auto;box-shadow:var(--shadow-s)}
+.cd-label{font-size:12.5px;font-weight:700;color:var(--text3);letter-spacing:.06em}
+.cd-text{font-size:20px;font-weight:800;color:var(--text)}
+.cd-arrow{font-size:22px;color:var(--brand);animation:arrowNudge 1.6s ease-in-out infinite}
+.cd-cipher{font-family:ui-monospace,Consolas,monospace;font-size:17px;font-weight:700;color:var(--brand);background:rgba(7,193,96,.08);padding:8px 16px;border-radius:8px;letter-spacing:.05em;min-width:150px;text-align:center}
+/* 图片式入场揭示 */
+.rv-img{clip-path:inset(0 0 100% 0);transition:clip-path .9s cubic-bezier(.22,1,.36,1)}
+.rv-img.in{clip-path:inset(0 0 0% 0)}
+@media(max-width:900px){.device-stage{gap:18px}.dev-desktop .dev-screen{width:220px;height:130px}.dev-laptop{display:none}}
+@media(max-width:900px){
+  .nav-links a.nl{display:none}
+  .feat-grid{grid-template-columns:1fr 1fr}
+  .sc-step{grid-template-columns:1fr;gap:40px;min-height:auto}
+  .sc-step.flip .sc-media{order:0}
+  .float-chip{display:none}
+  .mk-body{height:340px}
+  .mk-side{display:none}
+  .stats-band{grid-template-columns:1fr 1fr}
+  .os-grid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .feat-grid{grid-template-columns:1fr}
+  .hero{padding-top:120px}
+}
+
+/* ============ Testimonials ============ */
+.testimonials-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1000px;margin:40px auto 0;padding:0 20px}
+.testimonial-card{background:#fff;border-radius:2px;padding:28px 24px;box-shadow:0 1px 6px rgba(0,0,0,.04);border:1px solid #f0f0f0;transition:transform .3s,box-shadow .3s}
+.testimonial-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.test-stars{color:#f5a623;font-size:16px;margin-bottom:12px}
+.test-quote{font-size:15px;line-height:1.7;color:#333;margin-bottom:16px;font-style:italic}
+.test-author{display:flex;align-items:center;gap:12px}
+.test-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+.test-author strong{font-size:14px;color:#1a1a1a}
+.test-author span{font-size:12px}
+
+/* ============ Changelog Compact Scroll ============ */
+.cl-mask{position:relative;max-width:520px;margin:0 auto;height:300px;overflow:hidden}
+.cl-scroll{height:100%;overflow-y:auto;padding:30px 20px 30px 36px;scroll-behavior:smooth}
+.cl-scroll::-webkit-scrollbar{width:3px}
+.cl-scroll::-webkit-scrollbar-track{background:transparent}
+.cl-scroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:2px}
+.cl-fade-top,.cl-fade-bottom{position:absolute;left:0;right:0;height:60px;pointer-events:none;z-index:2}
+.cl-fade-top{top:0;background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,0) 100%)}
+.cl-fade-bottom{bottom:0;background:linear-gradient(0deg,#fff 0%,rgba(255,255,255,0) 100%)}
+.changelog-timeline{position:relative}
+.changelog-timeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#07c160,#1fc784,#e0e0e0)}
+.cl-item{position:relative;padding-left:36px;margin-bottom:32px}
+.cl-dot{width:12px;height:12px;border-radius:50%;position:absolute;left:6px;top:4px;border:2px solid #fff;box-shadow:0 0 0 2px #07c160}
+.cl-ver{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
+.cl-date{font-size:12px;color:#888;font-weight:400;margin-left:8px}
+.cl-content p{font-size:13px;color:#666;line-height:1.6;margin:0}
+/* ============ Status Badges ============ */
+.badge-live,.badge-beta,.badge-plan{display:inline-block;font-size:11px;padding:2px 8px;border-radius:2px;font-weight:600;vertical-align:middle;margin-left:6px;line-height:1.4}
+.badge-live{background:#e6f9ee;color:#07c160;border:1px solid #b3ecd0}
+.badge-beta{background:#fff3e0;color:#f57c00;border:1px solid #ffe0b2}
+.badge-plan{background:#f5f5f5;color:#999;border:1px solid #e0e0e0}
+
+/* ============ Chat Experience Section ============ */
+.chat-section{background:#fafbfc;padding:100px 20px}
+.chat-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
+.chat-left{padding:20px}
+.chat-left h2{font-size:32px;font-weight:800;color:#1a1a1a;margin:0 0 16px}
+.chat-left h2 em{color:#07c160;font-style:normal}
+.chat-left>p{color:#666;font-size:15px;line-height:1.7;margin:0 0 28px}
+.chat-feat-list{list-style:none;padding:0;margin:0}
+.chat-feat-list li{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}
+.cf-icon{width:36px;height:36px;border-radius:2px;background:#e6f9ee;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#07c160;font-size:16px}
+.cf-text strong{display:block;font-size:14px;color:#1a1a1a;margin-bottom:2px}
+.cf-text span{font-size:13px;color:#888;line-height:1.5}
+
+/* ============ File Transfer Section ============ */
+.file-section{padding:100px 20px;background:#fff}
+.file-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.file-card{background:#fafbfc;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;text-align:center;transition:transform .3s,box-shadow .3s}
+.file-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.fc-icon{width:56px;height:56px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.fc-icon.green{background:#e6f9ee;color:#07c160}
+.fc-icon.blue{background:#e3f2fd;color:#1976d2}
+.fc-icon.orange{background:#fff3e0;color:#f57c00}
+.fc-icon.teal{background:#e0f2f1;color:#00897b}
+.file-card h4{font-size:15px;color:#1a1a1a;margin:0 0 8px}
+.file-card p{font-size:13px;color:#888;line-height:1.5;margin:0}
+
+/* ============ AI Section ============ */
+.ai-section{padding:100px 20px;background:linear-gradient(180deg,#f0faf4 0%,#fff 100%)}
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1100px;margin:40px auto 0}
+.ai-card{background:#fff;border-radius:2px;padding:28px 24px;border:1px solid #f0f0f0;transition:transform .3s,box-shadow .3s;position:relative}
+.ai-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.ai-emoji{font-size:32px;margin-bottom:14px;display:block}
+.ai-card h4{font-size:15px;font-weight:700;color:#1a1a1a;margin:0 0 8px}
+.ai-card p{font-size:13px;color:#666;line-height:1.6;margin:0}
+.ai-card .badge-live,.ai-card .badge-beta,.ai-card .badge-plan{position:absolute;top:16px;right:16px}
+
+/* ============ Security Section ============ */
+.sec-section{padding:100px 20px;background:#1a1a1a;color:#fff}
+.sec-section .sec-head .kicker{color:#07c160}
+.sec-section .sec-head h2{color:#fff}
+.sec-section .sec-head p{color:rgba(255,255,255,.6)}
+.sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1100px;margin:40px auto 0}
+.sec-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:2px;padding:28px 24px;transition:transform .3s,background .3s}
+.sec-card:hover{transform:translateY(-3px);background:rgba(255,255,255,.1)}
+.sc-icon{width:44px;height:44px;border-radius:2px;background:rgba(7,193,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+.sec-card h4{font-size:15px;color:#fff;margin:0 0 8px}
+.sec-card p{font-size:13px;color:rgba(255,255,255,.6);line-height:1.6;margin:0}
+
+/* ============ Cross-Platform Section ============ */
+.cross-section{padding:100px 20px;background:#fafbfc}
+.cross-devices{display:flex;justify-content:center;gap:32px;flex-wrap:wrap;margin:40px auto 0;max-width:1000px}
+.cross-device{text-align:center;transition:transform .3s}
+.cross-device:hover{transform:translateY(-6px)}
+.cd-screen{width:120px;height:200px;border-radius:8px;border:2px solid #e0e0e0;background:#fff;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.cd-screen::before{content:'';position:absolute;top:0;left:0;right:0;height:18px;background:#f5f5f5;border-bottom:1px solid #e0e0e0}
+.cd-screen .cd-chat{padding:24px 8px 8px;font-size:9px;color:#666;text-align:left;width:100%}
+.cd-screen .cd-chat .cd-line{margin-bottom:4px}
+.cd-screen .cd-chat .cd-line.me{text-align:right}
+.cd-screen .cd-chat .cd-bub{display:inline-block;background:#07c160;color:#fff;padding:3px 6px;border-radius:4px;font-size:8px}
+.cd-screen .cd-chat .cd-bub.them{background:#f0f0f0;color:#333}
+.cd-name{font-size:13px;font-weight:600;color:#1a1a1a}
+.cd-type{font-size:11px;color:#888}
+
+/* ============ Platform Logos Row ============ */
+.plat-row{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;margin:30px auto 0;max-width:800px}
+.plat-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
+.plat-dot{width:8px;height:8px;border-radius:50%;background:#07c160}
+
+
+/* ============ Contacts Section ============ */
+.contacts-section{padding:100px 20px;background:#fff}
+.ct-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;max-width:1100px;margin:0 auto;align-items:center}
+.ct-features{list-style:none;padding:0;margin:0}
+.ct-features li{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px}
+.ctf-icon{width:40px;height:40px;border-radius:2px;background:#e6f9ee;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ctf-icon svg{width:20px;height:20px}
+.ctf-text strong{display:block;font-size:14px;color:#1a1a1a;margin-bottom:3px}
+.ctf-text span{font-size:13px;color:#888;line-height:1.5}
+
+/* ============ Discover Section ============ */
+.discover-section{padding:100px 20px;background:linear-gradient(180deg,#f7faf8 0%,#fff 100%)}
+.disc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.disc-card{background:#fff;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;transition:transform .3s,box-shadow .3s}
+.disc-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.dc-icon{width:48px;height:48px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.dc-icon svg{width:24px;height:24px}
+.disc-card h4{font-size:15px;font-weight:700;color:#1a1a1a;margin:0 0 8px;text-align:center}
+.disc-card p{font-size:13px;color:#666;line-height:1.6;margin:0;text-align:center}
+
+/* ============ My Profile Section ============ */
+.meprofile-section{padding:100px 20px;background:#fff}
+.me-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.me-card{background:#fafbfc;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;transition:transform .3s,box-shadow .3s}
+.me-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.mec-icon{width:48px;height:48px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.mec-icon svg{width:24px;height:24px}
+.me-card h4{font-size:15px;font-weight:700;color:#1a1a1a;margin:0 0 8px;text-align:center}
+.me-card p{font-size:13px;color:#666;line-height:1.6;margin:0;text-align:center}
+
+/* ============ Message Management Section ============ */
+.msgmgmt-section{padding:100px 20px;background:#fafbfc}
+.msg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin:40px auto 0}
+.msg-card{background:#fff;border:1px solid #f0f0f0;border-radius:2px;padding:24px 20px;text-align:center;transition:transform .3s,box-shadow .3s}
+.msg-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.msgc-icon{width:44px;height:44px;border-radius:2px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
+.msgc-icon svg{width:22px;height:22px}
+.msg-card h4{font-size:14px;font-weight:700;color:#1a1a1a;margin:0 0 6px}
+.msg-card p{font-size:12px;color:#888;line-height:1.5;margin:0}<!DOCTYPE html>
+
+/* ============ Scroll Reveal for New Sections ============ */
+.disc-card,.me-card,.msg-card,.ct-features li,.cl-item{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.disc-card.in,.me-card.in,.msg-card.in,.ct-features li.in,.cl-item.in{opacity:1;transform:none}
+.disc-card:nth-child(2),.me-card:nth-child(2),.msg-card:nth-child(2){transition-delay:.1s}
+.disc-card:nth-child(3),.me-card:nth-child(3),.msg-card:nth-child(3){transition-delay:.2s}
+.disc-card:nth-child(4),.me-card:nth-child(4),.msg-card:nth-child(4){transition-delay:.3s}</style>
 </head>
 <body>
-  <div id="toastWrap" class="toast-wrap"></div>
-  <!-- 新消息浮层通知（右上角堆叠卡片） -->
-  <div id="messageNoticeStack" class="message-notice-stack"></div>
+<div class="progress-top" id="progressTop"></div>
+<div class="animated-grid"></div>
+<div class="cursor-glow" id="cursorGlow" style="opacity:0"></div>
 
-  <!-- 版本更新提示浮层 -->
-  <div id="updateMask" class="update-mask" style="display:none">
-    <div class="update-dialog">
-      <h3 id="updateTitle">发现新版本 vX.X.X</h3>
-      <div id="updateNotes" class="notes"></div>
-      <div class="actions">
-        <button id="updateNowBtn" class="ok">立即下载</button>
-        <button id="updateLaterBtn" class="cancel">稍后</button>
-      </div>
-    </div>
+<nav class="nav" id="nav">
+  <a href="/" class="nav-logo"><span class="logo-mark">S</span>SecureChat</a>
+  <div class="nav-links">
+    <a class="nl" href="#features">功能</a>
+    <a class="nl" href="#showcase">体验</a>
+    <a class="nl" href="#download">下载</a>
+    <a class="btn-open" href="/chat">打开网页版</a>
   </div>
-  <!-- 登录/注册 -->
-  <div id="authView" class="auth-wrap">
-    <div class="auth-card">
-      <div class="auth-logo">SecureChat</div>
-      <div class="auth-sub">端到端加密聊天</div>
-      <div class="tabs">
-        <div class="tab on" data-tab="login" data-i18n="login">登录</div>
-        <div class="tab" data-tab="register" data-i18n="register">注册</div>
-      </div>
-      <input id="username" class="input" placeholder="用户名或邮箱" autocomplete="off" data-i18n-placeholder="usernameOrEmail" />
-      <input id="password" class="input" type="password" placeholder="密码（至少6位）" autocomplete="off" data-i18n-placeholder="password" />
-      <!-- 登录方式切换（仅登录模式显示） -->
-      <div id="loginModeRow" class="login-mode-row" style="display:none">
-        <button type="button" class="login-mode-btn on" data-login-mode="password" data-i18n="passwordLogin">密码登录</button>
-        <button type="button" class="login-mode-btn" data-login-mode="code" data-i18n="codeLogin">验证码登录</button>
-        <button type="button" class="login-mode-btn" data-login-mode="qr" data-i18n="qrLogin">扫码登录</button>
-      </div>
-      <input id="nickname" class="input" placeholder="昵称（注册时填写）" style="display:none" data-i18n-placeholder="nickname" />
-      <input id="customUid" class="input" placeholder="自定义ID（4-16位字母数字，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="customUid" />
-      <input id="country" class="input" placeholder="国家/地区（自由填写，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="country" />
-      <input id="province" class="input" placeholder="省/州（注册时可填，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="province" />
-      <input id="city" class="input" placeholder="城市（注册时可填，可留空）" style="display:none" autocomplete="off" data-i18n-placeholder="city" />
-      <!-- 注册专用：邮箱 + 验证码 -->
-      <input id="email" class="input" type="email" placeholder="邮箱（注册时填写）" style="display:none" autocomplete="off" data-i18n-placeholder="email" />
-      <div id="codeRow" class="code-row" style="display:none">
-        <input id="code" class="input code-input" placeholder="邮箱验证码" autocomplete="off" maxlength="6" data-i18n-placeholder="sendCode" />
-        <button id="sendCodeBtn" class="code-btn" type="button" data-i18n="sendCode">发送验证码</button>
-      </div>
-      <button id="authBtn" class="btn" data-i18n="login">登录</button>
-      <div id="qrLoginArea" style="display:none">
-        <img id="qrImage" style="display:none" alt="扫码登录二维码" />
-        <p id="qrTip" class="qr-login-tip">请使用手机扫码登录</p>
-        <button id="qrRegenBtn" type="button" class="btn btn-secondary">刷新二维码</button>
-      </div>
-      <div id="authErr" class="err"></div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-glow"></div>
+  <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div><div class="particles" id="particles"></div><canvas id="net3d" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+  <div style="position:relative">
+    <div class="hero-badge" onclick="location.href='/chat'"><span class="dot"></span><span id="verBadge">最新版本已发布 · 立即体验</span></div>
+    <h1>加密通信<br/><em>本该如此简单</em></h1>
+    <p class="hero-sub">端到端加密，消息只存在于你的设备。文字、语音、视频、文件 —— 一切都经过 Signal 协议加密，谁也看不到。</p>
+    <div class="hero-actions">
+      <a href="#download" class="btn-main">免费下载客户端</a>
+      <a href="/chat" class="btn-ghost">浏览器直接开聊</a>
     </div>
+    <p class="hero-note">支持 Windows / macOS / Android / iOS / HarmonyOS / 网页</p>
   </div>
 
-  <!-- 聊天主界面 -->
-  <div id="chatView" class="chat-wrap" style="display:none">
-    <!-- 左侧 -->
-    <div class="sidebar">
-      <div class="sidebar-rail">
-        <div class="sidebar-rail-brand">S</div>
-        <div class="sidebar-rail-group">
-          <button class="side-tab on" data-side="friends" title="微信"><span class="rail-icon">聊</span><span data-i18n="friends">微信</span></button>
-           <button class="side-tab" data-side="pay" title="转账"><span class="rail-icon">转</span>转账</button>
-           <button class="side-tab" data-side="ai" title="发现"><span class="rail-icon">发</span><span data-i18n="ai">发现</span></button>
-          <button id="downloadEntry" class="side-tab" data-side="downloads" type="button" title="我"><span class="rail-icon">我</span><span data-i18n="download">我</span></button>
-           <button id="featureCenterEntry" class="side-tab" data-side="more" type="button" title="更多功能"><span class="rail-icon">＋</span><span data-i18n="more">更多</span></button>
-           <button id="adminEntry" class="side-tab" data-side="admin" type="button" title="管理后台" style="display:none"><span class="rail-icon">⚙</span>管理</button>
-         </div>
-        <div class="sidebar-rail-bottom">
-          <button id="localeToggle" class="rail-action" title="切换语言" data-i18n="language">语言</button>
-          <button id="themeToggle" class="rail-action" title="切换深色模式" data-i18n="dark">夜</button>
-          <span class="rail-dot"></span>
+  <!-- CLIENT MOCKUP -->
+  <div class="mockup-stage">
+    <div class="mockup">
+      <div class="mk-titlebar"><span class="mk-dot"></span><span class="mk-dot"></span><span class="mk-dot"></span><span class="mk-title">SecureChat — 端到端加密中</span></div>
+      <div class="mk-body">
+        <div class="mk-side">
+          <div class="mk-search">搜索联系人</div>
+          <div class="mk-item on"><div class="mk-ava" style="background:#07c160">李</div><div class="mk-info"><b>李小明</b><span>消息已加密，放心发送</span></div></div>
+          <div class="mk-item"><div class="mk-ava" style="background:#3376ff">产</div><div class="mk-info"><b>产品讨论组</b><span>王五: 新版本今晚发布</span></div></div>
+          <div class="mk-item"><div class="mk-ava" style="background:#8854ff">陈</div><div class="mk-info"><b>陈晨</b><span>[语音] 0:12</span></div></div>
+          <div class="mk-item"><div class="mk-ava" style="background:#ff943e">设</div><div class="mk-info"><b>设计部</b><span>赵六: 文件已上传</span></div></div>
         </div>
-      </div>
-      <div class="sidebar-content">
-        <div class="sidebar-brand">
-          <div class="brand-mark">S</div>
-          <div class="brand-copy"><strong data-i18n="app">SecureChat</strong><span data-i18n="secureSpace">安全通信空间</span></div>
-          <span class="brand-status" title="服务在线"></span>
-        </div>
-        <div id="friendsSide" class="sidebar-tools">
-          <div class="section-label" data-i18n="contacts">联系人</div>
-           <div class="add-friend"><input id="addFriendInput" class="search" placeholder="输入对方 ID 加好友" /><button id="addFriendBtn" class="add-btn" data-i18n="addFriend">加好友</button></div>
-           <div class="group-actions unified-group-actions"><button id="createGroupBtn" class="add-btn" data-i18n="createGroup">创建群</button><button id="joinGroupBtn" class="add-btn" data-i18n="joinGroup">加入群</button></div>
-          <div id="friendReqBar" class="friend-req-bar" style="display:none"><span id="friendReqText"></span><button id="acceptFriendBtn" class="btn-cn" data-i18n="add">接受</button><button id="rejectFriendBtn" class="btn-cn gray" data-i18n="close">拒绝</button></div>
-          <input id="search" class="search" placeholder="搜索联系人" data-i18n-placeholder="searchContacts" />
-        </div>
-        <div class="sidebar-mini-stats"><span><b id="friendCount">0</b> <span data-i18n="friends">好友</span></span><span><b id="groupCount">0</b> <span data-i18n="groups">群组</span></span><span class="online-label"><i></i><span data-i18n="online">在线</span></span></div>
-        <div class="list-heading"><span data-i18n="conversations">会话列表</span><span id="listCount"></span></div>
-        <div class="contact-list" id="contactList"></div>
-        <div class="my-info" id="myInfo"></div>
-      </div>
-    </div>
-    <!-- 右侧 -->
-    <div class="main">
-      <!-- 桌面端聊天头部 -->
-      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系人</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话" data-i18n="search">搜索</button><button id="pinChatBtn" class="head-tool" title="置顶当前会话" data-i18n="pin">置顶</button><button id="muteChatBtn" class="head-tool" title="当前会话免打扰" data-i18n="mute">免打扰</button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录" data-i18n="clear">清空</button><button id="notifyBtn" class="head-tool" title="开启浏览器通知" data-i18n="notify">通知</button></div></div>
-      <!-- 微信式移动端聊天头部（默认隐藏） -->
-      <div id="chatMobileHeader" class="chat-header" style="display:none">
-        <button class="header-back" id="chatMobileBackBtn">返回</button>
-        <span id="chatMobileTitle" class="chat-title">聊天</span>
-        <button class="header-more" id="chatMobileMoreBtn">⋯</button>
-      </div>
-      <div id="inviteBar" class="group-actions" style="display:none;padding:6px 12px">
-        <button id="inviteGroupBtn" class="add-btn" data-i18n="add">邀请成员</button>
-      </div>
-      <div class="messages" id="messages">
-        <div id="callReplayList" class="call-replay-list" style="display:none"></div>
-        <div id="welcomePanel" class="welcome-panel">
-          <div class="welcome-orb">S</div>
-          <div class="welcome-kicker">SECURE COMMUNICATION</div>
-          <h1 data-i18n="welcome">欢迎使用 SecureChat</h1>
-          <p class="welcome-sub" data-i18n="welcomeSub">选择一个联系人开始聊天，或者从下面快速开始。</p>
-          <div class="welcome-actions">
-            <button type="button" class="welcome-action" id="welcomeAddBtn"><span class="welcome-icon">添加</span><b data-i18n="addFriend">添加好友</b><small data-i18n="welcomeAddSub">通过 UID 找到朋友</small></button>
-            <button type="button" class="welcome-action" id="welcomeGroupBtn"><span class="welcome-icon" data-i18n="groupChat">群聊</span><b data-i18n="createGroup">创建群聊</b><small data-i18n="welcomeGroupSub">和多人一起交流</small></button>
-            <button type="button" class="welcome-action" id="welcomeAiBtn"><span class="welcome-icon" data-i18n="assistant">助手</span><b data-i18n="ai">使用 AI 助手</b><small data-i18n="welcomeAiSub">快速问答与创作</small></button>
+        <div class="mk-chat">
+          <div class="mk-head">李小明</div>
+          <div class="mk-msgs">
+            <div class="mk-row"><div class="mk-miniava" style="background:#07c160"></div><div class="mk-bubble">周末一起爬山吗？天气不错</div></div>
+            <div class="mk-row me"><div class="mk-bubble">好啊！几点出发？</div></div>
+            <div class="mk-row me"><div class="mk-bubble">顺便把路线图发我一下</div></div>
+            <div class="mk-row"><div class="mk-miniava" style="background:#07c160"></div><div class="mk-bubble">早上七点，路线图稍后发你</div></div>
+            <div class="mk-row"><div class="mk-miniava" style="background:#07c160"></div><div class="mk-bubble">对了，这个聊天是端到端加密的，随便聊</div></div>
           </div>
-          <div class="welcome-features"><span data-i18n="encrypted">加密传输</span><span data-i18n="realtime">实时同步</span><span data-i18n="voiceVideo">语音视频</span><span data-i18n="fileShare">文件分享</span></div>
-          <div class="welcome-tip" data-i18n="welcomeTip">提示：Enter 发送消息，Shift + Enter 换行</div>
+          <div class="mk-inputbar"><div class="mk-tools"><span></span><span></span><span></span></div><div class="mk-send">发送</div></div>
         </div>
       </div>
-      <div id="messageSearchBar" class="message-search-bar" style="display:none"><input id="messageSearchInput" placeholder="搜索当前已加载的消息" data-i18n-placeholder="searchMessages" /><button id="messageSearchClose" type="button" data-i18n="close">关闭</button></div>
-      <!-- 通话/文件传输浮层 -->
-      <div id="callBar" class="call-bar" style="display:none">
-        <span id="callText"></span>
-        <video id="localVideo" autoplay muted playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
-        <div class="call-actions">
-          <button id="acceptCallBtn" type="button" class="btn-cn">接听</button>
-          <button id="rejectCallBtn" type="button" class="btn-cn">拒绝</button>
-          <button id="hangupBtn" type="button" class="btn-cn danger">挂断</button>
-        </div>
-      </div>
-      <div id="fileBar" class="file-bar" style="display:none">
-        <span id="fileText"></span>
-        <div class="progress"><div id="fileProgress" class="progress-bar"></div></div>
-      </div>
-      <!-- 微信式输入栏（移动端，默认隐藏） -->
-      <div id="chatMobileComposer" class="chat-composer" style="display:none">
-        <button id="voiceIconBtn" class="composer-icon-btn" type="button" title="语音">🎤</button>
-        <div class="composer-input-wrap"><textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftState" class="draft-state" data-i18n="draftAuto">草稿自动保存</span></div>
-        <button id="emojiIconBtn" class="composer-icon-btn" type="button" title="表情">😊</button>
-        <button id="plusIconBtn" class="composer-icon-btn" type="button" title="更多">➕</button>
-        <button id="sendBtn" class="composer-send-btn" data-i18n="send">发送</button>
-      </div>
-      <!-- 原桌面端输入栏（保留，PC 端使用） -->
-      <div class="composer" id="chatDesktopComposer">
-        <div class="composer-tools">
-          <button id="fileBtn" class="tool" title="发送文件" data-i18n="files">文件</button>
-          <button id="voiceBtn" class="tool" title="点一下开始说话，再点一下发送" data-i18n="voice">语音</button>
-          <button id="speechBtn" class="tool" title="语音转文字" data-i18n="transcribe">转文字</button>
-          <button id="audioBtn" class="tool" title="语音通话" data-i18n="audio">通话</button>
-          <button id="videoBtn" class="tool" title="视频通话" data-i18n="video">视频</button>
-        </div>
-        <div class="composer-input-wrap"><textarea id="desktopInput" placeholder="输入消息，Enter 发送，Shift+Enter 换行" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftStateDesktop" class="draft-state" data-i18n="draftAuto">草稿自动保存</span></div>
-        <button id="desktopSendBtn" class="btn send" data-i18n="send">发送</button>
-      </div>
-      <div id="voiceTip" class="voice-tip" style="display:none"></div>
-      <div id="recBar" class="rec-bar" style="display:none">
-        <span id="recDot" class="rec-dot"></span>
-        <span id="recTime">0.0s</span>
-        <span class="rec-hint">上划取消</span>
-      </div>
+      <div class="typing-dots" style="position:absolute;bottom:70px;left:250px"><i></i><i></i><i></i></div>
     </div>
-    <!-- 发现页（移动端全屏） -->
-    <div id="discoverPage" class="wechat-page">
-      <div class="page-header">
-        <button class="back-btn" id="discoverBackBtn">返回</button>
-        <h2>发现</h2>
-      </div>
-      <div class="page-body">
-        <div class="discover-list" id="discoverList"></div>
-      </div>
-    </div>
-    <!-- 我的页（移动端全屏） -->
-    <div id="mePage" class="wechat-page me-page">
-      <div class="page-header">
-        <button class="back-btn" id="meBackBtn">返回</button>
-        <h2>我</h2>
-      </div>
-      <div class="page-body">
-        <div class="me-header" id="meHeaderContent"></div>
-        <div class="me-card" id="meServicesCard"></div>
-      </div>
-    </div>
-    <!-- 通讯录页（移动端全屏） -->
-    <div id="contactsPage" class="wechat-page">
-      <div class="page-header">
-        <button class="back-btn" id="contactsBackBtn">返回</button>
-        <h2>通讯录</h2>
-      </div>
-      <div class="page-body">
-        <input id="contactsSearch" class="search" placeholder="搜索联系人" data-i18n-placeholder="searchContacts" style="margin:8px 12px;width:calc(100% - 24px)" />
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">新好友</div>
-        <div class="contact-section" id="contactsNewFriends"></div>
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">标签</div>
-        <div class="contact-section" id="contactsLabels"><div class="contact" id="contactLabelsItem" style="padding:12px 14px;color:#888;font-size:14px">暂无标签</div></div>
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">朋友群</div>
-        <div class="contact-section" id="contactsGroups"></div>
-        <div class="contact-group-label" style="background:#ededed;padding:6px 16px;font-size:13px;color:#999">公众号</div>
-        <div class="contact-section" id="contactsOA"><div class="contact" id="contactOAItem" style="padding:12px 14px;color:#888;font-size:14px">暂无关注公众号</div></div>
-        <div id="contactsAlphabetSection"></div>
-      </div>
-    </div>
-    <!-- AI 助手视图（与 .main 平级，独立显示） -->
-    <div id="aiView" class="ai-view" style="display:none">
-      <div class="ai-header">
-        <span data-i18n="ai">AI 助手</span>
-        <button id="aiSettingsBtn" class="ai-btn-sm" title="配置 AI 提供商" data-i18n="settings">⚙️ 设置</button>
-      </div>
-      <section class="mini-programs" aria-label="小程序">
-        <div class="mini-programs-title">小程序</div>
-        <div id="miniProgramList" class="mini-program-list"><span>正在加载...</span></div>
-      </section>
-      <div id="aiMessages" class="ai-msgs messages"></div>
-      <div class="ai-composer">
-        <input id="aiInput" placeholder="向 AI 提问..." autocomplete="off" data-i18n-placeholder="aiInput" />
-        <button id="aiSendBtn" class="btn send" data-i18n="send">发送</button>
-      </div>
-    </div>
-    <!-- 下载视图（与聊天、AI 视图平级，只切换右侧内容） -->
-     <div id="downloadView" class="download-view" style="display:none">
-       <div class="download-header"><button id="downloadBackBtn" class="back-to-list-btn" type="button" data-i18n="back">返回</button><span>下载 SecureChat</span><span class="download-header-sub">多平台客户端</span></div>
-      <div class="download-page">
-        <div id="downloadStatus" class="download-status" role="status" aria-live="polite">正在获取最新版本…</div>
-        <section id="recommended" class="download-recommend" aria-labelledby="recommended-title"></section>
-        <details class="download-other" open>
-          <summary>其他平台</summary>
-          <div id="platform-list" class="download-platform-list"></div>
-        </details>
-       </div>
-     </div>
-    <!-- 管理后台视图 -->
-     <div id="adminView" class="download-view" style="display:none">
-       <div class="download-header">
-         <button id="adminBackBtn" class="back-to-list-btn" type="button">返回</button>
-         <span>管理后台</span>
-       </div>
-       <div class="download-page">
-         <section class="admin-section">
-           <h3>生成余额兑换码</h3>
-           <div class="admin-form">
-             <div class="admin-field">
-               <label>面值(元)</label>
-               <input id="adminRedeemValue" type="number" step="0.01" min="0.01" value="10" placeholder="面值">
-             </div>
-             <div class="admin-field">
-               <label>数量</label>
-               <input id="adminRedeemCount" type="number" min="1" max="500" value="10" placeholder="1-500">
-             </div>
-             <button id="adminIssueBtn" type="button" class="btn-cn">生成兑换码</button>
-           </div>
-           <div id="adminIssueResult" class="admin-result" style="display:none">
-             <div class="admin-result-header">
-               <span>已生成 <b id="adminIssueCount"></b> 个兑换码</span>
-               <button id="adminCopyAllBtn" type="button" class="btn-cn small">复制全部</button>
-             </div>
-             <div id="adminCodeList" class="admin-code-list"></div>
-           </div>
-         </section>
-         <section class="admin-section">
-           <h3>兑换码列表</h3>
-           <div class="admin-tabs">
-             <button class="admin-tab on" data-claimed="">全部</button>
-             <button class="admin-tab" data-claimed="0">未使用</button>
-             <button class="admin-tab" data-claimed="1">已使用</button>
-           </div>
-           <div id="adminCodeTable" class="admin-code-table">
-             <div style="padding:20px;color:#999;text-align:center">加载中...</div>
-           </div>
-         </section>
-       </div>
-     </div>
-   </div>
+    <div class="float-chip chip-a"><div class="chip-ico" style="background:#07c160">&#10003;</div>已端到端加密</div>
+    <div class="float-chip chip-b"><div class="chip-ico" style="background:#3376ff">&#9654;</div>语音视频通话</div>
+    <div class="float-chip chip-c"><div class="chip-ico" style="background:#ff943e">&#8690;</div>文件极速传输</div>
+  </div>
+</header>
 
-<div class="mobile-bottom-nav" id="mobileBottomNav"></div>
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="sec-head rv">
+    <span class="kicker">Core Features</span>
+    <h2>为安全而生的<br/>每一个功能</h2>
+    <p>不是在普通聊天上贴一层加密，而是从协议层开始重新设计。每个字节离开设备之前就已完成加密。</p>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card rv d1" data-tilt><div class="feat-ico fi-green"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div><h3>端到端加密</h3><p>Signal 协议 + 前向保密。服务器被攻破也无法解密历史消息。</p></div>
+    <div class="feat-card rv d2" data-tilt><div class="feat-ico fi-blue"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div><h3>毫秒级送达</h3><p>WebSocket 长连接实时推送，多端同时在线消息无缝同步。</p></div>
+    <div class="feat-card rv d3" data-tilt><div class="feat-ico fi-purple"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg></div><h3>音视频通话</h3><p>WebRTC 点对点直连，媒体流不经过服务器，无法被监听。</p></div>
+    <div class="feat-card rv d1" data-tilt><div class="feat-ico fi-orange"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg></div><h3>加密文件传输</h3><p>任意格式、任意大小，传输全程加密，支持断点续传。</p></div>
+    <div class="feat-card rv d2" data-tilt><div class="feat-ico fi-red"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.4 15c2.6.3 4.6 1.9 4.6 4.6"/></svg></div><h3>群组聊天</h3><p>群消息同样端到端加密，群主可控成员权限与邀请链接。</p></div>
+    <div class="feat-card rv d3" data-tilt><div class="feat-ico fi-teal"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>六端全覆盖</h3><p>Windows / macOS / Android / iOS / 鸿蒙 / 网页版，随你切换。</p></div>
+  </div>
 
-<script src="webrtc.js?v=1-24-3-26"></script>
-<script src="i18n.js?v=i18n-20260802-1"></script>
-<script src="ai.js?v=1-54-0-0"></script>
-<script src="download.js"></script>
-<script src="e2ee.js?v=e2ee-20260815-2"></script>
-<script src="jsqr.js?v=1-54-0-0"></script>
-  <script src="app.js?v=1-55-0-1"></script>
-<script src="modules/registry.js?v=1-54-0-2"></script>
-<script src="modules/groups.js?v=1-54-0-3"></script>
-<script src="modules/chat-ext.js?v=1-54-0-3"></script>
-<script src="modules/rtc.js?v=1-54-0-2"></script>
-<script src="modules/voicemsg.js?v=1-54-0-2"></script>
-<script src="modules/filehelper.js?v=1-54-0-2"></script>
-<script src="modules/oa.js?v=1-54-0-2"></script>
-<script src="modules/videos.js?v=1-54-0-2"></script>
-<script src="modules/live.js?v=1-54-0-2"></script>
-<script src="modules/miniapp.js?v=1-54-0-2"></script>
-<script src="modules/nearby.js?v=1-54-0-2"></script>
-<script src="modules/shake.js?v=1-54-0-2"></script>
-<script src="modules/scan.js?v=1-54-0-5"></script>
-<script src="modules/pay_v153.js?v=1-54-0-3"></script>
-<script src="modules/status.js?v=1-54-0-2"></script>
-<script src="modules/favorites.js?v=1-54-0-3"></script>
-<script src="modules/moment-ext.js?v=1-54-0-3"></script>
-<script src="modules/polls.js?v=1-54-0-2"></script>
-<script src="modules/remind.js?v=1-54-0-2"></script>
-<script src="modules/todos.js?v=1-54-0-2"></script>
-<script src="modules/translate.js?v=1-54-0-2"></script>
-<script src="modules/read.js?v=1-54-0-4"></script>
-<script src="modules/search.js?v=1-54-0-4"></script>
-<script src="modules/album.js?v=1-54-0-4"></script>
-<script src="modules/cards.js?v=1-54-0-4"></script>
-<script src="modules/sticker.js?v=1-54-0-4"></script>
-<script src="modules/shop.js?v=1-54-0-4"></script>
-<script src="modules/games.js?v=1-54-0-4"></script>
-<script src="modules/redpacket.js?v=1-54-0-5"></script>
+  <div class="stats-band rv" style="margin-top:70px">
+    <div class="stat-c"><div class="stat-n">E2EE</div><div class="stat-l">全量端到端加密</div></div>
+    <div class="stat-c"><div class="stat-n">0</div><div class="stat-l">用户数据收集</div></div>
+    <div class="stat-c"><div class="stat-n">6</div><div class="stat-l">支持平台</div></div>
+    <div class="stat-c"><div class="stat-n">&lt;50ms</div><div class="stat-l">平均消息延迟</div></div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap" aria-hidden="true">
+  <div class="ticker">
+    <span><b>Signal 协议</b>前向保密</span><span><b>零日志</b>服务器不留痕</span><span><b>WebRTC</b>点对点通话</span><span><b>多端同步</b>六平台覆盖</span><span><b>开源</b>代码可审计</span><span><b>毫秒级</b>消息送达</span>
+    <span><b>Signal 协议</b>前向保密</span><span><b>零日志</b>服务器不留痕</span><span><b>WebRTC</b>点对点通话</span><span><b>多端同步</b>六平台覆盖</span><span><b>开源</b>代码可审计</span><span><b>毫秒级</b>消息送达</span>
+  </div>
+</div>
+
+<!-- SHOWCASE: scroll-driven steps -->
+<section class="showcase" id="showcase">
+  <div class="sc-step">
+    <div class="sc-copy rvL">
+      <h3>消息<em>秒达</em>，状态<em>尽知</em></h3>
+      <p>输入状态实时提示、已读回执、撤回重编辑。对方正在打字你会第一时间知道，就像面对面交流一样自然。</p>
+      <div class="sc-tags"><span class="sc-tag">正在输入提示</span><span class="sc-tag">已读回执</span><span class="sc-tag">引用回复</span><span class="sc-tag">消息撤回</span></div>
+    </div>
+    <div class="sc-media rvR phone-wrap">
+      <div class="phone"><div class="screen">
+        <div class="scr-head">李小明</div>
+        <div class="scr-body">
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub">会议改到下午三点</div></div>
+          <div class="scr-row me"><div class="scr-bub">收到，我记下了</div></div>
+          <div class="scr-row me"><div class="scr-bub">需要我提前准备什么吗？</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub">把上周的数据带上就行</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub">对方正在输入...</div></div>
+        </div>
+        <div class="scr-foot"><div class="scr-field"></div></div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="sc-step flip">
+    <div class="sc-copy rvL">
+      <h3>高清通话，<em>点对点直连</em></h3>
+      <p>语音视频走 WebRTC P2P 通道，不落服务器。弱网自动降级，全程加密。一键发起，接通即聊。</p>
+      <div class="sc-tags"><span class="sc-tag">P2P 直连</span><span class="sc-tag">1080P 视频</span><span class="sc-tag">弱网优化</span><span class="sc-tag">通话加密</span></div>
+    </div>
+    <div class="sc-media rvR phone-wrap">
+      <div class="phone"><div class="screen" style="background:#16181d">
+        <div class="scr-head" style="background:transparent;color:#eee;border:none">语音通话 03:42</div>
+        <div class="scr-body" style="align-items:center;justify-content:center;gap:18px">
+          <div style="width:92px;height:92px;border-radius:50%;background:#07c160;display:flex;align-items:center;justify-content:center;font-size:34px;color:#fff;font-weight:800;animation:pulse 2s infinite">李</div>
+          <div style="display:flex;gap:4px;align-items:flex-end;height:32px">
+            <i style="width:4px;height:12px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out infinite"></i>
+            <i style="width:4px;height:26px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .15s infinite"></i>
+            <i style="width:4px;height:18px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .3s infinite"></i>
+            <i style="width:4px;height:30px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .45s infinite"></i>
+            <i style="width:4px;height:14px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .6s infinite"></i>
+          </div>
+          <style>@keyframes eq{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}</style>
+          <div style="display:flex;gap:14px;margin-top:10px">
+            <span style="width:46px;height:46px;border-radius:50%;background:#2a2d35;display:flex;align-items:center;justify-content:center;color:#ccc"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v2"/></svg></span>
+            <span style="width:46px;height:46px;border-radius:50%;background:#fa5151;display:flex;align-items:center;justify-content:center;color:#fff"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="m12 9c-4 0-7.6 1.6-8 2l2 3c1-.5 2.5-.9 4-1v4h4v-4c1.5.1 3 .5 4 1l2-3c-.4-.4-4-2-8-2z"/></svg></span>
+            <span style="width:46px;height:46px;border-radius:50%;background:#2a2d35;display:flex;align-items:center;justify-content:center;color:#ccc"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a4 4 0 0 1-8 0V6a4 4 0 0 1 8 0z"/><path d="M12 3v3"/></svg></span>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="sc-step">
+    <div class="sc-copy rvL">
+      <h3>文件传输，<em>又快又稳</em></h3>
+      <p>拖进窗口就能发，任意格式不限速。传输进度实时可见，断网重连自动续传，接收方一键保存。</p>
+      <div class="sc-tags"><span class="sc-tag">断点续传</span><span class="sc-tag">进度可视化</span><span class="sc-tag">任意格式</span><span class="sc-tag">传输加密</span></div>
+    </div>
+    <div class="sc-media rvR phone-wrap">
+      <div class="phone"><div class="screen">
+        <div class="scr-head">文件传输</div>
+        <div class="scr-body">
+          <div class="scr-row me"><div class="scr-bub" style="min-width:170px;padding:12px">
+            <div style="display:flex;gap:8px;align-items:center"><span style="width:34px;height:34px;border-radius:8px;background:rgba(250,81,81,.12);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fa5151" stroke-width="2" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg></span><div><b style="font-size:12px;display:block">季度报告.pdf</b><span style="font-size:10px;color:#999">24.6 MB</span></div></div>
+            <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:78%;height:100%;background:#07c160;border-radius:2px"></i></div>
+            <div style="margin-top:4px;font-size:10px;color:#07c160">78% · 2.4MB/s</div>
+          </div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub" style="min-width:170px;padding:12px">
+            <div style="display:flex;gap:8px;align-items:center"><span style="width:34px;height:34px;border-radius:8px;background:rgba(51,118,255,.1);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3376ff" stroke-width="2" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5m0 0 9-5"/></svg></span><div><b style="font-size:12px;display:block">设计方案.zip</b><span style="font-size:10px;color:#999">156 MB · 已完成</span></div></div>
+            <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:100%;height:100%;background:#07c160;border-radius:2px"></i></div>
+            <div style="margin-top:4px;font-size:10px;color:#07c160">&#10003; 已完成</div>
+          </div></div>
+          <div class="scr-row me"><div class="scr-bub">收到！速度真快</div></div>
+        </div>
+        <div class="scr-foot"><div class="scr-field"></div></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- DEVICES 全家福 -->
+<section class="section" id="devices" style="padding-bottom:60px">
+  <div class="sec-head rv">
+    <span class="kicker">Every Device</span>
+    <h2>一个账号<br/>全设备无缝接力</h2>
+    <p>电脑上打了一半的消息，手机上接着说。所有设备端到端加密同步。</p>
+  </div>
+  <div class="device-stage rv d1">
+    <div class="dev dev-desktop">
+      <div class="dev-screen">
+        <div class="dev-ui"><i class="du-side"></i><i class="du-chat"><b style="width:52%"></b><b style="width:38%;margin-left:auto;background:#95ec69"></b><b style="width:60%"></b><b style="width:30%;margin-left:auto;background:#95ec69"></b></i></div>
+      </div>
+      <div class="dev-stand"></div>
+      <div class="dev-base"></div>
+    </div>
+    <div class="dev dev-laptop">
+      <div class="dev-screen"><div class="dev-ui"><i class="du-side"></i><i class="du-chat"><b style="width:48%"></b><b style="width:34%;margin-left:auto;background:#95ec69"></b><b style="width:55%"></b></i></div></div>
+      <div class="dev-keyboard"></div>
+    </div>
+    <div class="dev dev-tablet">
+      <div class="dev-screen"><div class="dev-ui"><i class="du-chat" style="width:100%"><b style="width:60%"></b><b style="width:40%;margin-left:auto;background:#95ec69"></b><b style="width:66%"></b></i></div></div>
+    </div>
+    <div class="dev dev-phone">
+      <div class="dev-screen"><div class="dev-ui"><i class="du-chat" style="width:100%"><b style="width:70%"></b><b style="width:44%;margin-left:auto;background:#95ec69"></b><b style="width:58%"></b><b style="width:36%;margin-left:auto;background:#95ec69"></b></i></div></div>
+    </div>
+    <div class="dev-glow"></div>
+  </div>
+</div>
+
+<!-- 加密流程可视化 -->
+<section class="section" id="how" style="background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 50%,var(--bg) 100%)">
+  <div class="sec-head rv">
+    <span class="kicker">How It Works</span>
+    <h2>一条消息的<br/>加密之旅</h2>
+    <p>从你按下发送，到对方看见，全程密文传输，任何中间人都读不懂。</p>
+  </div>
+  <div class="pipe">
+    <div class="pipe-step rv d1">
+      <div class="pipe-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      <h4>你发送</h4><p>"明天见"</p>
+    </div>
+    <div class="pipe-arrow rv d2"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="pipe-step rv d2">
+      <div class="pipe-ico pi-lock"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <h4>设备加密</h4><p>Signal 协议加锁</p>
+    </div>
+    <div class="pipe-arrow rv d3"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="pipe-step rv d3">
+      <div class="pipe-ico pi-server"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></svg></div>
+      <h4>密文中转</h4><p>服务器只见过客</p>
+    </div>
+    <div class="pipe-arrow rv d4"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="pipe-step rv d4">
+      <div class="pipe-ico pi-unlock"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg></div>
+      <h4>对方解密</h4><p>"明天见"</p>
+    </div>
+  </div>
+  <div class="cipher-demo rv d2">
+    <div class="cd-label">明文</div>
+    <div class="cd-text">明天见</div>
+    <div class="cd-arrow">→</div>
+    <div class="cd-label">密文（服务器看到的）</div>
+    <div class="cd-cipher" id="cipherText">9f8a2c…e41b</div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="dl-section" id="download">
+  <div class="sec-head rv">
+    <span class="kicker">Download</span>
+    <h2>选择你的平台</h2>
+    <p>下载原生客户端，获得完整体验。所有版本均支持自动更新。</p>
+  </div>
+  <div class="os-grid">
+    <a class="os-card rv d1" data-tilt onclick="go('windows')"><span class="os-ic os-w"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.2 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg></span><span class="os-name">Windows</span><span class="os-ver" id="vWin">获取中...</span><br/><span class="os-btn">下载安装包 &#8595;</span></a>
+    <a class="os-card rv d2" data-tilt onclick="go('macos')"><span class="os-ic os-m"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M16.6 12.9c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.86C6.7 7.4 5.2 8.3 4.4 9.7c-1.7 2.9-.4 7.2 1.2 9.5.8 1.2 1.7 2.4 3 2.4s1.7-.8 3.2-.8 1.9.8 3.2.8 2.2-1.2 3-2.3c.9-1.4 1.3-2.7 1.3-2.7s-2.6-1-2.7-3.7zM14.2 5.2c.7-.8 1.1-1.9 1-3-1 0-2.1.65-2.8 1.45-.6.7-1.2 1.85-1 2.9 1.1.1 2.2-.55 2.8-1.35z"/></svg></span><span class="os-name">macOS</span><span class="os-ver" id="vMac">获取中...</span><br/><span class="os-btn">下载 DMG &#8595;</span></a>
+    <a class="os-card rv d3" data-tilt onclick="go('android')"><span class="os-ic os-a"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M17.5 9c-.4-1.6-1.5-2.9-3-3.6l1-1.7a.4.4 0 1 0-.7-.4l-1 1.8A6.4 6.4 0 0 0 12 4.6c-.6 0-1.3.2-1.8.5l-1-1.8a.4.4 0 1 0-.7.4l1 1.7c-1.5.7-2.6 2-3 3.6zm-8-1.7a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6zm5 0a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6zM5 10h14v7a2 2 0 0 1-2 2v2.2a1.1 1.1 0 1 1-2.2 0V19H9.2v2.2a1.1 1.1 0 1 1-2.2 0V19a2 2 0 0 1-2-2zm-3 0a1.5 1.5 0 0 1 3 0v6a1.5 1.5 0 0 1-3 0zm19 0v6a1.5 1.5 0 0 1-3 0v-6a1.5 1.5 0 0 1 3 0z"/></svg></span><span class="os-name">Android</span><span class="os-ver" id="vAnd">获取中...</span><br/><span class="os-btn">下载 APK &#8595;</span></a>
+    <a class="os-card rv d1" data-tilt onclick="go('ios')"><span class="os-ic os-i"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span><span class="os-name">iOS</span><span class="os-ver" id="vIos">获取中...</span><br/><span class="os-btn">下载 IPA &#8595;</span></a>
+    <a class="os-card rv d2" data-tilt onclick="go('windowsPortable')"><span class="os-ic os-z"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5m0 0 9-5m-9 5v9"/></svg></span><span class="os-name">Windows 便携版</span><span class="os-ver" id="vZip">免安装</span><br/><span class="os-btn">下载 ZIP &#8595;</span></a>
+    <a class="os-card rv d3" data-tilt href="/chat"><span class="os-ic os-g"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg></span><span class="os-name">网页版</span><span class="os-ver">无需下载</span><br/><span class="os-btn">立即打开 &#8599;</span></a>
+  </div>
+</section>
+
+    <!-- Changelog -->
+    <section class="section changelog-section" id="changelog" style="padding:60px 20px 40px">
+      <div class="section-heading" style="margin-bottom:20px">
+        <p class="kicker">CHANGELOG</p>
+        <h2 class="sec-h2">持续更新，越来越好</h2>
+      </div>
+      <div class="cl-mask">
+        <div class="cl-fade-top"></div>
+        <div class="cl-scroll">
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.80.4 <span class="cl-date">2026-09-01</span></div><p>消息弹窗通知 · 表情回应 · 多语言翻译 · 连续消息合并 · 群@提及 · 已读回执 · 免打扰</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.70.0 <span class="cl-date">2026-08-24</span></div><p>全新落地页 · 3D 粒子网络 · 深度加密演示 · 3D 设备巡展 · 聊天风格 UI 全面升级</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.69.0 <span class="cl-date">2026-08-22</span></div><p>会话置顶 · 消息免打扰 · 右键菜单 · 阅读状态 · 骨架屏加载 · 消息双击点赞</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.68.0 <span class="cl-date">2026-08-20</span></div><p>聊天风格聊天气泡 · 多彩主题 · 暗黑模式 · 聊天背景 · 字数统计 · 图片粘贴发送</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.67.0 <span class="cl-date">2026-08-18</span></div><p>端到端加密 · Signal 协议 · 语音视频通话 · 文件加密传输 · 群聊管理</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.66.0 <span class="cl-date">2026-08-15</span></div><p>联系人管理 · 通讯录搜索 · 个人资料页 · 多主题切换 · 深色模式</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.65.0 <span class="cl-date">2026-08-12</span></div><p>语音通话优化 · 视频通话稳定 · 消息撤回 · 重新编辑 · 消息引用</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.64.0 <span class="cl-date">2026-08-10</span></div><p>群聊管理 · 群公告 · 群成员权限 · 表情回应 · @功能</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#1fc784"></div><div class="cl-content"><div class="cl-ver">v1.63.0 <span class="cl-date">2026-08-08</span></div><p>文件传输升级 · 断点续传 · 批量发送 · 文件预览 · 进度条</p></div></div>
+        </div>
+        <div class="cl-fade-bottom"></div>
+      </div>
+    </section>
+
+
+
+<!-- ====== CHAT EXPERIENCE ====== -->
+<section class="section chat-section" id="chat-experience">
+  <div class="sec-head rv">
+    <span class="kicker">CHAT EXPERIENCE</span>
+    <h2>聊天，就该这样<em>自然</em></h2>
+    <p>不只是一条消息的传递，而是每一次对话的情感连接。从输入到送达，每个细节都打磨到极致。</p>
+  </div>
+  <div class="chat-grid">
+    <div class="chat-left rvL">
+      <h2>每一种消息，<br/>都有<em>最佳表达</em></h2>
+      <p>文字、语音、图片、视频、文件、位置、红包、名片 -- 12 种消息类型全覆盖。每一种都经过精心设计，让你的表达恰到好处。</p>
+      <ul class="chat-feat-list">
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div class="cf-text"><strong>文字消息</strong><span>支持长文本、引用回复、多选批量操作、原地编辑</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div><div class="cf-text"><strong>语音消息</strong><span>最长 60 秒录音，语音转文字，听筒/扬声器切换</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="cf-text"><strong>图片/视频</strong><span>原画质直传不压缩，支持 GIF、闪照阅后即焚</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="cf-text"><strong>文件传输</strong><span>任意格式任意大小，断点续传，加密传输</span></div></li>
+        <li><div class="cf-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="cf-text"><strong>红包/转账</strong><span>普通红包、拼手气红包、向好友转账</span></div></li>
+      </ul>
+      <div style="margin-top:16px"><span class="badge-live">已上线</span> <span class="badge-beta">Beta</span> <span class="badge-plan">规划中</span></div>
+    </div>
+    <div class="chat-right rvR">
+      <div class="phone"><div class="screen">
+        <div class="scr-head">产品讨论组 (5)</div>
+        <div class="scr-body">
+          <div class="scr-row"><div class="scr-ava" style="background:#f5a623"></div><div><span style="font-size:10px;color:#888">王总</span><div class="scr-bub">新版本的设计稿大家看看</div></div></div>
+          <div class="scr-row me"><div class="scr-bub" style="position:relative">收到！我下午review <span style="position:absolute;top:-8px;right:-4px;background:#fff;border:1px solid #e0e0f0;border-radius:8px;padding:1px 4px;font-size:8px;color:#07c160">12</span></div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#1fc784"></div><div><span style="font-size:10px;color:#888">张设计</span><div class="scr-bub">[图片] 3张设计稿已上传</div></div></div>
+          <div class="scr-row me"><div class="scr-bub">第三版配色方案更好</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div><span style="font-size:10px;color:#888">李工</span><div class="scr-bub">技术上都没问题，可以排期</div></div></div>
+          <div class="scr-row me"><div class="scr-bub">那就定周三发布？</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#f5a623"></div><div><span style="font-size:10px;color:#888">王总</span><div class="scr-bub" style="background:#fff3e0;color:#f57c00">[红包] 恭喜新版上线</div></div></div>
+          <div class="scr-row me"><div class="scr-bub" style="background:#07c160;color:#fff">谢谢老板！</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FILE TRANSFER ====== -->
+<section class="section file-section" id="file-transfer">
+  <div class="sec-head rv">
+    <span class="kicker">FILE TRANSFER</span>
+    <h2>文件传输，<em>没有上限</em></h2>
+    <p>无论几 KB 的文档还是几十 GB 的 4K 原片，全程加密直传，永不压缩画质。断点续传、秒传、P2P 加速，让大文件传输快 3 倍。</p>
+  </div>
+  <div class="file-grid">
+    <div class="file-card rv d1">
+      <div class="fc-icon green"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+      <h4>无大小限制</h4>
+      <p>单文件上限 10GB+，不设人为限制。文档、视频、安装包，想传就传。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d2">
+      <div class="fc-icon blue"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+      <h4>断点续传</h4>
+      <p>网络中断、应用被杀、设备重启，恢复后从断点继续，不重新开始。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d3">
+      <div class="fc-icon orange"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <h4>秒传</h4>
+      <p>基于文件哈希值，已存在的文件瞬间完成传输，零等待。</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="file-card rv d1">
+      <div class="fc-icon teal"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+      <h4>P2P 加速</h4>
+      <p>NAT 打洞直连传输，速度提升 300%，服务器带宽降低 75%。</p>
+      <span class="badge-plan">规划中</span>
+    </div>
+  </div>
+  <div class="file-grid" style="margin-top:20px">
+    <div class="file-card rv d2">
+      <div class="fc-icon green"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+      <h4>原画质直传</h4>
+      <p>照片视频全程不压缩，2 亿像素原图直发，所见即所得。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d3">
+      <div class="fc-icon blue"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+      <h4>拖拽发送</h4>
+      <p>桌面端直接从文件夹拖进聊天窗口，移动端支持跨应用分享。</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="file-card rv d1">
+      <div class="fc-icon orange"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>
+      <h4>后台传输</h4>
+      <p>应用切到后台，传输不停。Android WorkManager + iOS Background Session。</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="file-card rv d2">
+      <div class="fc-icon teal"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+      <h4>跨平台分享</h4>
+      <p>生成链接或二维码，对方无需登录即可在线预览并下载。</p>
+      <span class="badge-plan">规划中</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== AI CAPABILITIES ====== -->
+<section class="section ai-section" id="ai-capabilities">
+  <div class="sec-head rv">
+    <span class="kicker">AI INTEGRATION</span>
+    <h2>AI 不是功能，<br/>是<em>底层能力</em></h2>
+    <p>不是加一个"AI助手"入口，而是让 AI 融入每一个操作。发图时自动帮写文案，收到外语自动翻译，开会时自动记录。</p>
+  </div>
+  <div class="ai-grid">
+    <div class="ai-card rv d1">
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+      <span class="badge-live">已上线</span>
+      <h4>聊天图片 AI 处理</h4>
+      <p>查看图片时底部新增"AI 处理"，支持美化、提取信息、智能修改。</p>
+    </div>
+    <div class="ai-card rv d2">
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+      <span class="badge-beta">Beta</span>
+      <h4>朋友圈 AI 帮写</h4>
+      <p>上传图片后 AI 自动理解内容，生成多条备选文案，一键填入。</p>
+    </div>
+    <div class="ai-card rv d3">
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="badge-live">已上线</span>
+      <h4>实时翻译</h4>
+      <p>收到外语消息自动翻译成中文，输入中文同步对外翻译，无需切换。</p>
+    </div>
+    <div class="ai-card rv d1">
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+      <span class="badge-beta">Beta</span>
+      <h4>扫一扫拍照给 AI</h4>
+      <p>拍照后 AI 识别内容，支持翻译外文、提取文字、总结图片信息。</p>
+    </div>
+    <div class="ai-card rv d2">
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+      <span class="badge-plan">规划中</span>
+      <h4>语音指令代写</h4>
+      <p>按住说话后滑入"指令"区域，AI 理解意图后生成适合语境的消息。</p>
+    </div>
+    <div class="ai-card rv d3">
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      <span class="badge-plan">规划中</span>
+      <h4>AI 会议听记</h4>
+      <p>会议记录、总结、待办跟进全智能闭环，自动生成会议纪要。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SECURITY & PRIVACY ====== -->
+<section class="section sec-section" id="security">
+  <div class="sec-head rv">
+    <span class="kicker">SECURITY &amp; PRIVACY</span>
+    <h2>安全，<br/>是唯一的产品信仰</h2>
+    <p>不收集、不出售、不妥协。你的消息只属于你自己。</p>
+  </div>
+  <div class="sec-grid">
+    <div class="sec-card rv d1">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h4>端到端加密</h4>
+      <p>Signal 协议 + 前向保密，服务器被攻破也无法解密历史消息。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+    <div class="sec-card rv d2">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+      <h4>自动密钥验证</h4>
+      <p>自动检测加密密钥是否被篡改，有效防范中间人攻击。</p>
+      <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
+    </div>
+    <div class="sec-card rv d3">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+      <h4>阅后即焚</h4>
+      <p>发送闪照和消失消息，阅读后自动删除，不留痕迹。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+    <div class="sec-card rv d1">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <h4>匿名注册</h4>
+      <p>不绑定手机号，不收集个人信息，真正的零数据收集。</p>
+      <span class="badge-plan" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15)">规划中</span>
+    </div>
+    <div class="sec-card rv d2">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+      <h4>设备管理</h4>
+      <p>查看所有登录设备，一键远程踢出可疑会话，掌控账号安全。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+    <div class="sec-card rv d3">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+      <h4>双向删除</h4>
+      <p>一键删除与对方的全部聊天记录，双方同步清除。</p>
+      <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
+    </div>
+    <div class="sec-card rv d1">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+      <h4>隐藏会话</h4>
+      <p>将特定会话设为隐藏，需通过搜索才能查看，强化隐私保护。</p>
+      <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
+    </div>
+    <div class="sec-card rv d2">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h4>零日志策略</h4>
+      <p>服务器不留存任何消息内容和元数据，GDPR 全面合规。</p>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== CROSS-PLATFORM ====== -->
+<section class="section cross-section" id="cross-platform">
+  <div class="sec-head rv">
+    <span class="kicker">CROSS-PLATFORM</span>
+    <h2>六端<em>全覆盖</em>，消息<em>全同步</em></h2>
+    <p>手机、平板、电脑、网页，消息实时同步。一台设备发出，所有设备收到。</p>
+  </div>
+  <div class="cross-devices rv">
+    <div class="cross-device">
+      <div class="cd-screen"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">你好</span></div>
+        <div class="cd-line me"><span class="cd-bub">在的</span></div>
+      </div></div>
+      <div class="cd-name">iPhone</div><div class="cd-type">iOS</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">文件已发送</span></div>
+        <div class="cd-line me"><span class="cd-bub">收到</span></div>
+      </div></div>
+      <div class="cd-name">Android</div><div class="cd-type">手机</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen" style="width:160px;height:220px"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">会议改到3点</span></div>
+        <div class="cd-line me"><span class="cd-bub">好的</span></div>
+        <div class="cd-line"><span class="cd-bub them">资料准备好了吗</span></div>
+        <div class="cd-line me"><span class="cd-bub">马上好</span></div>
+      </div></div>
+      <div class="cd-name">MacBook</div><div class="cd-type">macOS</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen" style="width:160px;height:220px"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">版本发布了</span></div>
+        <div class="cd-line me"><span class="cd-bub">测试通过</span></div>
+      </div></div>
+      <div class="cd-name">PC</div><div class="cd-type">Windows</div>
+    </div>
+    <div class="cross-device">
+      <div class="cd-screen"><div class="cd-chat">
+        <div class="cd-line"><span class="cd-bub them">上线了</span></div>
+        <div class="cd-line me"><span class="cd-bub">赞</span></div>
+      </div></div>
+      <div class="cd-name">HarmonyOS</div><div class="cd-type">鸿蒙</div>
+    </div>
+  </div>
+  <div class="plat-row rv" style="margin-top:40px">
+    <div class="plat-item"><span class="plat-dot"></span>消息多端同步</div>
+    <div class="plat-item"><span class="plat-dot"></span>多设备同时登录</div>
+    <div class="plat-item"><span class="plat-dot"></span>完整历史迁移</div>
+    <div class="plat-item"><span class="plat-dot"></span>PC 一键验证登录</div>
+  </div>
+  <div style="text-align:center;margin-top:24px" class="rv">
+    <span class="badge-live">已上线</span>
+    <span class="badge-beta">Beta</span>
+    <span class="badge-plan">规划中</span>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>SecureChat &copy; 2024-2026 &middot; <a href="/chat">网页版入口</a> &middot; <a href="https://github.com/huruichen139/securechat-build" target="_blank">GitHub</a></p>
+
+<!-- ====== CONTACTS TAB ====== -->
+<section class="section contacts-section" id="contacts-tab">
+  <div class="sec-head rv">
+    <span class="kicker">CONTACTS</span>
+    <h2>通讯录，<em>一目了然</em></h2>
+    <p>A-Z 字母索引、快速跳转、标签分组、联系人详情，找人只在弹指之间。</p>
+  </div>
+  <div class="ct-grid">
+    <div class="rvL">
+      <ul class="ct-features">
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="ctf-text"><strong>全局搜索</strong><span>按姓名、备注、手机号、聊天号快速搜索，关键词高亮匹配</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div><div class="ctf-text"><strong>字母索引</strong><span>A-Z 侧边快速跳转条，一键定位到目标联系人</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div class="ctf-text"><strong>标签分组</strong><span>工作、家人、朋友自定义标签，按分组筛选联系人</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="ctf-text"><strong>联系人详情</strong><span>头像、昵称、地区、个性签名，一键发消息或音视频通话</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div><div class="ctf-text"><strong>面对面加好友</strong><span>输入四位数字即可添加，无需扫码</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="ctf-text"><strong>手机通讯录匹配</strong><span>读取通讯录自动匹配已注册用户，一键添加好友</span></div></li>
+      </ul>
+      <div style="margin-top:12px"><span class="badge-live">已上线</span> <span class="badge-beta">Beta</span></div>
+    </div>
+    <div class="rvR">
+      <div class="phone"><div class="screen">
+        <div class="scr-head">通讯录</div>
+        <div class="scr-body" style="padding:6px 10px">
+          <div style="background:#f5f5f5;border-radius:2px;padding:6px 8px;margin-bottom:10px;font-size:9px;color:#999">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#999" stroke-width="2" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> 搜索
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">新的朋友</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 0">
+            <div style="width:22px;height:22px;border-radius:2px;background:#f5a623;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700">F</div>
+            <div><span style="font-size:8px;color:#333;font-weight:600">新的朋友</span><br><span style="font-size:7px;color:#888">3条验证消息</span></div>
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">A</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#07c160;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
+            <div style="font-size:8px;color:#333">安迪</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#1fc784;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
+            <div style="font-size:8px;color:#333">阿杰</div>
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">B</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#f5a623;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">B</div>
+            <div style="font-size:8px;color:#333">白露</div>
+          </div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">C</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#31c178;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">C</div>
+            <div style="font-size:8px;color:#333">陈星</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+            <div style="width:20px;height:20px;border-radius:2px;background:#1976d2;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">C</div>
+            <div style="font-size:8px;color:#333">程前</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== DISCOVER TAB ====== -->
+<section class="section discover-section" id="discover-tab">
+  <div class="sec-head rv">
+    <span class="kicker">DISCOVER</span>
+    <h2>发现，<em>精彩不断</em></h2>
+    <p>朋友圈、扫一扫、附近的人、小程序... 每一个入口都连接着一个新世界。</p>
+  </div>
+  <div class="disc-grid">
+    <div class="disc-card rv d1">
+      <div class="dc-icon" style="background:#e6f9ee"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M4 4h16v16H4z" rx="2"/><circle cx="9" cy="9" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      <h4>朋友圈</h4>
+      <p>发布图文动态，AI 自动帮写文案，支持多图上传和隐私可见范围设置</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="disc-card rv d2">
+      <div class="dc-icon" style="background:#e3f2fd"><svg viewBox="0 0 24 24" fill="none" stroke="#1976d2" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01M7 12h.01M17 12h.01"/></svg></div>
+      <h4>扫一扫</h4>
+      <p>二维码、条形码扫描，拍照给 AI 识别，外文翻译、文字提取、内容总结</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="disc-card rv d3">
+      <div class="dc-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#f57c00" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <h4>附近的人</h4>
+      <p>基于位置发现 1 公里内用户，显示距离精确到米，支持打招呼和添加好友</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="disc-card rv d1">
+      <div class="dc-icon" style="background:#e0f2f1"><svg viewBox="0 0 24 24" fill="none" stroke="#00897b" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+      <h4>小程序</h4>
+      <p>轻应用商店，发布和使用小程序，支持搜索、收藏和最近使用</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== MY PROFILE ====== -->
+<section class="section meprofile-section" id="my-profile">
+  <div class="sec-head rv">
+    <span class="kicker">MY PROFILE</span>
+    <h2>我的，<em>不止于此</em></h2>
+    <p>个性装扮、亲密空间、收藏管理、钱包支付... 每一处细节都彰显你的个性。</p>
+  </div>
+  <div class="me-grid">
+    <div class="me-card rv d1">
+      <div class="mec-icon" style="background:#fce4ec"><svg viewBox="0 0 24 24" fill="none" stroke="#e91e63" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+      <h4>亲密空间</h4>
+      <p>情侣、闺蜜、挚友、死党四类关系绑定，专属私密记忆空间</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="me-card rv d2">
+      <div class="mec-icon" style="background:#f3e5f5"><svg viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <h4>个性装扮</h4>
+      <p>全局主题、聊天壁纸、气泡样式、头像挂件，简约/清新/潮流多种风格</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="me-card rv d3">
+      <div class="mec-icon" style="background:#e8eaf6"><svg viewBox="0 0 24 24" fill="none" stroke="#3f51b5" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+      <h4>收藏管理</h4>
+      <p>文字、图片、链接、文件分类收藏，支持标签、搜索和二次编辑</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="me-card rv d1">
+      <div class="mec-icon" style="background:#e8f5e9"><svg viewBox="0 0 24 24" fill="none" stroke="#388e3c" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      <h4>钱包支付</h4>
+      <p>余额查询、交易记录、收付款码、转账、红包，支持支付宝/聊天充值</p>
+      <span class="badge-live">已上线</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====== MESSAGE MANAGEMENT ====== -->
+<section class="section msgmgmt-section" id="msg-management">
+  <div class="sec-head rv">
+    <span class="kicker">MESSAGE MANAGEMENT</span>
+    <h2>消息管理，<em>面面俱到</em></h2>
+    <p>撤回、引用、编辑、多选、阅后即焚... 每一条消息都尽在掌控。</p>
+  </div>
+  <div class="msg-grid">
+    <div class="msg-card rv d1">
+      <div class="msgc-icon" style="background:#e6f9ee"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
+      <h4>消息撤回</h4>
+      <p>2分钟内可撤回，支持"重新编辑"原地修改后重发</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d2">
+      <div class="msgc-icon" style="background:#e3f2fd"><svg viewBox="0 0 24 24" fill="none" stroke="#1976d2" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></div>
+      <h4>引用回复</h4>
+      <p>长按消息选择引用，输入框自动引用原消息，对话脉络清晰可见</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d3">
+      <div class="msgc-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#f57c00" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <h4>原地编辑</h4>
+      <p>发错消息不用撤回，直接原地修改，对方看到的是更新后的内容</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+    <div class="msg-card rv d1">
+      <div class="msgc-icon" style="background:#fce4ec"><svg viewBox="0 0 24 24" fill="none" stroke="#e91e63" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+      <h4>多选转发</h4>
+      <p>批量选择消息一键转发给多个好友，高效分享重要内容</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d2">
+      <div class="msgc-icon" style="background:#f3e5f5"><svg viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <h4>阅后即焚</h4>
+      <p>闪照和消失消息，阅读后自动删除，30秒/1分钟/5分钟可选</p>
+      <span class="badge-live">已上线</span>
+    </div>
+    <div class="msg-card rv d3">
+      <div class="msgc-icon" style="background:#e0f2f1"><svg viewBox="0 0 24 24" fill="none" stroke="#00897b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h4>双向删除</h4>
+      <p>一键删除与对方的全部聊天记录，双方同步清除不留痕迹</p>
+      <span class="badge-beta">Beta</span>
+    </div>
+  </div>
+</section>
+</footer>
+
 <script>
-  // 不再注册新的 Service Worker，并注销任何已存在的 SW，避免旧缓存顽固拦截静态资源。
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.getRegistrations().then(function (list) {
-        list.forEach(function (reg) { reg.unregister(); });
-      }).catch(function () {});
-    });
+// scroll progress bar
+var ptop = document.getElementById('progressTop');
+window.addEventListener('scroll', function(){
+  var h = document.documentElement;
+  var p = h.scrollTop / (h.scrollHeight - h.clientHeight);
+  ptop.style.width = (p*100) + '%';
+}, {passive:true});
+
+// count-up stats
+function countUp(el){
+  var raw = el.textContent, target = parseFloat(raw.replace(/[^0-9.]/g,''));
+  if(isNaN(target)) return;
+  var prefix = raw.slice(0, raw.indexOf(String(target)));
+  var suffix = raw.slice(raw.indexOf(String(target)) + String(target).length);
+  var t0 = null, dur = 1200;
+  function step(t){
+    if(!t0) t0 = t;
+    var k = Math.min((t - t0)/dur, 1); k = 1 - Math.pow(1-k, 3);
+    el.textContent = prefix + (target*k).toFixed(target % 1 ? 1 : 0) + suffix;
+    if(k < 1) requestAnimationFrame(step);
   }
+  requestAnimationFrame(step);
+}
+var ioStats = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.querySelectorAll('.stat-n').forEach(countUp); ioStats.unobserve(e.target); } });
+},{threshold:.4});
+document.querySelectorAll('.stats-band').forEach(function(el){ ioStats.observe(el); });
+
+// card tilt on mouse
+document.querySelectorAll('[data-tilt]').forEach(function(card){
+  card.addEventListener('mousemove', function(e){
+    var r = card.getBoundingClientRect();
+    var x = (e.clientX - r.left)/r.width - .5;
+    var y = (e.clientY - r.top)/r.height - .5;
+    card.style.transform = 'perspective(700px) rotateY(' + (x*7) + 'deg) rotateX(' + (-y*7) + 'deg) translateY(-6px)';
+  });
+  card.addEventListener('mouseleave', function(){ card.style.transform = ''; });
+});
+
+// button ripple on click
+document.addEventListener('click', function(e){
+  var b = e.target.closest('.btn-main,.btn-open,.os-btn,.btn-ghost');
+  if(!b) return;
+  var r = b.getBoundingClientRect();
+  var d = Math.max(r.width, r.height);
+  var s = document.createElement('span');
+  s.className = 'ripple';
+  s.style.cssText = 'width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';
+  b.appendChild(s);
+  setTimeout(function(){ s.remove(); }, 650);
+});
+
+// cursor glow follower
+var cg = document.getElementById('cursorGlow');
+document.addEventListener('mousemove', function(e){
+  if(window.innerWidth < 900){ cg.style.opacity = 0; return; }
+  cg.style.opacity = 1;
+  cg.style.left = e.clientX + 'px';
+  cg.style.top = e.clientY + 'px';
+});
+
+// split section titles into words for staggered reveal
+document.querySelectorAll('.sec-head h2').forEach(function(h){
+  h.innerHTML = h.innerHTML.split(/(<br\s*\/?>)/i).map(function(part){
+    if(/^<br/i.test(part)) return part;
+    return part.split(' ').map(function(w){
+      return w ? '<span class="w">' + w.replace(/&nbsp;/g,' ') + '</span>' : '';
+    }).join(' ');
+  }).join('');
+});
+document.querySelectorAll('.sec-head.rv').forEach(function(el){
+  var words = el.querySelectorAll('.w');
+  words.forEach(function(w,i){ w.style.transitionDelay = (0.06*i) + 's'; });
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ el.classList.add('in'); obs.disconnect(); } });
+  },{threshold:.3}).observe(el);
+});
+
+// desktop mockup bubbles play when visible
+var stage = document.querySelector('.mockup-stage');
+if(stage){
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ stage.classList.add('play'); obs.disconnect(); } });
+  },{threshold:.25}).observe(stage);
+}
+
+// phones scroll parallax (translate/rotate with scroll position)
+var phoneWraps = document.querySelectorAll('.phone-wrap');
+function phoneParallax(){
+  var vh = window.innerHeight;
+  phoneWraps.forEach(function(pw, i){
+    var r = pw.getBoundingClientRect();
+    var k = (r.top + r.height/2 - vh/2) / vh; // -1..1
+    var dir = pw.closest('.sc-step.flip') ? -1 : 1;
+    var ph = pw.querySelector('.phone');
+    if(ph && Math.abs(k) < 1.4){
+      ph.style.translate = '0 ' + (k * 34 * dir) + 'px';
+      ph.style.rotate = '0 ' + (dir*8 - k*6*dir) + 'deg';
+    }
+  });
+}
+window.addEventListener('scroll', phoneParallax, {passive:true});
+phoneParallax();
+
+// confetti burst when clicking a download card
+function confettiBurst(x, y){
+  var colors = ['#07c160','#3376ff','#8854ff','#ff943e','#fa5151','#00c8c8'];
+  for(var i=0;i<26;i++){
+    var c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.cssText = 'left:'+(x-5)+'px;background:'+colors[i%6]+';animation-duration:'+(1+Math.random()*1.2)+'s;border-radius:'+(Math.random()>.5?'50%':'2px');
+    document.body.appendChild(c);
+    setTimeout(function(cc){ return function(){ cc.remove(); }; }(c), 2400);
+  }
+}
+document.querySelectorAll('.os-card').forEach(function(card){
+  card.addEventListener('click', function(e){ confettiBurst(e.clientX, e.clientY); });
+});
+
+// 16. nav hide on scroll down
+var lastY = 0;
+window.addEventListener('scroll', function(){
+  var y = window.scrollY;
+  nav.classList.toggle('hidden-nav', y > lastY && y > 200);
+  lastY = y;
+}, {passive:true});
+
+
+
+// 23. second reversed marquee row
+var tw = document.querySelector('.ticker-wrap');
+if(tw){
+  tw.classList.add('two');
+  var t2 = document.createElement('div');
+  t2.className = 'ticker rev';
+  t2.innerHTML = '<span><b>前向保密</b>每次会话独立密钥</span><span><b>零知识</b>服务器不可读</span><span><b>断点续传</b>文件传输</span><span><b>已读回执</b>消息状态</span><span><b>群组管理</b>权限可控</span><span><b>PWA</b>浏览器即客户端</span><span><b>前向保密</b>每次会话独立密钥</span><span><b>零知识</b>服务器不可读</span><span><b>断点续传</b>文件传输</span><span><b>已读回执</b>消息状态</span><span><b>群组管理</b>权限可控</span><span><b>PWA</b>浏览器即客户端</span>';
+  tw.appendChild(t2);
+}
+
+// 24. phone screens loop replay when visible
+document.querySelectorAll('.scr-body').forEach(function(sb){
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ sb.classList.add('looping'); obs.disconnect(); } });
+  },{threshold:.35}).observe(sb);
+});
+
+// 21. chips rotate with scroll
+var chips = document.querySelectorAll('.float-chip');
+window.addEventListener('scroll', function(){
+  chips.forEach(function(c,i){ c.style.rotate = (Math.sin(window.scrollY/300 + i*2) * 4) + 'deg'; });
+}, {passive:true});
+
+// 25. magnetic buttons
+document.querySelectorAll('.btn-main,.btn-ghost').forEach(function(b){
+  b.addEventListener('mousemove', function(e){
+    var r = b.getBoundingClientRect();
+    var x = (e.clientX-r.left-r.width/2)*.18, y = (e.clientY-r.top-r.height/2)*.28;
+    b.style.translate = x+'px '+y+'px';
+  });
+  b.addEventListener('mouseleave', function(){ b.style.translate='0px 0px'; });
+});
+
+// 27. logo spin on click
+document.querySelector('.nav-logo').addEventListener('click', function(){
+  var m = document.querySelector('.logo-mark');
+  m.classList.remove('spin'); void m.offsetWidth; m.classList.add('spin');
+});
+
+
+// 粒子生成
+(function(){
+  var box = document.getElementById('particles');
+  if(!box) return;
+  for(var i=0;i<22;i++){
+    var p = document.createElement('i');
+    var sz = 4 + Math.random()*10;
+    p.style.cssText = 'left:'+(Math.random()*100)+'%;width:'+sz+'px;height:'+sz+'px;animation-duration:'+(9+Math.random()*14)+'s;animation-delay:-'+(Math.random()*18)+'s';
+    box.appendChild(p);
+  }
+})();
+// 标题逐字波浪
+document.querySelectorAll('.hero h1').forEach(function(h){
+  var parts = h.innerHTML.split(/(<br\s*\/?>|<em>|<\/em>)/i);
+  var out = '', chIdx = 0;
+  parts.forEach(function(part){
+    if(/^<br/i.test(part) || /^<em>$/i.test(part) || /^<\/em>$/i.test(part)){ out += part; return; }
+    out += part.split('').map(function(ch){
+      if(ch === ' ') return ' ';
+      var d = (chIdx++ * 0.045);
+      return '<span class="ch" style="animation-delay:'+(0.15+d)+'s">'+ch+'</span>';
+    }).join('');
+  });
+  h.innerHTML = out;
+});
+// 光斑滚动视差
+var blobs = document.querySelectorAll('.blob');
+window.addEventListener('scroll', function(){
+  var y = window.scrollY;
+  blobs.forEach(function(b, i){
+    b.style.translate = '0 ' + (y * (0.06 + i*0.04)) + 'px';
+  });
+}, {passive:true});
+
+
+// 密文滚动演示（明文/密文轮换）
+(function(){
+  var el = document.getElementById('cipherText');
+  if(!el) return;
+  var chars = '0123456789abcdef';
+  setInterval(function(){
+    var out = '';
+    for(var i=0;i<12;i++){ out += Math.random() < .3 ? '…' : chars[Math.floor(Math.random()*16)]; }
+    el.textContent = out.slice(0,10) + '…' + out.slice(0,4);
+  }, 900);
+})();
+// 设备区图片揭示动画
+var devStage = document.querySelector('.device-stage');
+if(devStage){
+  new IntersectionObserver(function(es,obs){
+    es.forEach(function(e){ if(e.isIntersecting){ devStage.classList.add('in','play'); obs.disconnect(); } });
+  },{threshold:.25}).observe(devStage);
+}
+
+
+// ============ 3D 粒子网络：点连线+深度感+鼠标聚拢 ============
+(function(){
+  var cv = document.getElementById('net3d');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = 0, H = 0, pts = [], mouse = {x:-9999, y:-9999, active:false};
+  var LINK = 130;
+  var ATTRACT_R = 200;  // 鼠标吸引半径
+  var ATTRACT_F = 0.15; // 吸引力度
+  function resize(){
+    var r = cv.parentElement.getBoundingClientRect();
+    W = cv.width = r.width; H = cv.height = r.height;
+  }
+  function make(){
+    pts = [];
+    var n = Math.min(120, Math.floor(W * H / 12000));
+    for(var i=0;i<n;i++){
+      pts.push({
+        x: Math.random()*W, y: Math.random()*H,
+        z: Math.random(),
+        vx: (Math.random()-.5)*.3, vy: (Math.random()-.5)*.3,
+        vz: (Math.random()-.5)*.004,
+        ox: 0, oy: 0
+      });
+    }
+  }
+  function step(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<pts.length;i++){
+      var p = pts[i];
+      // 基础运动
+      p.x += p.vx * (0.2 + p.z*0.3);
+      p.y += p.vy * (0.2 + p.z*0.3);
+      p.z += p.vz;
+      if(p.z > 1 || p.z < 0) p.vz *= -1;
+      // 边界反弹
+      if(p.x < 10) p.vx += 0.02; if(p.x > W-10) p.vx -= 0.02;
+      if(p.y < 10) p.vy += 0.02; if(p.y > H-10) p.vy -= 0.02;
+      p.vx *= 0.998; p.vy *= 0.998;
+      // 鼠标吸引（聚拢效果）
+      if(mouse.active){
+        var dx = mouse.x - p.x, dy = mouse.y - p.y;
+        var d2 = dx*dx + dy*dy, d = Math.sqrt(d2)||1;
+        if(d < ATTRACT_R){
+          var strength = (1 - d/ATTRACT_R) * ATTRACT_F * (0.5 + p.z*0.5);
+          p.vx += dx/d * strength;
+          p.vy += dy/d * strength;
+        }
+      }
+    }
+    // 连线（近者才连）
+    for(var a=0;a<pts.length;a++){
+      var pa = pts[a];
+      for(var b=a+1;b<pts.length;b++){
+        var pb = pts[b];
+        var dx = pa.x-pb.x, dy = pa.y-pb.y, dd = Math.sqrt(dx*dx+dy*dy);
+        if(dd < LINK){
+          var depth = (pa.z + pb.z) / 2;
+          var alpha = (1 - dd/LINK) * (0.15 + depth*0.35);
+          ctx.strokeStyle = 'rgba(7,193,96,' + alpha.toFixed(3) + ')';
+          ctx.lineWidth = 0.5 + depth * 1.6;
+          ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+        }
+      }
+    }
+    // 画点（近大远小+光晕）
+    for(var k=0;k<pts.length;k++){
+      var q = pts[k];
+      var r = 1 + q.z * 2.8;
+      var grd = ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,r*3.5);
+      grd.addColorStop(0,'rgba(7,193,96,'+(0.3+q.z*0.6)+')');
+      grd.addColorStop(1,'rgba(7,193,96,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(q.x,q.y,r*3.5,0,6.284); ctx.fill();
+      ctx.fillStyle = 'rgba(7,193,96,'+(0.45+q.z*0.55)+')';
+      ctx.beginPath(); ctx.arc(q.x,q.y,r,0,6.284); ctx.fill();
+    }
+    // 鼠标附近额外高亮
+    if(mouse.active){
+      var mgrd = ctx.createRadialGradient(mouse.x,mouse.y,0,mouse.x,mouse.y,60);
+      mgrd.addColorStop(0,'rgba(7,193,96,0.06)');
+      mgrd.addColorStop(1,'rgba(7,193,96,0)');
+      ctx.fillStyle = mgrd;
+      ctx.beginPath(); ctx.arc(mouse.x,mouse.y,60,0,6.284); ctx.fill();
+    }
+    requestAnimationFrame(step);
+  }
+  var hero = cv.closest('.hero') || document.body;
+  hero.addEventListener('mousemove', function(e){
+    var r = cv.getBoundingClientRect();
+    mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+    mouse.active = true;
+  });
+  hero.addEventListener('mouseleave', function(){ mouse.active = false; });
+  window.addEventListener('resize', function(){ resize(); make(); });
+  resize(); make(); step();
+})();
+
+// nav shadow on scroll
+var nav = document.getElementById('nav');
+window.addEventListener('scroll', function(){
+  nav.classList.toggle('scrolled', window.scrollY > 10);
+}, {passive:true});
+
+// scroll reveal (like video playback)
+var io = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+  });
+},{threshold:.12, rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.rv,.disc-card,.me-card,.msg-card,.ct-features li,.cl-item').forEach(function(el){ io.observe(el); });
+
+// hero parallax on mouse
+document.addEventListener('mousemove', function(e){
+  var cx = (e.clientX / window.innerWidth - .5);
+  var cy = (e.clientY / window.innerHeight - .5);
+  var m = document.querySelector('.mockup');
+  if(m && window.innerWidth > 900){
+    m.style.transform = 'rotateX(' + (6 - cy*6) + 'deg) rotateY(' + (cx*5) + 'deg)';
+  }
+});
+
+// downloads from live version API
+function go(p){
+  fetch('/api/version').then(function(r){return r.json()}).then(function(d){
+    var url = (d.downloads||{})[p];
+    if(url) location.href = url; else alert('该平台安装包暂未提供');
+  }).catch(function(){ alert('网络错误，请稍后再试'); });
+}
+fetch('/api/version').then(function(r){return r.json()}).then(function(d){
+  var dv = d.downloadVersions || {};
+  var vb = document.getElementById('verBadge');
+  if(vb && d.latest && d.latest !== '1.0.0') vb.textContent = 'v' + d.latest + ' 正式发布 · 立即体验';
+  function set(id,v){ var el=document.getElementById(id); if(el) el.textContent = v?('v'+v):'最新版'; }
+  set('vWin', dv.windows || dv.windowsPortable);
+  set('vMac', dv.macos);
+  set('vAnd', dv.android);
+  set('vIos', dv.ios);
+}).catch(function(){});
 </script>
 </body>
 </html>
-
-
-

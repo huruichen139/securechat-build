@@ -122,7 +122,7 @@
   // 通过巨石发送通道发消息（如果存在 app.js 的 send）
   function sendAsText(to, marker, clientMsgId) {
     try {
-      if (window.socket && typeof window.send === 'function') {
+      if (window.state && window.state.ws && typeof window.send === 'function') {
         window.send('msg', { to, content: marker, clientMsgId });
         return true;
       }

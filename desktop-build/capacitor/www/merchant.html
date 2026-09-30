@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EPay 商户中心 - SecureChat</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f2f3f5; min-height: 100vh; display: flex; justify-content: center; padding: 24px 12px; }
+  .card { background: #fff; border-radius: 16px; padding: 28px; width: 100%; max-width: 520px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
+  .row { margin-bottom: 14px; }
+  label { display: block; font-size: 13px; color: #64748b; margin-bottom: 5px; }
+  input[type=text], input[type=password] { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
+  input:focus { border-color: #07c160; }
+  .btn { display: inline-block; border: none; border-radius: 8px; padding: 10px 18px; font-size: 14px; cursor: pointer; background: #07c160; color: #fff; }
+  .btn.gray { background: #e2e8f0; color: #334155; }
+  .btn.orange { background: #f59e0b; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .tip { font-size: 12px; color: #94a3b8; margin-top: 6px; min-height: 16px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; }
+  .badge.ok { background: #dcfce7; color: #15803d; }
+  .badge.wait { background: #fef9c3; color: #a16207; }
+  .badge.no { background: #fee2e2; color: #b91c1c; }
+  .keybox { display: flex; gap: 8px; }
+  .keybox input { flex: 1; font-family: monospace; font-size: 12px; }
+  .hidden { display: none; }
+  a.back { color: #07c160; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h1>EPay 商户中心</h1>
+    <a class="back" href="/">← 返回</a>
+  </div>
+
+  <div id="loginView">
+    <p class="sub">请先在主应用登录，或输入访问令牌</p>
+    <div class="row">
+      <label>访问令牌 (Token)</label>
+      <input type="password" id="tokenInput" placeholder="粘贴 sc_token">
+    </div>
+    <button class="btn" id="loginBtn">进入商户中心</button>
+    <div class="tip" id="loginTip"></div>
+  </div>
+
+  <div id="mainView" class="hidden">
+    <p class="sub">管理你的商户信息与 API 密钥 <span id="statusBadge"></span></p>
+
+    <div class="row">
+      <label>商户名称</label>
+      <input type="text" id="mName">
+    </div>
+    <div class="row">
+      <label>回调地址（HTTPS）</label>
+      <input type="text" id="mCallback" placeholder="https://your.site/notify">
+    </div>
+    <div class="row">
+      <label>API 密钥（对接 /epaygw/submit.php 签名用）</label>
+      <div class="keybox">
+        <input type="password" id="mKey" readonly>
+        <button class="btn gray" id="keyShowBtn">显示</button>
+        <button class="btn gray" id="keyCopyBtn">复制</button>
+      </div>
+      <div class="tip">密钥由系统生成，可自行重置；重置后旧密钥立即失效。</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="btn" id="saveBtn">保存修改</button>
+      <button class="btn orange" id="regenBtn">重置密钥</button>
+    </div>
+    <div class="tip" id="mainTip"></div>
+
+    <hr style="border:none;border-top:1px solid #eef2f7;margin:20px 0">
+    <p class="sub">对接示例：MD5(参数按 key 排序 k=v&amp; 拼接 + 密钥) 作为 sign 提交到 <code>/epaygw/submit.php</code></p>
+  </div>
+</div>
+<script src="merchant.js?v=merchant-20260822-1"></script>
+</body>
+</html>

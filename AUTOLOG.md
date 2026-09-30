@@ -80,3 +80,67 @@
 ### 环境备忘
 - 服务器已重启运行，curl 实测 life/pay 与转账通过。
 - push 命令带 PAT auth header 经 gh-proxy.com。
+
+---
+
+## 2026-09-30 画风 + Bug 全面修复轮（用户投诉"画风垃圾、bug巨多"）
+
+用户要求自查方向（"自己找"、"几乎全是"），故做全量代码审计 + 样式补齐。
+
+### 根因
+画风崩坏的**直接原因**不是配色审美，而是 **14 个业务模块的界面 class 在 styles.css 中一条规则都没有**：
+favorites / moment-ext / status / todos / remind / translate / oa / polls / scan /
+shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
+`document.createElement` + `className=` 动态拼接，运行时无任何 `<style>` 注入，
+导致打开后是**未样式化的原生控件堆叠**（按钮无样式、栅格塌陷、浮层无定位）。
+共统计出 **278 个缺失 class**（含正则误抓的模板表达式碎片）。
+
+### 修复内容
+**Bug 修复（P0-P2）**
+- P0 `app.js:4998` 调用不存在的全局 `modal` → "关于我们"一点就抛
+  `ReferenceError: modal is not defined`，弹窗完全打不开。
+  新增 `showInfoModal(title, html)`（复用现有 .modal-mask/.modal 结构，画风统一）并替换调用。
+- P1 `app.js:2601` `$('inviteBtn')` 元素不存在，真实 id 是 `inviteGroupBtn`
+  → 群资料"邀请成员"静默失效（有 `if (btn)` 守卫故不报错，只是不干活）。
+- P2 `modules/registry.js:89` 与 `modules/voicemsg.js:125` 探测 `window.socket`，
+  但 app.js 从不设置它（WS 存在 `state.ws`，且 `state` 已挂 `window.state`，见 app.js:53）
+  → `wsCycleSend()` 恒 false，通话信令 100% 退化为 REST 轮询。已改为
+  `window.state && window.state.ws`。
+- P2 `modules/rtc.js:145` if/else 两分支语句完全相同的死逻辑（误导性写法），
+  行为本身符合注释意图（WS 为主 + REST 兜底），已合并为两行明确语句。
+- P2 i18n key 复用冲突（`apply()` 无条件覆盖 textContent）：
+  "拒绝好友"显示成"关闭"、"邀请成员"显示成"添加"、聊天 tab 显示成"好友"、
+  接受好友显示成"添加"、创建群聊/添加好友入口文案错位。
+  新增 5 个语义专用 key（acceptFriend/rejectFriend/inviteMember/tabChats/messages），
+  zh+en 双语补齐，chat.html 4 处替换完成，无残留。
+
+**画风修复**
+- 新增 `web/modules.css`（225 条规则），为上述 14 个模块补齐完整视觉规范，
+  与 styles.css 的微信系设计语言对齐：主色 `--primary #07c160`、面板圆角 12px、
+  卡片 8px、按钮 6px、遮罩 rgba(0,0,0,.45)，含暗色模式适配。
+- chat.html 引入 `modules.css`（stylesheet 链接数 1 → 2）。
+- 覆盖率：278 → 0（**剩余 0 个真实 class 未覆盖**；残留 21 项均为正则误抓的
+  模板表达式碎片如 `${mine(r)}`、`' + polls-opt'`，非真实 class 名）。
+
+**客户端同步**
+- 修正认知错误：`desktop-build/{electron,capacitor}/www` 此前是**仅 18 个文件的局部快照**，
+  `git ls-files` 证实其**从来就没有 modules/ 目录**（非本次改坏）。
+  已做**全量同步**（web 共 64 文件 × 2 目录 = 128），三目录逐字节一致（SHA1 校验 0 差异）。
+- 清理分析碎片 `_ids_defined.txt`、`_undef.json`。
+
+### 验证
+- 5 个改动 JS 全部 `node --check` 通过。
+- 真实浏览器验证（playwright-core + 系统 Edge 内核，忽略证书）：
+  - `modules.css` 加载成功，225 条规则生效
+  - `showInfoModal` 已定义；"关于我们"弹窗 `opened-ok`
+  - 登录 xa/123456 成功
+  - 收藏夹面板计算样式实测：panel 12px 圆角/白底/flex、search 6px 圆角+1px 边框、
+    tags flex 布局 —— 确认不再是裸 div
+  - **控制台 0 错误、0 失败请求**
+- 版本号 1813x → 1814x（chat.html 内 39 处引用全部推进）。
+
+### 备注
+- `.sc-fav-tag`/`.sc-fav-item` 在验证中 NOT-FOUND 属正常（测试账号无收藏数据，走空态）。
+- 服务器状态：index.js 45616 单实例 + watchdog，8888 正常；计划任务 SecureChatGuard
+  日志持续 `idx=True wd=True`。曾误报"2 个 index.js"，实为另一项目
+  `D:\pandown\server\index.js`（pid 7068），非本项目重复实例。
