@@ -731,9 +731,18 @@ app.get('/api/oauth/connect', async (req, res) => {
   if (!OAUTH_TYPES.includes(type)) return res.status(400).json({ error: '不支持的登录方式' });
   const ip = getIp(req);
   if (rateLimit('oauth:' + ip, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+  // bind=1 表示"已登录用户主动绑定"：校验 token，把用户身份签进 state，
+  // 这样浏览器跳第三方再回来（不带 Authorization 头）仍能确定绑到谁
+  let bindUserId = 0;
+  if (String((req.query || {}).bind || '') === '1') {
+    const u = verifyToken(String(req.headers.authorization || '').replace('Bearer ', '').trim());
+    if (!u) return res.status(401).json({ error: '请先登录后再绑定' });
+    bindUserId = u.id;
+  }
 
   const state = oauthSignState({
     t: type,
+    u: bindUserId || undefined, // 登录态发起绑定时把用户身份签进来
     nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + ip).digest('hex').slice(0, 24),
     exp: Date.now() + 10 * 60 * 1000
   });
@@ -790,15 +799,21 @@ app.get('/api/oauth/callback', async (req, res) => {
     return res.redirect(frontBase + '/chat#' + fragObj.key + '=' + encodeURIComponent(JSON.stringify(fragObj.data)));
   }
 
-  // 情况一：已登录（带本站 token）→ 直接绑定到当前账号后登录
+  // 情况一：已登录发起绑定 → 直接绑定到该账号
+  // 两种身份来源：① 请求带 Authorization 头 ② state.u（登录态发起绑定时由服务端签入，
+  // 因为浏览器跳第三方再回来不会携带 Authorization 头）
   const authHeader = String(req.headers.authorization || '').replace('Bearer ', '').trim();
-  const cur = authHeader ? verifyToken(authHeader) : null;
+  let cur = authHeader ? verifyToken(authHeader) : null;
+  if (!cur && st && st.u) {
+    const u0 = prepare('SELECT token_version, banned FROM users WHERE id=?').get(st.u);
+    if (u0 && !u0.banned) cur = { id: st.u };
+  }
   if (cur) {
     const owner = prepare('SELECT * FROM users WHERE id=?').get(cur.id);
-    if (!owner) return res.status(401).json({ error: '登录状态已失效，请重新登录' });
-    if (owner.banned) return res.status(403).json({ error: '该账号已被封禁' + (owner.ban_reason ? '：' + owner.ban_reason : '') });
+    if (!owner) return oauthFail(req, res, '登录状态已失效，请重新登录', 401);
+    if (owner.banned) return oauthFail(req, res, '该账号已被封禁' + (owner.ban_reason ? '：' + owner.ban_reason : ''), 403);
     const dup = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
-    if (dup && dup.user_id !== owner.id) return res.status(409).json({ error: '该第三方账号已绑定其他账户' });
+    if (dup && dup.user_id !== owner.id) return oauthFail(req, res, '该第三方账号已绑定其他账户', 409);
     if (dup) {
       prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
         .run(Date.now(), nickname || dup.nickname, avatar || dup.avatar, dup.id);
@@ -807,9 +822,13 @@ app.get('/api/oauth/callback', async (req, res) => {
         .run(type, socialUid, owner.id, nickname || '', avatar || '', Date.now(), Date.now());
     }
     logAudit(cur.id, 'oauth_bind', owner.id, 'user', '绑定聚合登录(' + type + ')', getIp(req));
-    const token = signToken(owner);
-    if (wantsHtml) return toFront({ key: 'oauth', data: { token, type, bound: 1 } });
-    return res.json({ ok: true, bound: true, token, user: publicUser(owner) });
+const token = signToken(owner);
+      if (wantsHtml) {
+        // 登录态发起的绑定：回设置页并刷新绑定列表；未登录的登录流程则直接进聊天
+        if (st && st.u) return toFront({ key: 'oauthbound', data: { type, nickname, ok: 1 } });
+        return toFront({ key: 'oauth', data: { token, type, bound: 1 } });
+      }
+      return res.json({ ok: true, bound: true, token, user: publicUser(owner) });
   }
 
   // 情况二：未登录 → 不自动建号，返回票据，前端引导用户填写账密完成绑定
@@ -829,6 +848,35 @@ app.get('/api/oauth/callback', async (req, res) => {
   console.error('[oauth] callback 异常:', e && e.message || e);
   if (!res.headersSent) res.status(500).json({ error: '服务内部错误' });
  }
+});
+
+// 查询当前账号已绑定的第三方账号：GET /api/oauth/bindings
+app.get('/api/oauth/bindings', (req, res) => {
+ if (!ready) return res.status(503).json({ error: '服务初始化中' });
+ const u = verifyToken(String(req.headers.authorization || '').replace('Bearer ', '').trim());
+ if (!u) return res.status(401).json({ error: '未授权' });
+ const rows = prepare('SELECT provider, social_uid, nickname, avatar, created_at FROM oauth_accounts WHERE user_id=?').all(u.id);
+ const mask = (s) => { const t = String(s || ''); return t.length > 10 ? t.slice(0, 4) + '****' + t.slice(-4) : '****'; };
+ res.json({
+  ok: true,
+  items: rows.map(r => ({
+   provider: r.provider, socialUid: mask(r.social_uid),
+   nickname: r.nickname || '', avatar: r.avatar || '',
+   createdAt: r.created_at
+  }))
+ });
+});
+
+// 解绑：POST /api/oauth/unbind { provider }
+app.post('/api/oauth/unbind', (req, res) => {
+ if (!ready) return res.status(503).json({ error: '服务初始化中' });
+ const u = verifyToken(String(req.headers.authorization || '').replace('Bearer ', '').trim());
+ if (!u) return res.status(401).json({ error: '未授权' });
+ const provider = String((req.body || {}).provider || '').trim();
+ if (!OAUTH_TYPES.includes(provider)) return res.status(400).json({ error: '不支持的登录方式' });
+ prepare('DELETE FROM oauth_accounts WHERE user_id=? AND provider=?').run(u.id, provider);
+ logAudit(u.id, 'oauth_unbind', u.id, 'user', '解绑聚合登录(' + provider + ')', getIp(req));
+ res.json({ ok: true });
 });
 
 // 账密完成绑定：POST /api/oauth/bind { ticket, account, password }

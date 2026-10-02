@@ -672,6 +672,17 @@ $('authBtn').onclick = async () => {
       clean(); return;
     }
 
+    // 登录态发起的绑定成功 -> 回设置页并刷新绑定列表
+    const mbd = h.match(/#oauthbound=([^&]+)/);
+    if (mbd) {
+      let p2 = null;
+      try { p2 = JSON.parse(decodeURIComponent(mbd[1])); } catch (e) {}
+      clean();
+      toast((p2 && p2.type ? (OAUTH_NAMES[p2.type] || '第三方账号') : '第三方账号') + '绑定成功', 'success');
+      if (typeof openSettingsPage === 'function') openSettingsPage();
+      return;
+    }
+
     const m = h.match(/#oauth=([^&]+)/);
     if (!m) return;
     let payload = null;
@@ -5013,6 +5024,54 @@ function renderDiscoverPage() {
 // 我的页渲染（微信式）
 
 // ============ 设置页面（微信风格） ============
+// ---------- 设置页：第三方账号绑定管理 ----------
+const OAUTH_NAMES = { qq: 'QQ', wx: '微信', alipay: '支付宝' };
+const OAUTH_ICONS = { qq: 'Q', wx: '微', alipay: '支' };
+
+async function fetchOauthBindings() {
+  try {
+    const res = await fetch(state.serverHost + '/api/oauth/bindings', {
+      headers: { Authorization: 'Bearer ' + state.token }
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return data.items || [];
+  } catch (e) { return []; }
+}
+
+async function oauthBindAction(type) {
+  const name = OAUTH_NAMES[type] || '第三方账号';
+  const list = await fetchOauthBindings();
+  const cur = list.find(x => x.provider === type);
+  if (cur) {
+    const ok = window.confirm(
+      '你已绑定' + name + '账号' + (cur.nickname ? '（' + cur.nickname + '）' : '') + '。\n是否解绑？解绑后将无法用' + name + '一键登录。'
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(state.serverHost + '/api/oauth/unbind', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
+        body: JSON.stringify({ provider: type })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(data.error || '解绑失败', 'error'); return; }
+      toast('已解绑' + name, 'success');
+      openSettingsPage();
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+    return;
+  }
+  try {
+    const res = await fetch(state.serverHost + '/api/oauth/connect?type=' + encodeURIComponent(type) + '&bind=1', {
+      headers: { Authorization: 'Bearer ' + state.token }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) { toast(data.error || '获取授权地址失败', 'error'); return; }
+    // 跳转第三方授权，回来后由 #oauthbound 分支刷新设置页
+    window.location.href = data.url;
+  } catch (e) { toast('请求失败：' + e.message, 'error'); }
+}
+
 function openSettingsPage() {
   const me = state.me;
   const main = document.querySelector('.main');
@@ -5054,8 +5113,31 @@ function openSettingsPage() {
   profileCard.onclick = () => showMyCard();
   content.appendChild(profileCard);
 
-  // 设置分组
+  // 设置分组（第三方账号的绑定状态异步填充）
+  fetchOauthBindings().then(list => {
+    const map = {};
+    list.forEach(b => { map[b.provider] = b; });
+    const cur = groups[0];
+    if (!cur || cur.title !== '第三方账号') return;
+    cur.items.forEach(it => {
+      const b = map[it.label];
+      it.desc = b
+        ? '已绑定' + (b.nickname ? '（' + b.nickname + '）' : '')
+        : '未绑定，绑定后可一键登录';
+    });
+    // 已渲染过设置页则刷新，否则下次打开自然带最新状态
+    const panel = document.getElementById('settingsPanel');
+    if (panel && panel.style.display === 'block') openSettingsPage();
+  });
   const groups = [
+    {
+      title: '第三方账号',
+      items: [
+        { label: 'QQ', desc: '绑定QQ账号，可一键登录', icon: 'Q', fn: () => oauthBindAction('qq') },
+        { label: '微信', desc: '绑定微信账号，可一键登录', icon: '微', fn: () => oauthBindAction('wx') },
+        { label: '支付宝', desc: '绑定支付宝账号，可一键登录', icon: '支', fn: () => oauthBindAction('alipay') },
+      ]
+    },
     {
       title: '账号与安全',
       items: [
