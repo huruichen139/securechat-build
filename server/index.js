@@ -280,6 +280,29 @@ const OAUTH_TYPES = ['qq', 'wx', 'alipay'];
 
 function oauthEnabled() { return !!(OAUTH_APPID && OAUTH_APPKEY); }
 
+// 回调出错时的响应：浏览器访问给友好页面（并带回前端显示），API 调用才返回 JSON
+function oauthFail(req, res, msg, code) {
+  const status = code || 400;
+  if (String(req.headers.accept || '').includes('text/html')) {
+    const base = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '');
+    const page = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>登录失败</title><style>` +
+      `body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;` +
+      `font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#191919}` +
+      `.box{background:#fff;padding:32px 28px;border-radius:12px;max-width:420px;margin:20px;` +
+      `box-shadow:0 8px 30px rgba(15,23,42,.08);text-align:center}` +
+      `h1{font-size:19px;margin:0 0 12px}p{font-size:14px;color:#666;line-height:1.7;margin:0 0 22px}` +
+      `a{display:inline-block;background:#07c160;color:#fff;text-decoration:none;padding:10px 28px;` +
+      `border-radius:6px;font-size:14px}</style></head><body><div class="box">` +
+      `<h1>登录失败</h1><p>${String(msg).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</p>` +
+      `<a href="${base}/chat">返回登录页</a></div></body></html>`;
+    res.status(status);
+    return res.type('html').send(page);
+  }
+  return res.status(status).json({ error: msg });
+}
+
 // state = base64url(payload).HMAC，10 分钟有效，payload 内含 type 与防重放 nonce
 function oauthSignState(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -738,14 +761,14 @@ app.get('/api/oauth/callback', async (req, res) => {
   const type = String(q.type || '').trim();
   const code = String(q.code || '').trim();
   const st = oauthVerifyState(q.state);
-  if (!OAUTH_TYPES.includes(type)) return res.status(400).json({ error: '不支持的登录方式' });
-  if (!code) return res.status(400).json({ error: '缺少授权码' });
-  if (!st) return res.status(400).json({ error: '登录状态已失效，请重新发起登录' });
-  if (st.t !== type) return res.status(400).json({ error: '登录类型不匹配' });
+  if (!OAUTH_TYPES.includes(type)) return oauthFail(req, res, '不支持的登录方式');
+  if (!code) return oauthFail(req, res, '缺少授权码');
+  if (!st) return oauthFail(req, res, '登录状态已失效，请重新发起登录');
+  if (st.t !== type) return oauthFail(req, res, '登录类型不匹配');
 
   const r = await oauthCall({ act: 'callback', appid: OAUTH_APPID, appkey: OAUTH_APPKEY, type, code });
   if (!r || r.code !== 0 || !r.social_uid) {
-    return res.status(401).json({ error: '第三方登录失败：' + ((r && r.msg) || '未知错误') });
+    return oauthFail(req, res, '第三方登录失败：' + ((r && r.msg) || '未知错误'), 401);
   }
   const socialUid = String(r.social_uid);
   const nickname = String(r.nickname || '').trim().slice(0, 40);
@@ -793,11 +816,11 @@ app.get('/api/oauth/callback', async (req, res) => {
   const dup2 = prepare('SELECT user_id FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
   if (dup2) {
     const owner = prepare('SELECT id, banned, ban_reason FROM users WHERE id=?').get(dup2.user_id);
-    if (owner && owner.banned) return res.status(403).json({ error: '该账户已被封禁，无法登录' });
+    if (owner && owner.banned) return oauthFail(req, res, '该账户已被封禁，无法登录', 403);
     if (owner) {
-      return res.status(409).json({ error: '该第三方账号已绑定其他账户，请直接用原账号密码登录', bound: 1 });
+      return oauthFail(req, res, '该第三方账号已绑定其他账户，请直接用原账号密码登录', 409);
     }
-    prepare('DELETE FROM oauth_accounts WHERE id=?').run(dup2.id || 0);
+    prepare('DELETE FROM oauth_accounts WHERE user_id=?', [dup2.user_id || 0]);
   }
   const ticket = makeTicket();
   if (wantsHtml) return toFront({ key: 'oauthbind', data: { ticket, type, nickname } });
