@@ -267,6 +267,72 @@ async function verifyCapToken(token) {
   } catch (e) { return false; }
 }
 
+// ---------- 第三方聚合登录（mapay.cn / OAuth2.0） ----------
+// 流程：/api/oauth/connect 取跳转地址 → 浏览器跳第三方 → 平台回调
+//       /api/oauth/callback?type=&code= → 用 code 换用户资料 → 找到/创建本地账号 → 签发本站 JWT
+// 安全：APPKEY 只存在于服务端 .env，任何接口都不回传给前端；state 用 HMAC 签名防 CSRF。
+const OAUTH_GATEWAY = process.env.MAPAY_GATEWAY || 'https://login.mapay.cn/connect.php';
+const OAUTH_APPID = process.env.MAPAY_APPID || '';
+const OAUTH_APPKEY = process.env.MAPAY_APPKEY || '';
+const OAUTH_CALLBACK = process.env.MAPAY_CALLBACK_URL
+  || ((process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/api/oauth/callback');
+const OAUTH_TYPES = ['qq', 'wx', 'alipay'];
+
+function oauthEnabled() { return !!(OAUTH_APPID && OAUTH_APPKEY); }
+
+// state = base64url(payload).HMAC，10 分钟有效，payload 内含 type 与防重放 nonce
+function oauthSignState(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+  return body + '.' + sig;
+}
+function oauthVerifyState(state) {
+  try {
+    const s = String(state || '');
+    const dot = s.lastIndexOf('.');
+    if (dot <= 0) return null;
+    const body = s.slice(0, dot), sig = s.slice(dot + 1);
+    const expect = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+    // 定长比较，避免时序侧信道
+    if (sig.length !== expect.length) return null;
+    let diff = 0;
+    for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expect.charCodeAt(i);
+    if (diff !== 0) return null;
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (!payload || !payload.nonce || !payload.exp) return null;
+    if (Date.now() > payload.exp) return null;
+    if (_oauthSeen.has(payload.nonce)) return null;
+    _oauthSeen.set(payload.nonce, Date.now());
+    if (_oauthSeen.size > 5000) for (const [k, v] of _oauthSeen) if (Date.now() - v > 600000) _oauthSeen.delete(k);
+    return payload;
+  } catch (e) { return null; }
+}
+const _oauthSeen = new Map(); // state nonce 防重放
+
+// 调平台接口（服务端 -> 平台）
+function oauthCall(params) {
+  return new Promise((resolve) => {
+    try {
+      const u = new URL(OAUTH_GATEWAY);
+      for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v));
+      const mod = u.protocol === 'https:' ? require('https') : require('http');
+      const req = mod.request({
+        hostname: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80),
+        path: u.pathname + u.search, method: 'GET', timeout: 12000
+      }, (r) => {
+        let b = '';
+        r.on('data', (c) => { if (b.length < 200000) b += c; });
+        r.on('end', () => {
+          try { resolve(JSON.parse(b)); } catch (e) { resolve({ code: -1, msg: '平台返回非JSON' }); }
+        });
+      });
+      req.on('error', (e) => resolve({ code: -1, msg: '无法连接聚合登录平台: ' + (e.code || e.message) }));
+      req.on('timeout', () => { req.destroy(); resolve({ code: -1, msg: '聚合登录平台超时' }); });
+      req.end();
+    } catch (e) { resolve({ code: -1, msg: '请求构造失败' }); }
+  });
+}
+
 function publicUser(u) {
   return {
     id: u.id, username: u.username, nickname: u.nickname, avatar: u.avatar,
@@ -630,6 +696,108 @@ app.post('/api/register', (req, res) => {
   res.json({ token, user: publicUser(user), uidChangedAt: now });
     })();
   });
+});
+
+// ---------- 聚合登录接口 ----------
+// Step1 取跳转地址：GET /api/oauth/connect?type=qq|wx|alipay
+app.get('/api/oauth/connect', async (req, res) => {
+ try {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  if (!oauthEnabled()) return res.status(503).json({ error: '聚合登录未配置' });
+  const type = String((req.query || {}).type || '').trim();
+  if (!OAUTH_TYPES.includes(type)) return res.status(400).json({ error: '不支持的登录方式' });
+  const ip = getIp(req);
+  if (rateLimit('oauth:' + ip, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+
+  const state = oauthSignState({
+    t: type,
+    nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + ip).digest('hex').slice(0, 24),
+    exp: Date.now() + 10 * 60 * 1000
+  });
+  const r = await oauthCall({ act: 'login', appid: OAUTH_APPID, appkey: OAUTH_APPKEY, type, redirect_uri: OAUTH_CALLBACK });
+  if (!r || r.code !== 0 || !r.url) {
+    return res.status(502).json({ error: '获取聚合登录地址失败：' + ((r && r.msg) || '未知错误') });
+  }
+  // 只回传跳转地址与扫码地址，绝不回传 appkey
+  res.json({ ok: true, type, url: r.url, qrcode: r.qrcode || '', state });
+ } catch (e) {
+  console.error('[oauth] connect 异常:', e && e.message || e);
+  if (!res.headersSent) res.status(500).json({ error: '服务内部错误' });
+ }
+});
+
+// Step3/4 回调换用户信息：GET /api/oauth/callback?type=&code=&state=
+app.get('/api/oauth/callback', async (req, res) => {
+ try {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  if (!oauthEnabled()) return res.status(503).json({ error: '聚合登录未配置' });
+  const q = req.query || {};
+  const type = String(q.type || '').trim();
+  const code = String(q.code || '').trim();
+  const st = oauthVerifyState(q.state);
+  if (!OAUTH_TYPES.includes(type)) return res.status(400).json({ error: '不支持的登录方式' });
+  if (!code) return res.status(400).json({ error: '缺少授权码' });
+  if (!st) return res.status(400).json({ error: '登录状态已失效，请重新发起登录' });
+  if (st.t !== type) return res.status(400).json({ error: '登录类型不匹配' });
+
+  const r = await oauthCall({ act: 'callback', appid: OAUTH_APPID, appkey: OAUTH_APPKEY, type, code });
+  if (!r || r.code !== 0 || !r.social_uid) {
+    return res.status(401).json({ error: '第三方登录失败：' + ((r && r.msg) || '未知错误') });
+  }
+  const socialUid = String(r.social_uid);
+  const nickname = String(r.nickname || '').trim().slice(0, 40);
+  const avatar = String(r.faceimg || '').trim().slice(0, 500);
+
+  let link = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
+  let user = null;
+  let created = false;
+  if (link) {
+    user = prepare('SELECT * FROM users WHERE id=?').get(link.user_id);
+    if (!user) { // 绑定记录存在但用户已不存在，清理后重建
+      prepare('DELETE FROM oauth_accounts WHERE id=?').run(link.id);
+      link = null;
+    }
+  }
+  if (user && user.banned) return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
+
+  if (!user) {
+    // 首次登录：自动创建本地账号。用户名为 {provider}_{social_uid前8位}，密码为随机不可登录值
+    const base = (type + '_' + socialUid.replace(/[^A-Za-z0-9]/g, '').slice(0, 8)).toLowerCase();
+    let username = base;
+    let n = 1;
+    while (prepare('SELECT id FROM users WHERE username=?').get(username)) {
+      username = (base.slice(0, 15) + '_' + n);
+      n += 1;
+    }
+    let uid; do { uid = genUid(); } while (prepare('SELECT id FROM users WHERE uid=?').get(uid));
+    const now = Date.now();
+    const hash = bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 10);
+    prepare('INSERT INTO users(username,nickname,password,avatar,uid,uid_changed_at,created_at) VALUES(?,?,?,?,?,?,?)')
+      .run(username, nickname || username, hash, avatar || null, uid, now, now);
+    user = prepare('SELECT * FROM users WHERE username=?').get(username);
+    prepare('INSERT INTO oauth_accounts(provider,social_uid,user_id,nickname,avatar,created_at,last_login_at) VALUES(?,?,?,?,?,?,?)')
+      .run(type, socialUid, user.id, nickname || '', avatar || '', now, now);
+    created = true;
+  } else {
+    prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+      .run(Date.now(), nickname || link.nickname, avatar || link.avatar, link.id);
+    prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), user.id);
+  }
+
+  const token = signToken(user);
+  logAudit(null, 'oauth_login', user.id, 'user', '聚合登录(' + type + ')' + (created ? ' 新建账号' : ''), getIp(req));
+  // 浏览器直接跳转进来时：302 回前端并把 token 放在 URL 片段（fragment 不会随请求上送服务器/日志）
+  const wantsHtml = String(req.headers.accept || '').includes('text/html');
+  if (wantsHtml) {
+    const back = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/chat#oauth='
+      + encodeURIComponent(JSON.stringify({ token, type, created: created ? 1 : 0 }));
+    return res.redirect(back);
+  }
+  res.json({ ok: true, created, token, user: publicUser(user) });
+ } catch (e) {
+  console.error('[oauth] callback 异常:', e && e.message || e);
+  if (!res.headersSent) res.status(500).json({ error: '服务内部错误' });
+ }
 });
 
 // 修改自己的 ID：一个月只能改一次
@@ -5125,5 +5293,14 @@ function mountFeatureRoutes(app, db) {
 process.on('SIGINT', () => { persistNow(); process.exit(0); });
 process.on('exit', () => { try { persistNow(); } catch {} });
 // 全局异常兜底：防止未捕获异常导致进程退出
-process.on('uncaughtException', (err) => { console.error('[fatal] uncaughtException:', err && err.message || err); });
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaughtException:', err && err.message || err);
+  // 端口占用等致命错误必须让进程退出：否则会残留"占着端口却不服务"的僵尸进程，
+  // 导致 watchdog 持续判定 offline 并反复杀/拉，形成重启死循环。
+  if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES' || err.code === 'EADDRNOTAVAIL')) {
+    try { persistNow(); } catch (_) {}
+    console.error('[fatal] 致命端口错误，进程退出，交由 watchdog 重新拉起');
+    process.exit(1);
+  }
+});
 process.on('unhandledRejection', (reason) => { console.error('[fatal] unhandledRejection:', reason && reason.message || reason); });

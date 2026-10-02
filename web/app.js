@@ -599,6 +599,97 @@ $('authBtn').onclick = async () => {
   }
 };
 
+// ---------- 第三方聚合登录（QQ / 微信 / 支付宝） ----------
+// 点击 -> /api/oauth/connect 取第三方地址 -> 跳转；平台回调后服务端 302 回
+// /chat#oauth={token,...}，由下面的 applyOAuthFragment() 接管登录。
+(function initOAuth() {
+  const row = document.getElementById('oauthRow');
+  if (!row) return;
+
+  async function startOAuth(type, btn) {
+    const errEl = document.getElementById('authErr');
+    const btns = row.querySelectorAll('.oauth-btn');
+    btns.forEach(b => { b.disabled = true; });
+    if (errEl) errEl.textContent = '';
+    try {
+      const res = await fetch(state.serverHost + '/api/oauth/connect?type=' + encodeURIComponent(type), { method: 'GET' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || '获取登录地址失败');
+      try { sessionStorage.setItem('sc_oauth_state', data.state || ''); } catch (e) {}
+      // 微信/支付宝带扫码地址时，桌面端弹码更顺手；否则直接跳转授权
+      if ((type === 'wx' || type === 'alipay') && data.qrcode && window.innerWidth >= 900) {
+        showOauthQr(data.qrcode, type);
+      } else {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      if (errEl) errEl.textContent = e.message || '发起第三方登录失败';
+      btns.forEach(b => { b.disabled = false; });
+    }
+  }
+
+  let qrEl = null;
+  function showOauthQr(qr, type) {
+    hideOauthQr();
+    const box = document.createElement('div');
+    box.className = 'oauth-tip';
+    const label = type === 'wx' ? '请使用微信扫描' : '请使用支付宝扫描';
+    box.innerHTML = '<div>' + label + '</div>';
+    const img = document.createElement('img');
+    img.src = qr; img.alt = '扫码登录';
+    box.appendChild(img);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'oauth-btn';
+    close.style.marginTop = '10px';
+    close.textContent = '取消';
+    close.onclick = () => { hideOauthQr(); row.querySelectorAll('.oauth-btn').forEach(b => { b.disabled = false; }); };
+    box.appendChild(close);
+    row.appendChild(box);
+    qrEl = box;
+  }
+  function hideOauthQr() { if (qrEl && qrEl.parentNode) qrEl.parentNode.removeChild(qrEl); qrEl = null; }
+
+  row.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.oauth-btn[data-oauth]');
+    if (!btn || btn.disabled) return;
+    startOAuth(btn.getAttribute('data-oauth'), btn);
+  });
+
+  // 处理回调片段：/chat#oauth={"token":"...","type":"qq","created":0}
+  function applyOAuthFragment() {
+    const h = String(location.hash || '');
+    const m = h.match(/#oauth=([^&]+)/);
+    if (!m) return;
+    try {
+      const payload = JSON.parse(decodeURIComponent(m[1]));
+      if (payload && payload.token) {
+        state.token = payload.token;
+        localStorage.setItem('sc_token', payload.token);
+        if (errElText(payload)) return;
+        // 拉一次 me 信息
+        fetch(state.serverHost + '/api/me', { headers: { Authorization: 'Bearer ' + payload.token } })
+          .then(r => r.ok ? r.json() : null)
+          .then(me => {
+            if (me) { state.me = Object.assign({}, state.me, me); localStorage.setItem('sc_me', JSON.stringify(state.me)); }
+          })
+          .catch(() => {})
+          .finally(() => { history.replaceState(null, '', location.pathname + location.search); enterChat(); fetchAnnouncements(); });
+        return;
+      }
+    } catch (e) {}
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  function errElText(p) {
+    const el = document.getElementById('authErr');
+    if (el) el.textContent = (p.created ? '已为你创建账号，' : '') + '登录成功';
+    return false;
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyOAuthFragment);
+  else applyOAuthFragment();
+})();
+
 async function setQrLogin() {
   if (qrLoginTimer) { clearInterval(qrLoginTimer); qrLoginTimer = null; }
   const img = $('qrImage');

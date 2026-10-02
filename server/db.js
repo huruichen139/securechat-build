@@ -570,6 +570,21 @@ function init() {
     UNIQUE(user_id, device_id)
   )`); } catch (e) {}
 
+  // ======== 第三方聚合登录账号绑定 ========
+  // provider: qq / wx / alipay；social_uid 为平台侧唯一标识
+  try { db.run(`CREATE TABLE IF NOT EXISTS oauth_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    social_uid TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    nickname TEXT NOT NULL DEFAULT '',
+    avatar TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    last_login_at INTEGER NOT NULL,
+    UNIQUE(provider, social_uid)
+  )`); } catch (e) {}
+  try { db.run(`CREATE INDEX IF NOT EXISTS idx_oauth_user ON oauth_accounts(user_id)`); } catch (e) {}
+
   // ======== 离线消息队列 ========
   try { db.run(`CREATE TABLE IF NOT EXISTS offline_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
