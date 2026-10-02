@@ -656,38 +656,130 @@ $('authBtn').onclick = async () => {
     startOAuth(btn.getAttribute('data-oauth'), btn);
   });
 
-  // 处理回调片段：/chat#oauth={"token":"...","type":"qq","created":0}
+  // 处理回调片段：
+  //   /chat#oauth={token,...}      已登录状态直接绑定成功 -> 登录
+  //   /chat#oauthbind={ticket,...} 未登录 -> 弹出账密框完成绑定
   function applyOAuthFragment() {
     const h = String(location.hash || '');
+    const clean = () => history.replaceState(null, '', location.pathname + location.search);
+
+    const mb = h.match(/#oauthbind=([^&]+)/);
+    if (mb) {
+      try {
+        const p = JSON.parse(decodeURIComponent(mb[1]));
+        if (p && p.ticket) { clean(); showBindDialog(p); return; }
+      } catch (e) { clean(); return; }
+      clean(); return;
+    }
+
     const m = h.match(/#oauth=([^&]+)/);
     if (!m) return;
-    try {
-      const payload = JSON.parse(decodeURIComponent(m[1]));
-      if (payload && payload.token) {
-        state.token = payload.token;
-        localStorage.setItem('sc_token', payload.token);
-        if (errElText(payload)) return;
-        // 拉一次 me 信息
-        fetch(state.serverHost + '/api/me', { headers: { Authorization: 'Bearer ' + payload.token } })
-          .then(r => r.ok ? r.json() : null)
-          .then(me => {
-            if (me) { state.me = Object.assign({}, state.me, me); localStorage.setItem('sc_me', JSON.stringify(state.me)); }
-          })
-          .catch(() => {})
-          .finally(() => { history.replaceState(null, '', location.pathname + location.search); enterChat(); fetchAnnouncements(); });
-        return;
-      }
-    } catch (e) {}
-    history.replaceState(null, '', location.pathname + location.search);
-  }
-  function errElText(p) {
+    let payload = null;
+    try { payload = JSON.parse(decodeURIComponent(m[1])); } catch (e) {}
+    if (!payload || !payload.token) { clean(); return; }
+    state.token = payload.token;
+    localStorage.setItem('sc_token', payload.token);
     const el = document.getElementById('authErr');
-    if (el) el.textContent = (p.created ? '已为你创建账号，' : '') + '登录成功';
-    return false;
+    if (el) el.textContent = payload.bound ? '绑定成功，已为你登录' : '登录成功';
+    fetch(state.serverHost + '/api/me', { headers: { Authorization: 'Bearer ' + payload.token } })
+      .then(r => r.ok ? r.json() : null)
+      .then(me => { if (me) { state.me = Object.assign({}, state.me, me); localStorage.setItem('sc_me', JSON.stringify(state.me)); } })
+      .catch(() => {})
+      .finally(() => { clean(); enterChat(); fetchAnnouncements(); });
+  }
+
+  // 未登录时：提示需要绑定账户，并弹出账密填写框
+  function showBindDialog(p) {
+    const typeName = { qq: 'QQ', wx: '微信', alipay: '支付宝' }[p.type] || '第三方';
+    hideBindDialog();
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.id = 'oauthBindMask';
+    const box = document.createElement('div');
+    box.className = 'modal bind-modal';
+
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    head.innerHTML = '<h3>需要绑定您的账户</h3>';
+    const x = document.createElement('button');
+    x.className = 'modal-x'; x.type = 'button'; x.innerHTML = '&times;';
+    x.setAttribute('aria-label', '关闭');
+    head.appendChild(x);
+
+    const tip = document.createElement('div');
+    tip.className = 'bind-tip';
+    tip.innerHTML = '你已用 <b>' + typeName + '</b> 账号完成授权（' +
+      (p.nickname ? String(p.nickname).slice(0, 24) : '第三方账号') +
+      '），请填写你的 SecureChat 账号密码完成绑定，之后即可用 ' + typeName + ' 一键登录。';
+
+    const f1 = document.createElement('div');
+    f1.className = 'field';
+    f1.innerHTML = '<label>用户名 / 邮箱</label>';
+    const in1 = document.createElement('input');
+    in1.type = 'text'; in1.placeholder = '请输入用户名或邮箱'; in1.autocomplete = 'username';
+    f1.appendChild(in1);
+
+    const f2 = document.createElement('div');
+    f2.className = 'field';
+    f2.innerHTML = '<label>密码</label>';
+    const in2 = document.createElement('input');
+    in2.type = 'password'; in2.placeholder = '请输入密码'; in2.autocomplete = 'current-password';
+    f2.appendChild(in2);
+
+    const err = document.createElement('div');
+    err.className = 'err';
+
+    const acts = document.createElement('div');
+    acts.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'cancel'; cancel.textContent = '取消';
+    const ok = document.createElement('button');
+    ok.className = 'ok'; ok.textContent = '绑定并登录';
+    acts.appendChild(cancel); acts.appendChild(ok);
+
+    box.appendChild(head); box.appendChild(tip); box.appendChild(f1); box.appendChild(f2);
+    box.appendChild(err); box.appendChild(acts);
+    mask.appendChild(box);
+    document.body.appendChild(mask);
+    setTimeout(() => in1.focus(), 50);
+
+    const close = () => { document.removeEventListener('keydown', onKey); hideBindDialog(); };
+    function hideBindDialog() { const m = document.getElementById('oauthBindMask'); if (m) m.remove(); }
+    x.onclick = close;
+    cancel.onclick = close;
+    mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+
+    ok.onclick = async () => {
+      const acc = in1.value.trim(), pw = in2.value;
+      if (!acc || !pw) { err.textContent = '请填写账号和密码'; return; }
+      ok.disabled = true; ok.textContent = '绑定中…';
+      err.textContent = '';
+      try {
+        const res = await fetch(state.serverHost + '/api/oauth/bind', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket: p.ticket, account: acc, password: pw })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.token) throw new Error(data.error || '绑定失败');
+        state.token = data.token;
+        if (data.user) { state.me = data.user; localStorage.setItem('sc_me', JSON.stringify(state.user)); }
+        localStorage.setItem('sc_token', data.token);
+        close();
+        enterChat();
+        fetchAnnouncements();
+      } catch (e2) {
+        err.textContent = e2.message || '绑定失败';
+        ok.disabled = false; ok.textContent = '绑定并登录';
+      }
+    };
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyOAuthFragment);
   else applyOAuthFragment();
+  // 第三方回调可能以「同文档 hash 跳转」方式回来（不会重新触发 DOMContentLoaded），需监听 hashchange
+  window.addEventListener('hashchange', applyOAuthFragment);
 })();
 
 async function setQrLogin() {

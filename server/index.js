@@ -751,56 +751,119 @@ app.get('/api/oauth/callback', async (req, res) => {
   const nickname = String(r.nickname || '').trim().slice(0, 40);
   const avatar = String(r.faceimg || '').trim().slice(0, 500);
 
-  let link = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
-  let user = null;
-  let created = false;
-  if (link) {
-    user = prepare('SELECT * FROM users WHERE id=?').get(link.user_id);
-    if (!user) { // 绑定记录存在但用户已不存在，清理后重建
-      prepare('DELETE FROM oauth_accounts WHERE id=?').run(link.id);
-      link = null;
-    }
+  // 绑定票据：一次性、10 分钟有效，内容含第三方标识，供前端配合账密完成绑定
+  function makeTicket() {
+    const body = Buffer.from(JSON.stringify({
+      p: type, s: socialUid, n: nickname, a: avatar,
+      nn: crypto.createHash('sha256').update(socialUid + type + Date.now() + Math.random()).digest('hex').slice(0, 20),
+      exp: Date.now() + 10 * 60 * 1000
+    })).toString('base64url');
+    const sig = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+    return body + '.' + sig;
   }
-  if (user && user.banned) return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
-
-  if (!user) {
-    // 首次登录：自动创建本地账号。用户名为 {provider}_{social_uid前8位}，密码为随机不可登录值
-    const base = (type + '_' + socialUid.replace(/[^A-Za-z0-9]/g, '').slice(0, 8)).toLowerCase();
-    let username = base;
-    let n = 1;
-    while (prepare('SELECT id FROM users WHERE username=?').get(username)) {
-      username = (base.slice(0, 15) + '_' + n);
-      n += 1;
-    }
-    let uid; do { uid = genUid(); } while (prepare('SELECT id FROM users WHERE uid=?').get(uid));
-    const now = Date.now();
-    const hash = bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 10);
-    prepare('INSERT INTO users(username,nickname,password,avatar,uid,uid_changed_at,created_at) VALUES(?,?,?,?,?,?,?)')
-      .run(username, nickname || username, hash, avatar || null, uid, now, now);
-    user = prepare('SELECT * FROM users WHERE username=?').get(username);
-    prepare('INSERT INTO oauth_accounts(provider,social_uid,user_id,nickname,avatar,created_at,last_login_at) VALUES(?,?,?,?,?,?,?)')
-      .run(type, socialUid, user.id, nickname || '', avatar || '', now, now);
-    created = true;
-  } else {
-    prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
-      .run(Date.now(), nickname || link.nickname, avatar || link.avatar, link.id);
-    prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), user.id);
-  }
-
-  const token = signToken(user);
-  logAudit(null, 'oauth_login', user.id, 'user', '聚合登录(' + type + ')' + (created ? ' 新建账号' : ''), getIp(req));
-  // 浏览器直接跳转进来时：302 回前端并把 token 放在 URL 片段（fragment 不会随请求上送服务器/日志）
+  const frontBase = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '');
   const wantsHtml = String(req.headers.accept || '').includes('text/html');
-  if (wantsHtml) {
-    const back = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/chat#oauth='
-      + encodeURIComponent(JSON.stringify({ token, type, created: created ? 1 : 0 }));
-    return res.redirect(back);
+  function toFront(fragObj) {
+    return res.redirect(frontBase + '/chat#' + fragObj.key + '=' + encodeURIComponent(JSON.stringify(fragObj.data)));
   }
-  res.json({ ok: true, created, token, user: publicUser(user) });
+
+  // 情况一：已登录（带本站 token）→ 直接绑定到当前账号后登录
+  const authHeader = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+  const cur = authHeader ? verifyToken(authHeader) : null;
+  if (cur) {
+    const owner = prepare('SELECT * FROM users WHERE id=?').get(cur.id);
+    if (!owner) return res.status(401).json({ error: '登录状态已失效，请重新登录' });
+    if (owner.banned) return res.status(403).json({ error: '该账号已被封禁' + (owner.ban_reason ? '：' + owner.ban_reason : '') });
+    const dup = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
+    if (dup && dup.user_id !== owner.id) return res.status(409).json({ error: '该第三方账号已绑定其他账户' });
+    if (dup) {
+      prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+        .run(Date.now(), nickname || dup.nickname, avatar || dup.avatar, dup.id);
+    } else {
+      prepare('INSERT INTO oauth_accounts(provider,social_uid,user_id,nickname,avatar,created_at,last_login_at) VALUES(?,?,?,?,?,?,?)')
+        .run(type, socialUid, owner.id, nickname || '', avatar || '', Date.now(), Date.now());
+    }
+    logAudit(cur.id, 'oauth_bind', owner.id, 'user', '绑定聚合登录(' + type + ')', getIp(req));
+    const token = signToken(owner);
+    if (wantsHtml) return toFront({ key: 'oauth', data: { token, type, bound: 1 } });
+    return res.json({ ok: true, bound: true, token, user: publicUser(owner) });
+  }
+
+  // 情况二：未登录 → 不自动建号，返回票据，前端引导用户填写账密完成绑定
+  const dup2 = prepare('SELECT user_id FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
+  if (dup2) {
+    const owner = prepare('SELECT id, banned, ban_reason FROM users WHERE id=?').get(dup2.user_id);
+    if (owner && owner.banned) return res.status(403).json({ error: '该账户已被封禁，无法登录' });
+    if (owner) {
+      return res.status(409).json({ error: '该第三方账号已绑定其他账户，请直接用原账号密码登录', bound: 1 });
+    }
+    prepare('DELETE FROM oauth_accounts WHERE id=?').run(dup2.id || 0);
+  }
+  const ticket = makeTicket();
+  if (wantsHtml) return toFront({ key: 'oauthbind', data: { ticket, type, nickname } });
+  res.json({ ok: true, needBind: true, ticket, type, nickname });
  } catch (e) {
   console.error('[oauth] callback 异常:', e && e.message || e);
   if (!res.headersSent) res.status(500).json({ error: '服务内部错误' });
  }
+});
+
+// 账密完成绑定：POST /api/oauth/bind { ticket, account, password }
+// 前端拿到票据后，用现有账号密码把第三方账号绑定到自己名下并登录。
+app.post('/api/oauth/bind', (req, res) => {
+ if (!ready) return res.status(503).json({ error: '服务初始化中' });
+ if (!oauthEnabled()) return res.status(503).json({ error: '聚合登录未配置' });
+ const body = req.body || {};
+ const ip = getIp(req);
+ if (rateLimit('oauthbind:' + ip, 15, 15 * 60 * 1000)) return res.status(429).json({ error: '尝试次数过多，请稍后再试' });
+
+ const ticket = String(body.ticket || '').trim();
+ const account = String(body.account || body.username || '').trim();
+ const password = String(body.password || '');
+ if (!ticket || !account || !password) return res.status(400).json({ error: '请填写账号和密码' });
+
+ // 校验并消费票据（一次性）
+ let tk;
+ try {
+  const dot = ticket.lastIndexOf('.');
+  if (dot <= 0) return res.status(400).json({ error: '绑定票据无效，请重新发起登录' });
+  const b = ticket.slice(0, dot), sig = ticket.slice(dot + 1);
+  const expect = crypto.createHash('sha256').update(b + OAUTH_APPKEY).digest('hex').slice(0, 32);
+  if (sig.length !== expect.length) return res.status(400).json({ error: '绑定票据无效，请重新发起登录' });
+  let diff = 0;
+  for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expect.charCodeAt(i);
+  if (diff !== 0) return res.status(400).json({ error: '绑定票据无效，请重新发起登录' });
+  tk = JSON.parse(Buffer.from(b, 'base64url').toString('utf8'));
+ } catch (e) { return res.status(400).json({ error: '绑定票据无效，请重新发起登录' }); }
+ if (!tk || !tk.p || !tk.s || !tk.nn || !tk.exp || Date.now() > tk.exp) {
+  return res.status(400).json({ error: '绑定已超时，请重新发起登录' });
+ }
+ if (_oauthSeen.has(tk.nn)) return res.status(400).json({ error: '该绑定票据已使用过，请重新发起登录' });
+ _oauthSeen.set(tk.nn, Date.now());
+
+ let user = prepare('SELECT * FROM users WHERE username=?').get(account);
+ if (!user && account.indexOf('@') > -1) user = prepare('SELECT * FROM users WHERE email=?').get(account);
+ if (!user || !bcrypt.compareSync(password, user.password)) {
+  return res.status(401).json({ error: '账号或密码错误' });
+ }
+ if (user.banned) return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
+
+ const dup = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(tk.p, tk.s);
+ if (dup && dup.user_id !== user.id) return res.status(409).json({ error: '该第三方账号已绑定其他账户' });
+ if (dup) {
+  prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+   .run(Date.now(), tk.n || dup.nickname, tk.a || dup.avatar, dup.id);
+ } else {
+  prepare('INSERT INTO oauth_accounts(provider,social_uid,user_id,nickname,avatar,created_at,last_login_at) VALUES(?,?,?,?,?,?,?)')
+   .run(tk.p, tk.s, user.id, tk.n || '', tk.a || '', Date.now(), Date.now());
+  // 首次绑定时把第三方头像同步到账号（用户已有头像则不覆盖）
+  if (!user.avatar && tk.a) {
+   try { prepare('UPDATE users SET avatar=? WHERE id=?').run(String(tk.a).slice(0, 500), user.id); } catch (e) {}
+  }
+ }
+ const fresh = prepare('SELECT * FROM users WHERE id=?').get(user.id);
+ logAudit(user.id, 'oauth_bind', user.id, 'user', '绑定聚合登录(' + tk.p + ')', ip);
+ res.json({ ok: true, token: signToken(fresh), user: publicUser(fresh) });
 });
 
 // 修改自己的 ID：一个月只能改一次
