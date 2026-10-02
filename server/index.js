@@ -714,7 +714,10 @@ app.get('/api/oauth/connect', async (req, res) => {
     nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + ip).digest('hex').slice(0, 24),
     exp: Date.now() + 10 * 60 * 1000
   });
-  const r = await oauthCall({ act: 'login', appid: OAUTH_APPID, appkey: OAUTH_APPKEY, type, redirect_uri: OAUTH_CALLBACK });
+  // 平台回调只会附带 type 与 code，不会回传我们自定义的 state，
+  // 因此把 state 拼进 redirect_uri 查询串，平台跳转时便会原样带回。
+  const redirectUri = OAUTH_CALLBACK + '?state=' + encodeURIComponent(state);
+  const r = await oauthCall({ act: 'login', appid: OAUTH_APPID, appkey: OAUTH_APPKEY, type, redirect_uri: redirectUri });
   if (!r || r.code !== 0 || !r.url) {
     return res.status(502).json({ error: '获取聚合登录地址失败：' + ((r && r.msg) || '未知错误') });
   }
