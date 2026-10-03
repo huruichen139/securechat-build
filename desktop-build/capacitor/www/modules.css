@@ -525,9 +525,21 @@
 .oauth-row { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 .oauth-sep { display: flex; align-items: center; gap: 10px; color: var(--muted, #888); font-size: 12.5px; }
 .oauth-sep::before, .oauth-sep::after { content: ''; flex: 1; height: 1px; background: var(--border, #e5e5e5); }
-/* 三个按钮横排一行，间距收紧，避免登录框出现大片空白 */
-.oauth-btns { display: flex; gap: 8px; }
-.oauth-btns .oauth-btn { flex: 1; min-width: 0; }
+/* 竖排：登录方式一行一个，避免五个按钮挤在一行 */
+.oauth-btns { display: flex; flex-direction: column; gap: 8px; }
+.oauth-btns .oauth-btn { width: 100%; }
+/* 图标容器：统一尺寸并居中 SVG */
+.oauth-ico {
+  width: 22px; height: 22px; flex: none; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-style: normal; overflow: hidden;
+}
+.oauth-ico svg { width: 100%; height: 100%; display: block; }
+.ico-qq { background: transparent; }
+.ico-wx { background: transparent; color: #07c160; }
+.ico-alipay { background: transparent; }
+.ico-github { background: transparent; color: #24292f; }
+.ico-passkey { background: transparent; color: #6a5cff; }
 .oauth-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 9px 10px; border: 1px solid var(--border, #e5e5e5);
@@ -538,15 +550,7 @@
 .oauth-btn > span { overflow: hidden; text-overflow: ellipsis; }
 .oauth-btn:hover { background: var(--chip, #f1f5f9); }
 .oauth-btn:disabled { opacity: .55; cursor: not-allowed; }
-.oauth-ico {
-  width: 18px; height: 18px; flex: none; border-radius: 4px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: #fff; font-style: normal;
-}
-.ico-qq { background: #12b7f5; }
-.ico-wx { background: #07c160; }
-.ico-alipay { background: #1677ff; }
-.ico-github { background: linear-gradient(135deg, #24292f, #57606a); }
+
 .oauth-tip { margin-top: 10px; text-align: center; font-size: 12.5px; color: var(--muted, #888); }
 .oauth-tip img { display: block; margin: 10px auto 0; width: 168px; height: 168px; border: 1px solid var(--border, #e5e5e5); border-radius: 8px; background: #fff; }
 
@@ -728,7 +732,6 @@
 }
 
 /* ---------- Passkey ---------- */
-.ico-passkey { background: linear-gradient(135deg, #6a5cff, #b06aff); }
 .passkey-modal { width: min(94vw, 420px); }
 .pk-body { padding: 14px 16px; max-height: 58vh; overflow-y: auto; }
 .pk-empty { padding: 26px 8px; text-align: center; color: var(--muted, #888); font-size: 13.5px; line-height: 1.7; }
