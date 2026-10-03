@@ -12,6 +12,7 @@ $logFile   = "D:\chat\data\scheduled_guard.log"
 $ts        = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 
 function Get-IndexProcs {
+  # 只匹配本项目的 index.js（排除其他项目如 pandown 的同名文件）
   @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
     Where-Object { $_.CommandLine -match 'index\.js' -and $_.CommandLine -notmatch 'pandown' })
 }
@@ -23,10 +24,18 @@ function Test-Listening {
 
 if (Test-Listening) {
   "[" + $ts + "] listening ok, idxProcs=" + (Get-IndexProcs).Count | Out-File $logFile -Append -Encoding utf8
+  $global:miss = 0
   exit 0
 }
 
-# 端口没在听：清掉所有残留 index 进程（含占端口的僵尸），再拉起一个干净的
+# 防抖：连续两次确认端口确实没在听，才动手，避免瞬时抖动误杀健康进程
+$global:miss = $global:miss + 1
+if ($global:miss -lt 2) {
+  "[" + $ts + "] port down, confirming...(" + $global:miss + "/2)" | Out-File $logFile -Append -Encoding utf8
+  exit 0
+}
+
+# 端口没在听：清掉本项目残留 index 进程（含占端口的僵尸），再拉起一个干净的
 $old = Get-IndexProcs
 foreach ($p in $old) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 3
@@ -42,3 +51,4 @@ for ($i = 0; $i -lt 12; $i++) {
 }
 
 "[" + $ts + "] DOWN, killed=" + $old.Count + ", restarted=" + $ok | Out-File $logFile -Append -Encoding utf8
+$global:miss = 0
