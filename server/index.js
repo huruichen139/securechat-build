@@ -845,15 +845,27 @@ app.get('/api/oauth/callback', async (req, res) => {
     if (owner.banned) return oauthFail(req, res, '该账号已被封禁' + (owner.ban_reason ? '：' + owner.ban_reason : ''), 403);
     const dup = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
 if (dup && dup.user_id !== owner.id) {
-      // 该第三方账号已挂在别的账户下。给出可点击的解决入口，而不是让用户自己找。
-      const boundName = (() => {
-        const o = prepare('SELECT username FROM users WHERE id=?').get(dup.user_id);
-        return o ? o.username : '';
-      })();
-      return oauthFail(req, res, '该' + ({ qq: 'QQ', wx: '微信', alipay: '支付宝' }[type] || '第三方') +
-        '账号已绑定到另一个 SecureChat 账户（' + boundName + '）。\n' +
-        '若你要进入该账户：先用它的密码登录，再点 QQ 即可自动登录。\n' +
-        '若你要绑到当前账户：先用 ' + boundName + ' 登录 → 设置 - 第三方账号 - 解绑，再回来绑定。', 409);
+      // 该第三方账号已挂在别的账户下。与登录页保持一致的 SSO 语义：
+      // 直接登录它所归属的账户（而不是报错让用户自己去猜/去解绑）。
+      const boundOwner = prepare('SELECT * FROM users WHERE id=?').get(dup.user_id);
+      if (boundOwner && boundOwner.banned) return oauthFail(req, res, '该账户已被封禁，无法登录', 403);
+      if (boundOwner) {
+        prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+          .run(Date.now(), nickname || dup.nickname, avatar || dup.avatar, dup.id);
+        prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), boundOwner.id);
+        logAudit(boundOwner.id, 'oauth_login', boundOwner.id, 'user',
+          '第三方登录(' + type + ') 已绑定账户直接登录(登录态冲突自动切换)', getIp(req));
+        const tkB = signToken(boundOwner);
+        if (wantsHtml) {
+          // 切到该账户后回设置页，让用户看到自己现在在哪个账户
+          const back = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/chat#oauth='
+            + encodeURIComponent(JSON.stringify({ token: tkB, type, bound: 1, switched: 1 }));
+          return res.redirect(back);
+        }
+        return res.json({ ok: true, bound: true, switched: true, token: tkB, user: publicUser(boundOwner) });
+      }
+      // 绑定记录指向已不存在的用户：清理后正常绑定
+      prepare('DELETE FROM oauth_accounts WHERE id=?').run(dup.id);
     }
     if (dup) {
       prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
@@ -1079,6 +1091,26 @@ async function githubCallbackHandler(req, res) {
     const wantsHtml = String(req.headers.accept || '').includes('text/html');
     const frontBase = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '');
     const toFront = (o) => res.redirect(frontBase + '/chat#' + o.key + '=' + encodeURIComponent(JSON.stringify(o.data)));
+    // 登录态发起的绑定：未绑定时直接绑到当前用户（state.u 由服务端签名，防篡改），
+    // 避免又弹账密框让用户重复登录
+    if (st && st.u) {
+      const me = prepare('SELECT * FROM users WHERE id=?').get(st.u);
+      if (me && !me.banned) {
+        const exist = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get('github', socialUid);
+        if (exist && exist.user_id === me.id) {
+          prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+            .run(Date.now(), nickname || exist.nickname, avatar || exist.avatar, exist.id);
+        } else if (!exist) {
+          prepare('INSERT INTO oauth_accounts(provider,social_uid,user_id,nickname,avatar,created_at,last_login_at) VALUES(?,?,?,?,?,?,?)')
+            .run('github', socialUid, me.id, nickname || '', avatar || '', Date.now(), Date.now());
+        }
+        logAudit(me.id, 'oauth_bind', me.id, 'user', '绑定GitHub', ip);
+        const fresh = prepare('SELECT * FROM users WHERE id=?').get(me.id);
+        const tk = signToken(fresh);
+        if (wantsHtml) return toFront({ key: 'oauthbound', data: { type: 'github', nickname, ok: 1 } });
+        return res.json({ ok: true, token: tk, user: publicUser(fresh) });
+      }
+    }
     return oauthCompleteBind(req, res, 'github', socialUid, nickname, avatar, toFront, wantsHtml, ip);
   } catch (e) {
     console.error('[github] callback 异常:', e && e.message || e);
