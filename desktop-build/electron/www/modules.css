@@ -726,6 +726,71 @@
   .oauth-btn.mica:hover, .mica-primary:hover { transform: none; }
 }
 
+/* ---------- Passkey ---------- */
+.ico-passkey { background: linear-gradient(135deg, #6a5cff, #b06aff); }
+.passkey-modal { width: min(94vw, 420px); }
+.pk-body { padding: 14px 16px; max-height: 58vh; overflow-y: auto; }
+.pk-empty { padding: 26px 8px; text-align: center; color: var(--muted, #888); font-size: 13.5px; line-height: 1.7; }
+.pk-hint { font-size: 12.5px; color: var(--muted, #888); margin-bottom: 10px; }
+.pk-list-title { font-size: 12px; color: var(--muted, #888); margin: 12px 0 6px; }
+.pk-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--border, #e5e5e5); border-radius: 8px; margin-bottom: 7px;
+}
+.pk-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pk-info b { font-size: 13.5px; font-weight: 600; color: var(--text, #191919); }
+.pk-info small { font-size: 11.5px; color: var(--muted, #888); }
+.pk-del {
+  border: 1px solid var(--border, #e5e5e5); border-radius: 6px; background: transparent;
+  color: #e64545; font-size: 12.5px; padding: 4px 11px; cursor: pointer; font-family: inherit;
+}
+.pk-del:hover { background: rgba(230, 69, 69, .08); }
+
+/* ============================================================
+   云母材质铺开：主界面（聊天页）也用上透光材质
+   ============================================================ */
+.app-mica .sidebar {
+  background: rgba(255, 255, 255, .58) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  border-right: 1px solid rgba(255, 255, 255, .5);
+}
+.app-mica .chat-header {
+  background: rgba(255, 255, 255, .58) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  border-bottom: 1px solid rgba(255, 255, 255, .5);
+}
+/* 会话项选中态也用云母 */
+.app-mica .conv-item.on,
+.app-mica .side-tab.on {
+  background: rgba(255, 255, 255, .62) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
+}
+/* 输入区云母条 */
+.app-mica .input-bar {
+  background: rgba(255, 255, 255, .60) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  border-top: 1px solid rgba(255, 255, 255, .5);
+}
+/* 主界面极光底衬 */
+.app-mica .chat-wrap {
+  background:
+    radial-gradient(70% 50% at 8% 0%, rgba(7, 193, 96, .09) 0%, transparent 60%),
+    radial-gradient(65% 45% at 92% 6%, rgba(56, 132, 255, .08) 0%, transparent 60%),
+    radial-gradient(80% 60% at 50% 100%, rgba(150, 110, 255, .07) 0%, transparent 62%) !important;
+  background-attachment: fixed;
+}
+@media (prefers-color-scheme: dark) {
+  .app-mica .sidebar, .app-mica .chat-header, .app-mica .input-bar {
+    background: rgba(30, 30, 30, .58) !important;
+    border-color: rgba(255, 255, 255, .10);
+  }
+  .app-mica .conv-item.on, .app-mica .side-tab.on { background: rgba(255, 255, 255, .10) !important; }
+}
+
 /* ---------- 暗色模式适配 ---------- */@media (prefers-color-scheme: dark) {
   .sc-status-modal, .sc-mext-modal, .scan-head, .shake-stage,
   .miniapp-frame, .ce-modal, .oa-container > .oa-body, .sc-fav-panel { background: var(--bg, #1e1e1e); }

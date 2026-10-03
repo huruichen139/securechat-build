@@ -3808,7 +3808,9 @@ app.post('/api/passkey/finish', (req, res) => {
   const session = passkeyChallenges.get(credentialId);
   if (!session) return res.status(400).json({ error: '挑战已过期，请重新发起登录' });
   passkeyChallenges.delete(credentialId);
-  const expected = crypto.createHmac('sha256', session.secret).update(session.challenge).digest('hex');
+  // secret/challenge 均以 hex 存储，HMAC 需按字节参与计算（与客户端 WebCrypto 一致）
+  const keyBytes = Buffer.from(session.secret, 'hex');
+  const expected = crypto.createHmac('sha256', keyBytes).update(session.challenge, 'utf8').digest('hex');
   if (signature !== expected) return res.status(401).json({ error: '凭据验证失败' });
   const user = prepare('SELECT * FROM users WHERE id=?').get(session.uid);
   if (!user) return res.status(404).json({ error: '用户不存在' });

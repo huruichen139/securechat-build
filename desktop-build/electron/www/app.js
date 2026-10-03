@@ -651,6 +651,8 @@ $('authBtn').onclick = async () => {
   function hideOauthQr() { if (qrEl && qrEl.parentNode) qrEl.parentNode.removeChild(qrEl); qrEl = null; }
 
   row.addEventListener('click', (ev) => {
+    const pk = ev.target.closest('.oauth-btn[data-passkey]');
+    if (pk) { if (!pk.disabled) passkeyLogin(); return; }
     const btn = ev.target.closest('.oauth-btn[data-oauth]');
     if (!btn || btn.disabled) return;
     startOAuth(btn.getAttribute('data-oauth'), btn);
@@ -972,6 +974,7 @@ function logout() {
 function enterChat() {
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
+  if (typeof applyMica === 'function') applyMica();
   renderMyInfo();
   // 登录成功后立即上传身份公钥，避免对方只能复用旧会话导致无法解密。
   if (window.SCE2EE && typeof window.SCE2EE.ensureKeyPair === 'function') {
@@ -5072,6 +5075,157 @@ async function oauthBindAction(type) {
   } catch (e) { toast('请求失败：' + e.message, 'error'); }
 }
 
+// ---------- Passkey（免密登录设备凭据） ----------
+// 后端为自研 HMAC 方案：注册下发 credentialId+secret 存本地，
+// 登录时 start 拿 challenge -> 本地算 HMAC(secret,challenge) -> finish 换 token
+const PASSKEY_STORE = 'sc_passkeys';
+
+function getPasskeys() {
+  try { const v = JSON.parse(localStorage.getItem(PASSKEY_STORE) || '[]'); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
+}
+function savePasskeys(list) {
+  localStorage.setItem(PASSKEY_STORE, JSON.stringify(list));
+}
+function passkeyAvailable() {
+  return !!(window.crypto && window.crypto.subtle && window.isSecureContext);
+}
+async function hmacHex(secretHex, msgHex) {
+  const enc = new TextEncoder();
+  const keyHex = secretHex;
+  const key = await crypto.subtle.importKey('raw', Uint8Array.from(keyHex.match(/../g).map(h => parseInt(h, 16))), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msgHex));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function passkeyRegister() {
+  if (!passkeyAvailable()) { toast('当前环境不支持 Passkey（需 HTTPS 或 localhost）', 'warn'); return; }
+  const deviceName = window.prompt('给这台设备起个名字（便于识别）', (navigator.platform || '本机设备').slice(0, 30)) || '本机设备';
+  try {
+    const res = await fetch(state.serverHost + '/api/passkey/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
+      body: JSON.stringify({ deviceName })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast(data.error || '注册失败', 'error'); return; }
+    const list = getPasskeys();
+    list.push({ credentialId: data.credentialId, secret: data.secret, deviceName: data.deviceName, createdAt: Date.now() });
+    savePasskeys(list);
+    toast('Passkey 已创建，可在下次登录时免密使用', 'success');
+    if (typeof openSettingsPage === 'function') openSettingsPage();
+  } catch (e) { toast('请求失败：' + e.message, 'error'); }
+}
+
+async function passkeyLogin() {
+  if (!passkeyAvailable()) { toast('当前环境不支持 Passkey', 'warn'); return; }
+  const list = getPasskeys();
+  if (!list.length) { toast('本机还没有 Passkey，请先登录后在「设置 - Passkey」创建', 'warn'); return; }
+  for (const p of list) {
+    try {
+      let r = await fetch(state.serverHost + '/api/passkey/start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentialId: p.credentialId })
+      });
+      let d = await r.json().catch(() => ({}));
+      if (!r.ok) continue;
+      const sig = await hmacHex(p.secret, d.challenge);
+      r = await fetch(state.serverHost + '/api/passkey/finish', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentialId: p.credentialId, signature: sig })
+      });
+      d = await r.json().catch(() => ({}));
+      if (r.ok && d.token) {
+        state.token = d.token;
+        if (d.user) { state.me = d.user; localStorage.setItem('sc_me', JSON.stringify(d.user)); }
+        localStorage.setItem('sc_token', d.token);
+        toast('免密登录成功', 'success');
+        if (typeof enterChat === 'function') { enterChat(); fetchAnnouncements(); }
+        return;
+      }
+    } catch (e) { /* 试下一个 */ }
+  }
+  toast('免密登录失败，请用账号密码登录', 'error');
+}
+
+async function passkeyRemove(credentialId) {
+  if (!window.confirm('删除该 Passkey 设备？删除后此设备无法免密登录。')) return;
+  try {
+    await fetch(state.serverHost + '/api/passkey/delete?credentialId=' + encodeURIComponent(credentialId), {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + state.token }
+    });
+    savePasskeys(getPasskeys().filter(x => x.credentialId !== credentialId));
+    toast('已删除', 'success');
+    if (typeof openSettingsPage === 'function') openSettingsPage();
+  } catch (e) { toast('删除失败：' + e.message, 'error'); }
+}
+
+async function passkeyPanel() {
+  const local = getPasskeys();
+  let server = [];
+  try {
+    const r = await fetch(state.serverHost + '/api/passkey/list', { headers: { Authorization: 'Bearer ' + state.token } });
+    if (r.ok) { const d = await r.json(); server = d.credentials || []; }
+  } catch (e) {}
+
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const box = document.createElement('div');
+  box.className = 'modal passkey-modal';
+  box.innerHTML =
+    '<div class="modal-head"><h3>Passkey 免密登录</h3><button class="modal-x" type="button" aria-label="关闭">&times;</button></div>' +
+    '<div class="pk-body"></div>' +
+    '<div class="modal-actions"><button class="cancel" type="button">关闭</button><button class="ok" type="button">创建 Passkey</button></div>';
+  const body = box.querySelector('.pk-body');
+  if (!local.length && !server.length) {
+    body.innerHTML = '<div class="pk-empty">还没有 Passkey。创建后，这台设备可用免密方式登录。</div>';
+  } else {
+    let html = '<div class="pk-hint">本机凭据 ' + local.length + ' 个，账号下共 ' + server.length + ' 个</div>';
+    if (local.length) {
+      html += '<div class="pk-list-title">本机可免密登录</div>';
+      for (const p of local) {
+        html += '<div class="pk-row"><div class="pk-info"><b>' + escapeHtml(p.deviceName || '本机设备') + '</b>' +
+          '<small>' + new Date(p.createdAt || Date.now()).toLocaleDateString('zh-CN') + ' 创建</small></div>' +
+          '<button class="pk-del" data-cred="' + escapeHtml(p.credentialId) + '">删除</button></div>';
+      }
+    }
+    if (server.length) {
+      html += '<div class="pk-list-title">账号下所有设备</div>';
+      for (const c of server) {
+        const onThis = local.some(x => x.credentialId === c.credential_id);
+        html += '<div class="pk-row"><div class="pk-info"><b>' + escapeHtml(c.device_name) +
+          '</b><small>' + new Date(c.created_at).toLocaleDateString('zh-CN') + ' · ' +
+          (c.last_used_at ? new Date(c.last_used_at).toLocaleDateString('zh-CN') + ' 用过' : '未使用') +
+          (onThis ? ' · 本机' : '') + '</small></div></div>';
+      }
+    }
+    body.innerHTML = html;
+  }
+  mask.appendChild(box);
+  document.body.appendChild(mask);
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  box.querySelector('.modal-x').onclick = close;
+  box.querySelector('.cancel').onclick = close;
+  box.querySelector('.ok').onclick = async () => { close(); await passkeyRegister(); };
+  mask.addEventListener('click', e => { if (e.target === mask) close(); });
+  body.addEventListener('click', e => {
+    const b = e.target.closest('.pk-del');
+    if (b) passkeyRemove(b.getAttribute('data-cred'));
+  });
+}
+
+// ---------- 云母材质开关（登录页 + 主界面） ----------
+function applyMica() {
+  const on = localStorage.sc_mica !== '0';
+  const auth = document.getElementById('authView');
+  if (auth) auth.classList.toggle('mica-bg', on);
+  const wrap = document.querySelector('.chat-wrap');
+  if (wrap) wrap.classList.toggle('app-mica', on);
+}
+window.addEventListener('DOMContentLoaded', applyMica);
+
 function openSettingsPage() {
   const me = state.me;
   const main = document.querySelector('.main');
@@ -5193,24 +5347,20 @@ function openSettingsPage() {
             } catch (e) { toast('请求失败：' + e.message, 'error'); }
           });
         }},
-        { label: '登录设备管理', desc: '已授权的本地设备', icon: '机', fn: async () => {
-          try {
-            const res = await fetch(state.serverHost + '/api/passkey/list', { headers: { Authorization: 'Bearer ' + state.token } });
-            const data = await res.json().catch(() => ({}));
-            const creds = data.credentials || [];
-            if (!creds.length) { toast('暂无已授权设备', 'info'); return; }
-            const lines = creds.map(c => {
-              const d = c.created_at ? new Date(c.created_at).toLocaleDateString() : '';
-              return (c.device_name || '设备') + (d ? '（' + d + ' 授权）' : '');
-            }).join('\n');
-            window.alert('已授权设备：\n\n' + lines + '\n\n如需移除，请在 Passkey 页面管理。');
-          } catch (e) { toast('请求失败：' + e.message, 'error'); }
-        }},
+        { label: 'Passkey 免密登录', desc: '本机创建/删除免密凭据', icon: '钥', fn: () => passkeyPanel() },
+        { label: '登录设备管理', desc: '已授权的本地设备', icon: '机', fn: () => passkeyPanel() },
       ]
     },
     {
       title: '通用',
       items: [
+        { label: '云母材质', desc: localStorage.sc_mica === '0' ? '已关闭' : '已开启', icon: '母', fn: () => {
+          const on = localStorage.sc_mica !== '0';
+          localStorage.sc_mica = on ? '0' : '1';
+          applyMica();
+          toast(on ? '已关闭云母材质' : '已开启云母材质', 'success');
+          openSettingsPage();
+        }},
         { label: '亚克力玻璃', desc: localStorage.sc_acrylic === '0' ? '已关闭' : '已开启', icon: '玻', fn: () => {
           const next = localStorage.sc_acrylic === '0' ? '1' : '0';
           localStorage.sc_acrylic = next;
