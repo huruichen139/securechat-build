@@ -678,14 +678,16 @@ $('authBtn').onclick = async () => {
   //   /chat#oauth={token,...}      已登录状态直接绑定成功 -> 登录
   //   /chat#oauthbind={ticket,...} 未登录 -> 弹出账密框完成绑定
   function applyOAuthFragment() {
+    if (applyOAuthFragment._busy) return;      // 重入锁：同一回调只处理一次
     const h = String(location.hash || '');
     const clean = () => history.replaceState(null, '', location.pathname + location.search);
+    const once = (fn) => { applyOAuthFragment._busy = true; setTimeout(() => { applyOAuthFragment._busy = false; }, 1500); fn(); };
 
     const mb = h.match(/#oauthbind=([^&]+)/);
     if (mb) {
       try {
         const p = JSON.parse(decodeURIComponent(mb[1]));
-        if (p && p.ticket) { clean(); showBindDialog(p); return; }
+        if (p && p.ticket) { once(() => { clean(); showBindDialog(p); }); return; }
       } catch (e) { clean(); return; }
       clean(); return;
     }
@@ -695,6 +697,8 @@ $('authBtn').onclick = async () => {
     if (mbd) {
       let p2 = null;
       try { p2 = JSON.parse(decodeURIComponent(mbd[1])); } catch (e) {}
+      applyOAuthFragment._busy = true;
+      setTimeout(() => { applyOAuthFragment._busy = false; }, 1500);
       clean();
       toast((p2 && p2.type ? (OAUTH_NAMES[p2.type] || '第三方账号') : '第三方账号') + '绑定成功', 'success');
       if (typeof openSettingsPage === 'function') openSettingsPage();
@@ -706,6 +710,8 @@ $('authBtn').onclick = async () => {
     let payload = null;
     try { payload = JSON.parse(decodeURIComponent(m[1])); } catch (e) {}
     if (!payload || !payload.token) { clean(); return; }
+    applyOAuthFragment._busy = true;
+    setTimeout(() => { applyOAuthFragment._busy = false; }, 1500);
     state.token = payload.token;
     localStorage.setItem('sc_token', payload.token);
     const el = document.getElementById('authErr');

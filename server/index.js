@@ -1018,6 +1018,8 @@ const GH_CLIENT_SECRET = process.env.GH_CLIENT_SECRET || '';
 const GH_REDIRECT = process.env.GH_OAUTH_REDIRECT ||
   ((process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/api/github/callback');
 function ghEnabled() { return !!(GH_CLIENT_ID && GH_CLIENT_SECRET); }
+// 申请 read:user + user:email（拿邮箱所需）
+const GH_SCOPE = process.env.GH_SCOPE || 'read:user user:email';
 
 // Step1 取 GitHub 授权地址：GET /api/github/connect
 app.get('/api/github/connect', (req, res) => {
@@ -1030,8 +1032,10 @@ app.get('/api/github/connect', (req, res) => {
     nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + ip).digest('hex').slice(0, 24),
     exp: Date.now() + 10 * 60 * 1000
   });
+  // 申请 user:email 权限，否则 /user 返回的 email 常为 null（用户未公开邮箱）
   const url = 'https://github.com/login/oauth/authorize?client_id=' + encodeURIComponent(GH_CLIENT_ID) +
-    '&redirect_uri=' + encodeURIComponent(GH_REDIRECT) + '&state=' + encodeURIComponent(state);
+    '&redirect_uri=' + encodeURIComponent(GH_REDIRECT) + '&scope=' + encodeURIComponent(GH_SCOPE) +
+    '&state=' + encodeURIComponent(state);
   res.json({ ok: true, type: 'github', url, state });
 });
 
@@ -1088,6 +1092,30 @@ async function githubCallbackHandler(req, res) {
     const nickname = String(profile.name || profile.login || '').slice(0, 40);
     const avatar = String(profile.avatar_url || '').slice(0, 500);
     const ip = getIp(req);
+
+    // 取已验证邮箱：/user 的 email 字段常为 null(用户未公开)，需再查 /user/emails
+    const ghGet = (pathname) => new Promise((resolve) => {
+      const r = require('https').request({
+        hostname: 'api.github.com', port: 443, path: pathname, method: 'GET', timeout: 12000,
+        headers: { Authorization: 'Bearer ' + tokenResp.access_token, Accept: 'application/vnd.github+json', 'User-Agent': 'SecureChat' }
+      }, (rs) => {
+        let b = ''; rs.on('data', (c) => { if (b.length < 200000) b += c; });
+        rs.on('end', () => { try { resolve(JSON.parse(b)); } catch (e) { resolve(null); } });
+      });
+      r.on('error', () => resolve(null));
+      r.on('timeout', () => { r.destroy(); resolve(null); });
+      r.end();
+    });
+    let ghEmail = String(profile.email || '').slice(0, 120);
+    if (!ghEmail) {
+      const emails = await ghGet('/user/emails');
+      if (Array.isArray(emails)) {
+        const prim = emails.find((x) => x && x.primary && x.verified) ||
+                     emails.find((x) => x && x.verified);
+        if (prim && prim.email) ghEmail = String(prim.email).slice(0, 120);
+      }
+    }
+    logAudit(null, 'oauth', null, 'user', 'GitHub 授权成功 ' + (profile.login || '') + ' 邮箱=' + (ghEmail || '未获取'), ip);
     const wantsHtml = String(req.headers.accept || '').includes('text/html');
     const frontBase = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '');
     const toFront = (o) => res.redirect(frontBase + '/chat#' + o.key + '=' + encodeURIComponent(JSON.stringify(o.data)));
@@ -1109,6 +1137,34 @@ async function githubCallbackHandler(req, res) {
         const tk = signToken(fresh);
         if (wantsHtml) return toFront({ key: 'oauthbound', data: { type: 'github', nickname, ok: 1 } });
         return res.json({ ok: true, token: tk, user: publicUser(fresh) });
+      }
+    }
+
+    // 未绑定：若本站存在"邮箱与 GitHub 已验证邮箱相同"的账号，则直接绑定并登录，
+    // 省去用户再输一次账密。邮箱取自 GitHub /user/emails 的 verified 项。
+    if (ghEmail) {
+      const matched = prepare('SELECT * FROM users WHERE email=? AND email IS NOT NULL').get(ghEmail);
+      if (matched && !matched.banned) {
+        const dupMail = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get('github', socialUid);
+        if (dupMail && dupMail.user_id !== matched.id) {
+          // 该 GitHub 号已绑到别的账户，走正常 SSO 直接登录那个账户
+          const other = prepare('SELECT * FROM users WHERE id=?').get(dupMail.user_id);
+          if (other && !other.banned) {
+            const tkM = signToken(other);
+            if (wantsHtml) return toFront({ key: 'oauth', data: { token: tkM, type: 'github', bound: 1 } });
+            return res.json({ ok: true, bound: true, token: tkM, user: publicUser(other) });
+          }
+          prepare('DELETE FROM oauth_accounts WHERE id=?').run(dupMail.id);
+        } else if (!dupMail) {
+          prepare('INSERT INTO oauth_accounts(provider,social_uid,user_id,nickname,avatar,created_at,last_login_at) VALUES(?,?,?,?,?,?,?)')
+            .run('github', socialUid, matched.id, nickname || '', avatar || '', Date.now(), Date.now());
+        }
+        prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), matched.id);
+        logAudit(matched.id, 'oauth_bind', matched.id, 'user', '按GitHub已验证邮箱自动绑定', ip);
+        const freshM = prepare('SELECT * FROM users WHERE id=?').get(matched.id);
+        const tk = signToken(freshM);
+        if (wantsHtml) return toFront({ key: 'oauth', data: { token: tk, type: 'github', bound: 1, matchedEmail: 1 } });
+        return res.json({ ok: true, bound: true, matchedEmail: true, token: tk, user: publicUser(freshM) });
       }
     }
     return oauthCompleteBind(req, res, 'github', socialUid, nickname, avatar, toFront, wantsHtml, ip);
