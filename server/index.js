@@ -899,6 +899,18 @@ const dup2 = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_u
  }
 });
 
+// 可用第三方登录方式：未配置的服务端不暴露，前端据此隐藏对应按钮（避免点了报错）
+app.get('/api/oauth/providers', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  res.json({
+    ok: true,
+    providers: {
+      qq: oauthEnabled(), wx: oauthEnabled(), alipay: oauthEnabled(),
+      github: ghEnabled()
+    }
+  });
+});
+
 // 查询当前账号已绑定的第三方账号：GET /api/oauth/bindings
 app.get('/api/oauth/bindings', (req, res) => {
  if (!ready) return res.status(503).json({ error: '服务初始化中' });

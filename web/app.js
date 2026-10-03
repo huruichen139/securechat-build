@@ -606,6 +606,20 @@ $('authBtn').onclick = async () => {
   const row = document.getElementById('oauthRow');
   if (!row) return;
 
+  // 服务端未配置的渠道直接隐藏（而不是点了报"未配置"）
+  fetch(state.serverHost + '/api/oauth/providers')
+    .then(r => r.json())
+    .then(d => {
+      const p = (d && d.providers) || {};
+      row.querySelectorAll('.oauth-btn[data-oauth]').forEach(b => {
+        const t = b.getAttribute('data-oauth');
+        if (p[t] === false) { b.style.display = 'none'; b.dataset.hidden = '1'; }
+      });
+      const visible = Array.from(row.querySelectorAll('.oauth-btn')).filter(b => b.style.display !== 'none');
+      if (!visible.length) { const s = row.querySelector('.oauth-sep'); if (s) s.style.display = 'none'; }
+    })
+    .catch(() => {});
+
   async function startOAuth(type, btn) {
     const errEl = document.getElementById('authErr');
     const btns = row.querySelectorAll('.oauth-btn');
