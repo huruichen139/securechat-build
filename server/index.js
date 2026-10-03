@@ -813,7 +813,11 @@ app.get('/api/oauth/callback', async (req, res) => {
     if (!owner) return oauthFail(req, res, '登录状态已失效，请重新登录', 401);
     if (owner.banned) return oauthFail(req, res, '该账号已被封禁' + (owner.ban_reason ? '：' + owner.ban_reason : ''), 403);
     const dup = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
-    if (dup && dup.user_id !== owner.id) return oauthFail(req, res, '该第三方账号已绑定其他账户', 409);
+    if (dup && dup.user_id !== owner.id) {
+      // 该第三方账号已挂在别的账户下：不能静默抢绑，提示用户先登录原账号解绑再绑
+      return oauthFail(req, res, '该' + ({ qq: 'QQ', wx: '微信', alipay: '支付宝' }[type] || '第三方') +
+        '账号已绑定到另一个 SecureChat 账户。请先用原账户登录，到「设置 - 第三方账号」解绑后，再绑定到当前账户。', 409);
+    }
     if (dup) {
       prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
         .run(Date.now(), nickname || dup.nickname, avatar || dup.avatar, dup.id);
@@ -832,14 +836,22 @@ const token = signToken(owner);
   }
 
   // 情况二：未登录 → 不自动建号，返回票据，前端引导用户填写账密完成绑定
-  const dup2 = prepare('SELECT user_id FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
+const dup2 = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
   if (dup2) {
-    const owner = prepare('SELECT id, banned, ban_reason FROM users WHERE id=?').get(dup2.user_id);
+    const owner = prepare('SELECT * FROM users WHERE id=?').get(dup2.user_id);
     if (owner && owner.banned) return oauthFail(req, res, '该账户已被封禁，无法登录', 403);
     if (owner) {
-      return oauthFail(req, res, '该第三方账号已绑定其他账户，请直接用原账号密码登录', 409);
+      // 该第三方账号已绑定本站账户 —— 直接登录该账户（标准 SSO 语义），不再报错
+      prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+        .run(Date.now(), nickname || dup2.nickname, avatar || dup2.avatar, dup2.id);
+      prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), owner.id);
+      logAudit(owner.id, 'oauth_login', owner.id, 'user', '聚合登录(' + type + ') 已绑定账户直接登录', getIp(req));
+      const tk2 = signToken(owner);
+      if (wantsHtml) return toFront({ key: 'oauth', data: { token: tk2, type, bound: 1 } });
+      return res.json({ ok: true, bound: true, token: tk2, user: publicUser(owner) });
     }
-    prepare('DELETE FROM oauth_accounts WHERE user_id=?', [dup2.user_id || 0]);
+// 绑定记录存在但用户已不存在：清理孤儿记录后走正常流程
+    prepare('DELETE FROM oauth_accounts WHERE id=?').run(dup2.id);
   }
   const ticket = makeTicket();
   if (wantsHtml) return toFront({ key: 'oauthbind', data: { ticket, type, nickname } });

@@ -561,6 +561,171 @@
 .bind-modal .err { padding: 8px 16px 0; }
 .bind-modal .modal-actions { padding: 14px 16px 16px; }
 
+/* ============================================================
+   云母材质（Mica / Fluent Design）
+   特征：半透明 + 背景模糊 + 云状噪点纹理 + 顶部高光内描边 + 分层投影
+   用于聚合登录按钮与主操作按钮，呈现 Windows 11 那种"透光"的材质感。
+   ============================================================ */
+
+/* 云母噪点纹理：用 SVG feTurbulence 生成云状颗粒，data-uri 内联避免额外请求 */
+.mica {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .34) 100%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .55);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, .85) inset,      /* 顶部高光内描边 */
+    0 -1px 0 0 rgba(0, 0, 0, .04) inset,           /* 底部暗边 */
+    0 6px 18px rgba(15, 23, 42, .10),              /* 悬浮投影 */
+    0 1px 3px rgba(15, 23, 42, .06);
+  overflow: hidden;
+}
+/* 云纹层：伪元素承载噪点，不影响按钮内容布局 */
+.mica::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+.mica::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(120% 80% at 50% -20%, rgba(255, 255, 255, .55), transparent 60%);
+}
+
+/* 聚合登录按钮：云母质感 */
+.oauth-btn.mica {
+  color: #1f2329;
+  font-weight: 500;
+  transition: transform .16s cubic-bezier(.22,.9,.3,1), box-shadow .16s, background .16s;
+}
+.oauth-btn.mica:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, .78) 0%, rgba(255, 255, 255, .5) 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, .9) inset,
+    0 10px 26px rgba(15, 23, 42, .16),
+    0 2px 5px rgba(15, 23, 42, .08);
+}
+.oauth-btn.mica:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, .7) inset,
+    0 2px 6px rgba(15, 23, 42, .10);
+}
+
+/* 主操作按钮也用云母（绿色基调） */
+.mica-primary {
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(12, 199, 101, .95) 0%, rgba(6, 173, 86, .92) 100%);
+  border: 1px solid rgba(255, 255, 255, .28);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, .40) inset,
+    0 6px 18px rgba(7, 193, 96, .34),
+    0 1px 3px rgba(6, 140, 70, .22);
+}
+.mica-primary::before { opacity: .32; mix-blend-mode: soft-light; }
+.mica-primary:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, .5) inset,
+    0 10px 26px rgba(7, 193, 96, .42),
+    0 2px 6px rgba(6, 140, 70, .26);
+}
+
+/* 登录页极光背景：为云母提供可透视的内容，否则半透明看不出材质 */
+/* 用 !important 覆盖 styles.css 里等值的 .auth-wrap{background:var(--wx-bg)}（等值时后者胜） */
+.auth-wrap.mica-bg {
+  position: relative;
+  background:
+    radial-gradient(90% 60% at 12% 8%, rgba(7, 193, 96, .16) 0%, transparent 58%),
+    radial-gradient(80% 55% at 88% 12%, rgba(56, 132, 255, .14) 0%, transparent 60%),
+    radial-gradient(95% 70% at 50% 100%, rgba(168, 120, 255, .13) 0%, transparent 62%),
+    linear-gradient(160deg, #f4f8f6 0%, #eef3f8 55%, #f3f0fa 100%) !important;
+  background-attachment: fixed;
+}
+/* 极光层缓慢漂移，营造"活"的材质感 */
+.auth-wrap.mica-bg::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 35% at 25% 30%, rgba(7, 193, 96, .18), transparent 70%),
+    radial-gradient(38% 32% at 75% 65%, rgba(120, 90, 255, .14), transparent 70%);
+  filter: blur(28px);
+  animation: micaDrift 18s ease-in-out infinite alternate;
+}
+@keyframes micaDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(2%, -2%, 0) scale(1.06); }
+}
+.auth-wrap.mica-bg > * { position: relative; z-index: 1; }
+
+/* 登录卡片也用云母，材质统一（半透 + 模糊 + 云纹） */
+.auth-wrap.mica-bg .auth-card {
+  background: linear-gradient(150deg, rgba(255, 255, 255, .72) 0%, rgba(255, 255, 255, .52) 100%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .6);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, .9) inset,
+    0 -1px 0 0 rgba(0, 0, 0, .03) inset,
+    0 18px 48px rgba(15, 23, 42, .14),
+    0 2px 8px rgba(15, 23, 42, .06) !important;
+}
+/* 卡片云纹 */
+.auth-wrap.mica-bg .auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .38;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23m)' opacity='.2'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  border-radius: inherit;
+}
+.auth-wrap.mica-bg .auth-card > * { position: relative; z-index: 1; }
+
+/* 暗色模式下的云母 */
+@media (prefers-color-scheme: dark) {
+  .mica {
+    background: linear-gradient(135deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, .05) 100%);
+    border: 1px solid rgba(255, 255, 255, .14);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, .14) inset,
+      0 6px 18px rgba(0, 0, 0, .40);
+  }
+  .oauth-btn.mica { color: #e8eaed; }
+  .oauth-btn.mica:hover { background: linear-gradient(135deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .08)); }
+  .auth-wrap.mica-bg {
+    background:
+      radial-gradient(90% 60% at 12% 8%, rgba(7, 193, 96, .18) 0%, transparent 58%),
+      radial-gradient(80% 55% at 88% 12%, rgba(56, 132, 255, .16) 0%, transparent 60%),
+      radial-gradient(95% 70% at 50% 100%, rgba(140, 100, 255, .14) 0%, transparent 62%),
+      linear-gradient(160deg, #10151a 0%, #0d1117 60%, #131020 100%);
+    background-attachment: fixed;
+  }
+}
+
+/* 降低动效偏好：关闭漂移与位移动画 */
+@media (prefers-reduced-motion: reduce) {
+  .auth-wrap.mica-bg::after { animation: none; }
+  .oauth-btn.mica:hover, .mica-primary:hover { transform: none; }
+}
+
 /* ---------- 暗色模式适配 ---------- */@media (prefers-color-scheme: dark) {
   .sc-status-modal, .sc-mext-modal, .scan-head, .shake-stage,
   .miniapp-frame, .ce-modal, .oa-container > .oa-body, .sc-fav-panel { background: var(--bg, #1e1e1e); }
