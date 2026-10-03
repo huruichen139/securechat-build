@@ -5031,6 +5031,7 @@ function renderDiscoverPage() {
 const OAUTH_NAMES = { qq: 'QQ', wx: '微信', alipay: '支付宝' };
 const OAUTH_ICONS = { qq: 'Q', wx: '微', alipay: '支' };
 
+let _oauthSig = null; // 绑定状态签名，用于避免设置页无限重渲染
 async function fetchOauthBindings() {
   try {
     const res = await fetch(state.serverHost + '/api/oauth/bindings', {
@@ -5280,10 +5281,15 @@ function openSettingsPage() {
         : '未绑定，绑定后可一键登录';
     });
     // 已渲染过设置页则刷新，否则下次打开自然带最新状态
-    const panel = document.getElementById('settingsPanel');
-    if (panel && panel.style.display === 'block') openSettingsPage();
-  });
-  const groups = [
+const panel = document.getElementById('settingsPanel');
+   // 仅当绑定状态确实变化时才重渲染，避免 openSettingsPage -> fetch -> 重渲染
+   // 形成无限递归把设置页卡死（此前 bug）
+   if (panel && panel.style.display === 'block') {
+     const sig = list.map(b => b.provider + ':' + (b.nickname || '')).join('|');
+     if (sig !== _oauthSig) { _oauthSig = sig; openSettingsPage(); }
+   }
+   });
+   const groups = [
     {
       title: '第三方账号',
       items: [
