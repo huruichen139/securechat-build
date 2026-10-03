@@ -276,7 +276,37 @@ const OAUTH_APPID = process.env.MAPAY_APPID || '';
 const OAUTH_APPKEY = process.env.MAPAY_APPKEY || '';
 const OAUTH_CALLBACK = process.env.MAPAY_CALLBACK_URL
   || ((process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/api/oauth/callback');
-const OAUTH_TYPES = ['qq', 'wx', 'alipay'];
+const OAUTH_TYPES = ['qq', 'wx', 'alipay', 'github'];
+
+// 第三方登录绑定/登录的公共收尾逻辑：
+// 找到绑定则直接登录；否则返回一次性票据，交由前端配合账密绑定（不自动建号）
+function oauthCompleteBind(req, res, provider, socialUid, nickname, avatar, toFront, wantsHtml, ip) {
+  const link = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(provider, socialUid);
+  if (link) {
+    const owner = prepare('SELECT * FROM users WHERE id=?').get(link.user_id);
+    if (owner && owner.banned) return oauthFail(req, res, '该账户已被封禁，无法登录', 403);
+    if (owner) {
+      prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
+        .run(Date.now(), nickname || link.nickname, avatar || link.avatar, link.id);
+      prepare('UPDATE users SET last_seen=? WHERE id=?').run(Date.now(), owner.id);
+      logAudit(owner.id, 'oauth_login', owner.id, 'user', '第三方登录(' + provider + ') 已绑定账户直接登录', ip);
+      const tk = signToken(owner);
+      if (wantsHtml) return toFront({ key: 'oauth', data: { token: tk, type: provider, bound: 1 } });
+      return res.json({ ok: true, bound: true, token: tk, user: publicUser(owner) });
+    }
+    prepare('DELETE FROM oauth_accounts WHERE id=?').run(link.id);
+  }
+  // 未绑定：签发一次性票据
+  const body = Buffer.from(JSON.stringify({
+    p: provider, s: socialUid, n: nickname || '', a: avatar || '',
+    nn: crypto.createHash('sha256').update(socialUid + provider + Date.now() + Math.random()).digest('hex').slice(0, 20),
+    exp: Date.now() + 10 * 60 * 1000
+  })).toString('base64url');
+  const sig = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+  const ticket = body + '.' + sig;
+  if (wantsHtml) return toFront({ key: 'oauthbind', data: { ticket, type: provider, nickname } });
+  res.json({ ok: true, needBind: true, ticket, type: provider, nickname });
+}
 
 function oauthEnabled() { return !!(OAUTH_APPID && OAUTH_APPKEY); }
 
@@ -956,7 +986,95 @@ app.post('/api/oauth/bind', (req, res) => {
  res.json({ ok: true, token: signToken(fresh), user: publicUser(fresh) });
 });
 
-// 修改自己的 ID：一个月只能改一次
+// ---------- GitHub App 用户登录 ----------
+// 纯"登录 + 读资料"只需 user access token，不需要 private key / installation token。
+// 注意：GitHub App 的用户授权流程与 OAuth App 基本一致。
+const GH_CLIENT_ID = process.env.GH_CLIENT_ID || '';
+const GH_CLIENT_SECRET = process.env.GH_CLIENT_SECRET || '';
+const GH_REDIRECT = process.env.GH_OAUTH_REDIRECT ||
+  ((process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/api/github/callback');
+function ghEnabled() { return !!(GH_CLIENT_ID && GH_CLIENT_SECRET); }
+
+// Step1 取 GitHub 授权地址：GET /api/github/connect
+app.get('/api/github/connect', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  if (!ghEnabled()) return res.status(503).json({ error: 'GitHub 登录未配置（缺少 GH_CLIENT_SECRET）' });
+  const ip = getIp(req);
+  if (rateLimit('gh:' + ip, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+  const state = oauthSignState({
+    t: 'github',
+    nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + ip).digest('hex').slice(0, 24),
+    exp: Date.now() + 10 * 60 * 1000
+  });
+  const url = 'https://github.com/login/oauth/authorize?client_id=' + encodeURIComponent(GH_CLIENT_ID) +
+    '&redirect_uri=' + encodeURIComponent(GH_REDIRECT) + '&state=' + encodeURIComponent(state);
+  res.json({ ok: true, type: 'github', url, state });
+});
+
+// Step2 回调：GET /api/github/callback?code=&state=
+app.get('/api/github/callback', async (req, res) => {
+  try {
+    if (!ready) return res.status(503).json({ error: '服务初始化中' });
+    if (!ghEnabled()) return oauthFail(req, res, 'GitHub 登录未配置', 503);
+    const q = req.query || {};
+    const code = String(q.code || '').trim();
+    const st = oauthVerifyState(q.state);
+    if (!code) return oauthFail(req, res, '缺少授权码');
+    if (!st || st.t !== 'github') return oauthFail(req, res, '登录状态已失效，请重新发起登录');
+
+    // code 换 user access token
+    const tokenResp = await new Promise((resolve) => {
+      const u = new URL('https://github.com/login/oauth/access_token');
+      const body = 'client_id=' + encodeURIComponent(GH_CLIENT_ID) +
+        '&client_secret=' + encodeURIComponent(GH_CLIENT_SECRET) +
+        '&code=' + encodeURIComponent(code) + '&redirect_uri=' + encodeURIComponent(GH_REDIRECT);
+      const req2 = require('https').request({
+        hostname: u.hostname, port: 443, path: u.pathname, method: 'POST', timeout: 15000,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json',
+                   'Content-Length': Buffer.byteLength(body), 'User-Agent': 'SecureChat' }
+      }, (r) => {
+        let b = ''; r.on('data', (c) => { if (b.length < 100000) b += c; });
+        r.on('end', () => { try { resolve(JSON.parse(b)); } catch (e) { resolve({}); } });
+      });
+      req2.on('error', () => resolve({}));
+      req2.on('timeout', () => { req2.destroy(); resolve({}); });
+      req2.write(body); req2.end();
+    });
+    if (!tokenResp || tokenResp.error || !tokenResp.access_token) {
+      return oauthFail(req, res, 'GitHub 授权失败：' + ((tokenResp && tokenResp.error_description) || '无法获取访问令牌'), 401);
+    }
+
+    // 取用户资料
+    const profile = await new Promise((resolve) => {
+      const req3 = require('https').request({
+        hostname: 'api.github.com', port: 443, path: '/user', method: 'GET', timeout: 15000,
+        headers: { Authorization: 'Bearer ' + tokenResp.access_token, Accept: 'application/vnd.github+json',
+                   'User-Agent': 'SecureChat' }
+      }, (r) => {
+        let b = ''; r.on('data', (c) => { if (b.length < 100000) b += c; });
+        r.on('end', () => { try { resolve(JSON.parse(b)); } catch (e) { resolve(null); } });
+      });
+      req3.on('error', () => resolve(null));
+      req3.on('timeout', () => { req3.destroy(); resolve(null); });
+      req3.end();
+    });
+    if (!profile || !profile.id) return oauthFail(req, res, '无法获取 GitHub 用户资料', 401);
+
+    const socialUid = 'gh_' + profile.id;
+    const nickname = String(profile.name || profile.login || '').slice(0, 40);
+    const avatar = String(profile.avatar_url || '').slice(0, 500);
+    const ip = getIp(req);
+    const wantsHtml = String(req.headers.accept || '').includes('text/html');
+    const frontBase = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '');
+    const toFront = (o) => res.redirect(frontBase + '/chat#' + o.key + '=' + encodeURIComponent(JSON.stringify(o.data)));
+    return oauthCompleteBind(req, res, 'github', socialUid, nickname, avatar, toFront, wantsHtml, ip);
+  } catch (e) {
+    console.error('[github] callback 异常:', e && e.message || e);
+    if (!res.headersSent) res.status(500).json({ error: '服务内部错误' });
+  }
+});
+
+
 app.post('/api/uid', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const auth = req.headers.authorization || '';

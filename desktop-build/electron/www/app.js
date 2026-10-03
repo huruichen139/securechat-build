@@ -612,11 +612,13 @@ $('authBtn').onclick = async () => {
     btns.forEach(b => { b.disabled = true; });
     if (errEl) errEl.textContent = '';
     try {
-      const res = await fetch(state.serverHost + '/api/oauth/connect?type=' + encodeURIComponent(type), { method: 'GET' });
+      // GitHub 走独立端点，其余走聚合登录网关
+      const endpoint = (type === 'github') ? '/api/github/connect' : '/api/oauth/connect';
+      const res = await fetch(state.serverHost + endpoint + '?type=' + encodeURIComponent(type), { method: 'GET' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) throw new Error(data.error || '获取登录地址失败');
       try { sessionStorage.setItem('sc_oauth_state', data.state || ''); } catch (e) {}
-      // 微信/支付宝带扫码地址时，桌面端弹码更顺手；否则直接跳转授权
+      // 微信/支付宝带扫码地址时，桌面端弹码更顺手；GitHub/QQ 直接跳转授权
       if ((type === 'wx' || type === 'alipay') && data.qrcode && window.innerWidth >= 900) {
         showOauthQr(data.qrcode, type);
       } else {
@@ -703,7 +705,7 @@ $('authBtn').onclick = async () => {
 
   // 未登录时：提示需要绑定账户，并弹出账密填写框
   function showBindDialog(p) {
-    const typeName = { qq: 'QQ', wx: '微信', alipay: '支付宝' }[p.type] || '第三方';
+    const typeName = OAUTH_NAMES[p.type] || '第三方账号';
     hideBindDialog();
     const mask = document.createElement('div');
     mask.className = 'modal-mask';
@@ -5028,8 +5030,12 @@ function renderDiscoverPage() {
 
 // ============ 设置页面（微信风格） ============
 // ---------- 设置页：第三方账号绑定管理 ----------
-const OAUTH_NAMES = { qq: 'QQ', wx: '微信', alipay: '支付宝' };
-const OAUTH_ICONS = { qq: 'Q', wx: '微', alipay: '支' };
+const OAUTH_NAMES = { qq: 'QQ', wx: '微信', alipay: '支付宝', github: 'GitHub' };
+const OAUTH_ICONS = { qq: 'Q', wx: '微', alipay: '支', github: 'G' };
+// 各 provider 的"取授权地址"端点：GitHub 独立，其余走聚合登录网关
+function oauthConnectUrl(type) {
+  return (type === 'github' ? '/api/github/connect' : '/api/oauth/connect') + '?type=' + encodeURIComponent(type);
+}
 
 let _oauthSig = null; // 绑定状态签名，用于避免设置页无限重渲染
 async function fetchOauthBindings() {
@@ -5066,7 +5072,7 @@ async function oauthBindAction(type) {
     return;
   }
   try {
-    const res = await fetch(state.serverHost + '/api/oauth/connect?type=' + encodeURIComponent(type) + '&bind=1', {
+    const res = await fetch(state.serverHost + oauthConnectUrl(type) + '&bind=1', {
       headers: { Authorization: 'Bearer ' + state.token }
     });
     const data = await res.json().catch(() => ({}));
@@ -5296,6 +5302,7 @@ const panel = document.getElementById('settingsPanel');
         { label: 'QQ', desc: '绑定QQ账号，可一键登录', icon: 'Q', fn: () => oauthBindAction('qq') },
         { label: '微信', desc: '绑定微信账号，可一键登录', icon: '微', fn: () => oauthBindAction('wx') },
         { label: '支付宝', desc: '绑定支付宝账号，可一键登录', icon: '支', fn: () => oauthBindAction('alipay') },
+        { label: 'GitHub', desc: '绑定 GitHub 账号，可一键登录', icon: 'G', fn: () => oauthBindAction('github') },
       ]
     },
     {
