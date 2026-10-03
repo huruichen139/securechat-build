@@ -5096,7 +5096,7 @@ async function oauthBindAction(type) {
   } catch (e) { toast('请求失败：' + e.message, 'error'); }
 }
 
-// ---------- Passkey（免密登录设备凭据） ----------
+// ---------- Passkey（通行密钥登录设备凭据） ----------
 // 后端为自研 HMAC 方案：注册下发 credentialId+secret 存本地，
 // 登录时 start 拿 challenge -> 本地算 HMAC(secret,challenge) -> finish 换 token
 const PASSKEY_STORE = 'sc_passkeys';
@@ -5133,7 +5133,7 @@ async function passkeyRegister() {
     const list = getPasskeys();
     list.push({ credentialId: data.credentialId, secret: data.secret, deviceName: data.deviceName, createdAt: Date.now() });
     savePasskeys(list);
-    toast('Passkey 已创建，可在下次登录时免密使用', 'success');
+    toast('Passkey 已创建，可在下次登录时通行密钥使用', 'success');
     if (typeof openSettingsPage === 'function') openSettingsPage();
   } catch (e) { toast('请求失败：' + e.message, 'error'); }
 }
@@ -5160,17 +5160,17 @@ async function passkeyLogin() {
         state.token = d.token;
         if (d.user) { state.me = d.user; localStorage.setItem('sc_me', JSON.stringify(d.user)); }
         localStorage.setItem('sc_token', d.token);
-        toast('免密登录成功', 'success');
+        toast('通行密钥登录成功', 'success');
         if (typeof enterChat === 'function') { enterChat(); fetchAnnouncements(); }
         return;
       }
     } catch (e) { /* 试下一个 */ }
   }
-  toast('免密登录失败，请用账号密码登录', 'error');
+  toast('通行密钥登录失败，请用账号密码登录', 'error');
 }
 
 async function passkeyRemove(credentialId) {
-  if (!window.confirm('删除该 Passkey 设备？删除后此设备无法免密登录。')) return;
+  if (!window.confirm('删除该 Passkey 设备？删除后此设备无法通行密钥登录。')) return;
   try {
     await fetch(state.serverHost + '/api/passkey/delete?credentialId=' + encodeURIComponent(credentialId), {
       method: 'DELETE', headers: { Authorization: 'Bearer ' + state.token }
@@ -5194,16 +5194,16 @@ async function passkeyPanel() {
   const box = document.createElement('div');
   box.className = 'modal passkey-modal';
   box.innerHTML =
-    '<div class="modal-head"><h3>Passkey 免密登录</h3><button class="modal-x" type="button" aria-label="关闭">&times;</button></div>' +
+    '<div class="modal-head"><h3>Passkey 通行密钥</h3><button class="modal-x" type="button" aria-label="关闭">&times;</button></div>' +
     '<div class="pk-body"></div>' +
     '<div class="modal-actions"><button class="cancel" type="button">关闭</button><button class="ok" type="button">创建 Passkey</button></div>';
   const body = box.querySelector('.pk-body');
   if (!local.length && !server.length) {
-    body.innerHTML = '<div class="pk-empty">还没有 Passkey。创建后，这台设备可用免密方式登录。</div>';
+    body.innerHTML = '<div class="pk-empty">还没有 Passkey。创建后，这台设备可用通行密钥方式登录。</div>';
   } else {
-    let html = '<div class="pk-hint">本机凭据 ' + local.length + ' 个，账号下共 ' + server.length + ' 个</div>';
+    let html = '<div class="pk-hint">本机通行密钥 ' + local.length + ' 个，账号下共 ' + server.length + ' 个</div>';
     if (local.length) {
-      html += '<div class="pk-list-title">本机可免密登录</div>';
+      html += '<div class="pk-list-title">本机可通行密钥登录</div>';
       for (const p of local) {
         html += '<div class="pk-row"><div class="pk-info"><b>' + escapeHtml(p.deviceName || '本机设备') + '</b>' +
           '<small>' + new Date(p.createdAt || Date.now()).toLocaleDateString('zh-CN') + ' 创建</small></div>' +
@@ -5374,7 +5374,7 @@ const panel = document.getElementById('settingsPanel');
             } catch (e) { toast('请求失败：' + e.message, 'error'); }
           });
         }},
-        { label: 'Passkey 免密登录', desc: '本机创建/删除免密凭据', icon: '钥', fn: () => passkeyPanel() },
+        { label: 'Passkey 通行密钥', desc: '创建/删除本机通行密钥', icon: '钥', fn: () => passkeyPanel() },
         { label: '登录设备管理', desc: '已授权的本地设备', icon: '机', fn: () => passkeyPanel() },
       ]
     },

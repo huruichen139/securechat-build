@@ -529,17 +529,20 @@
 .oauth-btns { display: flex; flex-direction: column; gap: 8px; }
 .oauth-btns .oauth-btn { width: 100%; }
 /* 图标容器：统一尺寸并居中 SVG */
+/* 图标容器：官方 SVG 单色文件，通过 filter 着色 + 图片填满 */
 .oauth-ico {
   width: 22px; height: 22px; flex: none; border-radius: 5px;
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-style: normal; overflow: hidden;
+  background: transparent; font-style: normal; overflow: hidden;
 }
-.oauth-ico svg { width: 100%; height: 100%; display: block; }
-.ico-qq { background: transparent; }
-.ico-wx { background: transparent; color: #07c160; }
-.ico-alipay { background: transparent; }
-.ico-github { background: transparent; color: #24292f; }
-.ico-passkey { background: transparent; color: #6a5cff; }
+.oauth-ico img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* simple-icons 为单色路径，默认继承黑，再按品牌着色 */
+.ico-qq img { filter: none; }                                              /* QQ 官方多色色值 */
+.ico-wx img { filter: brightness(0) saturate(100%) invert(39%) sepate(76%) saturate(1912%) hue-rotate(105deg) brightness(94%) contrast(101%); }
+.ico-alipay img { filter: none; }                                           /* 支付宝蓝底白字多色 */
+.ico-github img { filter: brightness(0) saturate(100%); }                   /* 纯黑 */
+.ico-passkey img { filter: none; stroke: #5b3df5; stroke-width: 2.1; }      /* lucide 描边钥匙，紫色调深 */
+.oauth-ico img[src$="passkey.svg"] { stroke: #5b3df5; }
 .oauth-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 9px 10px; border: 1px solid var(--border, #e5e5e5);

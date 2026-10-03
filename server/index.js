@@ -1024,7 +1024,7 @@ app.get('/api/github/connect', (req, res) => {
 });
 
 // Step2 回调：GET /api/github/callback?code=&state=
-app.get('/api/github/callback', async (req, res) => {
+async function githubCallbackHandler(req, res) {
   try {
     if (!ready) return res.status(503).json({ error: '服务初始化中' });
     if (!ghEnabled()) return oauthFail(req, res, 'GitHub 登录未配置', 503);
@@ -1084,7 +1084,10 @@ app.get('/api/github/callback', async (req, res) => {
     console.error('[github] callback 异常:', e && e.message || e);
     if (!res.headersSent) res.status(500).json({ error: '服务内部错误' });
   }
-});
+}
+
+app.get('/api/github/callback', githubCallbackHandler);
+app.get('/auth/callback', githubCallbackHandler);
 
 
 app.post('/api/uid', (req, res) => {
