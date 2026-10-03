@@ -290,9 +290,10 @@ function oauthFail(req, res, msg, code) {
       `<title>登录失败</title><style>` +
       `body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;` +
       `font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#191919}` +
-      `.box{background:#fff;padding:32px 28px;border-radius:12px;max-width:420px;margin:20px;` +
-      `box-shadow:0 8px 30px rgba(15,23,42,.08);text-align:center}` +
-      `h1{font-size:19px;margin:0 0 12px}p{font-size:14px;color:#666;line-height:1.7;margin:0 0 22px}` +
+      `.box{background:#fff;padding:32px 28px;border-radius:12px;max-width:460px;margin:20px;` +
+      `box-shadow:0 8px 30px rgba(15,23,42,.08);text-align:left}` +
+      `h1{font-size:19px;margin:0 0 14px;text-align:center}` +
+      `p{font-size:14px;color:#555;line-height:1.85;margin:0 0 22px;white-space:pre-line}` +
       `a{display:inline-block;background:#07c160;color:#fff;text-decoration:none;padding:10px 28px;` +
       `border-radius:6px;font-size:14px}</style></head><body><div class="box">` +
       `<h1>登录失败</h1><p>${String(msg).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</p>` +
@@ -813,10 +814,16 @@ app.get('/api/oauth/callback', async (req, res) => {
     if (!owner) return oauthFail(req, res, '登录状态已失效，请重新登录', 401);
     if (owner.banned) return oauthFail(req, res, '该账号已被封禁' + (owner.ban_reason ? '：' + owner.ban_reason : ''), 403);
     const dup = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get(type, socialUid);
-    if (dup && dup.user_id !== owner.id) {
-      // 该第三方账号已挂在别的账户下：不能静默抢绑，提示用户先登录原账号解绑再绑
+if (dup && dup.user_id !== owner.id) {
+      // 该第三方账号已挂在别的账户下。给出可点击的解决入口，而不是让用户自己找。
+      const boundName = (() => {
+        const o = prepare('SELECT username FROM users WHERE id=?').get(dup.user_id);
+        return o ? o.username : '';
+      })();
       return oauthFail(req, res, '该' + ({ qq: 'QQ', wx: '微信', alipay: '支付宝' }[type] || '第三方') +
-        '账号已绑定到另一个 SecureChat 账户。请先用原账户登录，到「设置 - 第三方账号」解绑后，再绑定到当前账户。', 409);
+        '账号已绑定到另一个 SecureChat 账户（' + boundName + '）。\n' +
+        '若你要进入该账户：先用它的密码登录，再点 QQ 即可自动登录。\n' +
+        '若你要绑到当前账户：先用 ' + boundName + ' 登录 → 设置 - 第三方账号 - 解绑，再回来绑定。', 409);
     }
     if (dup) {
       prepare('UPDATE oauth_accounts SET last_login_at=?, nickname=?, avatar=? WHERE id=?')
