@@ -2339,10 +2339,12 @@ app.get('/api/call-recordings/:id', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const row = prepare('SELECT * FROM call_recordings WHERE id=?').get(req.params.id);
   if (!row) return res.status(404).json({ error: '回放不存在' });
-  // 通话录像仅通话双方可见；被直播间 replay_url 引用的录像视为直播回放，对登录用户开放
+  // 通话录像仅通话双方可见。直播回放豁免仅在该直播间的**主播本人**引用时生效：
+  // 原实现只判断「是否有直播间引用该录像」，而 replay_url 由用户自由填写且不校验录像归属，
+  // 导致通话任一方可单方面把私密通话录像公开给全站登录用户（另一方从未同意）。
   let liveRef = null;
   try {
-    liveRef = prepare('SELECT 1 FROM live_rooms WHERE replay_url=? OR replay_url LIKE ?').get('/api/call-recordings/' + req.params.id, '/api/call-recordings/' + req.params.id + '%');
+    liveRef = prepare('SELECT 1 FROM live_rooms WHERE host_id=? AND (replay_url=? OR replay_url LIKE ?)').get(payload.id, '/api/call-recordings/' + req.params.id, '/api/call-recordings/' + req.params.id + '%');
   } catch (e) { /* live_rooms 未建表（直播模块未挂载）时视为无引用 */ }
   if (row.from_id !== payload.id && row.to_id !== payload.id && !liveRef) {
     // 管理员可查看所有回放
@@ -3256,9 +3258,13 @@ app.get('/api/admin/update-status', (req, res) => {
   res.json({ ok: true, update: updateStatus });
 });
 
-app.post('/api/admin/update-package', express.raw({ type: 'application/octet-stream', limit: '1gb' }), async (req, res) => {
+app.post('/api/admin/update-package', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const guard = adminGuard(req, res);
+  // 必须先鉴权再读请求体：express.raw 作为路由中间件会在鉴权前把整个 body 读进内存，
+  // 未登录攻击者用 application/octet-stream 发超大请求即可在 401 前耗尽堆内存（OOM DoS）
+  await readRawBody(req, res, '1gb');
+  if (res._scRawError) return;
   if (guard.sent) return;
   if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: '上传内容为空' });
   if (req.body.length > UPDATE_MAX_BYTES) return res.status(413).json({ error: '更新包超过 1GB 限制' });
@@ -3467,9 +3473,13 @@ app.get('/api/admin/wallet', (req, res) => {
 
 // 管理员上传安装包（无依赖二进制上传）：express.raw 直接解析 application/octet-stream 得到 Buffer，
 // 按 version.json 的 latest 命名后写入 server/downloads。前端以 fetch(url, { body: file }) 发送。
-app.post('/api/admin/upload/:platform', express.raw({ type: 'application/octet-stream', limit: '300mb' }), (req, res) => {
+app.post('/api/admin/upload/:platform', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const guard = adminGuard(req, res);
+  // 必须先鉴权再读请求体：express.raw 作为路由中间件会在鉴权前把整个 body 读进内存，
+  // 未登录攻击者用 application/octet-stream 发超大请求即可在 401 前耗尽堆内存（OOM DoS）
+  await readRawBody(req, res, '300mb');
+  if (res._scRawError) return;
   if (guard.sent) return;
   const info = PLATFORM_FILES[String(req.params.platform || '')];
   if (!info) return res.status(400).json({ error: '平台无效' });
@@ -4283,6 +4293,37 @@ app.post('/api/ai/chat', async (req, res) => {
     res.status(502).json({ error: 'AI 服务连接失败' });
   }
 });
+
+// 受限体积的原始二进制体读取：必须由调用方在完成鉴权之后调用。
+// 直接把 express.raw 挂在路由上会让请求体在鉴权前被完整读入内存，
+// 未登录攻击者只需 Content-Type: application/octet-stream + 超大 body 即可打爆进程内存。
+function readRawBody(req, res, limit) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let size = 0;
+    const max = require('bytes')(limit);
+    let done = false;
+    const finish = (err) => {
+      if (done) return;
+      done = true;
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onErr);
+      if (err) { res._scRawError = true; res.status(err.status || 400).json({ error: err.message || '请求体无效' }); }
+      resolve();
+    };
+    const onData = (c) => {
+      size += c.length;
+      if (size > max) { req.destroy(); return finish({ status: 413, message: '请求体超过大小限制' }); }
+      chunks.push(c);
+    };
+    const onEnd = () => { req.body = Buffer.concat(chunks); finish(null); };
+    const onErr = () => finish({ status: 400, message: '请求体读取失败' });
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onErr);
+  });
+}
 
 // ---------- 管理员后台 ----------
 // GET /api/admin/overview —— 只读统计看板（仅 admin_emails 白名单账号可访问）

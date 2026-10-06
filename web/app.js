@@ -743,9 +743,10 @@ $('authBtn').onclick = async () => {
 
     const tip = document.createElement('div');
     tip.className = 'bind-tip';
-    tip.innerHTML = '你已用 <b>' + typeName + '</b> 账号完成授权（' +
-      (p.nickname ? String(p.nickname).slice(0, 24) : '第三方账号') +
-      '），请填写你的 SecureChat 账号密码完成绑定，之后即可用 ' + typeName + ' 一键登录。';
+    // 昵称来自 URL fragment（第三方返回值），必须转义，否则可注入 HTML/脚本
+    tip.innerHTML = '你已用 <b>' + escapeHtml(typeName) + '</b> 账号完成授权（' +
+      (p.nickname ? escapeHtml(String(p.nickname).slice(0, 24)) : '第三方账号') +
+      '），请填写你的 SecureChat 账号密码完成绑定，之后即可用 ' + escapeHtml(typeName) + ' 一键登录。';
 
     const f1 = document.createElement('div');
     f1.className = 'field';
@@ -783,7 +784,7 @@ $('authBtn').onclick = async () => {
     x.onclick = close;
     cancel.onclick = close;
     mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const onKey = (e) => { if (e.key === 'Escape') if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
     document.addEventListener('keydown', onKey);
 
     ok.onclick = async () => {
@@ -1126,7 +1127,7 @@ function showMyCard() {
   ok.className = 'ok'; ok.textContent = t('close', '关闭');
   acts.appendChild(ok); box.appendChild(acts);
   mask.appendChild(box); document.body.appendChild(mask);
-  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+    const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
   const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
   ok.onclick = close; xBtn.onclick = close;
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
@@ -1268,8 +1269,8 @@ function openQrScanner() {
     mask.remove();
   };
   xBtn.onclick = close; mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-  document.addEventListener('keydown', function esc(ev) { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
-
+const esc = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } };
+document.addEventListener('keydown', esc);
   let busy = false;
 
   async function renderFileToImageData(file) {
@@ -1492,8 +1493,8 @@ function pickGroupDialog(title, onPick) {
   const close = () => mask.remove();
   xBtn.onclick = close;
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-  document.addEventListener('keydown', function onKey(ev) { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } });
-
+const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+document.addEventListener('keydown', onKey);
   const loading = document.createElement('div');
   loading.style.cssText = 'text-align:center;color:#999;padding:30px 0';
   loading.textContent = '正在加载群列表…';
@@ -1685,9 +1686,9 @@ function openFeatureCenter() {
 
   mask.appendChild(box);
   document.body.appendChild(mask);
-  xBtn.onclick = () => mask.remove();
-  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
-  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  xBtn.onclick = () => mask.remove(); document.removeEventListener('keydown', onKey);
+  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); document.removeEventListener('keydown', onKey); });
+    const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
 }
 
@@ -1712,9 +1713,9 @@ function openContainerFeature(feature, title) {
   box.appendChild(host);
   mask.appendChild(box);
   document.body.appendChild(mask);
-  xBtn.onclick = () => mask.remove();
-  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
-  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  xBtn.onclick = () => mask.remove(); document.removeEventListener('keydown', onKey);
+  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); document.removeEventListener('keydown', onKey); });
+    const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
   try { feature.open(host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
 }
@@ -1736,9 +1737,11 @@ function openFeatureModalFrom(feature, method, hint) {
       head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
       const host = document.createElement('div'); box.appendChild(host);
       mask.appendChild(box); document.body.appendChild(mask);
-      xBtn.onclick = () => mask.remove();
-      mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
-      document.addEventListener('keydown', function onKey(ev) { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } });
+      xBtn.onclick = () => { mask.remove(); document.removeEventListener('keydown', onKey); };
+      mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); document.removeEventListener('keydown', onKey); });
+  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+
+  document.addEventListener('keydown', onKey);
       call(host);
     } else {
       call();
@@ -1801,7 +1804,7 @@ function editProfile() {
   box.appendChild(acts);
   mask.appendChild(box);
   document.body.appendChild(mask);
-  const close = () => mask.remove();
+  const close = () => { mask.remove(); document.removeEventListener('keydown', onKey); };
   cancel.onclick = close;
   xBtn.onclick = close;
   // ESC 关闭
@@ -4302,7 +4305,7 @@ function startCallRecording(remoteStream) {
       if (!callRecordChunks.length) return;
       const blob = new Blob(callRecordChunks, { type: mime });
       const kind = callKind || 'audio';
-      const peerId = callPeer;
+      const peerId = callPeer;   // onstop 是异步任务，closeCallBar 已把 callPeer 置空
       fetch(state.serverHost + '/api/call-recordings?to=' + encodeURIComponent(peerId) + '&kind=' + encodeURIComponent(kind), { method: 'POST', body: blob, headers: { 'Content-Type': 'video/webm', 'Authorization': 'Bearer ' + state.token } })
         .then(() => loadCallReplays(peerId))
         .catch((e) => toast('回放上传失败：' + e.message, 'error'));
@@ -4523,6 +4526,9 @@ function closeCallBar() {
   stopCallRingtone();
   clearCallTimer();
   stopCallDuration();
+  // 在停止录制前快照通话对象：MediaRecorder.onstop 是异步任务，
+  // 若此处直接置空 callPeer/callKind，异步回调会拿到 null，导致上传?to=null 被拒（400）且视频被标成音频
+  try { window.__stopCallSnap = { peerId: callPeer, kind: callKind }; } catch (e) {}
   stopCallRecording();
   releaseLocalMedia();
   pendingRemoteStream = null;
@@ -5267,7 +5273,7 @@ async function passkeyPanel() {
   mask.appendChild(box);
   document.body.appendChild(mask);
   const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
-  const onKey = e => { if (e.key === 'Escape') close(); };
+  const onKey = e => { if (e.key === 'Escape') if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
   box.querySelector('.modal-x').onclick = close;
   box.querySelector('.cancel').onclick = close;

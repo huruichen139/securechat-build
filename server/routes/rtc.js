@@ -105,6 +105,20 @@ module.exports = function registerRtc(app, db, auth) {
     return u.id;
   }
 
+  // 按发送方+接收方的信令限流：收件箱上限 200 且 TTL 2 分钟，
+  // 无此限流时攻击者可持续灌满他人收件箱，使受害者真实来电一律被 429 拒绝（定向阻断来电）。
+  const _sigBuckets = new Map();
+  function hitSignalLimit(key) {
+    const now = Date.now();
+    if (_sigBuckets.size > 20000) {
+      for (const [k, v] of _sigBuckets) if (now > v.resetAt) _sigBuckets.delete(k);
+    }
+    let b = _sigBuckets.get(key);
+    if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + 60000 }; _sigBuckets.set(key, b); }
+    b.count++;
+    return b.count > 120;
+  }
+
   // ---------- 信令 REST ----------
   app.post('/api/rtc/signal', (req, res) => {
     const me = requireAuth(req, res);
@@ -116,6 +130,24 @@ module.exports = function registerRtc(app, db, auth) {
       return res.status(400).json({ error: 'to 或 sub 无效' });
     }
     if (toId === me) return res.status(400).json({ error: '不能发给自己' });
+    // sub 白名单：sub 由客户端自由传入，不限制即可伪造 hangup 强制挂断他人通话、
+    // 或用 offer 强制让对方接听并把音视频推给攻击者。
+    const ALLOWED_SUBS = new Set(['offer', 'answer', 'candidate', 'ice', 'hangup', 'offer_file', 'answer_file', 'datachannel', 'call', 'call_reject', 'ring']);
+    if (!ALLOWED_SUBS.has(String(sub))) return res.status(400).json({ error: 'sub 无效' });
+    // 好友关系校验：本 REST 通道此前完全绕过 WS 通道的好友校验，
+    // 任意用户可对任意在线用户发 offer/hangup（挂断通话、强制推流）。
+    let isFriend = false;
+    try {
+      isFriend = !!prepare('SELECT 1 FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)')
+        .get(me, toId, toId, me);
+    } catch (e) { isFriend = false; }
+    // 定向限流必须在校验之前执行：收件箱上限 200 且 TTL 2 分钟，
+    // 攻击者每 ~100 秒灌 200 条 ice 即可让收件箱永久满载，
+    // 使受害者真实来电一律被 429 拒绝（定向阻断来电）。
+    if (hitSignalLimit(me + ':' + toId)) {
+      return res.status(429).json({ error: '信令发送过于频繁' });
+    }
+    if (!isFriend) return res.status(403).json({ error: '仅可向好友发送通话信令' });
     let blocked = false;
     try {
       blocked = !!prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(toId, me, me, toId);

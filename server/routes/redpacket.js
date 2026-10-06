@@ -309,12 +309,14 @@ module.exports = function registerRedpacket(app, db, auth) {
     if (!pkt) return res.status(404).json({ error: '红包不存在' });
     if (pkt.sender_id !== me.id) return res.status(403).json({ error: '只能退回自己发的红包' });
     // 将 status 检查移到事务内，防止抢单竞态
-    const refund = pkt.remaining_amount;
     try { prepare('BEGIN IMMEDIATE TRANSACTION').run(); } catch (e) {}
+    // 必须在 try 块外声明：原声明在块内却在块外引用，退回红包必然抛
+    // ReferenceError（钱已退但接口返回 500「退回失败」）
+    let refundAmt = 0;
     try {
       const fresh = prepare('SELECT status,remaining_amount,remaining_count FROM red_packets WHERE id=?').get(id);
       if (!fresh || fresh.status !== 'active' || fresh.remaining_count <= 0) { try { prepare('COMMIT').run(); } catch (e) {} return res.status(400).json({ error: '红包已抢完或已退回' }); }
-      const refundAmt = fresh.remaining_amount;
+      refundAmt = fresh.remaining_amount;
       prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refundAmt, Date.now(), me.id);
       prepare('UPDATE red_packets SET status=?,remaining_amount=?,remaining_count=? WHERE id=?').run('refunded', 0, 0, id);
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
