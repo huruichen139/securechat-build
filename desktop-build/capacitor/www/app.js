@@ -3046,6 +3046,7 @@ function appendGroupMessage(m, prepend) {
     if (b64) {
       const vb = row.querySelector('.voice-bubble');
       vb._b64 = b64;
+      attachTranscribe(row, b64);
       vb.onclick = function () {
         const audio = new Audio('data:audio/webm;base64,' + this._b64);
         audio.play();
@@ -4865,6 +4866,64 @@ function stopVoiceRec(cancel) {
 })();
 
 // 发送/收到语音气泡
+// 给语音气泡挂上「转文字」入口（接收消息与本地发送两条路径共用）
+async function attachTranscribe(row, b64) {
+  const vb = row.querySelector('.voice-bubble');
+  if (!vb || !b64) return;
+  if (vb.querySelector('.vt-btn')) return;
+  const ts = document.createElement('span');
+  ts.className = 'vt-btn';
+  ts.textContent = '转文字';
+  ts.title = '把这条语音转换成文字';
+  ts.onclick = async function (ev) {
+    ev.stopPropagation();
+    if (ts._loading) return;
+    ts._loading = true;
+    ts.classList.add('vt-loading');
+    ts.textContent = '转写中';
+    try {
+      const r = await fetch(state.serverHost + '/api/stt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+        body: JSON.stringify({ audioB64: b64 })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || '转写失败');
+      const jobId = d.jobId;
+      if (!jobId) throw new Error('未取得转写任务');
+      let text = '';
+      for (let i = 0; i < 90; i++) {
+        await new Promise(x => setTimeout(x, 2000));
+        const q = await fetch(state.serverHost + '/api/stt/status?jobId=' + encodeURIComponent(jobId), {
+          headers: { 'Authorization': 'Bearer ' + state.token }
+        });
+        if (!q.ok) throw new Error('查询转写结果失败');
+        const st = await q.json().catch(() => ({}));
+        if (st.status === 'done') { text = (st.text || '').trim(); break; }
+        if (st.status === 'error') throw new Error(st.error || '转写失败');
+        if (i % 5 === 4) ts.textContent = '转写中 ' + ((i + 1) * 2) + 's';
+      }
+      if (!text) throw new Error('转写超时，请稍后重试');
+      ts.textContent = '转文字';
+      ts.classList.remove('vt-loading');
+      ts._loading = false;
+      let out = row.querySelector('.voice-transcript');
+      if (!out) {
+        out = document.createElement('div');
+        out.className = 'voice-transcript';
+        row.querySelector('.bubble').appendChild(out);
+      }
+      out.textContent = text;
+    } catch (e) {
+      ts.textContent = '转文字';
+      ts.classList.remove('vt-loading');
+      ts._loading = false;
+      toast('转文字失败：' + e.message, 'error', 2500);
+    }
+  };
+  vb.appendChild(ts);
+}
+
 function appendVoiceMsg(mine, durationSec, b64) {
   const box = $('messages');
   const row = document.createElement('div');
@@ -4878,9 +4937,12 @@ function appendVoiceMsg(mine, durationSec, b64) {
     + '</div></div><span class="time">' + fmtTime(Date.now()) + '</span>';
   box.appendChild(row);
   __msgScrollToBottom();
+  attachTranscribe(row, b64);
+
   if (b64) {
     row.querySelector('.voice-bubble')._b64 = b64;
-    row.querySelector('.voice-bubble').onclick = function () {
+    row.querySelector('.voice-bubble').onclick = function (ev) {
+      if (ev.target.closest('.vt-btn')) return;
       const audio = new Audio('data:audio/webm;base64,' + this._b64);
       audio.play();
       const btn = this.querySelector('.play');
@@ -4889,32 +4951,6 @@ function appendVoiceMsg(mine, durationSec, b64) {
       audio.onended = () => { btn.textContent = orig; };
       audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = orig; };
     };
-    const ts = document.createElement('span');
-    ts.textContent = '转文字';
-    ts.style.cssText = 'margin-left:10px;font-size:12px;color:var(--accent,#07c160);cursor:pointer;user-select:none;';
-    ts.onclick = async function () {
-      if (ts._loading) return;
-      ts._loading = true; const origTxt = ts.textContent; ts.textContent = '转写中…';
-      try {
-        const r = await fetch(state.serverHost + '/api/stt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-          body: JSON.stringify({ audioB64: b64 })
-        });
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || '转写失败');
-        const text = (d.text || '').trim();
-        ts.textContent = '转文字';
-        ts._loading = false;
-        let out = row.querySelector('.voice-transcript');
-        if (!out) { out = document.createElement('div'); out.className = 'voice-transcript'; out.style.cssText = 'margin-top:6px;padding:8px 10px;background:var(--bg,#f5f5f5);border-radius:8px;font-size:13px;white-space:pre-wrap;word-break:break-word;color:var(--text,#222);'; row.querySelector('.bubble').appendChild(out); }
-        out.textContent = text;
-      } catch (e) {
-        ts.textContent = '转文字'; ts._loading = false;
-        toast('转文字失败：' + e.message, 'error', 2000);
-      }
-    };
-    row.querySelector('.voice-bubble').appendChild(ts);
   }
 }
 
