@@ -34,6 +34,8 @@ async function getDb() {
 }
 
 function init() {
+  // users.email 必须 UNIQUE + COLLATE NOCASE：否则 Bob@x.com 与 bob@x.com
+  // 能注册成两个账号，密码重置/找回密码会串号（改到别人账号上）。
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +44,7 @@ function init() {
       password TEXT NOT NULL,
       avatar TEXT,
       uid TEXT UNIQUE,
-      email TEXT,
+      email TEXT UNIQUE COLLATE NOCASE,
       uid_changed_at INTEGER,
       country TEXT,
       province TEXT,
@@ -437,8 +439,8 @@ function init() {
     value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )`);
-  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_messages_client_msg_id skip: ' + e.message); }
-  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_group_messages_client_msg_id skip: ' + e.message); }
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_msg_id ON messages(from_id, client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_messages_client_msg_id skip: ' + e.message); }
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_group_messages_client_msg_id ON group_messages(from_id, client_msg_id) WHERE client_msg_id IS NOT NULL'); } catch (e) { console.warn('[db] idx_group_messages_client_msg_id skip: ' + e.message); }
   try { db.run("CREATE TABLE IF NOT EXISTS friend_remarks (user_id INTEGER NOT NULL, friend_id INTEGER NOT NULL, remark TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, friend_id))"); } catch (e) { console.warn('[db] friend_remarks skip: ' + e.message); }
   // 给缺 uid 的老数据补一个
   const missing = db.exec('SELECT id FROM users WHERE uid IS NULL');
@@ -446,6 +448,19 @@ function init() {
     for (const row of missing[0].values) {
       const id = row[0];
       let code; do { code = genUid(); } while (db.exec('SELECT 1 FROM users WHERE uid=\'' + code + '\'').length);
+// 邮箱唯一 + 大小写不敏感迁移。SQLite 的 CREATE TABLE IF NOT EXISTS 不会修改已存在的表，
+// 因此这里对存量库单独建唯一索引；若有历史重复邮箱则保留低版本查询并记录告警。
+try {
+  const dupes = db.exec(
+    "SELECT LOWER(email) AS e, COUNT(*) AS c FROM users WHERE email IS NOT NULL AND email<>'' GROUP BY LOWER(email) HAVING c>1"
+  );
+  if (dupes && dupes.length) {
+    console.warn('[db] 存在 ' + dupes.length + ' 组重复邮箱，无法建立唯一索引（大小写不敏感查询仍已生效）');
+  } else {
+    db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email COLLATE NOCASE) WHERE email IS NOT NULL AND email<>''");
+  }
+} catch (e) { console.warn('[db] 邮箱唯一索引迁移失败: ' + (e && e.message || e)); }
+
       db.run('UPDATE users SET uid=? WHERE id=?', [code, id]);
     }
   }

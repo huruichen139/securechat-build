@@ -184,8 +184,15 @@ app.use((req, res, next) => {
 const ALLOWED_ORIGINS = ['https://mc.32768.top', 'http://mc.32768.top', 'http://localhost', 'http://127.0.0.1'];
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
-    res.header('Access-Control-Allow-Origin', origin);
+  // 必须精确匹配来源主机（可带端口）。原先用 startsWith 会被
+  // https://mc.32768.top.evil.com、http://localhost.evil.com 这类前缀绕过。
+  if (origin) {
+    let host = null;
+    try { host = new URL(origin).host; } catch (e) { host = null; }
+    const ok = host && (host === 'mc.32768.top'
+      || host === '127.0.0.1' || host === '127.0.0.1:8888'
+      || /^localhost(:\d+)?$/.test(host));
+    if (ok) res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -441,6 +448,10 @@ function rateLimit(key, max, windowMs) {
   b.count++;
   return b.count > max;
 }
+// 清除某限流桶（登录成功时清掉账号级失败计数）
+function clearRateLimit(key) {
+  try { _rateBuckets.delete(key); } catch (e) {}
+}
 function getIp(req) {
   // 仅在显式配置 TRUST_PROXY=1 时信任 X-Forwarded-For，防止客户端伪造 IP 绕过限流。
   // 未配置时直接使用 socket 地址（单机直连场景），避免 XFF 被随意伪造。
@@ -672,7 +683,7 @@ app.post('/api/email/code', async (req, res) => {
     return res.status(400).json({ error: '邮箱格式错误' });
   }
   // 邮箱已被占用？（register/bind 时已占用则拒绝；login 时需已注册）
-  const taken = prepare('SELECT id FROM users WHERE email=?').get(email);
+  const taken = prepare('SELECT id FROM users WHERE email=? COLLATE NOCASE').get(email);
   if (purpose === 'login' || purpose === 'reset') {
     if (!taken) return res.status(400).json({ error: '该邮箱未注册，请先注册再使用验证码登录' });
   } else if (taken) {
@@ -729,7 +740,7 @@ app.post('/api/register', (req, res) => {
   clearCodeFails(email);
   const exists = prepare('SELECT id FROM users WHERE username=?').get(username);
   if (exists) return res.status(409).json({ error: '用户名已存在' });
-  const emailTaken = prepare('SELECT id FROM users WHERE email=?').get(email);
+  const emailTaken = prepare('SELECT id FROM users WHERE email=? COLLATE NOCASE').get(email);
   if (emailTaken) return res.status(409).json({ error: '该邮箱已被其他账号绑定' });
   // UID：若用户提供则用，否则随机生成
   let uid;
@@ -986,7 +997,7 @@ app.post('/api/oauth/bind', (req, res) => {
  _oauthSeen.set(tk.nn, Date.now());
 
  let user = prepare('SELECT * FROM users WHERE username=?').get(account);
- if (!user && account.indexOf('@') > -1) user = prepare('SELECT * FROM users WHERE email=?').get(account);
+ if (!user && account.indexOf('@') > -1) user = prepare('SELECT * FROM users WHERE email=? COLLATE NOCASE').get(account);
  if (!user || !bcrypt.compareSync(password, user.password)) {
   return res.status(401).json({ error: '账号或密码错误' });
  }
@@ -1106,14 +1117,18 @@ async function githubCallbackHandler(req, res) {
       r.on('timeout', () => { r.destroy(); resolve(null); });
       r.end();
     });
-    let ghEmail = String(profile.email || '').slice(0, 120);
-    if (!ghEmail) {
-      const emails = await ghGet('/user/emails');
-      if (Array.isArray(emails)) {
-        const prim = emails.find((x) => x && x.primary && x.verified) ||
-                     emails.find((x) => x && x.verified);
-        if (prim && prim.email) ghEmail = String(prim.email).slice(0, 120);
-      }
+        // 邮箱必须来自 /user/emails 且 verified=true。
+    // 安全要点：/user 返回的 profile.email 是用户可任意填写的「公开邮箱」，GitHub 不做验证，
+    // 绝不能用于自动匹配账号（否则攻击者把公开邮箱填成受害者邮箱即可零成本抢绑账号）。
+    let ghEmail = '';
+    const emails = await ghGet('/user/emails');
+    if (Array.isArray(emails)) {
+      const prim = emails.find((x) => x && x.primary && x.verified) ||
+                   emails.find((x) => x && x.verified);
+      if (prim && prim.email) ghEmail = String(prim.email).trim().toLowerCase().slice(0, 120);
+    }
+    if (!ghEmail && profile.email) {
+      console.warn('[github] 未取到已验证邮箱，忽略未验证的公开邮箱: ' + String(profile.email).slice(0, 80));
     }
     logAudit(null, 'oauth', null, 'user', 'GitHub 授权成功 ' + (profile.login || '') + ' 邮箱=' + (ghEmail || '未获取'), ip);
     const wantsHtml = String(req.headers.accept || '').includes('text/html');
@@ -1143,7 +1158,7 @@ async function githubCallbackHandler(req, res) {
     // 未绑定：若本站存在"邮箱与 GitHub 已验证邮箱相同"的账号，则直接绑定并登录，
     // 省去用户再输一次账密。邮箱取自 GitHub /user/emails 的 verified 项。
     if (ghEmail) {
-      const matched = prepare('SELECT * FROM users WHERE email=? AND email IS NOT NULL').get(ghEmail);
+      const matched = prepare('SELECT * FROM users WHERE email=? COLLATE NOCASE').get(ghEmail);
       if (matched && !matched.banned) {
         const dupMail = prepare('SELECT * FROM oauth_accounts WHERE provider=? AND social_uid=?').get('github', socialUid);
         if (dupMail && dupMail.user_id !== matched.id) {
@@ -1223,6 +1238,9 @@ app.post('/api/login', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const ip = getIp(req);
   if (rateLimit('login:' + ip, 10, 15 * 60 * 1000)) return res.status(429).json({ error: '登录尝试过多，请15分钟后再试' });
+  // 密码登录：前端不携带人机验证数据（注册/验证码登录才带），故此处保持兼容模式，
+  // 改由下方账号级失败计数（login_fail）兜底撞库与密码喷洒。
+  // 注意：若改为 strict=true 会直接打断全部密码登录，客户端需同步改造。
   verifyHuman(req, res, false).then((ok) => {
     if (!ok) return;
     (function doLogin() {
@@ -1232,7 +1250,12 @@ app.post('/api/login', (req, res) => {
   if (!account || !password) return res.status(400).json({ error: '用户名/邮箱和密码不能为空' });
   let user = prepare('SELECT * FROM users WHERE username=?').get(account);
   if (!user && account.indexOf('@') > -1) {
-    user = prepare('SELECT * FROM users WHERE email=?').get(account);
+    user = prepare('SELECT * FROM users WHERE email=? COLLATE NOCASE').get(account);
+  }
+  // 账号级失败锁定：原实现只有按 IP 的固定窗口限流，攻击者用代理池/IPv6 空间
+  // 可对同一账号无限尝试（撞库、密码喷洒）而永不触发锁定。
+  if (rateLimit('login_fail:' + String(account).toLowerCase(), 10, 30 * 60 * 1000)) {
+    return res.status(429).json({ error: '该账号登录失败次数过多，请30分钟后再试' });
   }
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: '用户名/邮箱或密码错误' });
@@ -1250,6 +1273,7 @@ app.post('/api/login', (req, res) => {
     } catch (e) {}
   }
   const token = signToken(user, loginDeviceId || undefined);
+  clearRateLimit('login_fail:' + String(account).toLowerCase());
   res.json({ token, user: publicUser(user) });
     })();
   });
@@ -1268,7 +1292,7 @@ app.post('/api/login/code', (req, res) => {
   const codeErr = checkCode(email, code, 'login');
   if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
   clearCodeFails(email);
-  const user = prepare('SELECT * FROM users WHERE email=?').get(email);
+  const user = prepare('SELECT * FROM users WHERE email=? COLLATE NOCASE').get(email);
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   if (user.banned) {
     return res.status(403).json({ error: '该账号已被封禁' + (user.ban_reason ? '：' + user.ban_reason : '') });
@@ -1301,7 +1325,7 @@ app.post('/api/password/reset', (req, res) => {
   const codeErr = checkCode(email, code, 'reset');
   if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
   clearCodeFails(email);
-  const user = prepare('SELECT id FROM users WHERE email=?').get(email);
+  const user = prepare('SELECT id FROM users WHERE email=? COLLATE NOCASE').get(email);
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   const hash = bcrypt.hashSync(String(newPassword), 10);
   prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, user.id);
@@ -1825,7 +1849,7 @@ app.get('/api/history/:peerId', (req, res) => {
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
-  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   const rows = prepare(`SELECT m.*,mm.reply_to,mm.forwarded_from,mm.burn_after_reading,mm.pinned,
     pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
@@ -2060,6 +2084,15 @@ app.post('/api/files', express.raw({ type: 'application/octet-stream', limit: '1
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '文件为空' });
+  // 单文件与用户总量配额：原先本接口无任何配额（/api/media、群文件都有），
+  // 任意用户循环上传可把磁盘写满，导致整个服务不可用。
+  if (req.body.length > 100 * 1024 * 1024) return res.status(413).json({ error: '文件超过 100MB 限制' });
+  try {
+    const used = prepare('SELECT COUNT(*) AS c, COALESCE(SUM(size),0) AS s FROM file_transfers WHERE from_id=?')
+      .get(payload.id) || { c: 0, s: 0 };
+    if (Number(used.c) + 1 > 500) return res.status(400).json({ error: '文件数量已达上限（500 个）' });
+    if (Number(used.s) + req.body.length > 2 * 1024 * 1024 * 1024) return res.status(400).json({ error: '文件空间已满（2GB）' });
+  } catch (e) { return res.status(500).json({ error: '配额校验失败' }); }
   const toId = parseInt(req.query.to, 10);
   if (!Number.isInteger(toId) || !prepare('SELECT id FROM users WHERE id=?').get(toId)) return res.status(400).json({ error: '接收方无效' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, toId) || prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '你与对方处于拉黑状态，无法发送文件' });
@@ -2118,6 +2151,37 @@ app.get('/api/files/:id', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
   fs.createReadStream(file.path).pipe(res);
 });
+
+// ---------- 离线文件中转清理（TTL）----------
+// 原实现 file_transfers 只有插入与读取，全库没有任何删除路径或 TTL 清扫，
+// 过期后磁盘文件与数据库行永久保留，磁盘单调增长直至写满。
+(function __fileTransferJanitor() {
+  const TTL = 30 * 24 * 3600 * 1000; // 中转文件保留 30 天
+  const SWEEP = 6 * 3600 * 1000;     // 每 6 小时清扫一次
+  const run = () => {
+    try {
+      if (!ready || !db) return;
+      const cutoff = Date.now() - TTL;
+      const rows = db.prepare('SELECT id, path FROM file_transfers WHERE created_at < ?').all(cutoff);
+      if (!rows || !rows.length) return;
+      let removed = 0;
+      for (const r of rows) {
+        try { if (r.path && fs.existsSync(r.path)) fs.unlinkSync(r.path); } catch (e) {}
+        try { db.prepare('DELETE FROM file_transfers WHERE id=?').run(r.id); removed++; } catch (e) {}
+      }
+      if (removed) {
+        try { if (typeof db.persist === 'function') db.persist(); } catch (e) {}
+        console.log('[file-transfers] 已清理过期中转文件 ' + removed + ' 个');
+      }
+    } catch (e) {
+      console.error('[file-transfers] 清理失败: ' + (e && e.message || e));
+    }
+  };
+  const kick = setTimeout(run, 30000);
+  if (kick && typeof kick.unref === 'function') kick.unref();
+  const t = setInterval(run, SWEEP);
+  if (t && typeof t.unref === 'function') t.unref();
+})();
 
 // ---------- 语音转文字（STT）----------
 // 启用方式（任一）：
@@ -2373,7 +2437,7 @@ app.get('/api/group/:id/messages', (req, res) => {
   if (!groupId) return res.status(400).json({ error: '群ID错误' });
   const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
   if (!isMember) return res.status(403).json({ error: '你不在此群' });
-  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   const rows = prepare(
     `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
@@ -3588,14 +3652,21 @@ app.get('/api/oauth/qq/url', (req, res) => {
   if (!cfg || !cfg.enabled || !cfg.appid || !cfg.redirect) {
     return res.status(503).json({ error: 'QQ 登录尚未启用' });
   }
-  const state = String((req.query || {}).state || '').trim();
-  if (!state) return res.status(400).json({ error: '缺少 state' });
+  // state 由服务端生成并用 APPKEY 签名，且一次性消费。
+  // 原实现直接采用客户端传入的 state，导致登录 CSRF：
+  // 攻击者可用自己的 QQ 授权码 + 受害者客户端的 state 抢先写入会话，
+  // 使受害者轮询到攻击者账号的 token。
+  const state = oauthSignState({
+    t: 'qq',
+    nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + getIp(req)).digest('hex').slice(0, 24),
+    exp: Date.now() + 10 * 60 * 1000
+  });
   const url = 'https://graph.qq.com/oauth2.0/authorize?response_type=code' +
     '&client_id=' + encodeURIComponent(cfg.appid) +
     '&redirect_uri=' + encodeURIComponent(cfg.redirect) +
     '&state=' + encodeURIComponent(state) +
     '&scope=get_user_info';
-  res.json({ url });
+  res.json({ url, state });
 });
 
 // 轮询：客户端（桌面/网页）获取登录结果
@@ -3620,7 +3691,7 @@ app.post('/api/oauth/qq/bind', async (req, res) => {
   const codeErr = checkCode(String(email), String(code), 'login');
   if (codeErr) { recordCodeFail(String(email)); return res.status(400).json({ error: codeErr }); }
   clearCodeFails(String(email));
-  const user = prepare('SELECT * FROM users WHERE email=?').get(String(email).trim().toLowerCase());
+  const user = prepare('SELECT * FROM users WHERE email=? COLLATE NOCASE').get(String(email).trim().toLowerCase());
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
   const exists = prepare('SELECT id FROM users WHERE qq_openid=? AND id<>?').get(openid, user.id);
@@ -3668,6 +3739,15 @@ app.get('/oauth/qq/callback', async (req, res) => {
 
   if (error || !code || !state) {
     return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>QQ 登录失败</h3><p>' + esc(error || '缺少授权参数') + '</p></body>');
+  }
+  // 校验 state 必须由本服务签发且未被使用过（防登录 CSRF 与会话覆盖）
+  const st = oauthVerifyState(state);
+  if (!st || st.t !== 'qq') {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;padding:40px;text-align:center"><h3>登录状态已失效</h3><p>请返回应用重新发起登录。</p></body>');
+  }
+  // 同一 state 不允许覆盖已有会话（否则攻击者可在受害者授权后重置其会话）
+  if (qqSessions.has(state)) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>QQ 登录</title><body style="font-family:sans-serif;padding:40px;text-align:center"><h3>登录请求已处理</h3><p>请返回应用查看结果。</p></body>');
   }
   qqSessions.set(state, { status: 'waiting', openid: '', createdAt: Date.now() });
   const tok = await qqExchangeToken(code);
@@ -3864,11 +3944,16 @@ app.get('/api/oauth/github/url', (req, res) => {
   if (!cfg || !cfg.enabled || !cfg.clientId || !cfg.redirect) {
     return res.status(503).json({ error: 'GitHub 登录尚未启用' });
   }
-  const state = String((req.query || {}).state || '').trim();
-  if (!state) return res.status(400).json({ error: '缺少 state' });
+  // state 由服务端签名生成（防登录 CSRF：原先信任客户端传入的 state，
+  // 攻击者可用自己的授权码 + 受害者 state 劫持受害者会话）
+  const state = oauthSignState({
+    t: 'gh_legacy',
+    nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + getIp(req)).digest('hex').slice(0, 24),
+    exp: Date.now() + 10 * 60 * 1000
+  });
   const url = 'https://github.com/login/oauth/authorize?client_id=' + encodeURIComponent(cfg.clientId) +
     '&redirect_uri=' + encodeURIComponent(cfg.redirect) + '&state=' + encodeURIComponent(state) + '&scope=read:user';
-  res.json({ url });
+  res.json({ url, state });
 });
 
 // 轮询：客户端获取登录结果
@@ -3893,7 +3978,7 @@ app.post('/api/oauth/github/bind', async (req, res) => {
   const codeErr = checkCode(String(email), String(code), 'login');
   if (codeErr) { recordCodeFail(String(email)); return res.status(400).json({ error: codeErr }); }
   clearCodeFails(String(email));
-  const user = prepare('SELECT * FROM users WHERE email=?').get(String(email).trim().toLowerCase());
+  const user = prepare('SELECT * FROM users WHERE email=? COLLATE NOCASE').get(String(email).trim().toLowerCase());
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   if (user.banned) return res.status(403).json({ error: '该账号已被封禁' });
   const exists = prepare('SELECT id FROM users WHERE github_id=? AND id<>?').get(githubId, user.id);
@@ -3941,6 +4026,13 @@ app.get('/oauth/github/callback', async (req, res) => {
 
   if (error || !code || !state) {
     return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666"><h3>GitHub 登录失败</h3><p>' + esc(error || '缺少授权参数') + '</p></body>');
+  }
+  const stG = oauthVerifyState(state);
+  if (!stG || stG.t !== 'gh_legacy') {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;padding:40px;text-align:center"><h3>登录状态已失效</h3><p>请返回应用重新发起登录。</p></body>');
+  }
+  if (githubSessions.has(state)) {
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><title>GitHub 登录</title><body style="font-family:sans-serif;padding:40px;text-align:center"><h3>登录请求已处理</h3><p>请返回应用查看结果。</p></body>');
   }
   githubSessions.set(state, { status: 'waiting', githubId: '', createdAt: Date.now() });
   const tok = await githubExchangeToken(code);
@@ -4848,7 +4940,7 @@ app.get('/api/sync', (req, res) => {
   const payload = authed(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const since = parseInt(req.query.since, 10) || 0;
-  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   // 私聊消息：自己发的 + 收到的
   const directMsgs = prepare(
     `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
@@ -4869,7 +4961,9 @@ app.get('/api/sync', (req, res) => {
   all.sort((a, b) => (a.seq || 0) - (b.seq || 0));
   const sliced = all.slice(0, limit);
   const maxSeq = sliced.length ? Math.max(...sliced.map(m => m.seq || 0)) : since;
-  const hasMore = all.length > limit;
+  // 任一路查询取满 limit 即说明可能还有更多消息。
+  // 原写法 all.length > limit 会误判为 false，导致剩余消息永久丢失。
+  const hasMore = all.length > limit || directMsgs.length >= limit || groupMsgs.length >= limit;
   // 更新同步状态
   const directSeqs = sliced.filter(m => m.msgType === 'direct').map(m => m.seq || 0);
   const groupSeqs = sliced.filter(m => m.msgType === 'group').map(m => m.seq || 0);
@@ -5158,6 +5252,10 @@ wss.on('connection', (ws, req) => {
        const dbUser = prepare('SELECT * FROM users WHERE id=?').get(user.id);
       if (!dbUser) return send(ws, P.S_AUTH_FAIL, { error: '用户不存在' });
       if (dbUser.banned) return send(ws, P.S_AUTH_FAIL, { error: '该账号已被封禁' + (dbUser.ban_reason ? '：' + dbUser.ban_reason : '') });
+      // 重复认证必须先摘除旧身份：否则旧 uid 的 online 列表会残留本连接，
+      // 导致 A 的消息被投递给已登录成 B 的连接（跨账号泄露），
+      // 且 onlineAny(A) 恒为 true 使 A 的消息永不进入离线队列（永久丢失）。
+      if (ws.uid && ws.uid !== dbUser.id) { try { removeWs(ws.uid, ws); } catch (e) {} }
       ws.uid = dbUser.id;
       try { clearTimeout(authTimer); } catch {} // 认证成功，清除超时
       ws.user = publicUser(dbUser);
@@ -5276,10 +5374,13 @@ wss.on('connection', (ws, req) => {
 
     if (type === P.C_READ) {
       if (!ws.uid) return;
-      const { from } = payload || {};
-      prepare('UPDATE messages SET read=1 WHERE from_id=? AND to_id=?').run(Number(from), ws.uid);
-      // 通知发送方：对方已读
-      if (Number.isInteger(Number(from)) && onlineAny(Number(from))) sendToUser(Number(from), P.S_MSG_READ, { peerId: ws.uid });
+      const from = Number((payload || {}).from);
+      const readRes = prepare('UPDATE messages SET read=1 WHERE from_id=? AND to_id=?').run(from, ws.uid);
+      // 只有确实更新到消息时才广播。原实现不检查影响行数，
+      // 任意用户可对从未会话的在线用户伪造「对方已读」回执（并向 uid 0 发包）。
+      if (Number.isInteger(from) && from > 0 && onlineAny(from) && readRes && readRes.changes > 0) {
+        sendToUser(from, P.S_MSG_READ, { peerId: ws.uid });
+      }
       return;
     }
 
@@ -5413,7 +5514,7 @@ wss.on('connection', (ws, req) => {
     if (type === P.C_SYNC) {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const since = Number((payload || {}).since) || 0;
-      const limit = Math.min(Number((payload || {}).limit) || 200, 500);
+      const limit = Math.min(Math.max(Number((payload || {}).limit) || 200, 1), 500);
       // 私聊消息
       const directMsgs = prepare(
         `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
@@ -5432,7 +5533,7 @@ wss.on('connection', (ws, req) => {
       const maxDirect = sliced.filter(m => m.msgType === 'direct').reduce((mx, m) => Math.max(mx, m.seq || 0), since);
       const maxGroup = sliced.filter(m => m.msgType === 'group').reduce((mx, m) => Math.max(mx, m.seq || 0), since);
       updateSyncState(ws.uid, maxDirect, maxGroup);
-      send(ws, P.S_SYNC, { messages: sliced, lastSeq: maxSeq, hasMore: all.length > limit });
+      send(ws, P.S_SYNC, { messages: sliced, lastSeq: maxSeq, hasMore: all.length > limit || directMsgs.length >= limit || groupMsgs.length >= limit });
       return;
     }
 
@@ -5441,7 +5542,12 @@ wss.on('connection', (ws, req) => {
       if (!ws.uid) return send(ws, P.S_ERROR, { error: '未登录' });
       const { to, sub, data } = payload || {};
       const toId = Number(to);
-      if (!Number.isInteger(toId) || !sub) return;
+      if (!Number.isInteger(toId) || toId <= 0 || !sub) return;
+      if (toId === ws.uid) return;
+      // 信令必须限定在好友之间且 sub 在白名单内，否则任意用户可对任意在线用户伪造
+      // offer/answer/hangup（强制弹呼叫、挂断他人通话、向攻击者推流音视频）
+      if (!ALLOWED_SIGNAL_SUBS.has(String(sub))) return;
+      if (!prepare('SELECT 1 FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)').get(ws.uid, toId, toId, ws.uid)) return;
       if (!onlineAny(toId)) {
         send(ws, P.S_SIGNAL, { from: toId, sub: 'peer_offline', data: null });
         return;
@@ -5481,6 +5587,10 @@ const wsPingTimer = setInterval(() => {
 // 自适应心跳：客户端上报 RTT，服务端动态调整 ping 间隔
 // 网络好时缩短到 15s，网络差时延长到 60s
 const rttBuckets = new Map(); // uid -> { samples: [], avgRtt: number }
+// WebRTC 信令子类型白名单：sub 由客户端自由传入，必须限制取值，
+// 否则可构造畸形 data 或伪造 hangup 强制断开他人通话。
+const ALLOWED_SIGNAL_SUBS = new Set(['offer', 'answer', 'candidate', 'ice', 'hangup', 'offer_file', 'answer_file', 'datachannel']);
+
 function updateHeartbeatInterval() {
   if (rttBuckets.size === 0) { wsPingInterval = WS_PING_BASE_INTERVAL; return; }
   let totalRtt = 0, count = 0;
@@ -5490,7 +5600,7 @@ function updateHeartbeatInterval() {
   else if (avgRtt < 1000) wsPingInterval = 30000;  // 正常
   else wsPingInterval = 60000;                      // 弱网，减少心跳频率
   clearInterval(wsPingTimer);
-  setInterval(() => {
+  wsPingTimer = setInterval(() => {
     for (const ws of wss.clients) {
       if (ws.isAlive === false) { try { ws.terminate(); } catch {} continue; }
       ws.isAlive = false;

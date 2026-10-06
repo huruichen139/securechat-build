@@ -425,6 +425,8 @@ module.exports = function registerGroups(app, db, auth) {
     p.run('DELETE FROM group_members WHERE group_id=? AND user_id=?', groupId, req.user.id);
     p.run('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, req.user.id);
     p.run('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?', groupId, req.user.id);
+    // 必须一并清理入群凭证：否则退群后仍可凭残留 grant 直接调 join 重新进群
+    try { p.run('DELETE FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, req.user.id); } catch (e) {}
     try { memberChangeHook && memberChangeHook(groupId, req.user.id, 'left'); } catch (e) {}
     res.json({ ok: true });
   });
@@ -691,8 +693,12 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     const msg = p.get('SELECT id, from_id FROM group_messages WHERE id=? AND group_id=?', msgId, groupId);
     if (!msg) return fail(res, 404, '消息不存在');
-    const greply = p.get('SELECT owner_id FROM groups WHERE id=?', groupId);
-    const replyTo = Number((req.body || {}).replyTo) || null;
+    // 只能修改自己消息的引用块（原先任意成员可篡改他人消息的引用内容）
+    if (Number(msg.from_id) !== Number(req.user.id)) return fail(res, 403, '只能回复自己发出的消息');
+    const replyToRaw = Number((req.body || {}).replyTo) || null;
+    // 引用必须属于本群，否则可通过「回显/不回显」探测其他群或私聊消息是否存在
+    let replyTo = replyToRaw;
+    if (replyTo && !p.get('SELECT 1 FROM group_messages WHERE id=? AND group_id=?', replyTo, groupId)) replyTo = null;
     const now = Date.now();
     try {
       p.run('INSERT INTO group_message_meta(message_id,reply_to,updated_at) VALUES(?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=excluded.reply_to,updated_at=excluded.updated_at', msgId, replyTo, now);

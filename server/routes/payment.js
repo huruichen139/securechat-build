@@ -910,10 +910,13 @@ module.exports = function registerPayment(app, db, auth) {
     if (!c.enabled) return res.status(503).json({ error: 'EPay 通道未启用' });
     const merchant = prepare('SELECT * FROM pay_merchants WHERE user_id=? AND status=?').get(req.user.id, 'approved');
     if (!merchant) return res.status(403).json({ error: '商户未审核通过' });
-    const amount = Number(req.body?.amount);
+    let amount = Number(req.body?.amount);
     const subject = String(req.body?.subject || '').trim().slice(0, 120);
     const type = ['alipay', 'wxpay', 'qqpay'].includes(req.body?.type) ? req.body.type : 'wxpay';
     if (!Number.isFinite(amount) || amount <= 0 || !subject) return res.status(400).json({ error: '金额或商品说明无效' });
+    // 金额统一归一到两位小数：必须与上报给 EPay 的 toFixed(2) 口径一致，
+    // 否则 1.005 上报 1.01、回调比对差 0.005 > 容差 0.001 判失败，订单永久挂起（已扣款未入账）。
+    amount = Math.round(amount * 100) / 100;
     const orderNo = 'EP' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(4).toString('hex').toUpperCase();
     const expiresAt = Date.now() + 30 * 60 * 1000;
     prepare('INSERT INTO pay_orders(order_no,merchant_id,amount,subject,status,callback_url,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)')
@@ -1035,7 +1038,13 @@ module.exports = function registerPayment(app, db, auth) {
     if (String(p.trade_status || '').toUpperCase() !== 'TRADE_SUCCESS' && String(p.trade_status || '') !== '1') return res.send('success');
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(p.out_trade_no || ''));
     if (!order) return res.status(404).send('fail');
-    if (Math.abs(Number(p.money) - Number(order.amount)) > 0.001) return res.status(400).send('fail');
+    // 按「分」比较，避免浮点容差与 toFixed 舍入方向不自洽导致已付款订单永久无法入账
+    const notifyCents = Math.round(Number(p.money) * 100);
+    const orderCents = Math.round(Number(order.amount) * 100);
+    if (!Number.isFinite(notifyCents) || notifyCents !== orderCents) {
+      console.warn('[epay] 金额不一致 order=' + order.order_no + ' notify=' + p.money + ' order=' + order.amount);
+      return res.status(400).send('fail');
+    }
     if (order.status !== 'paid') {
       // 状态翻转与商户入账必须原子:writeCharge 失败要回滚并回 fail 让 EPay 重试,
       // 否则订单已 paid、商户永不到账、EPay 收到 success 不再重试 → 商户钱永久丢失
@@ -1059,21 +1068,9 @@ module.exports = function registerPayment(app, db, auth) {
     }
     res.send('success');
   });
-
-  // NewAPI 回调兜底：当商户把"回调地址"误配为本机时，把通知原样转发到真实 NewAPI 站点。
-  // 目标主机固定,SSRF 面有限;但仍限制方法并恢复证书校验,避免被当成开放代理
-  app.all('/api/user/epay/*', (req, res) => {
-    if (!['GET', 'POST'].includes(req.method)) return res.status(405).send('method not allowed');
-    const targetHost = 'ai.32768.top';
-    const path = req.originalUrl;
-    const body = Object.keys(req.body || {}).map((k) => encodeURIComponent(k) + '=' + encodeURIComponent(req.body[k])).join('&');
-    const u = new URL('https://' + targetHost + path);
-    const r = https.request({ hostname: u.hostname, port: 443, path: u.pathname + u.search, method: req.method, headers: { 'Content-Type': req.get('content-type') || 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } }, (rr) => {
-      let b = ''; rr.on('data', (c) => b += c); rr.on('end', () => res.status(rr.statusCode).send(b));
-    });
-    r.on('error', (e) => res.status(502).send('forward failed: ' + (e && e.message || e)));
-    r.write(body); r.end();
-  });
+  // 已移除 /api/user/epay/* 转发器：原实现无任何鉴权，且 req.originalUrl 与请求体完全可控，
+  // 等同于一个开放转发器（可对 ai.32768.top 任意路径发起带自定义 query/body 的请求）。
+  // 商户请把回调地址直接配置为真实商户站点地址。
 
   // 管理员审核商户（调用方可接入现有 admin 页面）。
   app.get('/api/admin/pay/merchants', (req, res) => {

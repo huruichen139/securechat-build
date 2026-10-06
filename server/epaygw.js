@@ -94,6 +94,21 @@ function createOrder(p) {
     paid_at: 0
   };
   if (p.cloudreve) order.cloudreve = true;
+  // 金额必须是有限正数（原先接受 Infinity/负数/零，产生垃圾单且与扣款口径不一致）
+  const mny = Number(order.money);
+  if (!isFinite(mny) || mny <= 0) {
+    console.warn('[epaygw] 拒绝非法金额订单 ' + outTradeNo + ': ' + order.money);
+    return null;
+  }
+  order.money = mny.toFixed(2);
+  // 禁止覆盖已存在的订单。
+  // 原实现 orders.set 无条件覆盖，攻击者可用受害者「已支付」订单号重新下单，
+  // 把 money/notify_url/status 改回未支付并指向自己的 notify_url，从而劫持支付通知（资损）。
+  const exist = orders.get(outTradeNo);
+  if (exist) {
+    console.warn('[epaygw] 订单号已存在，拒绝覆盖: ' + outTradeNo + ' status=' + exist.status);
+    return exist;
+  }
   orders.set(outTradeNo, order);
   saveOrders();
   return order;
@@ -282,6 +297,27 @@ module.exports = function (app, db, authMw) {
     const outTradeNo = String((req.query && req.query.out_trade_no) || (req.body && req.body.out_trade_no) || '');
     const o = orders.get(outTradeNo);
     if (!o) return res.status(404).send('订单不存在');
+    // 只有本站真实登记在 pay_orders 且状态为 paid 的订单才允许确认。
+    // 原实现无任何校验，配合 submit.php 的订单覆盖即可用受害者已支付订单号
+    // 向攻击者的 notify_url 发送带合法网关签名的 TRADE_SUCCESS 通知（资损）。
+    let scRow = null;
+    try { scRow = db.prepare('SELECT status, amount, notify_url FROM pay_orders WHERE order_no=?').get(outTradeNo); } catch (e) { scRow = null; }
+    if (!scRow || scRow.status !== 'paid') {
+      return res.status(403).send('订单未在本站支付，无法确认');
+    }
+    // 网关侧金额必须与本站已扣款金额一致，否则不得发送通知
+    const scAmount = Number(scRow.amount);
+    if (!isFinite(scAmount) || Math.abs(scAmount - Number(o.money)) > 0.001) {
+      console.warn('[epaygw] mockpay 金额不一致，拒绝通知: ' + outTradeNo +
+        ' sc=' + scRow.amount + ' gw=' + o.money);
+      return res.status(400).send('订单金额不一致，无法确认');
+    }
+    // 通知地址以本站登记的为准，不信任网关单里可被覆盖的 notify_url
+    if (o.notify_url !== scRow.notify_url) {
+      o.notify_url = scRow.notify_url;
+      o.money = scAmount.toFixed(2);
+      saveOrders();
+    }
     syncSecurechatOrder(outTradeNo);
     const page = (inner) => '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"></head>' +
       '<body style="font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f2f3f5">' +
@@ -373,6 +409,7 @@ module.exports = function (app, db, authMw) {
       if (!ap.pid) ap.pid = '1000';
       if (!ap.type) ap.type = 'wxpay';
       const o = createOrder(ap);
+      if (!o) return res.status(400).json({ code: -1, msg: 'order amount invalid' });
       const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
       const base = proto + '://' + req.get('host');
       const cashierUrl = base + '/api/pay/gateway/epay/cashier?order=' + encodeURIComponent(o.out_trade_no) + '&v=2';
