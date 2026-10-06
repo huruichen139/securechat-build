@@ -2138,15 +2138,41 @@ async function runStt(filePath) {
   }
   const script = path.join(__dirname, 'stt_whisper.py');
   if (fs.existsSync(script)) {
+    // 系统默认 python 可能是 32 位(装不了 PyTorch)，故用 STT_PYTHON 指定的 64 位解释器
+    const py = process.env.STT_PYTHON || 'python';
     try {
-      const { stdout } = await execFile('python', [script, filePath], { timeout: 120000 });
-      return String(stdout).trim() || '…';
+      const { stdout } = await execFile(py, [script, filePath], {
+        timeout: 120000,
+        windowsHide: true,
+        maxBuffer: 4 * 1024 * 1024,
+        // 必须显式 UTF-8：Windows 上子进程 stdout 默认按 GBK/latin1 解码，中文会乱码
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          STT_WHISPER_MODEL: process.env.STT_WHISPER_MODEL || 'base',
+          STT_WHISPER_LANG: process.env.STT_WHISPER_LANG || 'zh',
+          HF_ENDPOINT: process.env.HF_ENDPOINT || 'https://hf-mirror.com'
+        }
+      });
+      const out = String(stdout).trim();
+      if (!out) throw new Error('未识别到语音内容');
+      return out;
     } catch (e) {
-      throw new Error(String(e && e.stderr || e && e.message || e).slice(0, 200));
+      const detail = String((e && e.stderr) || (e && e.message) || e).trim().slice(0, 300);
+      throw new Error(detail || '转写失败');
     }
   }
   throw new Error('未配置 STT_WHISPER_CLI，或缺少 server/stt_whisper.py');
 }
+
+// 语音转写任务表：转写耗时长(可能几十秒)，而公网 8888 是 TLS 探测口，
+// 空闲 15 秒会断开连接(slowloris 防护)，长任务必须走"提交 + 轮询"而非同步等待。
+const STT_TTL = 5 * 60 * 1000;
+function sttSweep() {
+  const now = Date.now();
+  for (const [k, v] of sttJobs) if (now - v.at > STT_TTL) sttJobs.delete(k);
+}
+const sttJobs = new Map();
 
 app.post('/api/stt', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
@@ -2160,6 +2186,7 @@ app.post('/api/stt', (req, res) => {
     try {
       const buf = Buffer.from(audioB64, 'base64');
       if (!buf.length) return res.status(400).json({ error: '音频数据为空' });
+      if (buf.length > 30 * 1024 * 1024) return res.status(413).json({ error: '音频过大(限30MB)' });
       tmpFile = path.join(require('os').tmpdir(), 'scstt-' + crypto.randomUUID() + '.webm');
       fs.writeFileSync(tmpFile, buf);
       filePath = tmpFile;
@@ -2170,10 +2197,32 @@ app.post('/api/stt', (req, res) => {
     if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '语音文件不存在' });
     filePath = file.path;
   }
+  sttSweep();
+  const jobId = crypto.randomUUID();
+  sttJobs.set(jobId, { status: 'running', at: Date.now(), uid: payload.id });
+  res.json({ ok: true, jobId, status: 'running' });
+
+  // 后台执行，完成后写回结果；前端用 /api/stt/status 轮询
   runStt(filePath)
-    .then(text => res.json({ ok: true, text }))
-    .catch(e => { console.error('[stt]', e.message); res.status(501).json({ error: '语音转文字服务未启用' }); })
+    .then(text => sttJobs.set(jobId, { status: 'done', text, at: Date.now(), uid: payload.id }))
+    .catch(e => {
+      console.error('[stt]', e.message);
+      sttJobs.set(jobId, { status: 'error', error: String(e && e.message || e).slice(0, 300), at: Date.now(), uid: payload.id });
+    })
     .finally(() => { if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch {} } });
+});
+
+// 轮询转写结果：GET /api/stt/status?jobId=
+app.get('/api/stt/status', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const jobId = String((req.query || {}).jobId || '');
+  const job = sttJobs.get(jobId);
+  if (!job) return res.status(404).json({ error: '任务不存在或已过期' });
+  if (job.uid !== payload.id) return res.status(403).json({ error: '无权查看该任务' });
+  sttSweep();
+  res.json({ ok: true, status: job.status, text: job.text || '', error: job.error || '' });
 });
 
 app.get('/api/call-recordings', (req, res) => {
