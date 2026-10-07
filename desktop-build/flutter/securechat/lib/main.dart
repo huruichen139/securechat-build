@@ -1200,8 +1200,8 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           final read = mine || m['read'] == true;
           final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
           msgs.add(voice != null
-              ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true}
-              : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true});
+              ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'pinned': m['pinned'] == true, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true}
+              : {'text': text, 'mine': mine, 'pinned': m['pinned'] == true, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true});
         }
         final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
         final pinned = dedup.where((m) => m['pinned'] == true).toList();
@@ -1230,7 +1230,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         final read = m['read'] == true;
         msgs.add(voice != null
             ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true}
-            : {'text': text, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true});
+            : {'text': text, 'mine': mine, 'pinned': m['pinned'] == true, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true});
       }
       final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
       final pinned = dedup.where((m) => m['pinned'] == true).toList();
@@ -1906,7 +1906,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         socket = null; // 清除旧连接引用，确保 _connect() 创建全新连接
         final attempt = (_wsReconnectAttempt) + 1;
         _wsReconnectAttempt = attempt;
-        final delay = Duration(milliseconds: (2000 * (1 << (attempt - 1))).clamp(2000, 60000));
+        // 退避必须夹住指数本身：原式 2000 * (1 << (attempt-1)) 在 attempt 达到 53 后
+        // 1<<53 * 2000 溢出 64 位有符号整数变为负数，clamp 会把负值收敛成 2000ms，
+        // 于是退避永久坍缩为每 2 秒重连一次并持续冲击服务端。
+        final exponent = attempt - 1 > 5 ? 5 : attempt - 1;
+        final backoffMs = 2000 * (1 << exponent);
+        final delay = Duration(milliseconds: backoffMs > 60000 ? 60000 : backoffMs);
         debugPrint('[ws] disconnected, reconnecting in ${delay.inSeconds}s (attempt $attempt)');
         Future.delayed(delay, () { if (mounted) _connect(); });
       });
@@ -3753,6 +3758,15 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     try {
       await widget.api.pinMessage(id, true);
       if (!mounted) return;
+      // 必须同步本地状态：原来只调接口 + 弹 Toast，_pinnedMsg 恒为 null，
+      // 置顶栏永远不出现，用户点了「置顶」却看不到任何变化
+      setState(() {
+        for (final m in messages) {
+          if (m['id'] == id) m['pinned'] = true;
+        }
+        final target = messages.where((m) => m['id'] == id).toList();
+        if (target.isNotEmpty) _pinnedMsg = target.last;
+      });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已置顶消息')));
     } catch (e) {
       if (!mounted) return;
@@ -3767,7 +3781,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     if (id == null) return;
     try {
       await widget.api.pinMessage(id, false);
-      if (mounted) setState(() => _pinnedMsg = null);
+      if (mounted) setState(() {
+        _pinnedMsg = null;
+        for (final m in messages) {
+          if (m['id'] == id) m['pinned'] = false;
+        }
+      });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已取消置顶')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('取消置顶失败')));

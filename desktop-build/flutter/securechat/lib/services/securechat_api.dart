@@ -16,6 +16,14 @@ class AuthExpiredException implements Exception {
 }
 
 class SecureChatApi {
+  /// token 失效回调（由宿主接管，通常用于跳回登录页）。
+  /// 原实现中 AuthExpiredException 抛出后无人捕获，会退化成各页面反复弹 SnackBar。
+  static void Function()? onAuthExpired;
+  /// 上传类请求超时：语音/文件上传若不设超时，服务端半开连接时会永久挂起
+  /// （界面显示空闲但语音永不送达，且 finally 不执行导致临时文件残留）
+  static const Duration _uploadTimeout = Duration(seconds: 120);
+
+  static bool _authExpiredNotified = false;
   SecureChatApi({this.baseUrl = 'https://mc.32768.top:8888'}) {
     // 全局 token 机制：任何新实例自动继承已登录的全局会话，
     // 不再需要每个页面单独 restoreSession，杜绝"未授权"。
@@ -44,11 +52,17 @@ class SecureChatApi {
 
   static const _kToken = 'sc_api_token';
   static const _kMyId = 'sc_api_myid';
+  static const _kNickname = 'sc_api_nickname';
+  static const _kUsername = 'sc_api_username';
 
   Future<void> persistSession() async {
     final sp = await SharedPreferences.getInstance();
     if (token != null) await sp.setString(_kToken, token!);
     if (myId != null) await sp.setInt(_kMyId, myId!);
+    // 昵称/用户名必须一起持久化：它们是「@我」提醒的判定依据，
+    // 若只在登录时赋值，应用重启后 restoreSession 拿不到，昵称 @ 会永久失效
+    if (myNickname != null) await sp.setString(_kNickname, myNickname!);
+    if (myUsername != null) await sp.setString(_kUsername, myUsername!);
     _syncGlobal();
   }
 
@@ -57,6 +71,9 @@ class SecureChatApi {
     token = sp.getString(_kToken);
     final id = sp.getInt(_kMyId);
     if (id != null) myId = id;
+    // 恢复昵称/用户名：缺这一步会导致重启后 @昵称 收不到提醒
+    myNickname = sp.getString(_kNickname);
+    myUsername = sp.getString(_kUsername);
     await _initDeviceInfo();
     _syncGlobal();
   }
@@ -188,7 +205,17 @@ class SecureChatApi {
       data = {'error': response.body};
     }
     if (response.statusCode == 401) {
-      // 温和处理：不清会话、不强制回登录，仅提示，避免用户"点啥都重新登录"
+      // token 已失效。原先只抛异常，而全库没有任何地方捕获 AuthExpiredException，
+      // 结果是：每个页面各自 catch 后弹一个普通 SnackBar，反复弹、永不清会话、
+      // 也永远不会回到登录页，用户只能杀进程重开。
+      // 这里在抛出处统一处理：清掉本地会话并通知宿主（只通知一次，避免并发请求重复触发）。
+      if (!_authExpiredNotified) {
+        _authExpiredNotified = true;
+        try { await clearSession(); } catch (_) {}
+        try { onAuthExpired?.call(); } catch (_) {}
+        // 稍后复位，允许重新登录后再次生效
+        Future.delayed(const Duration(seconds: 3), () => _authExpiredNotified = false);
+      }
       throw const AuthExpiredException();
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -358,8 +385,13 @@ class SecureChatApi {
 
   Future<Map<String, dynamic>> uploadVoice(int to, List<int> bytes, String name) async {
     final uri = _uri('/api/files', {'to': '$to', 'name': name, 'mime': 'audio/m4a'});
-    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes).timeout(_uploadTimeout);
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      data = {'error': response.body.isEmpty ? ('请求失败 (${response.statusCode})') : response.body};
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) throw StateError(data['error']?.toString() ?? '语音上传失败');
     return data;
   }
@@ -416,16 +448,26 @@ class SecureChatApi {
 
   Future<Map<String, dynamic>> uploadAttachment(int to, List<int> bytes, String name, String mime) async {
     final uri = _uri('/api/files', {'to': '$to', 'name': name, 'mime': mime});
-    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes).timeout(_uploadTimeout);
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      data = {'error': response.body.isEmpty ? ('请求失败 (${response.statusCode})') : response.body};
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) throw StateError(data['error']?.toString() ?? '文件上传失败');
     return data;
   }
 
   Future<Map<String, dynamic>> uploadGroupFile(int groupId, List<int> bytes, String name, String mime) async {
     final uri = _uri('/api/groups/$groupId/files', {'name': name, 'mime': mime});
-    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes);
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final response = await http.post(uri, headers: {'Content-Type': 'application/octet-stream', if (token != null) 'Authorization': 'Bearer $token'}, body: bytes).timeout(_uploadTimeout);
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      data = {'error': response.body.isEmpty ? ('请求失败 (${response.statusCode})') : response.body};
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) throw StateError(data['error']?.toString() ?? '群文件上传失败');
     return data;
   }
@@ -852,7 +894,7 @@ class SecureChatApi {
         if (token != null) 'Authorization': 'Bearer $token',
       },
       body: bytes,
-    );
+    ).timeout(const Duration(minutes: 5));
     Map<String, dynamic> data;
     try {
       data = jsonDecode(response.body) as Map<String, dynamic>;

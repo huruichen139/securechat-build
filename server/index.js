@@ -5740,7 +5740,7 @@ function mountFeatureRoutes(app, db) {
   } catch (e) { console.error('[groups] attach memberChange failed: ' + (e && e.message || e)); }
   rx('./chat-ext', [app, db, { sendToUser, onlineAny: onlineAny, P }]);
   rx('./routes/rtc', [app, db, apiUser]);
-  rx('./routes/media', [app, db, apiUser]);
+  rx('./routes/media', [app, db, apiUser, { checkSensitive: (t) => checkSensitive(t) }]);
   rx('./routes/lifestyle', [app, db, apiUser]);
   // 到账语音通知注入：payment.js 的 doPay 到账后回调 → 推送到账事件给收款方所有在线连接
   try {

@@ -19,14 +19,24 @@ function baseUrlOf(req) {
   return (req.protocol || 'http') + '://' + (req.get('host') || '');
 }
 
-module.exports = function registerMedia(app, db, auth) {
+function registerMedia(app, db, auth, extra) {
+  if (extra && typeof extra.checkSensitive === 'function') setSensitiveChecker(extra.checkSensitive);
   // 本地验证：若调用方未传 auth 函数，则用同一 JWT_SECRET 自行解析
   function authed(req) {
     if (typeof auth === 'function') return auth(req);
     const h = req.headers.authorization || '';
     try { return jwt.verify(String(h).replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (_) { return null; }
   }
-  function deny(res, code, msg) { res.status(code).json({ error: msg }); }
+  // 敏感词检测：由宿主通过依赖注入传入（媒体模块原先完全没接入全局 checkSensitive，
+// 导致文章评论/视频评论/直播弹幕三处都能公开发布违禁词，与群名/朋友圈的策略不一致）。
+// 未注入时自动降级为不拦截，不影响功能。
+let sensitiveChecker = null;
+function setSensitiveChecker(fn) { if (typeof fn === 'function') sensitiveChecker = fn; }
+function checkSensitiveLocal(text) {
+  if (!sensitiveChecker) return null;
+  try { return sensitiveChecker(text) || null; } catch (e) { return null; }
+}
+function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   function userInfo(id) {
     const u = prepare('SELECT id,username,nickname,avatar FROM users WHERE id=?').get(id);
     if (!u) return { id, nickname: '用户' + id, username: '', avatar: '' };
@@ -378,6 +388,21 @@ module.exports = function registerMedia(app, db, auth) {
   });
 
   // 读者留言
+  // 评论/弹幕限流：原先三个写接口只有登录与长度校验，无冷却、无频控、无去重，
+  // 循环 POST 即可把 article_comments / live_chat 打满，而这两张表**没有删除接口**，
+  // 内容一旦写入就永久留存（用户连自己发错的都无法撤回）。
+  const _mediaBuckets = new Map();
+  function mediaRateLimit(key, max, windowMs) {
+    const now = Date.now();
+    if (_mediaBuckets.size > 20000) {
+      for (const [k, v] of _mediaBuckets) if (now > v.resetAt) _mediaBuckets.delete(k);
+    }
+    let b = _mediaBuckets.get(key);
+    if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + windowMs }; _mediaBuckets.set(key, b); }
+    b.count++;
+    return b.count > max;
+  }
+
   app.post('/api/articles/:id/comment', (req, res) => {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
@@ -385,6 +410,9 @@ module.exports = function registerMedia(app, db, auth) {
     if (!prepare('SELECT id FROM articles WHERE id=?').get(aid)) return deny(res, 404, '文章不存在');
     const content = String((req.body || {}).content || '').trim();
     if (!content || content.length > 2000) return deny(res, 400, '留言内容不能为空');
+    if (mediaRateLimit('ac:' + payload.id, 20, 60 * 1000)) return deny(res, 429, '留言过于频繁，请稍后再试');
+    const bad = checkSensitiveLocal(content);
+    if (bad) return deny(res, 400, '内容包含违规词：' + bad);
     let replyTo = null;
     const rawReplyTo = Number((req.body || {}).replyTo) || null;
     if (rawReplyTo) {
@@ -423,6 +451,9 @@ module.exports = function registerMedia(app, db, auth) {
     const content = String((req.body || {}).content || '').trim();
     const replyTo = Number((req.body || {}).commentId) || null;
     if (!content) return deny(res, 400, '回复内容不能为空');
+    if (mediaRateLimit('ar:' + payload.id, 30, 60 * 1000)) return deny(res, 429, '回复过于频繁，请稍后再试');
+    const bad = checkSensitiveLocal(content);
+    if (bad) return deny(res, 400, '内容包含违规词：' + bad);
     prepare('INSERT INTO article_comments(article_id,user_id,reply_to,content,created_at) VALUES(?,?,?,?,?)')
       .run(aid, payload.id, replyTo, content, Date.now());
     prepare('UPDATE articles SET comment_count=(SELECT COUNT(*) FROM article_comments WHERE article_id=?) WHERE id=?').run(aid, aid);
@@ -716,9 +747,15 @@ module.exports = function registerMedia(app, db, auth) {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
     const rid = Number(req.params.id);
-    if (!prepare('SELECT id FROM live_rooms WHERE id=?').get(rid)) return deny(res, 404, '直播间不存在');
+    const room = prepare('SELECT id, status FROM live_rooms WHERE id=?').get(rid);
+    if (!room) return deny(res, 404, '直播间不存在');
+    // 直播已结束/未开播时不得继续补弹幕（否则回放被污染）
+    if (String(room.status || '') !== 'live') return deny(res, 400, '直播已结束，无法发送弹幕');
+    if (mediaRateLimit('lc:' + payload.id, 30, 60 * 1000)) return deny(res, 429, '弹幕发送过于频繁');
     const content = String((req.body || {}).content || '').trim();
     if (!content || content.length > 300) return deny(res, 400, '弹幕内容不能为空（300字内）');
+    const bad = checkSensitiveLocal(content);
+    if (bad) return deny(res, 400, '内容包含违规词：' + bad);
     const now = Date.now();
     const info = prepare('INSERT INTO live_chat(room_id,user_id,content,created_at) VALUES(?,?,?,?)')
       .run(rid, payload.id, content, now);

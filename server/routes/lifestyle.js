@@ -263,13 +263,30 @@ module.exports = function registerLifestyle(app, db, auth) {
     return city;
   }
 
+  // 城市白名单：仅允许设置内置的 mock 城市（不含真实定位），
+  // 否则 /api/nearby/set 接受任意字符串会被用来枚举任意城市的所有活跃用户
+  function isKnownCity(c) {
+    try {
+      for (const m of (MOCK_CITIES || [])) {
+        if (String(m) === String(c)) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   // 设置我的位置（城市可选，默认 IP/mock）
   app.post('/api/nearby/set', (req, res) => {
     const id = me(res, req); if (!id) return;
-    const city = String((req.body || {}).city || '').trim().slice(0, 40) || guessCity(req, id.id);
+    // 城市必须命中白名单：原先 city 是任意字符串，而列表按 city 精确匹配，
+    // 攻击者填任意城市名即可枚举该城全部活跃用户（等价于开放"全城通讯录"）。
+    const rawCity = String((req.body || {}).city || '').trim().slice(0, 40);
+    const city = rawCity && isKnownCity(rawCity) ? rawCity : guessCity(req, id.id);
     const region = String((req.body || {}).region || '').trim().slice(0, 40);
-    const lat = Number((req.body || {}).lat) || 0;
-    const lng = Number((req.body || {}).lng) || 0;
+    // 经纬度必须落在合法范围内：原先 Number()||0 无任何范围校验
+    const rawLat = Number((req.body || {}).lat);
+    const rawLng = Number((req.body || {}).lng);
+    const lat = (Number.isFinite(rawLat) && rawLat >= -90 && rawLat <= 90) ? rawLat : 0;
+    const lng = (Number.isFinite(rawLng) && rawLng >= -180 && rawLng <= 180) ? rawLng : 0;
     prepare(`INSERT INTO nearby_markers(user_id,city,region,lat,lng,last_seen) VALUES(?,?,?,?,?,?)
       ON CONFLICT(user_id) DO UPDATE SET city=excluded.city,region=excluded.region,lat=excluded.lat,lng=excluded.lng,last_seen=excluded.last_seen`)
       .run(id.id, city, region, lat, lng, Date.now());
@@ -297,7 +314,8 @@ module.exports = function registerLifestyle(app, db, auth) {
       ORDER BY n.last_seen DESC LIMIT 100`).all(id.id, city, cutoff, id.id, id.id);
     const list = rows.map(r => {
       const p = {
-        userId: r.user_id, nickname: r.nickname, username: r.username, avatar: r.avatar, uid: r.uid,
+        // 不下发 uid：它是加好友用的内部标识，同城列表无需暴露（最小化披露）
+        userId: r.user_id, nickname: r.nickname, username: r.username, avatar: r.avatar,
         city: r.city, region: r.region || '', lastSeen: r.last_seen,
         online: Date.now() - r.last_seen < 2 * 60 * 1000,
       };
