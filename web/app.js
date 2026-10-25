@@ -969,6 +969,16 @@ function tryRestore() {
 }
 
 function logout() {
+  // 通知服务端吊销当前 token：仅清本地存储时，已签发的 token 仍可用满 7 天
+  try {
+    if (state.token) {
+      fetch(state.serverHost + '/api/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + state.token },
+        keepalive: true
+      }).catch(() => {});
+    }
+  } catch {}
   localStorage.removeItem('sc_token');
   localStorage.removeItem('sc_me');
   state.token = null; state.me = null;

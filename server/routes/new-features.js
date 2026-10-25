@@ -8,7 +8,7 @@ module.exports = function register(app, db, auth) {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace('Bearer ', '');
     const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+    const JWT_SECRET = process.env.JWT_SECRET;
     try {
       const payload = jwt.verify(token, JWT_SECRET);
       if (!payload || !payload.id) return res.status(401).json({ error: '未授权' });

@@ -154,6 +154,16 @@ class SecureChatApi {
   }
 
   Future<void> clearSession() async {
+    // 退出前先让服务端吊销 token：只清本地存储时，已签发的 token 仍可用满 7 天
+    // （token 泄露后无法止损）。这里直接用 http.post 而非 _json，避免 401 再次进入 clearSession。
+    final t = token;
+    if (t != null && t.isNotEmpty) {
+      try {
+        await http
+            .post(_uri('/api/logout'), headers: {'Authorization': 'Bearer $t', 'Content-Type': 'application/json'}, body: '{}')
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
     token = null;
     myId = null;
     myNickname = null;

@@ -414,13 +414,41 @@ function publicUser(u) {
 function signToken(user, deviceId) {
   const claims = { id: user.id, username: user.username, tv: user.token_version || 0 };
   if (deviceId) claims.deviceId = String(deviceId).slice(0, 128);
+  // 每次签发唯一 jti：JWT 的 iat/exp 只到秒，同一用户在同一秒内两次登录会得到
+  // 完全相同的 token 字符串，退出登录吊销后再登录会立刻拿到已被吊销的 token。
+  claims.jti = crypto.randomBytes(9).toString('hex');
   return jwt.sign(claims, JWT_SECRET, { expiresIn: '7d' });
+}
+
+// 已吊销 token 的内存缓存：退出登录后原 token 立即失效。
+// DB 只用于重启后恢复；命中缓存即可拒绝，避免每个请求都查库。
+const revokedTokenCache = new Map();
+let revokedLoaded = false;
+function tokenHashOf(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+function loadRevokedTokens() {
+  if (revokedLoaded) return;
+  try {
+    const rows = prepare('SELECT token_hash, expires_at FROM revoked_tokens WHERE expires_at > ?').all(Date.now());
+    for (const r of rows) revokedTokenCache.set(r.token_hash, r.expires_at);
+    revokedLoaded = true;
+  } catch (e) { /* 表尚未建好时下次再试 */ }
+}
+function isTokenRevoked(token) {
+  loadRevokedTokens();
+  const h = tokenHashOf(token);
+  const exp = revokedTokenCache.get(h);
+  if (exp == null) return false;
+  if (exp < Date.now()) { revokedTokenCache.delete(h); return false; }
+  return true;
 }
 
 function verifyToken(token) {
   try {
     const p = jwt.verify(token, JWT_SECRET);
     if (!p || !p.id) return null;
+    if (isTokenRevoked(token)) return null;
     // 检查 token_version 是否匹配（密码重置/封禁后废除旧 token）
     const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(p.id);
     if (!u) return null;
@@ -1315,6 +1343,27 @@ app.post('/api/login/code', (req, res) => {
   res.json({ token, user: publicUser(user) });
     })();
   });
+});
+
+// 退出登录：POST /api/logout
+// 客户端清本地存储并不等于服务端失效：token 仍可用满 7 天（被窃取即可继续访问）。
+// 这里把当前 token 的 sha256 记入吊销表，并删除其绑定的设备记录（设备维度踢下线）。
+app.post('/api/logout', (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = String(auth).replace(/^Bearer\s+/i, '');
+  const p = verifyToken(token);
+  if (!p) return res.status(401).json({ error: '未授权' });
+  const exp = p.exp ? p.exp * 1000 : Date.now() + 7 * 24 * 3600 * 1000;
+  const h = tokenHashOf(token);
+  revokedTokenCache.set(h, exp);
+  try {
+    prepare('INSERT OR REPLACE INTO revoked_tokens(token_hash,user_id,expires_at) VALUES(?,?,?)').run(h, p.id, exp);
+    if (p.deviceId) prepare('DELETE FROM devices WHERE user_id=? AND device_id=?').run(p.id, String(p.deviceId));
+    persist();
+  } catch (e) {
+    console.error('[logout] 吊销写入失败: ' + (e && e.message || e));
+  }
+  res.json({ ok: true });
 });
 
 // 忘记密码：POST /api/password/reset { email, code, newPassword }
@@ -2234,6 +2283,29 @@ app.get('/api/files/:id', (req, res) => {
     }
   };
   const kick = setTimeout(run, 45000);
+  if (kick && typeof kick.unref === 'function') kick.unref();
+  const t = setInterval(run, SWEEP);
+  if (t && typeof t.unref === 'function') t.unref();
+})();
+
+// ---------- 已吊销 token 清理（自然过期后无需再记录）----------
+(function __revokedTokenJanitor() {
+  const SWEEP = 6 * 3600 * 1000;
+  const run = () => {
+    try {
+      if (!ready || !db) return;
+      const now = Date.now();
+      const r = db.prepare('DELETE FROM revoked_tokens WHERE expires_at <= ?').run(now);
+      for (const [h, exp] of revokedTokenCache) if (exp <= now) revokedTokenCache.delete(h);
+      if (r && r.changes) {
+        try { if (typeof db.persist === 'function') db.persist(); } catch (e) {}
+        console.log('[revoked-token] 已清理过期吊销记录 ' + r.changes + ' 条');
+      }
+    } catch (e) {
+      console.error('[revoked-token] 清理失败: ' + (e && e.message || e));
+    }
+  };
+  const kick = setTimeout(run, 60000);
   if (kick && typeof kick.unref === 'function') kick.unref();
   const t = setInterval(run, SWEEP);
   if (t && typeof t.unref === 'function') t.unref();

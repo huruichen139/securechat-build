@@ -55,7 +55,7 @@ module.exports = function registerRtc(app, db, auth) {
       // 回退：自行解析 Bearer
       if (!jwt) jwt = require('jsonwebtoken');
       const h = req.headers.authorization || '';
-      const payload = jwt.verify(h.replace(/^Bearer\s+/i, ''), process.env.JWT_SECRET || 'change-me-in-production-please');
+      const payload = jwt.verify(h.replace(/^Bearer\s+/i, ''), process.env.JWT_SECRET);
       return payload ? { id: payload.id } : null;
     } catch (e) {
       return null;

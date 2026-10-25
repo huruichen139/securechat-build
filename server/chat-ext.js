@@ -9,7 +9,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function resolvePrepare(input) {
   // 兼容 db 模块或直接传入 prepare 函数

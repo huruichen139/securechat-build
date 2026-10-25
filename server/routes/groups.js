@@ -17,7 +17,7 @@ const express = require('express');
 
 const gdb = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // ---------- 群文件存储目录（与 server/files 同级，避免依赖巨石文件常量）----------
 const GROUP_FILES_DIR = process.env.GROUP_FILES_DIR || path.join(__dirname, '..', 'group-files');

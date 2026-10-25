@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 const express = require('express');
 const { prepare } = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
 const MEDIA_DIR = process.env.MEDIA_DIR || path.join(__dirname, '..', 'media');
 try { fs.mkdirSync(MEDIA_DIR, { recursive: true }); } catch (_) {}
 

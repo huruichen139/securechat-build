@@ -15,7 +15,7 @@ const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const epaygwConfig = require('../epaygw_config');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function epaySign(params, key) {
   const body = Object.keys(params)

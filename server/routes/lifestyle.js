@@ -11,7 +11,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // 摇一摇会话有效期（毫秒）
 const SHAKE_TTL = 3 * 60 * 1000;

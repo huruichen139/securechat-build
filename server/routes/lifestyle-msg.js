@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const { prepare, nextSeq: dbNextSeq } = require('../db');
 const nextSeq = typeof dbNextSeq === 'function' ? dbNextSeq : (() => null);
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 module.exports = function registerLifestyleMsg(app, db, auth) {
   function authed(req) {

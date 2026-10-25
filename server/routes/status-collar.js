@@ -59,7 +59,11 @@ module.exports = function registerStatusCollar(app, db, auth) {
       }
       if (!jwt) jwt = require('jsonwebtoken');
       const h = req.headers.authorization || '';
-      return jwt.verify(h.replace(/^Bearer\s+/i, ''), process.env.JWT_SECRET || 'change-me-in-production-please');
+      // 不设回退常量：index.js 已强制要求 JWT_SECRET，此处缺失即视为未授权，
+      // 避免用公开字符串验证通过伪造 token
+      const secret = process.env.JWT_SECRET;
+      if (!secret) return null;
+      return jwt.verify(h.replace(/^Bearer\s+/i, ''), secret);
     } catch (e) {
       return null;
     }

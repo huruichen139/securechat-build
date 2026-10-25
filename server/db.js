@@ -635,6 +635,13 @@ try {
     UNIQUE(user_id, device_id)
   )`); } catch (e) {}
 
+  // ======== 已吊销 token（退出登录后立即失效，不等 7 天自然过期）========
+  try { db.run(`CREATE TABLE IF NOT EXISTS revoked_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  )`); } catch (e) {}
+
   // ======== 第三方聚合登录账号绑定 ========
   // provider: qq / wx / alipay；social_uid 为平台侧唯一标识
   try { db.run(`CREATE TABLE IF NOT EXISTS oauth_accounts (

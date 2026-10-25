@@ -12,7 +12,7 @@ module.exports = function registerRedpacket(app, db, auth) {
   const prepare = db.prepare;
   const nextSeq = (typeof db.nextSeq === 'function') ? db.nextSeq.bind(db) : (() => null);
   const persist = (typeof db.persist === 'function') ? db.persist.bind(db) : (() => {});
-  const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+  const JWT_SECRET = process.env.JWT_SECRET;
   const jwt = require('jsonwebtoken');
 
   function apiUser(req) {
