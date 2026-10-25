@@ -168,7 +168,9 @@ class VoicemsgService extends ChangeNotifier {
     if (id == null) return;
     final data = await _fetchBytes('/api/files/$id');
     if (data == null) return;
-    final path = await _writeTemp('voice-${DateTime.now().millisecondsSinceEpoch}.m4a', data);
+    // 复用固定文件名：原先每次播放都用时间戳新建一个文件且从不删除，
+    // 临时目录会随使用次数无上限累积。
+    final path = await _writeTemp('voice-play.m4a', data);
     await playLocal(path);
   }
 
@@ -210,7 +212,10 @@ class VoicemsgService extends ChangeNotifier {
     final dir = Directory.systemTemp;
     await dir.create(recursive: true);
     final f = File('${dir.path}/$name');
+    // 覆盖前先删旧文件，避免残留与占用
+    try { if (f.existsSync()) f.deleteSync(); } catch (_) {}
     await f.writeAsBytes(bytes);
+    _tempFiles.add(f.path);
     return f.path;
   }
 
@@ -235,6 +240,9 @@ class VoicemsgService extends ChangeNotifier {
     return (d is Map) ? Map<String, dynamic>.from(d) : <String, dynamic>{};
   }
 
+  /// 记录本服务写出的临时文件，dispose 时统一清理
+  final Set<String> _tempFiles = <String>{};
+
   @override
   void dispose() {
     _meter?.cancel();
@@ -242,6 +250,11 @@ class VoicemsgService extends ChangeNotifier {
       try { _recorder.stop(); } catch (_) {}
       status = VoicemsgStatus.idle;
     }
+    // 清理本服务产生的全部临时文件（原先只释放播放器/录音器，文件永不删除）
+    for (final p in _tempFiles) {
+      try { final f = File(p); if (f.existsSync()) f.deleteSync(); } catch (_) {}
+    }
+    _tempFiles.clear();
     _player?.dispose();
     _recorder.dispose();
     super.dispose();

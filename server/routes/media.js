@@ -19,6 +19,18 @@ function baseUrlOf(req) {
   return (req.protocol || 'http') + '://' + (req.get('host') || '');
 }
 
+// 敏感词检测：由宿主通过依赖注入传入（媒体模块原先完全没接入全局 checkSensitive，
+// 导致文章评论/视频评论/直播弹幕三处都能公开发布违禁词，与群名/朋友圈的策略不一致）。
+// 未注入时自动降级为不拦截，不影响功能。
+// 必须声明在模块顶层：若放在 registerMedia 内，函数开头调用 setSensitiveChecker
+// 会命中 let 的暂时性死区（Cannot access before initialization）。
+let sensitiveChecker = null;
+function setSensitiveChecker(fn) { if (typeof fn === 'function') sensitiveChecker = fn; }
+function checkSensitiveLocal(text) {
+  if (!sensitiveChecker) return null;
+  try { return sensitiveChecker(text) || null; } catch (e) { return null; }
+}
+
 function registerMedia(app, db, auth, extra) {
   if (extra && typeof extra.checkSensitive === 'function') setSensitiveChecker(extra.checkSensitive);
   // 本地验证：若调用方未传 auth 函数，则用同一 JWT_SECRET 自行解析
@@ -27,15 +39,6 @@ function registerMedia(app, db, auth, extra) {
     const h = req.headers.authorization || '';
     try { return jwt.verify(String(h).replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (_) { return null; }
   }
-  // 敏感词检测：由宿主通过依赖注入传入（媒体模块原先完全没接入全局 checkSensitive，
-// 导致文章评论/视频评论/直播弹幕三处都能公开发布违禁词，与群名/朋友圈的策略不一致）。
-// 未注入时自动降级为不拦截，不影响功能。
-let sensitiveChecker = null;
-function setSensitiveChecker(fn) { if (typeof fn === 'function') sensitiveChecker = fn; }
-function checkSensitiveLocal(text) {
-  if (!sensitiveChecker) return null;
-  try { return sensitiveChecker(text) || null; } catch (e) { return null; }
-}
 function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   function userInfo(id) {
     const u = prepare('SELECT id,username,nickname,avatar FROM users WHERE id=?').get(id);
@@ -213,6 +216,21 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     }
   });
 
+  // 删除自己的媒体文件并回收配额（原先无删除接口，用满后用户被永久锁死）
+  app.delete('/api/media/:id', (req, res) => {
+    const payload = authed(req);
+    if (!payload) return deny(res, 401, '未授权');
+    const id = String(req.params.id || '');
+    if (!/^[0-9a-f-]{8,}$/.test(id)) return deny(res, 400, '无效文件');
+    const f = prepare('SELECT id,user_id,path FROM media_files WHERE id=?').get(id);
+    if (!f) return deny(res, 404, '文件不存在');
+    // 只能删自己的
+    if (Number(f.user_id) !== Number(payload.id)) return deny(res, 403, '无权删除该文件');
+    try { if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch (_) {}
+    try { prepare('DELETE FROM media_files WHERE id=? AND user_id=?').run(id, payload.id); } catch (_) {}
+    okay(res, { deleted: id });
+  });
+
   app.get('/api/media/:id', (req, res) => {
     // 媒体为公开读：封面/视频在信息流中被任何人可见
     const id = String(req.params.id || '');
@@ -322,7 +340,11 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   app.get('/api/oa/:id/articles', (req, res) => {
     const payload = authed(req);
     const meId = payload ? payload.id : null;
-    const rows = prepare('SELECT * FROM articles WHERE account_id=? ORDER BY created_at DESC').all(Number(req.params.id));
+    // 必须分页：原先无 LIMIT，单个公众号文章量大时每次请求全量序列化
+    const oaLimit = Math.min(Math.max(Number((req.query || {}).limit) || 50, 1), 200);
+    const oaOffset = Math.max(Number((req.query || {}).offset) || 0, 0);
+    const rows = prepare('SELECT * FROM articles WHERE account_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?')
+      .all(Number(req.params.id), oaLimit, oaOffset);
     const list = rows.map(r => articlePublic(r, meId));
     okay(res, { articles: list });
   });
@@ -363,12 +385,15 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     };
   }
 
-  function articleComments(articleId) {
+  // 评论必须限量：原实现无 LIMIT，且每次发评论的响应里都会全量序列化，
+  // 热门文章累积数万条后单次写评论即触发全表扫描 + 全量返回。
+  function articleComments(articleId, limit) {
+    const lim = Math.min(Math.max(Number(limit) || 200, 1), 500);
     const rows = prepare(`
       SELECT c.id,c.article_id AS articleId,c.reply_to AS replyTo,c.content,c.featured,c.created_at AS createdAt,
              u.id AS userId,u.nickname,u.username,u.avatar
       FROM article_comments c LEFT JOIN users u ON u.id=c.user_id
-      WHERE c.article_id=? ORDER BY c.featured DESC,c.created_at ASC`).all(articleId);
+      WHERE c.article_id=? ORDER BY c.featured DESC,c.created_at ASC LIMIT ?`).all(articleId, lim);
     return rows;
   }
 
@@ -477,6 +502,18 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   // ============================================================
   // 视频号
   // ============================================================
+  // 黑名单辅助：返回「我拉黑的 + 拉黑我的」用户 id 集合。
+  // 视频信息流原先完全不查黑名单，用户拉黑对方后仍能通过 feed / 搜索 / 详情 / 评论
+  // 看到对方的全部内容，屏蔽形同虚设（nearby 列表是有过滤的，这里漏了）。
+  function blockedUserIds(meId) {
+    if (!meId) return null;
+    try {
+      const rows = prepare(`SELECT blocked_id AS id FROM blocklist WHERE blocker_id=?
+        UNION SELECT blocker_id AS id FROM blocklist WHERE blocked_id=?`).all(meId, meId);
+      return new Set(rows.map(r => Number(r.id)));
+    } catch (e) { return null; }
+  }
+
   function videoPublic(v, meId) {
     const u = userInfo(v.user_id);
     return {
@@ -518,7 +555,10 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const payload = authed(req);
     const meId = payload ? payload.id : null;
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 100);
-    const rows = prepare('SELECT * FROM videos ORDER BY created_at DESC LIMIT ?').all(limit);
+    const rows0 = prepare('SELECT * FROM videos ORDER BY created_at DESC LIMIT ?').all(limit);
+    // 登录用户过滤黑名单双方内容（原先完全不过滤，拉黑后仍能看到对方视频）
+    const blkFeed = blockedUserIds(meId);
+    const rows = blkFeed ? rows0.filter(r => !blkFeed.has(Number(r.user_id))) : rows0;
     okay(res, { videos: rows.map(r => videoPublic(r, meId)) });
   });
 
@@ -529,7 +569,9 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const q = String(req.query.q || '').trim();
     if (!q) return okay(res, { videos: [] });
     const like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
-    const rows = prepare("SELECT * FROM videos WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT 50").all(like, like);
+    const rows0 = prepare("SELECT * FROM videos WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT 50").all(like, like);
+    const blkSearch = blockedUserIds(meId);
+    const rows = blkSearch ? rows0.filter(r => !blkSearch.has(Number(r.user_id))) : rows0;
     okay(res, { videos: rows.map(r => videoPublic(r, meId)) });
   });
 
@@ -562,6 +604,9 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const meId = payload ? payload.id : null;
     const v = prepare('SELECT * FROM videos WHERE id=?').get(Number(req.params.id));
     if (!v) return deny(res, 404, '视频不存在');
+    // 拉黑后不可见对方内容（原先完全不过滤）
+    const blkDetail = blockedUserIds(meId);
+    if (blkDetail && blkDetail.has(Number(v.user_id))) return deny(res, 404, '视频不存在');
     prepare('UPDATE videos SET play_count=play_count+1 WHERE id=?').run(v.id);
     const fresh = prepare('SELECT * FROM videos WHERE id=?').get(v.id);
     const pub = videoPublic(fresh, meId);
@@ -570,6 +615,8 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
              u.id AS userId,u.nickname,u.username,u.avatar
       FROM video_comments c LEFT JOIN users u ON u.id=c.user_id
       WHERE c.video_id=? ORDER BY c.created_at ASC`).all(Number(req.params.id));
+      if (blkDetail) vcRows = vcRows.filter(c => !blkDetail.has(Number(c.userId)));
+      pub.comments = vcRows;
     okay(res, { video: pub });
   });
 
@@ -582,6 +629,8 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
              u.id AS userId,u.nickname,u.username,u.avatar
       FROM video_comments c LEFT JOIN users u ON u.id=c.user_id
       WHERE c.video_id=? ORDER BY c.created_at ASC`).all(vid);
+      const blkC = blockedUserIds(meId);
+      if (blkC) comments = comments.filter(c => !blkC.has(Number(c.userId)));
     okay(res, { comments });
   });
 
@@ -621,6 +670,9 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     if (!prepare('SELECT id FROM videos WHERE id=?').get(vid)) return deny(res, 404, '视频不存在');
     const content = String((req.body || {}).content || '').trim();
     if (!content || content.length > 2000) return deny(res, 400, '评论不能为空');
+    if (mediaRateLimit('vc:' + payload.id, 20, 60 * 1000)) return deny(res, 429, '评论过于频繁，请稍后再试');
+    const bad = checkSensitiveLocal(content);
+    if (bad) return deny(res, 400, '内容包含违规词：' + bad);
     let replyTo = null;
     const rawReplyTo = Number((req.body || {}).replyTo) || null;
     if (rawReplyTo) {
@@ -806,4 +858,9 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   // 直播弹幕实时推送（尽力而为：不挂 WebSocket，靠轮询；此处可挂 SIG 但保持轻量）
   // ============================================================
   console.log('[media] module batch4 loaded: /api/oa/* /api/videos/* /api/live/* /api/media');
-};
+}
+
+// 必须导出：rx() 挂载器要求 require(...) 可直接调用（apply）。
+// 之前改成具名函数时漏掉了这一行，导致整个 media 模块（视频/直播/文章/公众号/媒体上传）
+// 静默挂载失败，全部接口 404。
+module.exports = registerMedia;

@@ -2815,24 +2815,13 @@ app.get('/api/status', (req, res) => {
   const auth = req.headers.authorization || '';
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const s = prepare('SELECT text,icon,emoji,updated_at AS updatedAt FROM user_status WHERE user_id=?').get(payload.id);
+  const s = prepare('SELECT text,icon,emoji,bg_url AS bgUrl,created_at AS createdAt,expires_at AS expiresAt,updated_at AS updatedAt FROM user_status WHERE user_id=?').get(payload.id);
+  // 过期状态不再下发（历史行 expires_at 可能为空，视为有效但由 status-collar 的 24h 逻辑兜底）
+  if (s && s.expiresAt && s.expiresAt <= Date.now()) return res.json({ status: null });
   res.json({ status: s || null });
 });
-app.post('/api/status', (req, res) => {
-  if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const auth = req.headers.authorization || '';
-  const payload = verifyToken(auth.replace('Bearer ', ''));
-  if (!payload) return res.status(401).json({ error: '未授权' });
-  const { text, icon, emoji } = req.body || {};
-  const stText = String(text || '').slice(0, 100);
-  const stIcon = String(icon || '').slice(0, 10);
-  const stEmoji = String(emoji || '').slice(0, 10);
-  prepare('INSERT INTO user_status(user_id,text,icon,emoji,updated_at) VALUES(?,?,?,?,?) ' +
-    'ON CONFLICT(user_id) DO UPDATE SET text=excluded.text,icon=excluded.icon,emoji=excluded.emoji,updated_at=excluded.updated_at')
-    .run(payload.id, stText, stIcon, stEmoji, Date.now());
-  persist();
-  res.json({ ok: true });
-});
+// 设置状态：POST /api/status 由 routes/status-collar.js 统一提供（含 24h 过期、背景图、校验），
+// 此处不再重复注册，否则会先注册覆盖掉带过期的实现。
 
 // =============================== 视频号 ===============================
 // 发布短视频：POST /api/videos { title, cover, content }
@@ -2868,35 +2857,8 @@ app.get('/api/videos', (req, res) => {
   const data = rows.map(v => ({ ...v, likedByMe: likedSet.has(v.id) }));
   res.json({ videos: data });
 });
-// 点赞：POST /api/videos/:id/like { on }
-app.post('/api/videos/:id/like', (req, res) => {
-  if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
-  if (!payload) return res.status(401).json({ error: '未授权' });
-  const id = Number(req.params.id);
-  if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
-  const on = req.body && req.body.on !== false;
-  if (on) {
-    const r = prepare('INSERT OR IGNORE INTO video_likes(video_id,user_id,created_at) VALUES(?,?,?)').run(id, payload.id, Date.now());
-    if (r.changes > 0) prepare('UPDATE videos SET likes=likes+1 WHERE id=?').run(id);
-  } else { const d = prepare('DELETE FROM video_likes WHERE video_id=? AND user_id=?').run(id, payload.id); if (d.changes > 0) prepare('UPDATE videos SET likes=MAX(0,likes-1) WHERE id=?').run(id); }
-  persist();
-  res.json({ ok: true, liked: on });
-});
-// 评论：POST /api/videos/:id/comment { content }
-app.post('/api/videos/:id/comment', (req, res) => {
-  if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
-  if (!payload) return res.status(401).json({ error: '未授权' });
-  const id = Number(req.params.id);
-  if (!prepare('SELECT id FROM videos WHERE id=?').get(id)) return res.status(404).json({ error: '视频不存在' });
-  const content = String((req.body || {}).content || '').trim();
-  if (!content) return res.status(400).json({ error: '评论不能为空' });
-  if (content.length > 1000) return res.status(400).json({ error: '评论过长（限1000字）' });
-  prepare('INSERT INTO video_comments(video_id,user_id,content,created_at) VALUES(?,?,?,?)').run(id, payload.id, content, Date.now());
-  persist();
-  res.json({ ok: true });
-});
+// 点赞/评论路由已统一由 routes/media.js 提供（含频控、敏感词、回复与拉黑过滤），
+// 此处保留占位说明，勿再重复注册，否则会因先注册而覆盖 media.js 的实现。
 
 // =============================== 公众号 ===============================
 // 关注列表：GET /api/accounts
@@ -3392,6 +3354,8 @@ app.post('/api/admin/version', (req, res) => {
   cfg.updatedAt = Date.now();
   saveVersionConfig(cfg);
   res.json({ ok: true, version: cfg });
+  // 版本号决定全量客户端是否自动更新，属高危操作
+  logAudit(guard.u.id, 'version_set', null, 'system', '设置最新版本为 ' + latest, clientIp(req));
 });
 
 // 管理员生成充值兑换码：POST /api/admin/redeem/issue { value, count }
@@ -3412,6 +3376,9 @@ app.post('/api/admin/redeem/issue', (req, res) => {
   }
   persist();
   res.json({ ok: true, count: codes.length, value, codes });
+  // 兑换码等价于发放余额，必须留痕
+  logAudit(guard.u.id, 'redeem_issue', null, 'system',
+    '生成兑换码 ' + codes.length + ' 张，面额 ' + value, clientIp(req));
 });
 
 // 管理员查看兑换码列表：GET /api/admin/redeem?claimed=0|1
@@ -3452,6 +3419,9 @@ app.post('/api/admin/wallet/add', (req, res) => {
   persist();
   const w2 = prepare('SELECT balance FROM wallets WHERE user_id=?').get(user.id);
   res.json({ ok: true, userId: user.id, balance: w2.balance });
+  // 直接改用户余额属最高危的资金操作，必须留痕（原实现可无痕清零任何账户）
+  logAudit(guard.u.id, amount > 0 ? 'wallet_add' : 'wallet_sub', user.id, 'user',
+    (amount > 0 ? '增加余额 ' : '扣减余额 ') + amount + '，余额变为 ' + w2.balance, clientIp(req));
 });
 
 // 管理员查任意用户余额：GET /api/admin/wallet?uid=xxx
@@ -4534,6 +4504,10 @@ app.post('/api/admin/ban', (req, res) => {
   }
   try { online.delete(id); } catch {}
   res.json({ ok: true, id, banned });
+  // 封禁是高危操作，必须留痕（原实现完全无审计，令牌被盗后可无痕封禁任何人）
+  logAudit(guard.u.id, banned ? 'user_ban' : 'user_unban', id, 'user',
+    (banned ? '封禁用户 ' : '解封用户 ') + (target.username || ('#' + id)) +
+    (banned ? ('，原因：' + (String((req.body || {}).reason || '').trim().slice(0, 100) || '未填写')) : ''), clientIp(req));
 });
 
 // ---------- 通用：审计日志 + 客户端IP ----------
@@ -4632,6 +4606,8 @@ app.get('/api/admin/replay/messages', (req, res) => {
   const limit = Math.min(parseInt(q.limit || '500', 10) || 500, 5000);
   const after = Number(q.after) || 0;
   const before = Number(q.before) || Number.MAX_SAFE_INTEGER;
+  // 已撤回消息默认脱敏；仅当显式传 withRecalled=1 时返回原文（并单独记审计）
+  const withRecalled = String(q.withRecalled || '') === '1';
   const nameCache = new Map();
   const nameOf = (uid) => {
     if (nameCache.has(uid)) return nameCache.get(uid);
@@ -4648,14 +4624,14 @@ app.get('/api/admin/replay/messages', (req, res) => {
       const rows = prepare(`SELECT id,group_id,from_id,content,created_at,recalled
         FROM group_messages WHERE group_id=? AND created_at>? AND created_at<?
         ORDER BY created_at ASC, id ASC LIMIT ?`).all(gid, after, before, limit);
-      logAudit(guard.u.id, 'replay_view', gid, 'group', '回放群聊 ' + (g ? g.name : gid) + '（' + rows.length + ' 条）', clientIp(req));
+      if (withRecalled) logAudit(guard.u.id, 'replay_view_recalled', gid, 'group', '查看含撤回原文的群聊回放 ' + (g ? g.name : gid) + '（' + rows.length + ' 条）', clientIp(req));
       return res.json({
         kind: 'group',
         title: g ? g.name : '群#' + gid,
         groupId: gid,
         messages: rows.map(r => ({
           id: r.id, from: r.from_id, fromName: nameOf(r.from_id),
-          content: r.content, createdAt: r.created_at, recalled: !!r.recalled
+          content: (!withRecalled && r.recalled) ? '[已撤回]' : r.content, createdAt: r.created_at, recalled: !!r.recalled
         }))
       });
     }
@@ -4668,7 +4644,7 @@ app.get('/api/admin/replay/messages', (req, res) => {
       WHERE ((m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?))
         AND m.created_at>? AND m.created_at<?
       ORDER BY m.created_at ASC, m.id ASC LIMIT ?`).all(a, b, b, a, after, before, limit);
-    logAudit(guard.u.id, 'replay_view', a, 'user', '回放单聊 ' + nameOf(a) + ' ↔ ' + nameOf(b) + '（' + rows.length + ' 条）', clientIp(req));
+    logAudit(guard.u.id, withRecalled ? 'replay_view_recalled' : 'replay_view', a, 'user', (withRecalled ? '查看含撤回原文的单聊回放 ' : '回放单聊 ') + nameOf(a) + ' ↔ ' + nameOf(b) + '（' + rows.length + ' 条）', clientIp(req));
     res.json({
       kind: 'direct',
       title: nameOf(a) + ' ↔ ' + nameOf(b),
@@ -4676,7 +4652,7 @@ app.get('/api/admin/replay/messages', (req, res) => {
       peerB: { id: b, name: nameOf(b) },
       messages: rows.map(r => ({
         id: r.id, from: r.from_id, fromName: nameOf(r.from_id), to: r.to_id,
-        content: r.content, createdAt: r.created_at, read: !!r.read, recalled: !!r.recalled
+        content: (!withRecalled && r.recalled) ? '[已撤回]' : r.content, createdAt: r.created_at, read: !!r.read, recalled: !!r.recalled
       }))
     });
   } catch (e) {

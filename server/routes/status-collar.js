@@ -96,6 +96,31 @@ module.exports = function registerStatusCollar(app, db, auth) {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_status_messages ON status_messages(status_user_id, created_at);
+  `);
+
+  // 历史库兼容：db.js 早期建的 user_status 只有 (user_id,text,icon,emoji,updated_at)，
+  // 而 CREATE TABLE IF NOT EXISTS 不会补列，导致 bg_url/created_at/expires_at 全缺，
+  // 状态功能（设置/过期/feed）整体失效且报 no such column。这里按需补列并回填。
+  try {
+    const have = new Set(prepare('PRAGMA table_info(user_status)').all().map(c => c.name));
+    const wanted = [
+      ["emoji", "TEXT DEFAULT ''"],
+      ["bg_url", "TEXT DEFAULT ''"],
+      ["created_at", 'INTEGER'],
+      ["expires_at", 'INTEGER'],
+      ["updated_at", 'INTEGER'],
+    ];
+    for (const [name, type] of wanted) {
+      if (!have.has(name)) db.run('ALTER TABLE user_status ADD COLUMN ' + name + ' ' + type);
+    }
+    const now = Date.now();
+    db.run('UPDATE user_status SET created_at=COALESCE(created_at, updated_at, ' + now + ') WHERE created_at IS NULL');
+    db.run('UPDATE user_status SET expires_at=COALESCE(expires_at, COALESCE(created_at, updated_at, ' + now + ') + ' + STATUS_TTL + ') WHERE expires_at IS NULL');
+    db.run('UPDATE user_status SET updated_at=COALESCE(updated_at, created_at, ' + now + ') WHERE updated_at IS NULL');
+  } catch (e) {
+    console.error('[status-collar] user_status 迁移失败:', e && e.message);
+  }
+  db.run(`
 
     CREATE TABLE IF NOT EXISTS moment_filters (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -349,14 +374,14 @@ module.exports = function registerStatusCollar(app, db, auth) {
   // 设置/更新我的状态
   app.post('/api/status', (req, res) => {
     const me = need(req, res); if (!me) return;
-    const { text, icon, bgUrl } = req.body || {};
+    const { text, icon, bgUrl, emoji } = req.body || {};
     const body = String(text || '').trim().slice(0, 40);
     if (!body) return deny(res, 400, '状态内容不能为空');
     const now = Date.now();
-    prepare(`INSERT INTO user_status(user_id,text,icon,bg_url,created_at,expires_at) VALUES(?,?,?,?,?,?)
-      ON CONFLICT(user_id) DO UPDATE SET text=excluded.text,icon=excluded.icon,bg_url=excluded.bg_url,
-        created_at=excluded.created_at,expires_at=excluded.expires_at`)
-      .run(me, body, String(icon || '').slice(0, 3), String(bgUrl || '').slice(0, 500), now, now + STATUS_TTL);
+    prepare(`INSERT INTO user_status(user_id,text,icon,bg_url,emoji,created_at,expires_at,updated_at) VALUES(?,?,?,?,?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET text=excluded.text,icon=excluded.icon,bg_url=excluded.bg_url,emoji=excluded.emoji,
+        created_at=excluded.created_at,expires_at=excluded.expires_at,updated_at=excluded.updated_at`)
+      .run(me, body, String(icon || '').slice(0, 3), String(bgUrl || '').slice(0, 500), String(emoji || '').slice(0, 10), now, now + STATUS_TTL, now);
     persist();
     okay(res, { expiresAt: now + STATUS_TTL });
   });

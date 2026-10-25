@@ -2057,6 +2057,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     if (recording) {
       final recStart = _recordingStart;
       final path = await recorder.stop();
+      if (!mounted) return;
       setState(() => recording = false);
       if (path == null) return;
       final durSecs = recStart > 0 ? ((DateTime.now().millisecondsSinceEpoch - recStart) / 1000).round().clamp(1, 3600) : 0;
@@ -3646,6 +3647,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     final to = conv['id'] as int;
     final cmid = 'f${DateTime.now().microsecondsSinceEpoch}';
     _sentIds.add(cmid);
+    if (socket == null) {
+      // 离线时不可静默丢弃：明确提示，避免「看起来发出去了」但实际没送达
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('当前未连接，消息未发送')));
+      return;
+    }
     socket?.sink.add(jsonEncode({'type': 'msg', 'payload': {'to': to, 'content': await e2eeEncrypt('$to', text), 'clientMsgId': cmid, 'replyTo': ?replyMsg}}));
     setState(() { messages.add({'cmid': cmid, 'text': text, 'mine': true, 'time': '现在', 'replyTo': replyMsg, 'read': false, 'status': 'sending'}); });
     _lastMsg['f$to'] = {'text': text, 'mine': true, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
