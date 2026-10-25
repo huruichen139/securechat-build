@@ -487,6 +487,10 @@ module.exports = function registerGroups(app, db, auth) {
        LEFT JOIN group_messages pm ON pm.id=gmm.reply_to AND pm.group_id=gm.group_id
        WHERE gm.group_id=?`;
     const params = [groupId];
+    // 新成员不可见入群前的历史（与微信一致）：原实现只按 group_id 过滤，
+    // 任意成员把陌生人拉进群即可让其读取全部历史。
+    sql += ' AND gm.created_at >= COALESCE((SELECT joined_at FROM group_members WHERE group_id=? AND user_id=?),0)';
+    params.push(groupId, req.user.id);
     if (before) { sql += ' AND gm.id<?'; params.push(before); }
     // 按 id DESC 排序:id 单调递增且唯一,游标 gm.id<? 稳定;按 created_at 排序时同毫秒消息会漏条/重复
     sql += ' ORDER BY gm.id DESC LIMIT ?';
@@ -501,6 +505,8 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    // 发送限流：群消息按成员数扇出 + 每条落盘，无限制时可被单连接刷爆
+    if (groupRateLimit('gmsg:' + req.user.id, 60, 10 * 1000)) return fail(res, 429, '发送过于频繁，请稍后再试');
     const content = String((req.body || {}).content || '');
     if (!content) return fail(res, 400, '消息内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
@@ -605,6 +611,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
+    if (groupRateLimit('gfile:' + req.user.id, 20, 60 * 1000)) return fail(res, 429, '上传过于频繁，请稍后再试');
     if (!Buffer.isBuffer(req.body) || !req.body.length) return fail(res, 400, '文件为空');
     // 群文件配额：单群总量 2GB，防止磁盘被刷满
     try {

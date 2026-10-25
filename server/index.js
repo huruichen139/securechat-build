@@ -1504,6 +1504,8 @@ app.get('/api/users', (req, res) => {
   const token = auth.replace('Bearer ', '');
   const payload = verifyToken(token);
   if (!payload) return res.status(401).json({ error: '未授权' });
+  // 全站用户目录会被用来批量加好友/拉群，加频率限制防止枚举刷取
+  if (rateLimit('users:' + payload.id, 30, 60 * 1000)) return res.status(429).json({ error: '请求过于频繁' });
   const users = prepare('SELECT id,username,nickname,avatar,uid,country,province,city,pubkey FROM users WHERE id<>? ORDER BY nickname').all(payload.id);
   res.json({ users });
 });
@@ -2532,6 +2534,11 @@ app.post('/api/group/invite', (req, res) => {
   if (!uid) return res.status(400).json({ error: '对方UID不能为空' });
   const g = prepare('SELECT id FROM groups WHERE id=?').get(groupId);
   if (!g) return res.status(404).json({ error: '群不存在' });
+  // 与 groups.js 新版邀请接口对齐：人数上限 + 频率限制（原接口两者都没有，
+  // 配合 /api/users 可把全站用户逐个塞进群）
+  if (rateLimit('groupinvite:' + payload.id, 50, 60 * 60 * 1000)) return res.status(429).json({ error: '邀请过于频繁，请稍后再试' });
+  const cnt = prepare('SELECT COUNT(*) AS c FROM group_members WHERE group_id=?').get(groupId);
+  if (cnt && Number(cnt.c) >= 500) return res.status(400).json({ error: '群成员已达上限（500 人）' });
   const inviter = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(groupId, payload.id);
   if (!inviter) return res.status(403).json({ error: '你不是该群成员，无法邀请' });
   const target = prepare('SELECT id FROM users WHERE uid=?').get(uid);
@@ -2567,8 +2574,10 @@ app.get('/api/group/:id/messages', (req, res) => {
             u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
       FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
       LEFT JOIN group_message_meta gmm ON gmm.message_id = gm.id
-      WHERE gm.group_id=? ORDER BY gm.created_at DESC LIMIT ? OFFSET ?`
-  ).all(groupId, limit, offset);
+      WHERE gm.group_id=?
+        AND gm.created_at >= COALESCE((SELECT joined_at FROM group_members WHERE group_id=? AND user_id=?),0)
+      ORDER BY gm.created_at DESC LIMIT ? OFFSET ?`
+  ).all(groupId, groupId, payload.id, limit, offset);
   const msgs = rows.reverse().map(r => ({
     id: r.id, groupId: r.groupId, from: r.fromId, content: r.content, createdAt: r.createdAt,
     fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid },
@@ -5180,7 +5189,7 @@ app.get('/api/sync', (req, res) => {
             gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
      FROM group_messages gm
      JOIN group_members gmemb ON gmemb.group_id = gm.group_id AND gmemb.user_id = ?
-     WHERE gm.seq > ?
+     WHERE gm.seq > ? AND gm.created_at >= gmemb.joined_at
      ORDER BY gm.seq ASC LIMIT ?`
   ).all(payload.id, since, limit);
   // 合并排序，按 seq 升序
@@ -5815,7 +5824,7 @@ wss.on('connection', (ws, req) => {
                 CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content,
                 gm.recalled, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
          FROM group_messages gm JOIN group_members gmemb ON gmemb.group_id = gm.group_id AND gmemb.user_id = ?
-         WHERE gm.seq > ? ORDER BY gm.seq ASC LIMIT ?`
+         WHERE gm.seq > ? AND gm.created_at >= gmemb.joined_at ORDER BY gm.seq ASC LIMIT ?`
       ).all(ws.uid, since, limit);
       const all = [...directMsgs.map(m => ({ ...m, msgType: 'direct' })), ...groupMsgs.map(m => ({ ...m, msgType: 'group' }))];
       all.sort((a, b) => (a.seq || 0) - (b.seq || 0));
