@@ -47,6 +47,9 @@ class SecureChatApi {
   String deviceName = '';
   String deviceType = 'desktop';
   String devicePlatform = '';
+  /// 已见最大消息 seq：重连时上报，服务端只补 seq 更大的离线消息，
+  /// 避免每次重连把全部未读重推一遍（原行为会重复提示/重复渲染）。
+  int lastMsgSeq = 0;
 
   static const _kDeviceId = 'sc_device_id';
 
@@ -74,8 +77,20 @@ class SecureChatApi {
     // 恢复昵称/用户名：缺这一步会导致重启后 @昵称 收不到提醒
     myNickname = sp.getString(_kNickname);
     myUsername = sp.getString(_kUsername);
+    lastMsgSeq = sp.getInt('sc_last_msg_seq_${myId ?? 0}') ?? 0;
     await _initDeviceInfo();
     _syncGlobal();
+  }
+
+  /// 记录已见的最大消息 seq 并落盘（按账号隔离）
+  Future<void> noteSeq(dynamic seq) async {
+    final v = int.tryParse('$seq') ?? 0;
+    if (v <= lastMsgSeq) return;
+    lastMsgSeq = v;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setInt('sc_last_msg_seq_${myId ?? 0}', v);
+    } catch (_) {}
   }
 
   /// 初始化设备 ID（首次生成并持久化）与设备信息
@@ -602,6 +617,7 @@ class SecureChatApi {
         if (deviceName.isNotEmpty) 'deviceName': deviceName,
         if (deviceType.isNotEmpty) 'deviceType': deviceType,
         if (devicePlatform.isNotEmpty) 'platform': devicePlatform,
+        if (lastMsgSeq > 0) 'lastMsgSeq': lastMsgSeq,
       },
     }));
     return channel;

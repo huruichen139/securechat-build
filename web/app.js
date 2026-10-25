@@ -39,6 +39,8 @@ let state = {
   sentPlain: {},
   // 本地已发送（乐观渲染）消息：clientMsgId -> true，用于去重服务端回显
   pendingLocal: {},
+  // 已见最大消息 seq：重连时上报，服务端只补 seq 更大的消息，避免把全部未读重推一遍
+  maxSeq: 0,
   // 群组
   tabContact: 'friends',   // 'friends' | 'groups'
   groups: [],
@@ -2034,7 +2036,7 @@ function connectWS() {
   const wsUrl = state.serverHost.replace(/^http/, 'ws') + '/ws';
   state.wsAuthed = false;
   state.ws = new WebSocket(wsUrl);
-  state.ws.onopen = () => state.ws.send(JSON.stringify({ type: P.C_AUTH, payload: { token: state.token } }));
+  state.ws.onopen = () => state.ws.send(JSON.stringify({ type: P.C_AUTH, payload: { token: state.token, lastMsgSeq: readLastSeq() } }));
   state.ws.onmessage = (ev) => {
     let data; try { data = JSON.parse(ev.data); } catch { return; }
     try { handleServer(data); } catch (e) { console.warn('handleServer failed', e); }
@@ -3343,6 +3345,7 @@ async function selectPeer(peerId) {
     const msgs = data.messages || [];
     // 历史密文不能用当前实时棘轮回放，否则会回滚会话状态；旧密文只显示安全占位。
     for (const m of msgs) {
+      trackSeq(m);
       if (window.SCE2EE && SCE2EE.isRatchetCipher(m.content)) m.content = '[加密消息，历史内容不可在此会话恢复]';
     }
     if (state.activePeer !== peerId) return;
@@ -4022,6 +4025,19 @@ function showMessageNotice(m, name) {
 }
 
 // ============ 收消息 ============
+// 已见最大 seq 按账号隔离存储：重连时上报，服务端只补更大的消息，避免全部未读反复重推。
+function lastSeqKey() { return 'sc_last_msg_seq_' + ((state.me && state.me.id) || 'anon'); }
+function readLastSeq() {
+  try { return Number(localStorage.getItem(lastSeqKey()) || 0) || 0; } catch (e) { return 0; }
+}
+function trackSeq(m) {
+  const v = Number(m && m.seq);
+  if (!Number.isFinite(v) || v <= 0) return;
+  if (v <= state.maxSeq) return;
+  state.maxSeq = v;
+  try { localStorage.setItem(lastSeqKey(), String(v)); } catch (e) {}
+}
+
 // 实时回包：若是其它端发的 0x02 双棘轮密文，先做 E2E 解密再进入展示逻辑。
 async function maybeDecryptLive(m) {
   if (!m || typeof m.content !== 'string') return;
@@ -4035,6 +4051,7 @@ async function maybeDecryptLive(m) {
   } catch {}
 }
 async function onIncomingMsg(m) {
+  trackSeq(m);
   // 明文模式：不再做 E2EE 解密，直接显示原文。
   if (m.from === state.me.id && m.clientMsgId && state.sentPlain[m.clientMsgId]) {
     m.content = state.sentPlain[m.clientMsgId];
@@ -5523,7 +5540,7 @@ const panel = document.getElementById('settingsPanel');
       items: [
         { label: '意见反馈', desc: '提交问题或建议', icon: '反', fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
         { label: '关于我们', desc: 'SecureChat v' + PACKAGE_VERSION, icon: '关', fn: () => {
-          showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">端到端加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
+          showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">传输全程加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
         }},
       ]
     },

@@ -2183,6 +2183,30 @@ app.get('/api/files/:id', (req, res) => {
   if (t && typeof t.unref === 'function') t.unref();
 })();
 
+// ---------- 离线消息队列清理（TTL）----------
+// offline_queue 只在对方离线时写入，客户端从不调用 /api/offline/pull 或 /ack（实测无人调用），
+// 因此行会永久堆积。登录推送已按 seq 清理，这里再兜底清扫 30 天前的陈旧行。
+(function __offlineQueueJanitor() {
+  const TTL = 30 * 24 * 3600 * 1000;
+  const SWEEP = 12 * 3600 * 1000;
+  const run = () => {
+    try {
+      if (!ready || !db) return;
+      const r = db.prepare('DELETE FROM offline_queue WHERE created_at < ?').run(Date.now() - TTL);
+      if (r && r.changes) {
+        try { if (typeof db.persist === 'function') db.persist(); } catch (e) {}
+        console.log('[offline-queue] 已清理过期离线消息 ' + r.changes + ' 条');
+      }
+    } catch (e) {
+      console.error('[offline-queue] 清理失败: ' + (e && e.message || e));
+    }
+  };
+  const kick = setTimeout(run, 45000);
+  if (kick && typeof kick.unref === 'function') kick.unref();
+  const t = setInterval(run, SWEEP);
+  if (t && typeof t.unref === 'function') t.unref();
+})();
+
 // ---------- 语音转文字（STT）----------
 // 启用方式（任一）：
 //   1) 安装 faster-whisper：pip install faster-whisper，并放置 server/stt_whisper.py
@@ -5314,10 +5338,21 @@ wss.on('connection', (ws, req) => {
       ).all(dbUser.id);
       for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
       // 推送离线未读消息（断线期间积累的消息，带 seq 供增量去重）
+      // 原实现每次重连都把「全部未读」重推一遍（最多 500 条），且与 offline_queue 双通道重复投递；
+      // 现按客户端上报的 lastMsgSeq 只补新消息，并在投递后清掉对应离线队列行，避免重复与队列无限膨胀。
       try {
-        const offlineMsgs = prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY seq ASC LIMIT 500').all(dbUser.id);
+        const reported = Number((payload || {}).lastMsgSeq);
+        const sinceSeq = Number.isInteger(reported) && reported > 0 ? reported : 0;
+        const offlineMsgs = sinceSeq > 0
+          ? prepare('SELECT * FROM messages WHERE to_id=? AND read=0 AND seq>? ORDER BY seq ASC LIMIT 500').all(dbUser.id, sinceSeq)
+          : prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY seq ASC LIMIT 500').all(dbUser.id);
+        let maxPushed = 0;
         for (const m of offlineMsgs) {
           send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading, seq: m.seq || null });
+          if (Number(m.seq) > maxPushed) maxPushed = Number(m.seq);
+        }
+        if (maxPushed > 0) {
+          try { prepare('DELETE FROM offline_queue WHERE user_id=? AND seq<=?').run(dbUser.id, maxPushed); } catch (e) {}
         }
       } catch (e) {}
       // 记录最后登录时间与 IP

@@ -559,7 +559,7 @@ class WelcomePanel extends StatelessWidget {
       const SizedBox(height: 30),
       const Text('私密地聊天，\n自然地沟通。', style: TextStyle(color: Colors.white, fontSize: 34, height: 1.08, fontWeight: FontWeight.w800)),
       const SizedBox(height: 20),
-      const Text('端到端加密 · 多端同步 · 音视频通话', style: TextStyle(color: Color(0xffa9d9c4), fontSize: 14)),
+            const Text('传输全程加密 · 多端同步 · 音视频通话', style: TextStyle(color: Color(0xffa9d9c4), fontSize: 14)),
     ]),
   );
 }
@@ -1509,6 +1509,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         }
         if (type == 'msg') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (p['seq'] != null) widget.api.noteSeq(p['seq']);
           if (!mounted) return;
           // 阅后即焚消息被销毁：从本地消息列表移除
           if (p['destroyed'] == true) {

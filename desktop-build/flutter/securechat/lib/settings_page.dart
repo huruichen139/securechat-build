@@ -707,14 +707,14 @@ class _SettingsPageState extends State<SettingsPage> {
               Row(children: [
                 Icon(Icons.lock_outline, color: config.primary),
                 const SizedBox(width: 10),
-                Expanded(child: Text('端到端加密', style: TextStyle(color: t.text, fontWeight: FontWeight.w700))),
+                Expanded(child: Text('消息加密', style: TextStyle(color: t.text, fontWeight: FontWeight.w700))),
               ]),
               const SizedBox(height: 8),
-              Text('你的聊天内容仅由你和对方持有密钥，服务端无法读取。', style: TextStyle(color: t.subText, fontSize: 13)),
+              Text('消息通过 HTTPS/TLS 全程加密传输，服务端以明文存储以支持消息搜索与聊天回放。', style: TextStyle(color: t.subText, fontSize: 13)),
               const SizedBox(height: 8),
               Divider(height: 1, color: t.div),
               const SizedBox(height: 8),
-              Text('· 每条消息独立会话密钥\n· 不使用端到端加密即拒绝发送\n· 加密状态可在会话中随时查看', style: TextStyle(color: t.subText, fontSize: 13)),
+              Text('· 传输层：TLS 1.2+ 全链路加密\n· 存储层：服务端明文（便于搜索与回放）\n· 端到端加密（E2EE）已内置，当前未启用', style: TextStyle(color: t.subText, fontSize: 13)),
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.only(top: 4, bottom: 8),
