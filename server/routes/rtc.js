@@ -52,10 +52,9 @@ module.exports = function registerRtc(app, db, auth) {
         // auth 返回 null/undefined 且已发过响应时视为失败；这里只返回 null 让路由判 401
         return null;
       }
-      // 回退：自行解析 Bearer
-      if (!jwt) jwt = require('jsonwebtoken');
+      // 回退：共享校验（含吊销表/设备校验）
       const h = req.headers.authorization || '';
-      const payload = jwt.verify(h.replace(/^Bearer\s+/i, ''), process.env.JWT_SECRET);
+      const payload = require('../token-verify').verify(h.replace(/^Bearer\s+/i, ''), db && typeof db.prepare === 'function' ? db.prepare : null);
       return payload ? { id: payload.id } : null;
     } catch (e) {
       return null;

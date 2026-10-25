@@ -173,12 +173,9 @@ module.exports = function registerPayment(app, db, auth) {
   // ============ 工具 ============
   function mw(req, res, next) {
     if (auth && typeof auth === 'function') return auth(req, res, next);
-    let payload = null;
-    try { payload = jwt.verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (e) { payload = null; }
+    // 共享校验：含吊销表与设备校验（退出登录/踢设备后旧 token 立即失效）
+    const payload = require('../token-verify').verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), prepare);
     if (!payload) return res.status(401).json({ error: '未授权' });
-    const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
-    if (!u || u.banned) return res.status(403).json({ error: '账号不可用' });
-    if ((payload.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: '登录已失效' });
     req.user = payload;
     next();
   }
@@ -186,13 +183,11 @@ module.exports = function registerPayment(app, db, auth) {
   // 管理端点鉴权：优先外部 auth 中间件，否则回退内置 JWT 校验 + 管理员检查
   function adminMw(req, res, next) {
     if (auth && typeof auth === 'function') return auth(req, res, next);
-    let payload = null;
-    try { payload = jwt.verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch (e) { payload = null; }
+    const payload = require('../token-verify').verify(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), prepare);
     if (!payload) return res.status(401).json({ error: '未授权' });
     req.user = payload;
     const u = prepare('SELECT id,email,token_version,banned FROM users WHERE id=?').get(payload.id);
     if (!u || u.banned) return res.status(403).json({ error: '账号不可用' });
-    if ((payload.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: '登录已失效' });
     const admins = String(process.env.ADMIN_EMAILS || '3529403074@qq.com').toLowerCase().split(',');
     if (!admins.includes(String(u.email || '').toLowerCase())) return res.status(403).json({ error: '需要管理员权限' });
     next();

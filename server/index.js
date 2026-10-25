@@ -1910,8 +1910,10 @@ app.get('/api/history/:peerId', (req, res) => {
     pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
     FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
     LEFT JOIN messages pm ON pm.id=mm.reply_to AND ((pm.from_id=? AND pm.to_id=?) OR (pm.from_id=? AND pm.to_id=?))
-    WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?) ORDER BY m.created_at DESC LIMIT ? OFFSET ?`)
-    .all(payload.id, peerId, peerId, payload.id, payload.id, peerId, peerId, payload.id, limit, offset);
+    WHERE ((m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?))
+      AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
+    ORDER BY m.created_at DESC LIMIT ? OFFSET ?`)
+    .all(payload.id, peerId, peerId, payload.id, payload.id, peerId, peerId, payload.id, payload.id, limit, offset);
   const msgs = rows.reverse().map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
   res.json({ messages: msgs });
 });
@@ -1925,8 +1927,10 @@ app.get('/api/search/messages', (req, res) => {
   const qs = q.replace(/[\\%_]/g, '\\$&');
   // 撤回的消息不出现在搜索结果中(撤回后正文仍留在库里,这里过滤掉)
   const rows = prepare(`SELECT m.id,m.from_id,m.to_id,m.content,m.created_at FROM messages m
-    WHERE (m.from_id=? OR m.to_id=?) AND m.recalled=0 AND m.content LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 50`)
-    .all(payload.id, payload.id, '%' + qs + '%');
+    WHERE (m.from_id=? OR m.to_id=?) AND m.recalled=0
+      AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
+      AND m.content LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 50`)
+    .all(payload.id, payload.id, payload.id, '%' + qs + '%');
   const messages = rows.map(r => {
     const peerId = r.from_id === payload.id ? r.to_id : r.from_id;
     const peer = prepare('SELECT username,nickname FROM users WHERE id=?').get(peerId);
@@ -1972,35 +1976,21 @@ app.delete('/api/history/:peerId', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = parseInt(req.params.peerId, 10);
   if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
-  const ids = prepare('SELECT id FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)')
-    .all(payload.id, peerId, peerId, payload.id).map(r => r.id);
-  if (ids.length) {
-    const ph = ids.map(() => '?').join(',');
-    // 清理关联的磁盘文件（__FILE__ 消息）
-    try {
-      const fileRows = prepare(`SELECT content FROM messages WHERE id IN (${ph})`).all(...ids);
-      for (const r of fileRows) {
-        if (typeof r.content === 'string' && r.content.startsWith('__FILE__')) {
-          try {
-            const meta = JSON.parse(r.content.slice('__FILE__'.length));
-            // 仅清理合法 UUID 格式的文件 ID，防止路径遍历
-            if (meta.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(meta.id)) {
-              try { fs.unlinkSync(path.join(FILES_DIR, meta.id + '.bin')); } catch (_) {}
-            }
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
-    try { prepare(`DELETE FROM message_meta WHERE message_id IN (${ph})`).run(...ids); } catch {}
-    try { prepare(`DELETE FROM message_favorites WHERE message_id IN (${ph})`).run(...ids); } catch {}
-    try { prepare(`DELETE FROM message_reads WHERE message_id IN (${ph})`).run(...ids); } catch {}
-    try { prepare(`DELETE FROM chat_ext WHERE message_id IN (${ph})`).run(...ids); } catch {}
-    try { prepare(`DELETE FROM message_timers WHERE message_id IN (${ph})`).run(...ids); } catch {}
+  // 清空聊天记录只影响自己：原实现物理删除双方消息并清掉对方的收藏，
+  // 单方即可销毁对方历史记录（跨用户数据破坏）。改为写入 hidden_messages，
+  // 只对当前用户隐藏，不再动对方数据。
+  let hidden = 0;
+  try {
+    const r = prepare(`INSERT OR IGNORE INTO hidden_messages(user_id,message_id,created_at)
+      SELECT ?, id, ? FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)`)
+      .run(payload.id, Date.now(), payload.id, peerId, peerId, payload.id);
+    hidden = (r && r.changes) || 0;
+  } catch (e) {
+    return res.status(500).json({ error: '清空失败：' + (e && e.message || e) });
   }
-  const result = prepare('DELETE FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)')
-    .run(payload.id, peerId, peerId, payload.id);
+  try { prepare('DELETE FROM message_favorites WHERE user_id=? AND message_id IN (SELECT message_id FROM hidden_messages WHERE user_id=?)').run(payload.id, payload.id); } catch {}
   persist();
-  res.json({ ok: true, deleted: result.changes || 0 });
+  res.json({ ok: true, deleted: hidden });
 });
 
 // ---------- 消息撤回 ----------
@@ -4671,18 +4661,17 @@ app.post('/api/admin/ban', (req, res) => {
   if (!target) return res.status(404).json({ error: '用户不存在' });
   // 不允许封禁管理员自己/其他管理员
   if (isAdmin(target)) return res.status(400).json({ error: '不能封禁管理员账号' });
+  const reason = String((req.body || {}).reason || '').trim().slice(0, 200);
   if (banned) {
-    const reason = String((req.body || {}).reason || '').trim().slice(0, 200);
     prepare('UPDATE users SET banned=1, banned_at=?, banned_by=?, ban_reason=?, token_version=COALESCE(token_version,0)+1 WHERE id=?')
       .run(Date.now(), guard.u.id, reason, id);
   } else {
     prepare('UPDATE users SET banned=0, banned_at=NULL, banned_by=NULL, ban_reason=NULL WHERE id=?').run(id);
   }
-  // 若该用户在线，断开其 WebSocket 强制下线
-  for (const ws of online.get(id) || []) {
-    try { send(ws, 'KICKED', { reason: banned ? '账号已被封禁' : '账号已解封' }); } catch {}
+  // 若该用户在线，断开其 WebSocket 强制下线（封禁时；解封不踢）
+  if (banned) {
+    forceLogoutUser(id, '账号已被封禁' + (reason ? '：' + reason : ''));
   }
-  try { online.delete(id); } catch {}
   res.json({ ok: true, id, banned });
   // 封禁是高危操作，必须留痕（原实现完全无审计，令牌被盗后可无痕封禁任何人）
   logAudit(guard.u.id, banned ? 'user_ban' : 'user_unban', id, 'user',
@@ -4852,8 +4841,7 @@ app.post('/api/admin/kick', (req, res) => {
   if (!id) return res.status(400).json({ error: '缺少用户ID' });
   const target = prepare('SELECT id,username FROM users WHERE id=?').get(id);
   if (!target) return res.status(404).json({ error: '用户不存在' });
-  for (const ws of online.get(id) || []) { try { send(ws, P.S_KICKED, { reason: (req.body || {}).reason || '已被管理员强制下线' }); } catch {} }
-  try { online.delete(id); } catch {}
+  forceLogoutUser(id, (req.body || {}).reason || '已被管理员强制下线');
   logAudit(guard.u.id, 'kick', id, 'user', '强制下线 ' + target.username, clientIp(req));
   broadcastUserList();
   res.json({ ok: true, id });
@@ -4871,8 +4859,12 @@ app.post('/api/admin/ban-ip', (req, res) => {
   // 将该 IP 的所有在线用户踢下线
   const targetIp = ip;
   for (const [uid, list] of online.entries()) {
-    for (const ws of list) {
-      if (ws._ip === targetIp) { try { send(ws, P.S_KICKED, { reason: 'IP 已被封禁' }); } catch {} }
+    for (const ws of list.slice()) {
+      if (ws._ip === targetIp) {
+        try { send(ws, P.S_KICKED, { reason: 'IP 已被封禁' }); } catch {}
+        try { ws.close(4001, 'ip banned'); } catch {}
+        try { removeWs(uid, ws); } catch {}
+      }
     }
   }
   logAudit(guard.u.id, 'ban_ip', null, 'ip', '封禁IP ' + ip + (reason ? ' (' + reason + ')' : ''), clientIp(req));
@@ -4941,8 +4933,7 @@ app.post('/api/admin/user/reset-password', (req, res) => {
   const hash = bcrypt.hashSync(pwd, 10);
   prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, id);
   // 重置后强制下线
-  for (const ws of online.get(id) || []) { try { send(ws, P.S_KICKED, { reason: '密码已被管理员重置' }); } catch {} }
-  try { online.delete(id); } catch {}
+  forceLogoutUser(id, '密码已被管理员重置');
   logAudit(guard.u.id, 'reset_password', id, 'user', '重置密码 ' + target.username, clientIp(req));
   res.json({ ok: true, id });
 });
@@ -5146,8 +5137,9 @@ app.get('/api/sync', (req, res) => {
     `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
      FROM messages m
      WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?)
+       AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
      ORDER BY m.seq ASC LIMIT ?`
-  ).all(since, payload.id, payload.id, limit);
+  ).all(since, payload.id, payload.id, payload.id, limit);
   // 群聊消息：所在群的消息
   const groupMsgs = prepare(
     `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from", gm.content, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
@@ -5190,10 +5182,11 @@ app.get('/api/conversations/preview', (req, res) => {
                 CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END AS peer,
                 ROW_NUMBER() OVER (PARTITION BY CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END ORDER BY m.id DESC) AS rn
          FROM messages m
-         WHERE m.from_id=? OR m.to_id=?
+         WHERE (m.from_id=? OR m.to_id=?)
+           AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
        ) WHERE rn=1 ORDER BY seq DESC`
     );
-    const rows = dp.all(me, me, me, me, me);
+    const rows = dp.all(me, me, me, me, me, me);
     for (const r of rows) {
       previews['f' + (r.mine ? r.to : r.from)] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.created_at, seq: r.seq };
     }
@@ -5411,6 +5404,19 @@ function removeWs(uid, ws) {
   if (!list.length) online.delete(uid);
 }
 
+// 强制下线：先推 KICKED 再关闭连接。
+// 原实现只 send 一个 'KICKED'（客户端只识别小写 kicked/device_kicked）且不关 socket，
+// 被封禁/被踢用户在原连接上仍能继续发消息，封禁要等重连才生效。
+function forceLogoutUser(uid, reason) {
+  const list = online.get(uid) || [];
+  for (const ws of list.slice()) {
+    try { send(ws, P.S_KICKED, { reason: reason || '已被强制下线' }); } catch (e) {}
+    try { ws.close(4001, 'kicked'); } catch (e) {}
+    try { removeWs(uid, ws); } catch (e) {}
+  }
+  try { online.delete(uid); } catch (e) {}
+}
+
 wss.on('connection', (ws, req) => {
   ws.uid = null;
   ws.isAlive = true;
@@ -5443,6 +5449,9 @@ wss.on('connection', (ws, req) => {
       if (buf.length > MAX_MSG_CONTENT) { send(ws, P.S_ERROR || 'error', { error: '消息过大' }); return; }
       data = JSON.parse(buf.toString());
     } catch { return; }
+    // JSON 合法但不是对象（如 "null"、数字、字符串）时，解构会抛 TypeError 逃出
+    // ws.on('message')，只能靠全局 uncaughtException 兜底（刷日志/占 CPU）。
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return;
     const { type, payload } = data;
 
     try {
@@ -5455,6 +5464,19 @@ wss.on('connection', (ws, req) => {
       // 重复认证必须先摘除旧身份：否则旧 uid 的 online 列表会残留本连接，
       // 导致 A 的消息被投递给已登录成 B 的连接（跨账号泄露），
       // 且 onlineAny(A) 恒为 true 使 A 的消息永不进入离线队列（永久丢失）。
+      // IP 封禁校验必须在写入 ws.uid 之前：原实现先赋值 ws.uid 再校验，
+      // 被封 IP 的客户端收到 auth_fail 后仍能以该 uid 继续发消息（封禁完全无效）。
+      ws._ip = clientIp({ headers: {}, socket: ws._socket || ws._req || {} });
+      try {
+        const bip = ws._ip ? prepare('SELECT ip FROM banned_ips WHERE ip=?').get(ws._ip) : null;
+        if (bip) {
+          if (ws.uid) { try { removeWs(ws.uid, ws); } catch (e) {} }
+          ws.uid = null; ws.user = null;
+          send(ws, P.S_AUTH_FAIL, { error: '当前IP已被封禁' });
+          try { ws.close(4003, 'ip banned'); } catch (e) {}
+          return;
+        }
+      } catch (e) {}
       if (ws.uid && ws.uid !== dbUser.id) { try { removeWs(ws.uid, ws); } catch (e) {} }
       // 同一连接重复认证同一 uid：先把本连接从列表摘掉，否则下面 push 会让同一 ws 在
       // online 列表里出现多次，sendToUser 重复下发同一条消息（多端同步时表现为消息重复）。
@@ -5462,12 +5484,6 @@ wss.on('connection', (ws, req) => {
       ws.uid = dbUser.id;
       try { clearTimeout(authTimer); } catch {} // 认证成功，清除超时
       ws.user = publicUser(dbUser);
-      ws._ip = clientIp({ headers: {}, socket: ws._socket || ws._req || {} });
-      // IP 封禁校验
-      try {
-        const bip = ws._ip ? prepare('SELECT ip FROM banned_ips WHERE ip=?').get(ws._ip) : null;
-        if (bip) return send(ws, P.S_AUTH_FAIL, { error: '当前IP已被封禁' });
-      } catch (e) {}
       // 设备注册（客户端传 deviceId 时自动注册）
       if (payload.deviceId) {
         const devName = String(payload.deviceName || '').slice(0, 64) || '桌面端';
@@ -5506,8 +5522,8 @@ wss.on('connection', (ws, req) => {
         const reported = Number((payload || {}).lastMsgSeq);
         const sinceSeq = Number.isInteger(reported) && reported > 0 ? reported : 0;
         const offlineMsgs = sinceSeq > 0
-          ? prepare('SELECT * FROM messages WHERE to_id=? AND read=0 AND seq>? ORDER BY seq ASC LIMIT 500').all(dbUser.id, sinceSeq)
-          : prepare('SELECT * FROM messages WHERE to_id=? AND read=0 ORDER BY seq ASC LIMIT 500').all(dbUser.id);
+          ? prepare('SELECT * FROM messages WHERE to_id=? AND read=0 AND seq>? AND id NOT IN (SELECT message_id FROM hidden_messages WHERE user_id=?) ORDER BY seq ASC LIMIT 500').all(dbUser.id, sinceSeq, dbUser.id)
+          : prepare('SELECT * FROM messages WHERE to_id=? AND read=0 AND id NOT IN (SELECT message_id FROM hidden_messages WHERE user_id=?) ORDER BY seq ASC LIMIT 500').all(dbUser.id, dbUser.id);
         let maxPushed = 0;
         for (const m of offlineMsgs) {
           send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading, seq: m.seq || null });
@@ -5528,7 +5544,13 @@ wss.on('connection', (ws, req) => {
       if ((typeof to !== 'number' && typeof to !== 'string') || !/^\d+$/.test(String(to))) return send(ws, P.S_ERROR, { error: '目标无效' });
       const toId = Number(to);
       if (toId === undefined || !Number.isInteger(toId) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
-      if (typeof content === 'string' && content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
+      // content 必须是字符串：数组/对象会被 sql.js 当 BLOB 入库（历史接口回给客户端变成
+      // {"0":1,...}），数字/布尔则破坏协议类型，且非字符串绕过了长度语义。
+      if (typeof content !== 'string') return send(ws, P.S_ERROR, { error: '消息内容无效' });
+      if (content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
+      // 发送限流：登录/注册/加好友都有限流，唯独核心消息路径没有，
+      // 单连接可每秒数百帧刷屏并把 sql.js 全库落盘打满。
+      if (rateLimit('wsmsg:' + ws.uid, 60, 10 * 1000)) return send(ws, P.S_ERROR, { error: '发送过于频繁，请稍后再试' });
       if (toId === ws.uid) return send(ws, P.S_ERROR, { error: '不能给自己发送消息' });
       if (!prepare('SELECT 1 FROM users WHERE id=?').get(toId)) return send(ws, P.S_ERROR, { error: '目标用户不存在' });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
@@ -5574,6 +5596,11 @@ wss.on('connection', (ws, req) => {
       }
       msgObj.replyContent = replyContent; msgObj.replyFrom = replyFrom; msgObj.replyRecalled = replyRecalled;
       send(ws, P.S_MSG, msgObj);
+      // 同一账号的其他在线端也要实时看到自己发出的消息（原先只回显当前连接，
+      // 多端登录时另一台设备只能靠 /api/sync 补拉）
+      for (const other of (online.get(ws.uid) || [])) {
+        if (other !== ws) { try { send(other, P.S_MSG, msgObj); } catch (e) {} }
+      }
       const peer = onlineAny(toId);
       if (peer) sendToUser(toId, P.S_MSG, msgObj);
       // 离线队列：对方不在线时入队
@@ -5696,6 +5723,8 @@ wss.on('connection', (ws, req) => {
         const gid = Number(groupId);
         if (Number.isInteger(gid)) {
           try {
+            // 必须校验发送者是群成员：否则任意用户可枚举群 id 向任意群注入"正在输入"
+            if (!prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid)) return;
             const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(gid);
             for (const m of members) {
               if (m.user_id !== ws.uid && onlineAny(m.user_id)) sendToUser(m.user_id, P.S_TYPING, { from: ws.uid, groupId: gid });
@@ -5705,7 +5734,10 @@ wss.on('connection', (ws, req) => {
         return;
       }
       const toId = Number(to);
-      if (Number.isInteger(toId) && onlineAny(toId)) sendToUser(toId, P.S_TYPING, { from: ws.uid });
+      // 拉黑关系下不再推送"正在输入"
+      if (Number.isInteger(toId) && toId > 0 && !prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(ws.uid, toId, toId, ws.uid) && onlineAny(toId)) {
+        sendToUser(toId, P.S_TYPING, { from: ws.uid });
+      }
       return;
     }
 
@@ -5732,8 +5764,10 @@ wss.on('connection', (ws, req) => {
       // 私聊消息
       const directMsgs = prepare(
         `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
-         FROM messages m WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?) ORDER BY m.seq ASC LIMIT ?`
-      ).all(since, ws.uid, ws.uid, limit);
+         FROM messages m WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?)
+           AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
+         ORDER BY m.seq ASC LIMIT ?`
+      ).all(since, ws.uid, ws.uid, ws.uid, limit);
       // 群聊消息
       const groupMsgs = prepare(
         `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from", gm.content, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
@@ -5761,7 +5795,10 @@ wss.on('connection', (ws, req) => {
       // 信令必须限定在好友之间且 sub 在白名单内，否则任意用户可对任意在线用户伪造
       // offer/answer/hangup（强制弹呼叫、挂断他人通话、向攻击者推流音视频）
       if (!ALLOWED_SIGNAL_SUBS.has(String(sub))) return;
-      if (!prepare('SELECT 1 FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)').get(ws.uid, toId, toId, ws.uid)) return;
+      // 必须是已通过的好友（status=1）且双向未拉黑：原实现不判 status，
+      // 发一条好友请求就能对陌生人弹呼叫框/伪造 hangup，与 REST 通道不一致。
+      if (!prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?))').get(ws.uid, toId, toId, ws.uid)) return;
+      if (prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(ws.uid, toId, toId, ws.uid)) return;
       if (!onlineAny(toId)) {
         send(ws, P.S_SIGNAL, { from: toId, sub: 'peer_offline', data: null });
         return;
@@ -5803,7 +5840,9 @@ const wsPingTimer = setInterval(() => {
 const rttBuckets = new Map(); // uid -> { samples: [], avgRtt: number }
 // WebRTC 信令子类型白名单：sub 由客户端自由传入，必须限制取值，
 // 否则可构造畸形 data 或伪造 hangup 强制断开他人通话。
-const ALLOWED_SIGNAL_SUBS = new Set(['offer', 'answer', 'candidate', 'ice', 'hangup', 'offer_file', 'answer_file', 'datachannel']);
+// 必须与客户端 rtc_service.dart 实际发送的 sub 对齐：漏掉 call/call_ack 会让
+// 主叫的呼叫请求被服务端静默丢弃，被叫永远不响铃（通话功能整条链路失效）。
+const ALLOWED_SIGNAL_SUBS = new Set(['call', 'call_ack', 'call_reject', 'ring', 'offer', 'answer', 'candidate', 'ice', 'hangup', 'offer_file', 'answer_file', 'datachannel']);
 
 function updateHeartbeatInterval() {
   if (rttBuckets.size === 0) { wsPingInterval = WS_PING_BASE_INTERVAL; return; }

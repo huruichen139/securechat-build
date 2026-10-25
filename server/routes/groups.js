@@ -67,15 +67,8 @@ function publicUser(u) {
 
 function verifyUser(req) {
   const auth = req.headers.authorization || '';
-  try {
-    const payload = jwt.verify(auth.replace(/^Bearer\s+/i, ''), JWT_SECRET);
-    if (!payload || !payload.id) return null;
-    const u = gdb.prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
-    if (!u) return null;
-    if ((payload.tv || 0) !== (u.token_version || 0)) return null;
-    if (u.banned) return null;
-    return payload;
-  } catch { return null; }
+  // 共享校验：含吊销表与设备校验，避免退出登录/被踢设备后旧 token 仍能操作群组
+  return require('../token-verify').verify(auth.replace(/^Bearer\s+/i, ''), gdb.prepare);
 }
 function apiUser(req) {
   try { return verifyUser(req); } catch (e) { return null; }

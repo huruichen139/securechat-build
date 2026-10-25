@@ -17,16 +17,8 @@ module.exports = function registerRedpacket(app, db, auth) {
 
   function apiUser(req) {
     const authH = req.headers.authorization || '';
-    try {
-      const token = authH.replace(/^Bearer\s+/i, '');
-      const payload = jwt.verify(token, JWT_SECRET);
-      if (!payload || !payload.id) return null;
-      const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
-      if (!u || u.banned) return null;
-      if ((payload.tv || 0) !== (u.token_version || 0)) return null;
-      return payload;
-    } catch (e) {}
-    return null;
+    // 共享校验：含吊销表与设备校验（退出登录后旧 token 不能再发/抢/退款红包）
+    return require('../token-verify').verify(authH.replace(/^Bearer\s+/i, ''), prepare);
   }
 
   // ============ 建表 ============

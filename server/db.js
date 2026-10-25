@@ -635,6 +635,15 @@ try {
     UNIQUE(user_id, device_id)
   )`); } catch (e) {}
 
+  // ======== 用户侧隐藏消息（清空聊天记录只影响自己）========
+  // 原 DELETE /api/history/:peerId 直接物理删除双方消息，单方即可销毁对方历史与收藏。
+  try { db.run(`CREATE TABLE IF NOT EXISTS hidden_messages (
+    user_id INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(user_id, message_id)
+  )`); } catch (e) {}
+
   // ======== 已吊销 token（退出登录后立即失效，不等 7 天自然过期）========
   try { db.run(`CREATE TABLE IF NOT EXISTS revoked_tokens (
     token_hash TEXT PRIMARY KEY,

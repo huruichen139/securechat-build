@@ -55,14 +55,9 @@ module.exports = function registerChatExt(app, db, auth) {
   function apiUser(req) {
     const auth = req.headers.authorization || '';
     const token = auth.replace(/^Bearer\s+/i, '');
-    try {
-      const payload = jwt.verify(token, JWT_SECRET);
-      if (!payload || !payload.id) return null;
-      const u = prepare('SELECT token_version, banned FROM users WHERE id=?').get(payload.id);
-      if (!u || u.banned) return null;
-      if ((payload.tv || 0) !== (u.token_version || 0)) return null;
-      return payload;
-    } catch { return null; }
+    // 共享校验：包含 token_version / 封禁 / 吊销表 / 设备存在性，
+    // 避免退出登录后旧 token 仍能读增强消息、转发、拍一拍
+    return require('./token-verify').verify(token, prepare);
   }
 
   function publicName(userId) {
@@ -371,6 +366,11 @@ module.exports = function registerChatExt(app, db, auth) {
   app.get('/api/messages/:id/ext', (req, res) => {
     const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
     const id = Number(req.params.id);
+    // 归属校验：原实现只按 message_id 查，登录用户递增 id 即可读取他人
+    // 转发/合并转发的正文（owner_id=0 的行对所有人可见）。
+    const dm = prepare('SELECT 1 AS x FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(id, payload.id, payload.id);
+    const grp = dm ? null : prepare('SELECT 1 AS x FROM group_messages gm JOIN group_members m ON m.group_id=gm.group_id AND m.user_id=? WHERE gm.id=?').get(payload.id, id);
+    if (!dm && !grp) return res.status(404).json({ error: '消息不存在' });
     const rows = prepare('SELECT kind,value,updated_at AS updatedAt FROM chat_ext WHERE message_id=? AND (owner_id=? OR owner_id=0)')
       .all(id, payload.id);
     res.json({ id, ext: rows.map(r => ({ kind: r.kind, value: parseJson(r.value, {}), updatedAt: r.updatedAt })) });
