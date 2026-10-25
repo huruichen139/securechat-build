@@ -230,6 +230,20 @@ module.exports = function registerStatusCollar(app, db, auth) {
   });
 
   // 评论回复（已存在 index.js 的 /api/moments/:id/comment 支持 replyToId，这里提供同能力但可返回详情）
+  // 简易滑动窗口限流：30 条 / 5 分钟 / 用户
+  const _mcBuckets = new Map();
+  function momentCommentLimited(userId) {
+    const now = Date.now();
+    const win = 5 * 60 * 1000, max = 30;
+    if (_mcBuckets.size > 20000) {
+      for (const [k, v] of _mcBuckets) if (now > v.resetAt) _mcBuckets.delete(k);
+    }
+    let b = _mcBuckets.get(userId);
+    if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + win }; _mcBuckets.set(userId, b); }
+    b.count++;
+    return b.count > max;
+  }
+
   app.post('/api/moments/ext/:id/reply', (req, res) => {
     const me = need(req, res); if (!me) return;
     const id = Number(req.params.id);
@@ -243,6 +257,11 @@ module.exports = function registerStatusCollar(app, db, auth) {
     if (blk) return deny(res, 403, '无法互动');
     const { content, replyToId } = req.body || {};
     if (typeof content !== 'string' || !content.trim()) return deny(res, 400, '评论不能为空');
+    // 长度与频率：index.js 的评论接口有 2000 字上限 + 30 条/5 分钟限流，
+    // 这个 ext 重复实现两者都没有，客户端实际走这里，等于限流形同虚设。
+    const text = content.trim();
+    if (text.length > 2000) return deny(res, 400, '评论过长（限2000字）');
+    if (momentCommentLimited(me)) return deny(res, 429, '评论过于频繁，请稍后再试');
     let replyTo = null;
     if (replyToId) {
       const parent = prepare('SELECT id FROM moment_comments WHERE id=? AND moment_id=?').get(Number(replyToId), id);
@@ -250,7 +269,7 @@ module.exports = function registerStatusCollar(app, db, auth) {
       replyTo = parent.id;
     }
     prepare('INSERT INTO moment_comments(moment_id,user_id,reply_to_id,content,created_at) VALUES(?,?,?,?,?)')
-      .run(id, me, replyTo, content.trim(), Date.now());
+      .run(id, me, replyTo, text, Date.now());
     persist();
     okay(res, { id });
   });

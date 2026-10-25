@@ -198,11 +198,15 @@ module.exports = function registerRtc(app, db, auth) {
   // 复用 messages 表 => 端上可用 /api/history/-1 拿会话；文件本体经 /file/:id 取用。
   app.post('/api/rtc/filehelper/upload',
     (req, res, next) => {
+      // 先鉴权再解析原始体：否则未登录请求会先缓冲 100MB 才被拒绝
+      const me = requireAuth(req, res);
+      if (!me) { try { req.resume(); } catch (e) {} return; }
+      req._scUid = me;
       const raw = require('express').raw({ type: 'application/octet-stream', limit: '100mb' });
       return raw(req, res, next);
     },
     async (req, res) => {
-      const me = requireAuth(req, res);
+      const me = req._scUid || requireAuth(req, res);
       if (!me) return;
       if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '文件为空' });
       let quota = { c: 0, s: 0 };

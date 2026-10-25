@@ -40,7 +40,13 @@ const execFile = util.promisify(childProcess.execFile);
   }
 })();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+// 生产密钥必须显式配置：回退到公开常量意味着任何人都能签发 {id:<管理员id>} 的 token。
+// 缺失时直接退出（由守护脚本拉起并记录日志），避免静默以弱密钥对外服务。
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+  console.error('[fatal] JWT_SECRET 未配置或过短（至少 16 字符），拒绝启动。请在 server/.env 中设置 JWT_SECRET。');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const QR_LOGIN_TTL = 2 * 60 * 1000;
 const qrLoginSessions = new Map();
@@ -2079,9 +2085,21 @@ function apiUser(req) {
   return verifyToken(auth.replace(/^Bearer\s+/i, ''));
 }
 
-app.post('/api/files', express.raw({ type: 'application/octet-stream', limit: '100mb' }), (req, res) => {
+// 二进制上传前置鉴权：express.raw 必须在鉴权之后挂载，否则未登录请求会先把
+// 100/200/500MB 请求体读进内存再返回 401（并发几十个即 OOM）。
+function rawAuthGate(req, res, next) {
+  const p = apiUser(req);
+  if (!p) {
+    try { req.resume(); } catch (e) {}
+    return res.status(401).json({ error: '未授权' });
+  }
+  req._scUser = p;
+  next();
+}
+
+app.post('/api/files', rawAuthGate, express.raw({ type: 'application/octet-stream', limit: '100mb' }), (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const payload = apiUser(req);
+  const payload = req._scUser || apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '文件为空' });
   // 单文件与用户总量配额：原先本接口无任何配额（/api/media、群文件都有），
@@ -2142,14 +2160,28 @@ app.get('/api/files/:id', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const file = prepare('SELECT * FROM file_transfers WHERE id=? AND (from_id=? OR to_id=?)').get(req.params.id, payload.id, payload.id);
   if (!file || !fs.existsSync(file.path)) return res.status(404).json({ error: '文件不存在' });
-  // 路径遍历防护：验证文件路径在允许目录内
+  // 路径遍历防护：验证文件路径在允许目录内（带分隔符，避免 C:\chat\files-evil 命中前缀）
   const resolved = path.resolve(file.path);
-  if (!resolved.startsWith(path.resolve(FILES_DIR)) && !resolved.startsWith(path.resolve(CALLS_DIR))) {
+  const inFiles = resolved.startsWith(path.resolve(FILES_DIR) + path.sep);
+  const inCalls = resolved.startsWith(path.resolve(CALLS_DIR) + path.sep);
+  if (!inFiles && !inCalls) {
     return res.status(403).json({ error: '路径非法' });
   }
-  res.setHeader('Content-Type', file.mime);
+  // Content-Type 白名单：mime 来自用户上传参数，含 CRLF 会让 setHeader 抛 ERR_INVALID_CHAR
+  // 导致该文件永久 500；非白名单一律 octet-stream（配合 nosniff 避免存储型 XSS）。
+  const SAFE_INLINE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'audio/mpeg', 'audio/mp4', 'audio/ogg', 'video/mp4', 'video/webm', 'application/pdf', 'text/plain']);
+  const mime = String(file.mime || '').split(';')[0].trim().toLowerCase();
+  res.setHeader('Content-Type', SAFE_INLINE.has(mime) ? mime : 'application/octet-stream');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
-  fs.createReadStream(file.path).pipe(res);
+  const stream = fs.createReadStream(file.path);
+  // 文件可能被 TTL 清理并发删除：无 error 监听会冒泡成 uncaughtException 并挂起响应
+  stream.on('error', (e) => {
+    console.error('[files] 读取失败: ' + (e && e.message || e));
+    if (!res.headersSent) { try { res.status(404).json({ error: '文件不存在' }); } catch (_) {} }
+    else { try { res.destroy(); } catch (_) {} }
+  });
+  stream.pipe(res);
 });
 
 // ---------- 离线文件中转清理（TTL）----------
@@ -2334,13 +2366,13 @@ app.get('/api/call-recordings', (req, res) => {
   res.json({ recordings: rows });
 });
 
-app.post('/api/call-recordings', express.raw({
+app.post('/api/call-recordings', rawAuthGate, express.raw({
     // type-is 对带 codecs 参数（如 video/webm;codecs=vp8,opus）的匹配有 bug，改用自定义类型判定
     type: (req) => { const ct = String(req.headers['content-type'] || '').split(';')[0].trim(); return ct === 'video/webm' || ct === 'audio/webm'; },
     limit: '500mb'
   }), (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
-  const payload = apiUser(req);
+  const payload = req._scUser || apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: '回放为空' });
   const toId = parseInt(req.query.to, 10);
@@ -3248,21 +3280,26 @@ app.post('/api/admin/update-package', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const guard = adminGuard(req, res);
   // 必须先鉴权再读请求体：express.raw 作为路由中间件会在鉴权前把整个 body 读进内存，
-  // 未登录攻击者用 application/octet-stream 发超大请求即可在 401 前耗尽堆内存（OOM DoS）
+  // 未登录攻击者用 application/octet-stream 发超大请求即可在 401 前耗尽堆内存（OOM DoS）。
+  // 注意：guard.sent 为真说明 401/403 已发出，此时绝不能再读体（原实现顺序写反，等于没修）。
+  if (guard.sent) return;
   await readRawBody(req, res, '1gb');
   if (res._scRawError) return;
-  if (guard.sent) return;
   if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: '上传内容为空' });
   if (req.body.length > UPDATE_MAX_BYTES) return res.status(413).json({ error: '更新包超过 1GB 限制' });
   const id = Date.now() + '-' + process.pid;
   const zipPath = path.join(UPDATE_PACKAGES_DIR, id + '.zip');
   const extracted = path.join(UPDATE_PACKAGES_DIR, id + '-extracted');
+  const sha256 = crypto.createHash('sha256').update(req.body).digest('hex');
   try {
     fs.mkdirSync(UPDATE_PACKAGES_DIR, { recursive: true });
     zipEntryNames(req.body);
     fs.writeFileSync(zipPath, req.body, { flag: 'wx' });
     await extractZip(zipPath, extracted);
-    updateStatus = { state: 'pending', package: path.basename(zipPath), extracted: path.basename(extracted), size: req.body.length, updatedAt: Date.now() };
+    updateStatus = { state: 'pending', package: path.basename(zipPath), extracted: path.basename(extracted), size: req.body.length, sha256, updatedAt: Date.now() };
+    // 管理员可替换服务端代码/分发包，属最高危操作，必须留痕（原实现完全无审计）
+    logAudit(guard.payload.id, 'update_package_upload', null, 'system',
+      JSON.stringify({ file: path.basename(zipPath), size: req.body.length, sha256, apply: String(req.query.apply || '') === 'true' }), clientIp(req));
     // 管理后台上传时可使用 ?apply=true 一步完成上传、替换和重启；默认仍只上传待审核。
     if (String(req.query.apply || '').toLowerCase() === 'true') {
       const backup = path.join(UPDATE_BACKUPS_DIR, String(Date.now()));
@@ -3290,6 +3327,8 @@ app.post('/api/admin/update-package/apply', async (req, res) => {
   try {
     backupAndApply(extracted, backup);
     updateStatus = { ...updateStatus, state: 'applied', backup: path.relative(process.cwd(), backup), updatedAt: Date.now(), restartScheduled: true };
+    logAudit(guard.payload.id, 'update_package_apply', null, 'system',
+      JSON.stringify({ package: updateStatus.package, sha256: updateStatus.sha256, backup }), clientIp(req));
     res.json({ ok: true, state: 'applied', backup: updateStatus.backup, restartScheduled: true });
     scheduleRestart();
   } catch (err) {
@@ -3304,9 +3343,12 @@ function getVersionConfig() {
     // 去掉可能的 UTF-8 BOM：带 BOM 时 JSON.parse 会抛错，导致静默回退到 1.0.0 默认值
     const cfg = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8').replace(/^\uFEFF/, ''));
     if (!cfg || typeof cfg !== 'object') throw new Error('invalid version.json');
+    // latest 参与拼接下载文件名：若被写成 "../../evil" 会让后续上传/删除写出 downloads 目录。
+    const ver = String(cfg.latest || cfg.current || '');
+    if (!/^\d+\.\d+\.\d+$/.test(ver)) throw new Error('invalid latest version: ' + ver);
     return {
       current: String(cfg.current || DEFAULT_VERSION_CONFIG.current),
-      latest: String(cfg.latest || cfg.current || DEFAULT_VERSION_CONFIG.latest),
+      latest: ver,
       releaseNotes: cfg.releaseNotes || DEFAULT_VERSION_CONFIG.releaseNotes,
       updatedAt: Number(cfg.updatedAt) || DEFAULT_VERSION_CONFIG.updatedAt
     };
@@ -3470,11 +3512,10 @@ app.get('/api/admin/wallet', (req, res) => {
 app.post('/api/admin/upload/:platform', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const guard = adminGuard(req, res);
-  // 必须先鉴权再读请求体：express.raw 作为路由中间件会在鉴权前把整个 body 读进内存，
-  // 未登录攻击者用 application/octet-stream 发超大请求即可在 401 前耗尽堆内存（OOM DoS）
+  // 必须先鉴权再读请求体（同 update-package：guard.sent 后仍读体等于未授权 OOM 通道）
+  if (guard.sent) return;
   await readRawBody(req, res, '300mb');
   if (res._scRawError) return;
-  if (guard.sent) return;
   const info = PLATFORM_FILES[String(req.params.platform || '')];
   if (!info) return res.status(400).json({ error: '平台无效' });
   if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
@@ -3483,8 +3524,18 @@ app.post('/api/admin/upload/:platform', async (req, res) => {
   const cfg = getVersionConfig();
   const filename = 'SecureChat-' + cfg.latest + '-' + info.seg + '.' + info.ext;
   fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
-  fs.writeFileSync(path.join(DOWNLOADS_DIR, filename), req.body);
-  res.json({ ok: true, file: filename, size: req.body.length });
+  const outPath = path.join(DOWNLOADS_DIR, filename);
+  // 路径约束：文件名由 version.json 拼接，getVersionConfig 已校验版本格式，这里再兜底一次
+  if (!path.resolve(outPath).startsWith(path.resolve(DOWNLOADS_DIR) + path.sep)) {
+    return res.status(400).json({ error: '非法目标路径' });
+  }
+  try { fs.writeFileSync(outPath, req.body); } catch (e) {
+    return res.status(500).json({ error: '写入安装包失败：' + (e && e.message || e) });
+  }
+  const sha256 = crypto.createHash('sha256').update(req.body).digest('hex');
+  logAudit(guard.payload.id, 'package_upload', null, info.seg,
+    JSON.stringify({ file: filename, size: req.body.length, sha256 }), clientIp(req));
+  res.json({ ok: true, file: filename, size: req.body.length, sha256 });
 });
 
 // 管理员删除安装包（方便重传）
@@ -3497,8 +3548,12 @@ app.delete('/api/admin/upload/:platform', (req, res) => {
   const cfg = getVersionConfig();
   const filename = 'SecureChat-' + cfg.latest + '-' + info.seg + '.' + info.ext;
   const filePath = path.join(DOWNLOADS_DIR, filename);
+  if (!path.resolve(filePath).startsWith(path.resolve(DOWNLOADS_DIR) + path.sep)) {
+    return res.status(400).json({ error: '非法目标路径' });
+  }
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
   fs.unlinkSync(filePath);
+  logAudit(guard.payload.id, 'package_delete', null, info.seg, JSON.stringify({ file: filename }), clientIp(req));
   res.json({ ok: true, file: filename });
 });
 
@@ -4297,25 +4352,48 @@ function readRawBody(req, res, limit) {
     let size = 0;
     const max = require('bytes')(limit);
     let done = false;
+    // 已读完（如全局 express.json 已消费）或客户端已断开时不再等事件：
+    // 原实现只监听 data/end/error，JSON 请求走到这里 Promise 永不 resolve，handler 永久挂起。
+    if (req.readableEnded || req.complete) {
+      req.body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      return resolve();
+    }
     const finish = (err) => {
       if (done) return;
       done = true;
       req.removeListener('data', onData);
       req.removeListener('end', onEnd);
       req.removeListener('error', onErr);
-      if (err) { res._scRawError = true; res.status(err.status || 400).json({ error: err.message || '请求体无效' }); }
+      req.removeListener('aborted', onAbort);
+      req.removeListener('close', onAbort);
+      clearTimeout(timer);
+      if (err) {
+        res._scRawError = true;
+        // 401/403 可能已发出：不能再写头，否则抛 ERR_HTTP_HEADERS_SENT 使 handler 卡死
+        if (!res.headersSent) {
+          try { res.status(err.status || 400).json({ error: err.message || '请求体无效' }); } catch (e) {}
+        } else {
+          try { res.end(); } catch (e) {}
+        }
+      }
       resolve();
     };
     const onData = (c) => {
       size += c.length;
-      if (size > max) { req.destroy(); return finish({ status: 413, message: '请求体超过大小限制' }); }
+      if (size > max) { try { req.destroy(); } catch (e) {} return finish({ status: 413, message: '请求体超过大小限制' }); }
       chunks.push(c);
     };
     const onEnd = () => { req.body = Buffer.concat(chunks); finish(null); };
     const onErr = () => finish({ status: 400, message: '请求体读取失败' });
+    const onAbort = () => finish({ status: 400, message: '连接已中断' });
+    // 总超时兜底：慢速上传不能无限占用连接
+    const timer = setTimeout(() => { try { req.destroy(); } catch (e) {} finish({ status: 408, message: '请求体读取超时' }); }, 120000);
+    if (timer && typeof timer.unref === 'function') timer.unref();
     req.on('data', onData);
     req.on('end', onEnd);
     req.on('error', onErr);
+    req.on('aborted', onAbort);
+    req.on('close', onAbort);
   });
 }
 
@@ -4648,7 +4726,10 @@ app.get('/api/admin/replay/messages', (req, res) => {
       const rows = prepare(`SELECT id,group_id,from_id,content,created_at,recalled
         FROM group_messages WHERE group_id=? AND created_at>? AND created_at<?
         ORDER BY created_at ASC, id ASC LIMIT ?`).all(gid, after, before, limit);
-      if (withRecalled) logAudit(guard.u.id, 'replay_view_recalled', gid, 'group', '查看含撤回原文的群聊回放 ' + (g ? g.name : gid) + '（' + rows.length + ' 条）', clientIp(req));
+      // 群回放同样要留痕：管理员可读任意群（含私密群）的全部消息，
+      // 原实现只有 withRecalled=1 才写审计，普通回放可无痕翻看群聊内容。
+      logAudit(guard.u.id, 'replay_view', gid, 'group',
+        '查看群聊回放 ' + (g ? g.name : gid) + '（' + rows.length + ' 条' + (withRecalled ? '，含撤回原文' : '') + '）', clientIp(req));
       return res.json({
         kind: 'group',
         title: g ? g.name : '群#' + gid,

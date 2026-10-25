@@ -189,8 +189,15 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   // ============================================================
   // 媒体文件上传 / 下载（图片封面 + 视频源文件；解耦于 /api/files 的好友双向模型）
   // ============================================================
-  app.post('/api/media', express.raw({ type: 'application/octet-stream', limit: '200mb' }), (req, res) => {
-    const payload = authed(req);
+  // 上传前置鉴权：express.raw 必须在鉴权后挂载，否则未登录请求会先缓冲 200MB 再 401
+  const mediaRawAuth = (req, res, next) => {
+    const p = authed(req);
+    if (!p) { try { req.resume(); } catch (e) {} return deny(res, 401, '未授权'); }
+    req._scUser = p;
+    next();
+  };
+  app.post('/api/media', mediaRawAuth, express.raw({ type: 'application/octet-stream', limit: '200mb' }), (req, res) => {
+    const payload = req._scUser || authed(req);
     if (!payload) return deny(res, 401, '未授权');
     if (!Buffer.isBuffer(req.body) || !req.body.length) return deny(res, 400, '文件为空');
     // 用户配额：最多 500 个文件或总量 2GB，防止磁盘被刷满
