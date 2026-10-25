@@ -394,15 +394,29 @@ module.exports = function registerStatusCollar(app, db, auth) {
     okay(res, {});
   });
 
-  // 状态 feed：我 + 我的好友（社交达人=所有用户），去掉已过期；带点赞/留言数
+  // 状态 feed：仅我 + 我的好友（status=1），并排除我屏蔽的人；已过期的不返回。
+  // 原实现把所有启用状态的用户都返回给任何人（"社交达人"并未真正实现），
+  // 等于全站状态对陌生人可见，属于隐私泄露。
+  function isFriendPair(a, b) {
+    return !!prepare('SELECT 1 FROM friends WHERE user_id=? AND friend_id=? AND status=1').get(a, b);
+  }
+  function statusVisibleTo(me, ownerId) {
+    if (ownerId === me) return true;
+    if (!isFriendPair(me, ownerId)) return false;
+    const blocked = prepare("SELECT 1 FROM moment_filters WHERE user_id=? AND target_id=? AND kind='block'").get(me, ownerId);
+    if (blocked) return false;
+    const blockedMe = prepare("SELECT 1 FROM moment_filters WHERE user_id=? AND target_id=? AND kind='block'").get(ownerId, me);
+    if (blockedMe) return false;
+    return true;
+  }
+
   app.get('/api/status/feed', (req, res) => {
     const me = need(req, res); if (!me) return;
     const friendIds = prepare('SELECT friend_id FROM friends WHERE user_id=? AND status=1').all(me).map(r => r.friend_id);
-    // 社交达人可见：简化为「我 + 好友 + 公开全部用户」，此处为展示所有启用状态的人
     const rows = prepare('SELECT user_id FROM user_status').all();
     const users = rows
       .map(r => ({ id: r.user_id, status: activeStatusOf(r.user_id) }))
-      .filter(x => x.status && x.id !== me);
+      .filter(x => x.status && x.id !== me && statusVisibleTo(me, x.id));
     // 排序：好友优先 + 时间倒序
     const friSet = new Set(friendIds);
     users.sort((a, b) => {
@@ -441,6 +455,7 @@ module.exports = function registerStatusCollar(app, db, auth) {
     if (!Number.isInteger(targetId) || targetId === me) return deny(res, 400, '目标无效');
     const s = activeStatusOf(targetId);
     if (!s) return deny(res, 404, '该状态已过期');
+    if (!statusVisibleTo(me, targetId)) return deny(res, 403, '无权查看该状态');
     const content = String((req.body || {}).content || '').trim().slice(0, 200);
     if (!content) return deny(res, 400, '留言不能为空');
     prepare('INSERT INTO status_messages(user_id,status_user_id,content,created_at) VALUES(?,?,?,?)')
@@ -455,6 +470,7 @@ module.exports = function registerStatusCollar(app, db, auth) {
     const targetId = Number(req.params.userId);
     const s = activeStatusOf(targetId);
     if (!s) return deny(res, 404, '该状态已过期');
+    if (!statusVisibleTo(me, targetId)) return deny(res, 403, '无权查看该状态');
     const msgs = prepare(
       `SELECT m.id,m.user_id AS userId,m.content AS content,m.created_at AS createdAt,u.nickname,u.avatar
        FROM status_messages m JOIN users u ON u.id=m.user_id

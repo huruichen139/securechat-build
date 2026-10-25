@@ -175,7 +175,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!payload) return deny(res, 401, '未授权');
     const groupId = parseInt(req.params.id, 10);
     if (!groupExists(groupId) || !inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
-    const rows = prepare('SELECT * FROM polls WHERE group_id=? ORDER BY id DESC').all(groupId);
+    const rows = prepare('SELECT * FROM polls WHERE group_id=? ORDER BY id DESC LIMIT 50').all(groupId);
     okay(res, { polls: rows.map(r => pollDto(r, payload.id)) });
   });
 
@@ -202,15 +202,16 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       return deny(res, 400, '投票已截止');
     }
     let optionIds = Array.isArray((req.body || {}).optionIds) ? (req.body.optionIds) : [];
-    optionIds = optionIds.map(o => parseInt(o, 10)).filter(o => Number.isInteger(o));
+    // 去重 + 上限：原实现不去重也不限数量，多选投票提交海量重复 id 会逐条查询/插入，
+    // 单请求即可把事件循环堵死（全站 WS/REST 一起卡）。
+    optionIds = Array.from(new Set(optionIds.map(o => parseInt(o, 10)).filter(o => Number.isInteger(o))));
     if (!optionIds.length) return deny(res, 400, '请选择选项');
-    if (poll.multi && optionIds.length > 1) { /* 多选允许多个 */ }
-    else optionIds = optionIds.slice(0, 1);
-    // 校验选项属于该投票
+    if (optionIds.length > 20) return deny(res, 400, '选项过多');
+    if (!poll.multi) optionIds = optionIds.slice(0, 1);
+    // 校验选项属于该投票（一次性取出集合，避免逐条查询）
+    const validIds = new Set(prepare('SELECT id FROM poll_options WHERE poll_id=?').all(poll.id).map(o => o.id));
     for (const oid of optionIds) {
-      if (!prepare('SELECT id FROM poll_options WHERE id=? AND poll_id=?').get(oid, poll.id)) {
-        return deny(res, 400, '含无效选项');
-      }
+      if (!validIds.has(oid)) return deny(res, 400, '含无效选项');
     }
     const existing = prepare('SELECT id FROM poll_votes WHERE poll_id=? AND user_id=?').get(poll.id, payload.id);
     const wasVoted = !!existing;
@@ -360,7 +361,9 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
     const title = String((req.body || {}).title || '').trim().slice(0, 120) || '今日待办';
     const items = Array.isArray((req.body || {}).items) ? (req.body.items) : [];
-    const cleanItems = items.map(i => String(i == null ? '' : i).trim()).filter(i => i && i.length <= 200);
+    // 条数上限：原实现不限条数，每个 item 一次 INSERT（每次还带 last_insert_rowid + 防抖落盘），
+    // 十万级数组单请求即可阻塞事件循环数十秒。
+    const cleanItems = items.slice(0, 50).map(i => String(i == null ? '' : i).trim()).filter(i => i && i.length <= 200);
     if (!cleanItems.length) cleanItems.push('（空清单）');
     const now = Date.now();
     const info = prepare('INSERT INTO todos(group_id,creator_id,title,created_at) VALUES(?,?,?,?)')
@@ -378,7 +381,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!payload) return deny(res, 401, '未授权');
     const groupId = parseInt(req.params.id, 10);
     if (!groupExists(groupId) || !inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
-    const rows = prepare('SELECT * FROM todos WHERE group_id=? ORDER BY id DESC').all(groupId);
+    const rows = prepare('SELECT * FROM todos WHERE group_id=? ORDER BY id DESC LIMIT 50').all(groupId);
     okay(res, { todos: rows.map(r => todoDto(r, payload.id)) });
   });
 
@@ -402,7 +405,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!inGroup(t.group_id, payload.id)) return deny(res, 403, '你不在此群');
     const it = prepare('SELECT * FROM todo_items WHERE id=? AND todo_id=?').get(itemId, todoId);
     if (!it) return deny(res, 404, '待办项不存在');
-    const done = (req.body || {}).done ? 1 : 0;
+    const done = ((req.body || {}).done === true || (req.body || {}).done === 1) ? 1 : 0;
     prepare('INSERT OR IGNORE INTO todo_checks(todo_item_id,user_id,done,created_at) VALUES(?,?,?,?)')
       .run(itemId, payload.id, done, Date.now());
     prepare('UPDATE todo_checks SET done=? WHERE todo_item_id=? AND user_id=?').run(done, itemId, payload.id);
@@ -433,25 +436,60 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (r.fired) return;
     const delay = r.at - Date.now();
     const exec = () => {
-      const cur = prepare('SELECT * FROM reminders WHERE id=?').get(id);
-      if (!cur || cur.fired) return;
-      const content = pushReminderContent(cur.at, cur.content);
-      const now = Date.now();
-      let inserted = null;
-      if (cur.target_type === 'group') {
-        if (groupExists(cur.target_id)) {
-          const grpSeq = nextSeq();
-          const info = prepare('INSERT INTO group_messages(group_id,from_id,content,created_at,seq) VALUES(?,?,?,?,?)').run(cur.target_id, 0, content, now, grpSeq);
-          inserted = { kind: 'group', id: info.lastInsertRowid, groupId: cur.target_id };
+      try {
+        const cur = prepare('SELECT * FROM reminders WHERE id=?').get(id);
+        if (!cur || cur.fired) return;
+        // 到点复核权限：创建后被踢出群/解散群/删好友/拉黑/封号时不得再向目标写入消息。
+        if (cur.target_type === 'group') {
+          if (!groupExists(cur.target_id) || !inGroup(cur.target_id, cur.user_id)) {
+            prepare('UPDATE reminders SET fired=1 WHERE id=?').run(id);
+            timers.delete(id);
+            return;
+          }
+        } else if (cur.target_id !== cur.user_id) {
+          const isFriend = prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?))').get(cur.user_id, cur.target_id, cur.target_id, cur.user_id);
+          const blocked = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(cur.user_id, cur.target_id, cur.target_id, cur.user_id);
+          if (!isFriend || blocked) {
+            prepare('UPDATE reminders SET fired=1 WHERE id=?').run(id);
+            timers.delete(id);
+            return;
+          }
         }
-      } else {
-        const dmSeq = nextSeq();
-        const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)').run(0, cur.target_id, content, null, now, dmSeq);
-        inserted = { kind: 'direct', id: info.lastInsertRowid, toId: cur.target_id };
+        const content = pushReminderContent(cur.at, cur.content);
+        const now = Date.now();
+        // 先原子标记 fired（changes=0 说明已被其他路径处理），避免重复插入同一条提醒。
+        const upd = prepare('UPDATE reminders SET fired=1 WHERE id=? AND fired=0').run(id);
+        if (!upd || !upd.changes) { timers.delete(id); return; }
+        timers.delete(id);
+        // 发送者用提醒创建者（原实现固定 from_id=0，消息会落到"用户0"会话，客户端看不到）。
+        const cmid = 'rem-' + id;
+        const sendToUser = global.__scSendToUser;
+        let inserted = null;
+        if (cur.target_type === 'group') {
+          const grpSeq = nextSeq();
+          const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)').run(cur.target_id, cur.user_id, content, cmid, now, grpSeq);
+          inserted = { kind: 'group', id: info.lastInsertRowid, groupId: cur.target_id };
+          if (sendToUser) {
+            const members = prepare('SELECT user_id FROM group_members WHERE group_id=?').all(cur.target_id);
+            for (const mb of members) sendToUser(mb.user_id, 'group_msg', { id: info.lastInsertRowid, groupId: cur.target_id, from: cur.user_id, content, createdAt: now, seq: grpSeq, reminder: true });
+          }
+        } else {
+          const dmSeq = nextSeq();
+          const info = prepare('INSERT INTO messages(from_id,to_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)').run(cur.user_id, cur.target_id, content, cmid, now, dmSeq);
+          inserted = { kind: 'direct', id: info.lastInsertRowid, toId: cur.target_id };
+          if (sendToUser) {
+            const msgObj = { id: info.lastInsertRowid, from: cur.user_id, to: cur.target_id, content, createdAt: now, seq: dmSeq, reminder: true, read: 0 };
+            sendToUser(cur.user_id, 'msg', msgObj);
+            if (cur.target_id !== cur.user_id) sendToUser(cur.target_id, 'msg', msgObj);
+          }
+        }
+        console.log('[remind] fired reminder #' + id + (inserted ? (' -> ' + inserted.kind + ':' + inserted.id) : ''));
+      } catch (e) {
+        // 失败不再静默：保留 fired=0 由下次启动扫描恢复
+        try { prepare('UPDATE reminders SET fired=0 WHERE id=?').run(id); } catch (_) {}
+        timers.delete(id);
+        console.error('[remind] exec failed #' + id + ': ' + (e && e.message || e));
       }
-      prepare('UPDATE reminders SET fired=1 WHERE id=?').run(id);
-      timers.delete(id);
-      console.log('[remind] fired reminder #' + id + (inserted ? (' -> ' + inserted.kind + ':' + inserted.id) : ''));
     };
     if (delay <= 0) { setTimeout(exec, 0); return; }
     // setTimeout 上限约 24.8 天；超长提醒必须递归重新调度，否则会提前触发导致提醒错时间。
@@ -511,7 +549,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
     const rows = prepare(
-      'SELECT id,user_id AS userId,target_type AS targetType,target_id AS targetId,at,content,fired,created_at AS createdAt FROM reminders WHERE user_id=? ORDER BY id DESC').all(payload.id);
+      'SELECT id,user_id AS userId,target_type AS targetType,target_id AS targetId,at,content,fired,created_at AS createdAt FROM reminders WHERE user_id=? ORDER BY id DESC LIMIT 200').all(payload.id);
     okay(res, { reminders: rows });
   });
 
@@ -562,14 +600,18 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       .catch((e) => res.status(502).json({ error: e.message || '翻译失败' }));
   });
 
+  function dictLookup(dict, key) {
+    return Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : undefined;
+  }
+
   function handleTranslate(src, lang) {
     return new Promise((resolve, reject) => {
       const lower = src.toLowerCase();
-      const dictHit = LITE_DICT[lower];
+      const dictHit = dictLookup(LITE_DICT, lower);
       if (lang === 'zh' && dictHit) {
         return resolve({ translated: dictHit, source: 'dict', detected: 'en' });
       }
-      if (lang === 'en' && LITE_DICT[src]) {
+      if (lang === 'en' && dictLookup(LITE_DICT, src)) {
         return resolve({ translated: LITE_DICT[src], source: 'dict', detected: 'zh' });
       }
       const from = lang === 'zh' ? 'auto' : 'auto';
@@ -583,11 +625,11 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
           resolve({ translated: tr, source: 'mymemory', detected: data.responseData.detectedLanguage || '' });
         } else {
           // 在线失败 → 词典兜底（单向简单映射）
-          const hit = lang === 'zh' ? LITE_DICT[src] : LITE_DICT[lower];
+          const hit = dictLookup(LITE_DICT, lang === 'zh' ? src : lower);
           resolve({ translated: hit || src, source: 'dict-fallback', detected: '' });
         }
       }).catch(() => {
-        const hit = lang === 'zh' ? LITE_DICT[src] : LITE_DICT[lower];
+        const hit = dictLookup(LITE_DICT, lang === 'zh' ? src : lower);
         resolve({ translated: hit || src, source: 'dict-fallback', detected: '' });
       });
     });
