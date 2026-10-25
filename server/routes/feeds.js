@@ -19,15 +19,22 @@ module.exports = function registerFeeds(app, db, auth) {
   ];
   const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SecureChat/1.0';
 
+  const MAX_BODY = 2 * 1024 * 1024; // 上游响应上限 2MB：无上限时 `buf += c` 会被超大响应撑爆内存
   function getJson(url) {
     return new Promise((resolve, reject) => {
       const mod = url.indexOf('https:') === 0 ? https : http;
       const req = mod.get(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } }, (res) => {
         if (res.statusCode !== 200) { res.resume(); reject(new Error('upstream ' + res.statusCode)); return; }
         let buf = '';
+        let over = false;
         res.setEncoding('utf8');
-        res.on('data', (c) => { buf += c; });
-        res.on('end', () => { try { resolve(JSON.parse(buf)); } catch (e) { reject(e); } });
+        res.on('data', (c) => {
+          if (over) return;
+          buf += c;
+          if (buf.length > MAX_BODY) { over = true; buf = ''; res.destroy(new Error('upstream body too large')); }
+        });
+        res.on('error', (e) => reject(e));
+        res.on('end', () => { if (over) return; try { resolve(JSON.parse(buf)); } catch (e) { reject(e); } });
       });
       req.setTimeout(8000, () => req.destroy(new Error('upstream timeout')));
       req.on('error', reject);

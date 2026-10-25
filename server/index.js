@@ -2644,13 +2644,16 @@ app.get('/api/moments', (req, res) => {
   const friendIds = prepare('SELECT friend_id FROM friends WHERE user_id=? AND status=1').all(payload.id).map(r => r.friend_id);
   friendIds.push(payload.id);
   // 取可见的动态（ALL；私密 nobody/just 暂只返回自己发的）
+  // 拉黑双向过滤：只按 friends 取动态时，被拉黑的人仍会出现在 feed 里（拉黑不自动删好友）。
+  const blockedRows = prepare('SELECT blocker_id, blocked_id FROM blocklist WHERE blocker_id=? OR blocked_id=?').all(payload.id, payload.id);
+  const blockedIds = new Set(blockedRows.map(r => (r.blocker_id === payload.id ? r.blocked_id : r.blocker_id)));
   const rows = prepare(
     `SELECT m.id,m.user_id AS userId,m.content AS content,m.images,m.created_at AS createdAt,
             u.nickname,u.avatar,u.uid
      FROM moments m JOIN users u ON u.id=m.user_id
      WHERE m.user_id IN (${friendIds.map(()=>'?').join(',')})
      ORDER BY m.created_at DESC LIMIT ? OFFSET ?`
-  ).all(...friendIds, limit, offset);
+  ).all(...friendIds, limit, offset).filter(m => !blockedIds.has(m.userId));
   // 补点赞与评论
   // 批量查点赞/评论，避免 N+1
   const momentIds = rows.map(m => m.id);
@@ -2659,19 +2662,22 @@ app.get('/api/moments', (req, res) => {
     `SELECT c.id,c.moment_id AS momentId,c.user_id AS userId,c.content AS content,c.created_at AS createdAt,u.nickname
      FROM moment_comments c JOIN users u ON u.id=c.user_id WHERE c.moment_id IN (` + momentIds.map(()=>'?').join(',') + `) ORDER BY c.created_at ASC`
   ).all(...momentIds) : [];
+  // 点赞/评论同样过滤黑名单用户，否则拉黑后仍能在动态下看到对方的互动
+  const likesVisible = allLikes.filter(l => !blockedIds.has(l.user_id));
+  const commentsVisible = allComments.filter(c => !blockedIds.has(c.userId));
   // 点赞昵称：一次 JOIN users 取所有点赞者的昵称
-  const likerIds = [...new Set(allLikes.map(l => l.user_id))];
+  const likerIds = [...new Set(likesVisible.map(l => l.user_id))];
   const nickMap = new Map();
   if (likerIds.length) {
     const nickRows = prepare('SELECT id,nickname FROM users WHERE id IN (' + likerIds.map(()=>'?').join(',') + ')').all(...likerIds);
     for (const nr of nickRows) nickMap.set(nr.id, nr.nickname);
   }
   const likesByMoment = new Map(); const commentsByMoment = new Map();
-  for (const l of allLikes) {
+  for (const l of likesVisible) {
     if (!likesByMoment.has(l.moment_id)) likesByMoment.set(l.moment_id, []);
     likesByMoment.get(l.moment_id).push(l.user_id);
   }
-  for (const c of allComments) { if (!commentsByMoment.has(c.momentId)) commentsByMoment.set(c.momentId, []); commentsByMoment.get(c.momentId).push(c); }
+  for (const c of commentsVisible) { if (!commentsByMoment.has(c.momentId)) commentsByMoment.set(c.momentId, []); commentsByMoment.get(c.momentId).push(c); }
   const data = rows.map(m => {
     const likes = likesByMoment.get(m.id) || [];
     const comments = commentsByMoment.get(m.id) || [];
