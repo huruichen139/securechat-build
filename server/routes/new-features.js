@@ -25,13 +25,37 @@ module.exports = function register(app, db, auth) {
   };
 
   // ========== 消息翻译 ==========
+  // 归属校验：翻译记录挂在 message_id 上，若不校验，任何人都能读别人消息的译文，
+  // 也能把自己编造的文本写成某条消息的"官方翻译"（误导对方）。
+  function canAccessMessage(userId, messageId) {
+    const mid = Number(messageId);
+    if (!Number.isInteger(mid) || mid <= 0) return false;
+    const dm = db.prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(mid, userId, userId);
+    if (dm) return true;
+    const gm = db.prepare('SELECT 1 FROM group_messages WHERE id=?').get(mid);
+    if (!gm) return false;
+    return !!db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(gm.group_id, userId);
+  }
+
   app.post('/api/message/translate', requireAuth, (req, res) => {
     const { messageId, sourceLang, targetLang, text } = req.body || {};
-    if (!text) return res.status(400).json({ error: '参数缺失' });
     const target = targetLang || 'zh';
+    if (messageId) {
+      if (!canAccessMessage(req.user.id, messageId)) return res.status(403).json({ error: '无权访问该消息' });
+    } else if (!text) {
+      return res.status(400).json({ error: '参数缺失' });
+    }
     try {
-      // 调用翻译 API（这里用 mock，实际可接入 DeepL/Google/百度翻译）
-      const translated = mockTranslate(text, sourceLang, target);
+      // 有 messageId 时以库内原文为准，忽略客户端传入的 text（防止伪造译文）
+      let source = text;
+      if (messageId) {
+        const mid = Number(messageId);
+        const row = db.prepare('SELECT content FROM messages WHERE id=?').get(mid)
+          || db.prepare('SELECT content FROM group_messages WHERE id=?').get(mid);
+        source = (row && row.content) || '';
+      }
+      if (!source) return res.status(400).json({ error: '消息内容为空' });
+      const translated = mockTranslate(source, sourceLang, target);
       if (messageId) {
         db.run(
           'INSERT OR REPLACE INTO message_translations(message_id, source_lang, target_lang, translated, translated_by, created_at) VALUES(?,?,?,?,?,?)',
@@ -45,6 +69,7 @@ module.exports = function register(app, db, auth) {
   });
 
   app.get('/api/message/translations/:messageId', requireAuth, (req, res) => {
+    if (!canAccessMessage(req.user.id, req.params.messageId)) return res.status(403).json({ error: '无权访问该消息' });
     const rows = db.prepare('SELECT * FROM message_translations WHERE message_id=?').all(req.params.messageId);
     res.json({ translations: rows });
   });
@@ -108,13 +133,21 @@ module.exports = function register(app, db, auth) {
     if (!groupId || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
     if (!memberOf(groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const now = Date.now();
-    const result = db.run('INSERT INTO group_votes(group_id, title, content, created_by, is_anonymous, allow_change, created_at) VALUES(?,?,?,?,?,?,?)',
+    // db.run 是 sql.js 原生 run（返回 Database 对象，不带 lastInsertRowid），
+    // 原来直接取 result.lastInsertRowid 得到 undefined，导致后续插入选项时绑定 undefined 报 500。
+    db.run('INSERT INTO group_votes(group_id, title, content, created_by, is_anonymous, allow_change, created_at) VALUES(?,?,?,?,?,?,?)',
       [groupId, title, content || '', req.user.id, isAnonymous ? 1 : 0, allowChange ? 1 : 0, now]);
-    const voteId = result.lastInsertRowid;
+    let voteId = 0;
+    try {
+      const r = db.exec('SELECT last_insert_rowid() AS id');
+      voteId = (r && r.length && r[0].values.length) ? r[0].values[0][0] : 0;
+    } catch (e) {}
+    if (!voteId) return res.status(500).json({ error: '创建投票失败' });
     if (Array.isArray(options)) {
-      options.forEach((opt, idx) => {
-        const text = String(opt?.text || opt || '').trim();
-        if (text) db.run('INSERT INTO vote_options(vote_id, text, order_index) VALUES(?,?,?)', [voteId, text, idx]);
+      // created_at 是 NOT NULL 且无默认值：原插入语句漏了该列，建投票直接 500。
+      options.slice(0, 50).forEach((opt, idx) => {
+        const text = String(opt?.text || opt || '').trim().slice(0, 200);
+        if (text) db.run('INSERT INTO vote_options(vote_id, text, order_index, created_at) VALUES(?,?,?,?)', [voteId, text, idx, now]);
       });
     }
     res.json({ success: true, voteId });
@@ -129,7 +162,9 @@ module.exports = function register(app, db, auth) {
       const voteData = { ...v, options: opts };
       // 统计票数
       for (const opt of opts) {
-        opt.votes = db.prepare('SELECT COUNT(*) as cnt FROM vote_votes WHERE option_id=?').get(opt.id);
+        // 原先返回的是 {cnt:n} 对象，客户端按数字渲染会显示 [object Object]
+        const c = db.prepare('SELECT COUNT(*) as cnt FROM vote_votes WHERE option_id=?').get(opt.id);
+        opt.votes = (c && c.cnt) || 0;
       }
       options.push(voteData);
     }
@@ -137,15 +172,20 @@ module.exports = function register(app, db, auth) {
   });
 
   app.post('/api/groups/votes/:voteId/vote', requireAuth, (req, res) => {
-    const { optionIds } = req.body || [];
-    if (!optionIds || optionIds.length === 0) return res.status(400).json({ error: '请选择投票选项' });
+    // 原写法 `const { optionIds } = req.body || []`：body 为数组/为空时解构出 undefined，
+    // 且未去重、未限数量 —— 重复 id 会重复插行把票数刷高（旧表主键还会直接 500）。
+    const body = req.body || {};
+    const raw = Array.isArray(body.optionIds) ? body.optionIds : [];
+    const optionIds = Array.from(new Set(raw.map(v => Number(v)).filter(Number.isInteger)));
+    if (!optionIds.length) return res.status(400).json({ error: '请选择投票选项' });
+    if (optionIds.length > 50) return res.status(400).json({ error: '最多选择 50 个选项' });
     const vote = db.prepare('SELECT * FROM group_votes WHERE id=?').get(req.params.voteId);
     if (!vote) return res.status(404).json({ error: '投票不存在' });
     if (!memberOf(vote.group_id, req.user.id)) return res.status(403).json({ error: '非群成员' });
     if (vote.ended) return res.status(400).json({ error: '投票已结束' });
     const optRows = db.prepare('SELECT id FROM vote_options WHERE vote_id=?').all(vote.id);
     const validOptIds = new Set(optRows.map(o => o.id));
-    for (const oid of optionIds) { if (!validOptIds.has(Number(oid))) return res.status(400).json({ error: '包含无效选项' }); }
+    for (const oid of optionIds) { if (!validOptIds.has(oid)) return res.status(400).json({ error: '包含无效选项' }); }
     if (!vote.allow_change) {
       const existing = db.prepare('SELECT * FROM vote_votes WHERE vote_id=? AND user_id=?').get(vote.id, req.user.id);
       if (existing) return res.status(400).json({ error: '已投票，不可重复' });
@@ -154,10 +194,10 @@ module.exports = function register(app, db, auth) {
     db.run('DELETE FROM vote_votes WHERE vote_id=? AND user_id=?', [vote.id, req.user.id]);
     // 插入新投票
     for (const optId of optionIds) {
-      db.run('INSERT INTO vote_votes(vote_id, user_id, option_id, created_at) VALUES(?,?,?,?)',
+      db.run('INSERT OR IGNORE INTO vote_votes(vote_id, user_id, option_id, created_at) VALUES(?,?,?,?)',
         [vote.id, req.user.id, optId, Date.now()]);
     }
-    res.json({ success: true });
+    res.json({ success: true, selected: optionIds.length });
   });
 
   app.post('/api/groups/votes/:voteId/end', requireAuth, (req, res) => {
@@ -208,35 +248,44 @@ module.exports = function register(app, db, auth) {
     const row = msg || gmsg;
     if (!row) return res.status(404).json({ error: '消息不存在' });
     const uid = req.user.id;
-    let allowed = false;
-    if (msg) allowed = (row.from_id === uid || row.to_id === uid);
-    else {
-      allowed = (row.from_id === uid) || !!db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(row.group_id, uid);
-    }
+    // 只有发送者可以设置阅后即焚（群主可对群内消息兜底）；普通成员不能焚毁别人的消息。
+    const g = gmsg ? db.prepare('SELECT owner_id FROM groups WHERE id=?').get(gmsg.group_id) : null;
+    const allowed = (row.from_id === uid) || (g && g.owner_id === uid);
     if (!allowed) return res.status(403).json({ error: '无权操作该消息' });
+    const kind = msg ? 'direct' : 'group';
     const now = Date.now();
     db.run(
-      'INSERT OR REPLACE INTO message_timers(message_id, duration, started_at) VALUES(?,?,?)',
-      [messageId, dur, now]
+      'INSERT OR REPLACE INTO message_timers(message_id, kind, duration, started_at) VALUES(?,?,?,?)',
+      [messageId, kind, dur, now]
     );
-    setTimeout(() => {
-      destroyBurnMessage(messageId);
-    }, dur * 1000);
-    res.json({ success: true });
+    scheduleBurn(kind, Number(messageId), dur * 1000);
+    res.json({ success: true, kind });
   });
 
-  function destroyBurnMessage(messageId) {
+  // 计时器按 (kind, messageId) 记账，避免单聊/群聊自增 id 相同的消息互相误删。
+  const _burnTimers = new Map();
+  function scheduleBurn(kind, messageId, delayMs) {
+    const key = kind + ':' + messageId;
+    const old = _burnTimers.get(key);
+    if (old) { try { clearTimeout(old); } catch (e) {} }
+    const t = setTimeout(() => { _burnTimers.delete(key); destroyBurnMessage(kind, messageId); }, Math.max(0, delayMs));
+    if (t && typeof t.unref === 'function') t.unref();
+    _burnTimers.set(key, t);
+  }
+
+  function destroyBurnMessage(kind, messageId) {
     try {
+      const isGroup = kind === 'group';
       // 先查出消息信息（含发送者/接收者），再删除并广播
-      const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
-      const gmsg = msg ? null : db.prepare('SELECT * FROM group_messages WHERE id=?').get(messageId);
-      // 从单聊表删除
-      db.run('DELETE FROM messages WHERE id=?', [messageId]);
-      // 从群聊表删除
-      db.run('DELETE FROM group_messages WHERE id=?', [messageId]);
-      // 从 message_meta 删除
-      db.run('DELETE FROM message_meta WHERE message_id=?', [messageId]);
-      db.run('DELETE FROM group_message_meta WHERE message_id=?', [messageId]);
+      const msg = isGroup ? null : db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
+      const gmsg = isGroup ? db.prepare('SELECT * FROM group_messages WHERE id=?').get(messageId) : null;
+      if (isGroup) {
+        db.run('DELETE FROM group_messages WHERE id=?', [messageId]);
+        db.run('DELETE FROM group_message_meta WHERE message_id=?', [messageId]);
+      } else {
+        db.run('DELETE FROM messages WHERE id=?', [messageId]);
+        db.run('DELETE FROM message_meta WHERE message_id=?', [messageId]);
+      }
       // 广播销毁消息
       const sendToUser = global.__scSendToUser;
       if (sendToUser) {
@@ -250,15 +299,42 @@ module.exports = function register(app, db, auth) {
           }
         }
       }
-      db.run('DELETE FROM message_timers WHERE message_id=?', [messageId]);
+      db.run('DELETE FROM message_timers WHERE message_id=? AND kind=?', [messageId, kind]);
       db.persist && db.persist();
     } catch (e) {
       console.error('[burn] destroy failed:', e.message);
     }
   }
 
+  // 重启恢复：setTimeout 不会跨进程存活，原实现重启后所有焚毁任务永久丢失。
+  // 启动时按剩余时间重新排程，已超时的立即销毁。
+  try {
+    const pending = db.prepare('SELECT * FROM message_timers').all();
+    for (const t of pending) {
+      const elapsed = Date.now() - t.started_at;
+      const remain = t.duration * 1000 - elapsed;
+      const kind = t.kind || 'direct';
+      if (remain <= 0) destroyBurnMessage(kind, t.message_id);
+      else scheduleBurn(kind, t.message_id, remain);
+    }
+    if (pending.length) console.log('[burn] 已恢复 ' + pending.length + ' 个阅后即焚计时器');
+  } catch (e) {
+    console.error('[burn] 恢复计时器失败:', e && e.message);
+  }
+
   app.get('/api/message/burn-status/:messageId', requireAuth, (req, res) => {
-    const timer = db.prepare('SELECT * FROM message_timers WHERE message_id=?').get(req.params.messageId);
+    const mid = Number(req.params.messageId);
+    // 归属校验：原接口不校验，任何人都能探测任意消息是否存在焚毁计时器
+    const msg = db.prepare('SELECT from_id, to_id FROM messages WHERE id=?').get(mid);
+    const gmsg = msg ? null : db.prepare('SELECT from_id, group_id FROM group_messages WHERE id=?').get(mid);
+    // 消息已不存在（可能已焚毁）：直接告知不存在，避免把"已销毁"误报成"无权访问"
+    if (!msg && !gmsg) return res.json({ exists: false, destroyed: true });
+    let allowed = false;
+    if (msg) allowed = (msg.from_id === req.user.id || msg.to_id === req.user.id);
+    else if (gmsg) allowed = !!db.prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(gmsg.group_id, req.user.id);
+    if (!allowed) return res.status(403).json({ error: '无权访问该消息' });
+    const timer = db.prepare('SELECT * FROM message_timers WHERE message_id=? AND kind=?')
+      .get(mid, msg ? 'direct' : 'group');
     if (!timer) return res.json({ exists: false });
     const elapsed = (Date.now() - timer.started_at) / 1000;
     const remaining = Math.max(0, timer.duration - elapsed);

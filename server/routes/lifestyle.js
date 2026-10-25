@@ -299,12 +299,10 @@ module.exports = function registerLifestyle(app, db, auth) {
   app.get('/api/nearby/list', (req, res) => {
     const id = me(res, req); if (!id) return;
     const m = prepare('SELECT * FROM nearby_markers WHERE user_id=?').get(id.id);
+    // 读接口不做写操作：原实现在这里 INSERT 一条 (0,0) 标记，
+    // 任何人反复 GET 都会产生/刷新数据（GET 不幂等），且 0,0 会让"同城"匹配到所有未设置位置的人。
+    // 未设置位置时只按资料城市过滤，不落库；用户需显式调用 /api/nearby/set。
     const city = (m && m.city) || guessCity(req, id.id);
-    // 保证自己也有标记，便于同城匹配
-    if (!m) {
-      prepare('INSERT INTO nearby_markers(user_id,city,region,lat,lng,last_seen) VALUES(?,?,?,?,?,?)')
-        .run(id.id, city, '', 0, 0, Date.now());
-    }
     const cutoff = Date.now() - NEARBY_ACTIVE_MS;
     const rows = prepare(`SELECT n.*, u.username,u.nickname,u.avatar,u.uid FROM nearby_markers n
       LEFT JOIN users u ON u.id=n.user_id

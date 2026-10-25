@@ -353,15 +353,23 @@ module.exports = function registerGroups(app, db, auth) {
     const userIds = Array.isArray(body.userIds) ? body.userIds.map(v => parseInt(v, 10)).filter(Number.isInteger) : [];
     if (Array.isArray(body.uids)) uids = body.uids;
     if (body.uid && typeof body.uid === 'string') uids.push(body.uid);
+    // 批量与容量上限：原实现接受任意长度数组且无成员上限，
+    // 单个请求即可把成千上万人塞进一个群，之后每条群消息都要按成员数扇出（放大攻击面）。
+    if (userIds.length > 50 || uids.length > 50) return fail(res, 400, '单次最多邀请 50 人');
+    const GROUP_MEMBER_LIMIT = 500;
+    const curCount = (p.get('SELECT COUNT(*) AS c FROM group_members WHERE group_id=?', groupId) || { c: 0 }).c;
+    let remaining = GROUP_MEMBER_LIMIT - curCount;
+    if (remaining <= 0) return fail(res, 400, '群成员已达上限（' + GROUP_MEMBER_LIMIT + ' 人）');
     const added = [];
     const g = p.get('SELECT id, name, owner_id FROM groups WHERE id=?', groupId);
     for (const userId of userIds) {
       const target = p.get('SELECT id FROM users WHERE id=?', userId);
       if (!target || target.id === req.user.id || memberOf(groupId, target.id)) continue;
+      if (remaining <= 0) break;
       if (blockedEither(target.id, req.user.id) || blockedEither(target.id, g.owner_id)) continue;
       p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, Date.now());
       grantJoin(groupId, target.id);
-      added.push(target.id);
+      added.push(target.id); remaining--;
     }
     for (const uid of uids) {
       if (!uid || typeof uid !== 'string') continue;
@@ -370,9 +378,10 @@ module.exports = function registerGroups(app, db, auth) {
       if (target.id === req.user.id) continue;
       if (blockedEither(target.id, req.user.id) || blockedEither(target.id, g.owner_id)) continue;
       if (memberOf(groupId, target.id)) continue;
+      if (remaining <= 0) break;
       p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, target.id, Date.now());
       grantJoin(groupId, target.id);
-      added.push(target.id);
+      added.push(target.id); remaining--;
     }
     const intro = String(body.intro || '').trim().slice(0, 200);
     if (added.length && intro) {

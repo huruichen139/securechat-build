@@ -514,7 +514,7 @@ try {
     user_id INTEGER NOT NULL,
     option_id INTEGER NOT NULL,
     created_at INTEGER NOT NULL,
-    PRIMARY KEY(vote_id, user_id)
+    PRIMARY KEY(vote_id, user_id, option_id)
   );
     CREATE TABLE IF NOT EXISTS group_todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -550,6 +550,56 @@ try {
   `);
   try { db.run('CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages(from_id, to_id, created_at)'); } catch (e) {}
   try { db.run('CREATE INDEX IF NOT EXISTS idx_group_messages_pair ON group_messages(group_id, created_at)'); } catch (e) {}
+
+  // ======== 阅后即焚计时器：区分单聊/群聊 ========
+  // messages 与 group_messages 的自增 id 各自独立，旧表仅用 message_id 作主键，
+  // 焚毁 id=100 的私聊消息会连带删掉 id=100 的群消息（跨表误删），
+  // 且无法在重启后恢复定时器。这里重建为 (kind, message_id) 复合主键。
+  try {
+    const info = db.exec("SELECT sql FROM sqlite_master WHERE type='table' AND name='message_timers'");
+    const sql = info && info[0] && info[0].values && info[0].values[0] && String(info[0].values[0][0] || '');
+    if (sql && !/kind/i.test(sql)) {
+      db.run(`CREATE TABLE IF NOT EXISTS message_timers_new (
+        message_id INTEGER NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'direct',
+        duration INTEGER NOT NULL,
+        started_at INTEGER NOT NULL,
+        PRIMARY KEY(kind, message_id)
+      )`);
+      db.run(`INSERT OR IGNORE INTO message_timers_new(message_id, kind, duration, started_at)
+        SELECT message_id, 'direct', duration, started_at FROM message_timers`);
+      db.run('DROP TABLE message_timers');
+      db.run('ALTER TABLE message_timers_new RENAME TO message_timers');
+      console.log('[db] message_timers 已升级为 (kind,message_id) 复合主键');
+    }
+  } catch (e) {
+    console.error('[db] message_timers 迁移失败:', e && e.message);
+  }
+
+  // ======== 群投票多选修复 ========
+  // 旧表主键是 (vote_id, user_id)，多选投票插入第二个选项就撞主键 → 500，
+  // 且 DELETE 后第一条已插入造成"只投了第一个选项"的脏状态。
+  // SQLite 不能改主键，这里按需重建表（保留既有数据并去重）。
+  try {
+    const info = db.exec("SELECT sql FROM sqlite_master WHERE type='table' AND name='vote_votes'");
+    const sql = info && info[0] && info[0].values && info[0].values[0] && String(info[0].values[0][0] || '');
+    if (sql && !/option_id\s*\)/i.test(sql)) {
+      db.run(`CREATE TABLE IF NOT EXISTS vote_votes_new (
+        vote_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        option_id INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY(vote_id, user_id, option_id)
+      )`);
+      db.run(`INSERT OR IGNORE INTO vote_votes_new(vote_id, user_id, option_id, created_at)
+        SELECT vote_id, user_id, option_id, created_at FROM vote_votes`);
+      db.run('DROP TABLE vote_votes');
+      db.run('ALTER TABLE vote_votes_new RENAME TO vote_votes');
+      console.log('[db] vote_votes 主键已升级为 (vote_id,user_id,option_id)');
+    }
+  } catch (e) {
+    console.error('[db] vote_votes 迁移失败:', e && e.message);
+  }
 
   // ======== seq 同步协议 ========
   // 全局序列号计数器（messages 和 group_messages 共用一个递增 seq）

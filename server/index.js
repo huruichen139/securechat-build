@@ -5297,6 +5297,9 @@ wss.on('connection', (ws, req) => {
       // 导致 A 的消息被投递给已登录成 B 的连接（跨账号泄露），
       // 且 onlineAny(A) 恒为 true 使 A 的消息永不进入离线队列（永久丢失）。
       if (ws.uid && ws.uid !== dbUser.id) { try { removeWs(ws.uid, ws); } catch (e) {} }
+      // 同一连接重复认证同一 uid：先把本连接从列表摘掉，否则下面 push 会让同一 ws 在
+      // online 列表里出现多次，sendToUser 重复下发同一条消息（多端同步时表现为消息重复）。
+      if (ws.uid === dbUser.id) { try { removeWs(ws.uid, ws); } catch (e) {} }
       ws.uid = dbUser.id;
       try { clearTimeout(authTimer); } catch {} // 认证成功，清除超时
       ws.user = publicUser(dbUser);
