@@ -1914,7 +1914,7 @@ app.get('/api/history/:peerId', (req, res) => {
       AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
     ORDER BY m.created_at DESC LIMIT ? OFFSET ?`)
     .all(payload.id, peerId, peerId, payload.id, payload.id, peerId, peerId, payload.id, payload.id, limit, offset);
-  const msgs = rows.reverse().map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
+  const msgs = rows.reverse().map(r => ({ id: r.id, from: r.from_id, to: r.to_id, content: r.recalled ? '' : r.content, createdAt: r.created_at, read: r.read, replyTo: r.reply_to, forwardedFrom: r.forwarded_from, burnAfterReading: !!r.burn_after_reading, pinned: !!r.pinned, recalled: !!r.recalled, replyContent: r.reply_recalled ? null : (r.reply_content || null), replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled }));
   res.json({ messages: msgs });
 });
 
@@ -2560,7 +2560,10 @@ app.get('/api/group/:id/messages', (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   const rows = prepare(
-    `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS fromId, gm.content, gm.created_at AS createdAt,
+    `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS fromId,
+            CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content,
+            gm.recalled, gm.created_at AS createdAt,
+            gmm.pinned, gmm.reply_to AS replyTo,
             u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
       FROM group_messages gm LEFT JOIN users u ON u.id = gm.from_id
       LEFT JOIN group_message_meta gmm ON gmm.message_id = gm.id
@@ -2569,7 +2572,7 @@ app.get('/api/group/:id/messages', (req, res) => {
   const msgs = rows.reverse().map(r => ({
     id: r.id, groupId: r.groupId, from: r.fromId, content: r.content, createdAt: r.createdAt,
     fromUser: { id: r.userId, username: r.username, nickname: r.nickname, avatar: r.avatar, uid: r.userUid },
-    pinned: !!r.pinned, replyTo: r.replyTo || null
+    pinned: !!r.pinned, replyTo: r.replyTo || null, recalled: !!r.recalled
   }));
   res.json({ messages: msgs });
 });
@@ -2913,7 +2916,11 @@ app.all('/api/wallet/recharge/notify', (req, res) => {
     const r = prepare('SELECT * FROM wallet_recharges WHERE order_no=?').get(String(p.out_trade_no || ''));
     if (!r) { prepare('ROLLBACK').run(); return res.send('order not found'); }
     if (r.status === 'paid') { prepare('ROLLBACK').run(); return res.send('success'); }
-    if (Math.abs(Number(r.amount) - Number(p.money)) > 0.001) {
+    // 金额必须按分精确比对：原实现 Math.abs(a-b)>0.001 在 p.money 缺失/NaN 时
+    // 两边都是 NaN，比较为 false → 直接放行，金额校验形同虚设。
+    const notifyCents = Math.round(Number(p.money) * 100);
+    const orderCents = Math.round(Number(r.amount) * 100);
+    if (!Number.isFinite(notifyCents) || notifyCents <= 0 || notifyCents !== orderCents) {
       console.log('[wallet] recharge money mismatch: order=' + r.amount + ' notify=' + p.money);
       prepare('ROLLBACK').run(); return res.send('money mismatch');
     }
@@ -3503,7 +3510,8 @@ app.post('/api/admin/redeem/issue', (req, res) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const codes = [];
   for (let i = 0; i < count; i++) {
-    let c; do { c = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join(''); }
+    // 兑换码等同现金：必须用密码学随机数，Math.random 状态可预测（拿到几张码即可推算后续）
+    let c; do { c = Array.from({ length: 12 }, () => chars[crypto.randomInt(chars.length)]).join(''); }
     while (prepare('SELECT 1 FROM redeem_codes WHERE code=?').get(c));
     prepare('INSERT INTO redeem_codes(code,value,created_at) VALUES(?,?,?)').run(c, value, Date.now());
     codes.push(c);
@@ -3534,7 +3542,9 @@ app.post('/api/admin/wallet/add', (req, res) => {
   const guard = adminGuard(req, res);
   if (guard.sent) return;
   const b = req.body || {};
-  const amount = parseFloat(b.amount);
+  // 金额先归一到分，避免 0.005 产生亚分余额
+  const rawAmount = parseFloat(b.amount);
+  const amount = Math.round(rawAmount * 100) / 100;
   if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 1000000) return res.status(400).json({ error: '金额无效' });
   let user = null;
   if (b.userId) user = prepare('SELECT id FROM users WHERE id=?').get(parseInt(b.userId, 10));
@@ -3545,9 +3555,9 @@ app.post('/api/admin/wallet/add', (req, res) => {
   if (amount > 0) {
     prepare('UPDATE wallets SET balance=balance+?,total_received=total_received+?,updated_at=? WHERE user_id=?').run(amount, amount, Date.now(), user.id);
   } else {
-    const w = prepare('SELECT balance FROM wallets WHERE user_id=?').get(user.id);
-    if ((w.balance || 0) + amount < 0) return res.status(400).json({ error: '扣减后余额为负' });
-    prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(amount, Date.now(), user.id);
+    // 原子扣减：原实现先 SELECT 再 UPDATE，并发两个扣款请求都能通过非负检查（余额可为负）
+    const r = prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=? AND balance+?>=0').run(amount, Date.now(), user.id, amount);
+    if (!r || !r.changes) return res.status(400).json({ error: '扣减后余额为负' });
   }
   prepare('INSERT INTO wallet_txn(user_id,kind,amount,remark,created_at) VALUES(?,?,?,?,?)').run(user.id, amount > 0 ? 'recharge' : 'admin_deduct', Math.abs(amount), b.remark || '管理员调整', Date.now());
   persist();
@@ -5065,11 +5075,28 @@ app.post('/api/admin/group/dissolve', (req, res) => {
   if (!id) return res.status(400).json({ error: '缺少群ID' });
   const g = prepare('SELECT id,name FROM groups WHERE id=?').get(id);
   if (!g) return res.status(404).json({ error: '群不存在' });
+  // 管理员解散群必须做完整清理：原实现只删消息/成员/群，group_files（含磁盘文件）、
+  // 公告、投票、待办、入群凭证等全部残留（每群最多 2GB 磁盘永不回收）。
+  try { prepare('DELETE FROM group_message_meta WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)').run(id); } catch (e) {}
+  try { prepare('DELETE FROM message_reads WHERE message_id IN (SELECT id FROM group_messages WHERE group_id=?)').run(id); } catch (e) {}
   try { prepare('DELETE FROM group_messages WHERE group_id=?').run(id); } catch (e) {}
   try { prepare('DELETE FROM group_members WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_announcements WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_member_settings WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_setting_notes WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_votes WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_todos WHERE group_id=?').run(id); } catch (e) {}
+  try { prepare('DELETE FROM group_join_grants WHERE group_id=?').run(id); } catch (e) {}
+  try {
+    const files = prepare('SELECT id FROM group_files WHERE group_id=?').all(id);
+    const dir = path.join(__dirname, 'group-files');
+    for (const f of files) { try { fs.unlinkSync(path.join(dir, f.id + '.bin')); } catch (_) {} }
+    prepare('DELETE FROM group_files WHERE group_id=?').run(id);
+  } catch (e) {}
   try { prepare('DELETE FROM groups WHERE id=?').run(id); } catch (e) {}
   logAudit(guard.u.id, 'group_dissolve', id, 'group', '解散群: ' + g.name, clientIp(req));
   broadcastGroups();
+  persist();
   res.json({ ok: true, id });
 });
 // POST /api/admin/group/remove-member { groupId, userId }
@@ -5081,6 +5108,10 @@ app.post('/api/admin/group/remove-member', (req, res) => {
   const userId = Number((req.body || {}).userId);
   if (!groupId || !userId) return res.status(400).json({ error: '缺少参数' });
   try { prepare('DELETE FROM group_members WHERE group_id=? AND user_id=?').run(groupId, userId); } catch (e) {}
+  // 必须一并清掉入群凭证：否则被管理员移出的人可用残留 grant 自助 join 重新进群
+  try { prepare('DELETE FROM group_join_grants WHERE group_id=? AND user_id=?').run(groupId, userId); } catch (e) {}
+  try { prepare('DELETE FROM group_member_settings WHERE group_id=? AND user_id=?').run(groupId, userId); } catch (e) {}
+  try { prepare('DELETE FROM group_setting_notes WHERE group_id=? AND user_id=?').run(groupId, userId); } catch (e) {}
   logAudit(guard.u.id, 'group_remove_member', userId, 'user', '从群 #' + groupId + ' 移除成员', clientIp(req));
   broadcastGroups();
   res.json({ ok: true });
@@ -5134,7 +5165,9 @@ app.get('/api/sync', (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   // 私聊消息：自己发的 + 收到的
   const directMsgs = prepare(
-    `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
+    `SELECT m.id, m.from_id AS "from", m.to_id AS "to",
+            CASE WHEN m.recalled=1 THEN '' ELSE m.content END AS content,
+            m.recalled, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
      FROM messages m
      WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?)
        AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
@@ -5142,7 +5175,9 @@ app.get('/api/sync', (req, res) => {
   ).all(since, payload.id, payload.id, payload.id, limit);
   // 群聊消息：所在群的消息
   const groupMsgs = prepare(
-    `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from", gm.content, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
+    `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from",
+            CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content,
+            gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
      FROM group_messages gm
      JOIN group_members gmemb ON gmemb.group_id = gm.group_id AND gmemb.user_id = ?
      WHERE gm.seq > ?
@@ -5221,7 +5256,11 @@ app.get('/api/offline/pending', (req, res) => {
 app.get('/api/offline/pull', (req, res) => {
   const payload = authed(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const rows = prepare('SELECT id, from_id AS fromId, msg_type AS msgType, ref_id AS refId, content, seq, created_at AS createdAt FROM offline_queue WHERE user_id=? ORDER BY seq ASC LIMIT 500').all(payload.id);
+  const rows = prepare(`SELECT q.id, q.from_id AS fromId, q.msg_type AS msgType, q.ref_id AS refId,
+      CASE WHEN m.recalled=1 THEN '' ELSE q.content END AS content,
+      q.seq, q.created_at AS createdAt, COALESCE(m.recalled,0) AS recalled
+    FROM offline_queue q LEFT JOIN messages m ON m.id=q.ref_id
+    WHERE q.user_id=? ORDER BY q.seq ASC LIMIT 500`).all(payload.id);
   const maxSeq = rows.length ? Math.max(...rows.map(r => r.seq || 0)) : 0;
   // 清除已拉取的队列（避免重复推送）
   for (const r of rows) {
@@ -5526,7 +5565,7 @@ wss.on('connection', (ws, req) => {
           : prepare('SELECT * FROM messages WHERE to_id=? AND read=0 AND id NOT IN (SELECT message_id FROM hidden_messages WHERE user_id=?) ORDER BY seq ASC LIMIT 500').all(dbUser.id, dbUser.id);
         let maxPushed = 0;
         for (const m of offlineMsgs) {
-          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading, seq: m.seq || null });
+          send(ws, P.S_MSG, { id: m.id, from: m.from_id, to: m.to_id, content: m.recalled ? '' : m.content, createdAt: m.created_at, read: false, replyTo: m.reply_to || null, clientMsgId: m.client_msg_id || null, forwardedFrom: m.forwarded_from || null, burnAfterReading: !!m.burn_after_reading, recalled: !!m.recalled, seq: m.seq || null });
           if (Number(m.seq) > maxPushed) maxPushed = Number(m.seq);
         }
         if (maxPushed > 0) {
@@ -5763,14 +5802,18 @@ wss.on('connection', (ws, req) => {
       const limit = Math.min(Math.max(Number((payload || {}).limit) || 200, 1), 500);
       // 私聊消息
       const directMsgs = prepare(
-        `SELECT m.id, m.from_id AS "from", m.to_id AS "to", m.content, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
+        `SELECT m.id, m.from_id AS "from", m.to_id AS "to",
+                CASE WHEN m.recalled=1 THEN '' ELSE m.content END AS content,
+                m.recalled, m.created_at AS createdAt, m.seq, m.client_msg_id AS clientMsgId, m.read
          FROM messages m WHERE m.seq > ? AND (m.from_id = ? OR m.to_id = ?)
            AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
          ORDER BY m.seq ASC LIMIT ?`
       ).all(since, ws.uid, ws.uid, ws.uid, limit);
       // 群聊消息
       const groupMsgs = prepare(
-        `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from", gm.content, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
+        `SELECT gm.id, gm.group_id AS groupId, gm.from_id AS "from",
+                CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content,
+                gm.recalled, gm.created_at AS createdAt, gm.seq, gm.client_msg_id AS clientMsgId
          FROM group_messages gm JOIN group_members gmemb ON gmemb.group_id = gm.group_id AND gmemb.user_id = ?
          WHERE gm.seq > ? ORDER BY gm.seq ASC LIMIT ?`
       ).all(ws.uid, since, limit);

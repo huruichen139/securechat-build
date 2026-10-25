@@ -152,11 +152,13 @@ function groupMsgDto(r, viewerId) {
   } catch (e) { /* message_reads 表缺失时忽略 */ }
   return {
     id: r.id, groupId: r.group_id, from: r.from_id,
-    content: r.content, createdAt: r.created_at,
+    // 撤回后正文必须脱敏：原实现只带 recalled 标志，历史接口仍返回原文，
+    // 任何成员都能取回被撤回内容（客户端只是不渲染）。
+    content: r.recalled ? '' : r.content, createdAt: r.created_at,
     clientMsgId: r.client_msg_id || null,
     seq: r.seq || null,
     fromUser: { id: r.from_id, username: sender && sender.username, nickname: name, avatar: sender && sender.avatar, uid: sender && sender.uid },
-    replyTo: r.reply_to || null, replyContent: r.reply_content || null, replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled,
+    replyTo: r.reply_to || null, replyContent: r.reply_recalled ? '' : (r.reply_content || null), replyFrom: r.reply_from || null, replyRecalled: !!r.reply_recalled,
     forwardedFrom: r.forwarded_from || null,
     recalled: !!r.recalled,
     read, readCount,
@@ -410,6 +412,10 @@ module.exports = function registerGroups(app, db, auth) {
     if (memberOf(groupId, req.user.id)) return fail(res, 400, '你已在此群');
     const grant = p.get('SELECT 1 FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, req.user.id);
     if (!grant) return fail(res, 403, '需要群主邀请才能加入');
+    // 人数上限与黑名单在入群时必须复核：grant 可能是在群已满/被拉黑之前发出的
+    const curCnt = p.get('SELECT COUNT(*) AS c FROM group_members WHERE group_id=?', groupId);
+    if (curCnt && Number(curCnt.c) >= 500) return fail(res, 400, '群成员已达上限（500 人）');
+    if (blockedEither(g.owner_id, req.user.id)) return fail(res, 403, '无法加入该群');
     p.run('INSERT OR IGNORE INTO group_members(group_id,user_id,joined_at) VALUES(?,?,?)', groupId, req.user.id, Date.now());
     p.run('DELETE FROM group_join_grants WHERE group_id=? AND user_id=?', groupId, req.user.id);
     res.json({ ok: true, groupId });
@@ -473,7 +479,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
-    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 200, 500));
     const before = parseInt(req.query.before, 10) || null;
     let sql = `SELECT gm.*,gmm.reply_to,gmm.forwarded_from,pm.content AS reply_content,pm.from_id AS reply_from,pm.recalled AS reply_recalled
        FROM group_messages gm
@@ -498,6 +504,8 @@ module.exports = function registerGroups(app, db, auth) {
     const content = String((req.body || {}).content || '');
     if (!content) return fail(res, 400, '消息内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
+    const cidRaw = String((req.body || {}).clientMsgId || '');
+    if (cidRaw && !/^[A-Za-z0-9_-]{8,100}$/.test(cidRaw)) return fail(res, 400, '消息标识无效');
     const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''), { replyTo: (req.body || {}).replyTo, forwardedFrom: (req.body || {}).forwardedFrom });
     res.json({ ok: true, message: { id: msgId.id, groupId, from: req.user.id, content, createdAt: msgId.createdAt, seq: msgId.seq || null, replyTo: msgId.replyTo || null, read: true, readCount: 1 } });
   });
@@ -545,7 +553,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (body.muted !== undefined || body.nickname !== undefined) {
       const cur = p.get('SELECT my_nickname, muted FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, req.user.id) || { my_nickname: null, muted: 0 };
       const muted = body.muted === undefined ? cur.muted : (body.muted ? 1 : 0);
-      const nickname = body.nickname === undefined ? (cur.my_nickname || null) : (String(body.nickname || '').trim() || null);
+      const nickname = body.nickname === undefined ? (cur.my_nickname || null) : (String(body.nickname || '').trim().slice(0, 32) || null);
       p.run(`INSERT INTO group_member_settings(group_id,user_id,my_nickname,muted,updated_at) VALUES(?,?,?,?,?)
         ON CONFLICT(group_id,user_id) DO UPDATE SET my_nickname=excluded.my_nickname,muted=excluded.muted,updated_at=excluded.updated_at`,
         groupId, req.user.id, nickname, muted, now);
@@ -567,7 +575,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
-    const nickname = String((req.body || {}).nickname || '').trim();
+    const nickname = String((req.body || {}).nickname || '').trim().slice(0, 32);
     p.run(`INSERT INTO group_member_settings(group_id,user_id,my_nickname,updated_at) VALUES(?,?,?,?)
       ON CONFLICT(group_id,user_id) DO UPDATE SET my_nickname=excluded.my_nickname,updated_at=excluded.updated_at`,
       groupId, req.user.id, nickname || null, Date.now());
@@ -604,7 +612,7 @@ module.exports = function registerGroups(app, db, auth) {
       if (Number(q.s) + req.body.length > 2 * 1024 * 1024 * 1024) return fail(res, 400, '群文件空间已满（上限2GB）');
     } catch (e) { /* 表缺失时放行 */ }
     const name = String(req.query.name || 'file').trim().slice(0, 240) || 'file';
-    const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
+    const mime = String(req.query.mime || 'application/octet-stream').replace(/[\r\n]/g, '').slice(0, 120);
     const id = crypto.randomUUID();
     const filePath = path.join(GROUP_FILES_DIR, id + '.bin');
     try {
@@ -640,11 +648,23 @@ module.exports = function registerGroups(app, db, auth) {
     if (!file) return fail(res, 404, '文件不存在');
     if (!memberOf(file.group_id, req.user.id)) return fail(res, 403, '你不在此群');
     const resolved = path.resolve(file.path);
-    if (!resolved.startsWith(path.resolve(GROUP_FILES_DIR))) return fail(res, 403, '路径非法');
+    if (!resolved.startsWith(path.resolve(GROUP_FILES_DIR) + path.sep)) return fail(res, 403, '路径非法');
     if (!fs.existsSync(resolved)) return fail(res, 404, '文件不存在');
-    res.setHeader('Content-Type', file.mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${String(file.name).replace(/["\\\r\n]/g, '_')}"`);
-    fs.createReadStream(resolved).pipe(res);
+    // Content-Disposition 只能放 latin1：中文文件名会抛 ERR_INVALID_CHAR 直接 500，
+    // 而中文名是主用户群的常态。改用 RFC 5987 的 filename*。
+    const SAFE_INLINE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'audio/mpeg', 'audio/mp4', 'audio/ogg', 'video/mp4', 'video/webm', 'application/pdf', 'text/plain']);
+    const mime = String(file.mime || '').split(';')[0].trim().toLowerCase();
+    res.setHeader('Content-Type', SAFE_INLINE.has(mime) ? mime : 'application/octet-stream');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const safeName = String(file.name || 'file').replace(/["\\\r\n]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(safeName)}`);
+    const stream = fs.createReadStream(resolved);
+    stream.on('error', (e) => {
+      console.error('[group-files] 读取失败: ' + (e && e.message || e));
+      if (!res.headersSent) { try { res.status(404).json({ error: '文件不存在' }); } catch (_) {} }
+      else { try { res.destroy(); } catch (_) {} }
+    });
+    stream.pipe(res);
   });
 
   // ---------- 群文件删除：DELETE /api/groups/:id/files/:fileId ----------

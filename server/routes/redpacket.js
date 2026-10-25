@@ -132,7 +132,7 @@ module.exports = function registerRedpacket(app, db, auth) {
 
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
         .run(me.id, 'out', value, targetType === 'dm' ? targetId : null, '发红包 ' + (greeting || ''), Date.now());
-      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+      prepare('COMMIT').run();
     } catch (e) {
       try { prepare('ROLLBACK').run(); } catch (e2) {}
       return res.status(500).json({ error: '发红包失败' });
@@ -263,6 +263,17 @@ module.exports = function registerRedpacket(app, db, auth) {
     const id = parseInt(req.params.id, 10);
     const pkt = prepare('SELECT * FROM red_packets WHERE id=?').get(id);
     if (!pkt) return res.status(404).json({ error: '红包不存在' });
+    // 详情只对参与者可见：红包 id 自增可枚举，原实现任意登录用户都能读取
+    // 他人红包的金额、剩余金额与领取明细（canViewAmount 只影响前端展示）。
+    let allowed = pkt.sender_id === me.id;
+    if (!allowed) {
+      if (pkt.target_type === 'group') {
+        allowed = !!prepare('SELECT 1 FROM group_members WHERE group_id=? AND user_id=?').get(pkt.target_id, me.id);
+      } else {
+        allowed = pkt.target_id === me.id;
+      }
+    }
+    if (!allowed) return res.status(403).json({ error: '无权查看该红包' });
     const sender = prepare('SELECT id,nickname,uid,avatar FROM users WHERE id=?').get(pkt.sender_id);
     const grabs = prepare('SELECT user_id,amount,created_at FROM red_packet_grabs WHERE packet_id=? ORDER BY created_at ASC').all(id);
     const grabUsers = {};
@@ -313,7 +324,7 @@ module.exports = function registerRedpacket(app, db, auth) {
       prepare('UPDATE red_packets SET status=?,remaining_amount=?,remaining_count=? WHERE id=?').run('refunded', 0, 0, id);
       prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
         .run(me.id, 'in', refundAmt, null, '退回红包', Date.now());
-      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+      prepare('COMMIT').run();
     } catch (e) {
       try { prepare('ROLLBACK').run(); } catch (e2) {}
       return res.status(500).json({ error: '退回失败' });
@@ -364,7 +375,7 @@ module.exports = function registerRedpacket(app, db, auth) {
             prepare('UPDATE wallets SET balance=balance+?,updated_at=? WHERE user_id=?').run(refundAmt, Date.now(), pkt.sender_id);
             prepare('INSERT INTO wallet_txn(user_id,kind,amount,peer_id,remark,created_at) VALUES(?,?,?,?,?,?)')
               .run(pkt.sender_id, 'in', refundAmt, null, '24小时未领完自动退回', Date.now());
-            try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} }
+            prepare('COMMIT').run();
           } catch (e) {
             try { prepare('ROLLBACK').run(); } catch (e2) {}
           }

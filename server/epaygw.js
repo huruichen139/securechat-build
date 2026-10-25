@@ -281,8 +281,14 @@ module.exports = function (app, db, authMw) {
 
   function syncSecurechatOrder(outTradeNo) {
     try {
-      const sc = db.prepare('SELECT status FROM pay_orders WHERE order_no=?').get(outTradeNo);
+      const sc = db.prepare('SELECT status, amount FROM pay_orders WHERE order_no=?').get(outTradeNo);
       const o = orders.get(outTradeNo);
+      // 金额必须与站内订单一致：否则可先用小额/任意金额建网关单，再触发同步，
+      // 让网关以被篡改的金额向 notify_url 发出合法签名的支付成功通知。
+      if (sc && o && Math.round(Number(sc.amount) * 100) !== Math.round(Number(o.money) * 100)) {
+        console.warn('[epaygw] 同步被拒绝，金额不一致: ' + outTradeNo + ' sc=' + sc.amount + ' gw=' + o.money);
+        return;
+      }
       if (sc && o && o.status !== 'TRADE_SUCCESS' && sc.status === 'paid') {
         o.status = 'TRADE_SUCCESS';
         o.paid_at = Date.now();
@@ -408,6 +414,16 @@ module.exports = function (app, db, authMw) {
       if (ap.amount !== undefined && ap.amount !== '' && !ap.money) ap.money = String(Number(ap.amount) / 100);
       if (!ap.pid) ap.pid = '1000';
       if (!ap.type) ap.type = 'wxpay';
+      // 该分支不验签，绝不能让请求方决定金额/回调地址：
+      // 若订单号已存在于站内 pay_orders，一律以库内金额与回调为准。
+      try {
+        const sc0 = db.prepare('SELECT amount, subject, callback_url FROM pay_orders WHERE order_no=?').get(String(ap.out_trade_no || ''));
+        if (sc0) {
+          ap.money = Number(sc0.amount).toFixed(2);
+          ap.name = sc0.subject || ap.name;
+          ap.notify_url = sc0.callback_url || '';
+        }
+      } catch (e) { console.error('[epaygw] load sc order failed: ' + (e && e.message || e)); }
       const o = createOrder(ap);
       if (!o) return res.status(400).json({ code: -1, msg: 'order amount invalid' });
       const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');

@@ -48,4 +48,4 @@
 - 勿提交运行时目录：`backups/`、`*.sqlite.bak*`、`server/call-recordings/`、`server/files/`、`tools/`。
 
 ## EPay (wallet recharge)
-- PID 10060, key 1Y2ckaVXiYuQLKteg0IM (stored in DB settings epay_config). When changing PID, MUST also change key, otherwise qqxeg returns signature error.
+- PID 10060；商户密钥只存在 DB `settings.epay_config`（字段 key），**禁止写入仓库/文档/日志**。换 PID 时必须同时换 key，否则 qqxeg 返回签名错误。

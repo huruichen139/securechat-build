@@ -249,7 +249,9 @@ module.exports = function registerPayment(app, db, auth) {
   // 统一扣款+入账（冲钱包，写流水与账单），err 通过 cb({code,message}) callback 返回
   function doPay(fromId, toId, amount, remark, category, refId, cb, allowSelf) {
     if (!Number.isFinite(amount) || amount <= 0) return cb({ code: 400, message: '金额无效' });
+    // 先归一到分再校验下限：原实现先判 >0 再四舍五入，0.004 会变成 0 元"已支付"
     amount = Math.round(amount * 100) / 100;
+    if (amount < 0.01) return cb({ code: 400, message: '金额过小（最低0.01元）' });
     if (amount > 1000000) return cb({ code: 400, message: '金额超限' });
     if (fromId === toId && !allowSelf) return cb({ code: 400, message: '不能转给自己' });
     ensureWallet(fromId);
@@ -270,15 +272,15 @@ module.exports = function registerPayment(app, db, auth) {
       }
       addBill(fromId, 'out', category, amount, toId, remark + '（转出）', category, refId || null);
       addBill(toId, 'in', category, amount, fromId, remark + '（收入）', category, refId || null);
-      // 到账语音通知：推送给收款方（ws 在线连接），客户端播放"SecureChat到账 xx元"
+      // COMMIT 失败必须抛出:否则事务已回滚却仍回报成功,用户白嫖
+      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} throw e; }
+      // 到账通知必须在 COMMIT 成功之后：原实现先推送，事务回滚时收款方已收到"到账 xx 元"
       try {
         const sender = getUserRow(fromId);
         const senderName = sender ? (sender.nickname || sender.username || ('用户' + fromId)) : ('用户' + fromId);
         const notifier = (app && app.get && app.get('arrivalNotifier'));
         if (typeof notifier === 'function') notifier(toId, { amount, fromId, fromName: senderName, remark: remark || '转账', category: category || 'transfer' });
       } catch (e) {}
-      // COMMIT 失败必须抛出:否则事务已回滚却仍回报成功,用户白嫖
-      try { prepare('COMMIT').run(); } catch (e) { try { prepare('ROLLBACK').run(); } catch (e2) {} throw e; }
     } catch (e) {
       // 扣款/入账/流水都在同一事务内,ROLLBACK 已全部撤销,不能再手动加余额(否则凭空造钱)
       try { prepare('ROLLBACK').run(); } catch (e2) {}
@@ -332,13 +334,21 @@ module.exports = function registerPayment(app, db, auth) {
     res.json({ ok: true });
   });
 
-  // 生成付款码（短时效 2 分钟）：POST /api/pay/code/pay
+  // 生成付款码（短时效 10 分钟）：POST /api/pay/code/pay { amount? }
+  // amount 可选，作为本次付款码的单笔金额上限（防止他人扫到付款码后按任意金额扣款）。
   app.post('/api/pay/code/pay', mw, (req, res) => {
     const ownerId = req.user.id;
+    let cap = null;
+    const capRaw = (req.body && req.body.amount);
+    if (capRaw !== undefined && capRaw !== null && capRaw !== '') {
+      const v = parseFloat(capRaw);
+      if (!Number.isFinite(v) || v <= 0) return res.status(400).json({ error: '金额上限无效' });
+      cap = Math.round(v * 100) / 100;
+    }
     const token = crypto.randomBytes(16).toString('base64url');
     const expiresAt = Date.now() + 10 * 60 * 1000;
     prepare('INSERT INTO pay_codes(owner_id,type,token,amount,remark,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?)')
-      .run(ownerId, 'pay', token, null, '', 'active', expiresAt, Date.now());
+      .run(ownerId, 'pay', token, cap, '', 'active', expiresAt, Date.now());
     const code = prepare('SELECT * FROM pay_codes WHERE token=?').get(token);
     try { persist(); } catch (e) {}
     res.json({ ok: true, code: codePublic(code), qrText: codePayload(code), expiresAt });
@@ -415,6 +425,10 @@ module.exports = function registerPayment(app, db, auth) {
     if (code.owner_id === receiverId) return res.status(400).json({ error: '不能向自己收款' });
     const amount = parseFloat((req.body && req.body.amount));
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: '金额无效' });
+    // 付款码可携带单笔上限：超出上限一律拒绝，避免被扫到码后按任意金额扣款
+    if (code.amount != null && Math.round(amount * 100) > Math.round(Number(code.amount) * 100)) {
+      return res.status(400).json({ error: '金额超出付款码上限（' + Number(code.amount).toFixed(2) + ' 元）' });
+    }
     const claim2 = prepare("UPDATE pay_codes SET status='used' WHERE id=? AND status='active'").run(code.id);
     if (!claim2.changes) return res.status(410).json({ error: '码已失效或过期' });
     const remark = String((req.body && req.body.remark) || '').trim().slice(0, 100) || '付款码收款';
@@ -441,11 +455,14 @@ module.exports = function registerPayment(app, db, auth) {
     const creatorId = req.user.id;
     const groupId = parseInt((req.body && req.body.groupId), 10);
     const title = String((req.body && req.body.title) || '').trim().slice(0, 100);
-    const perAmount = parseFloat((req.body && req.body.amount));
+    const perAmountRaw = parseFloat((req.body && req.body.amount));
     if (!Number.isInteger(groupId) || !groupExists(groupId)) return res.status(404).json({ error: '群不存在' });
     if (!memberOf(groupId, creatorId)) return res.status(403).json({ error: '你不在此群' });
     if (!title) return res.status(400).json({ error: '请输入收款说明' });
-    if (!Number.isFinite(perAmount) || perAmount <= 0) return res.status(400).json({ error: '每人金额无效' });
+    // 金额必须在这里就归一到分：doPay 入账时四舍五入，若这里存 1.005，
+    // 断点恢复按 1.005 查不到 1.01 的流水，会删掉占位行重复扣款。
+    const perAmount = Math.round(perAmountRaw * 100) / 100;
+    if (!Number.isFinite(perAmount) || perAmount < 0.01) return res.status(400).json({ error: '每人金额无效（最低0.01元）' });
     const info = prepare('INSERT INTO group_collects(group_id,creator_id,title,amount,status,created_at) VALUES(?,?,?,?,?,?)')
       .run(groupId, creatorId, title, perAmount, 'open', Date.now());
     const id = info.lastInsertRowid;
@@ -502,7 +519,7 @@ module.exports = function registerPayment(app, db, auth) {
       // 直接把占位行转正,避免重复扣款
       const stale = existing.remark === '(处理中)' && (Date.now() - (existing.created_at || 0)) > 5 * 60 * 1000;
       if (!stale) return res.status(409).json({ error: '你已缴款或上一笔正在处理，请稍后重试' });
-      const paidRow = prepare("SELECT id FROM wallet_txn WHERE user_id=? AND kind='out' AND peer_id=? AND amount=? AND created_at>=? AND remark LIKE ?").get(userId, c.creator_id, c.amount, existing.created_at, '群收款%');
+      const paidRow = prepare("SELECT id FROM wallet_txn WHERE user_id=? AND kind='out' AND peer_id=? AND amount=? AND created_at>=? AND remark LIKE ?").get(userId, c.creator_id, Math.round(Number(c.amount) * 100) / 100, existing.created_at, '群收款%');
       if (paidRow) {
         prepare("UPDATE collect_payments SET remark=? WHERE id=?").run('已缴款(断点恢复)', existing.id);
         try { persist(); } catch (e) {}
@@ -517,7 +534,9 @@ module.exports = function registerPayment(app, db, auth) {
       if (String(e && e.message || e).includes('UNIQUE')) return res.status(409).json({ error: '你已缴款' });
       throw e;
     }
-    const remark = String((req.body && req.body.remark) || '').trim() || '群收款';
+    let remark = String((req.body && req.body.remark) || '').trim() || '群收款';
+    // 占位标记不能被用户备注覆盖，否则会干扰断点恢复的"处理中"判断
+    if (remark === '(处理中)') remark = '群收款';
     doPay(userId, c.creator_id, c.amount, '群收款：' + c.title, 'group_collect', c.id, (err, result) => {
       if (err) {
         prepare('DELETE FROM collect_payments WHERE collect_id=? AND user_id=?').run(collectId, userId);
