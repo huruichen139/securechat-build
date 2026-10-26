@@ -2030,7 +2030,7 @@ async function checkMediaPermissionHint() {
     ]);
     const states = checks.map((c) => c.status === 'fulfilled' ? c.value : 'prompt');
     if (states.indexOf('denied') >= 0) {
-      toast('摄像头/麦克风权限已被拒绝：点击地址栏 🔒 → 网站设置 → 允许"摄像头/麦克风"后即可通话', 'error', 6000);
+      toast('摄像头/麦克风权限已被拒绝：点击地址栏 → 网站设置 → 允许"摄像头/麦克风"后即可通话', 'error', 6000);
     }
   } catch (e) {}
 }
@@ -2955,7 +2955,7 @@ function showGroupAnnounceBanner() {
   const key = 'sc_ann_read_' + state.activeGroup + '_' + (ann.updatedAt || ann.createdAt || '');
   if (localStorage.getItem(key)) { banner.style.display = 'none'; return; }
   banner.style.display = 'flex';
-  banner.textContent = '📢 ' + ann.content;
+  banner.textContent = '' + ann.content;
   banner.onclick = () => { banner.style.display = 'none'; try { localStorage.setItem(key, '1'); } catch (e) {} };
 }
 
@@ -4542,7 +4542,7 @@ async function acceptIncomingCall() {
     const isPerm = code === 'PERMISSION' || code === 'NOT_SUPPORTED' || /NotAllowed|Permission|denied|拒绝|安全/i.test(String(e && e.message || e && e.name || ''));
     $('callText').textContent = isPerm ? '需要摄像头/麦克风权限才能接听' : '接听失败，请重试';
     $('acceptCallBtn').style.display=''; $('rejectCallBtn').style.display=''; $('hangupBtn').style.display='none';
-    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点击 🔒 → 网站设置 → 允许"摄像头/麦克风"，然后重新接听' : '无法获取媒体：') + (e.message || e.name || ''), 'error', 5000);
+    toast((isPerm ? '未授权媒体权限：请在浏览器地址栏点击 → 网站设置 → 允许"摄像头/麦克风"，然后重新接听' : '无法获取媒体：') + (e.message || e.name || ''), 'error', 5000);
     clearCallTimer();
     callTimer = setTimeout(() => { if (incomingCall === pendingCall) rejectIncomingCall(); }, 30000);
   }
@@ -4620,7 +4620,7 @@ function sendAttachmentFile(f) {
     const p = document.createElement('div');
     p.id = 'plusPanel';
     p.className = 'plus-panel';
-    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">🖼️</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">📷</div><span>拍照</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">📎</div><span>文件</span></div>';
+    p.innerHTML = '<div class="plus-item" data-kind="album"><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">拍</div><span>拍照</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">文</div><span>文件</span></div>';
     host.appendChild(p);
     p.querySelectorAll('.plus-item').forEach(el => {
       el.onclick = () => {

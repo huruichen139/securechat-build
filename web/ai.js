@@ -334,7 +334,7 @@ function openAiSettings() {
   fetchRow.style.cssText = 'margin:-4px 0 10px;display:flex;gap:8px;align-items:center;';
   const fetchBtn = document.createElement('button');
   fetchBtn.type = 'button';
-  fetchBtn.textContent = '🔄 拉取模型列表';
+  fetchBtn.textContent = '拉取模型列表';
   fetchBtn.style.cssText = 'padding:6px 10px;border:1px solid #07c160;background:#07c16014;color:#07c160;border-radius:6px;font-size:12px;cursor:pointer;';
   const fetchTip = document.createElement('span');
   fetchTip.style.cssText = 'font-size:11px;color:#94a3b8;';
@@ -368,7 +368,7 @@ function openAiSettings() {
         dataList.appendChild(opt);
       });
       fetchTip.style.color = '#07c160';
-      fetchTip.textContent = '✓ 拉取到 ' + ids.length + ' 个模型，点击「模型名」输入框选择';
+      fetchTip.textContent = '已拉取到 ' + ids.length + ' 个模型，点击「模型名」输入框选择';
       // 现有 model 值为空时自动填第一个
       if (!fldModel.input.value && ids.length) {
         // 优先选包含 'gpt-4' / 'gpt-3.5' / 'glm-4' / 'deepseek' / 'claude' 的常用模型

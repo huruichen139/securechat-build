@@ -156,7 +156,7 @@ module.exports = function registerStatusCollar(app, db, auth, opts) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
-      icon TEXT DEFAULT '📁',
+      icon TEXT DEFAULT '',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -535,10 +535,11 @@ module.exports = function registerStatusCollar(app, db, auth, opts) {
     const name = String((req.body || {}).name || '').trim().slice(0, 30);
     if (!name) return deny(res, 400, '收藏夹名不能为空');
     const now = Date.now();
+    const icon = String((req.body || {}).icon || '').slice(0, 2);
     const info = prepare('INSERT INTO favorites(user_id,name,icon,created_at,updated_at) VALUES(?,?,?,?,?)')
-      .run(me, name, String((req.body || {}).icon || '📁').slice(0, 2), now, now);
+      .run(me, name, icon, now, now);
     persist();
-    okay(res, { id: info.lastInsertRowid, name, icon: (req.body || {}).icon || '📁' });
+    okay(res, { id: info.lastInsertRowid, name, icon });
   });
 
   app.patch('/api/favorites/classifiers/:id', (req, res) => {
@@ -730,11 +731,11 @@ module.exports = function registerStatusCollar(app, db, auth, opts) {
     const d = data || {};
     switch (kind) {
       case 'text': return String(d.text || '');
-      case 'link': return '🔗 ' + (d.title || '') + ' ' + (d.url || '');
-      case 'image': return '🖼 [收藏图片] ' + (d.url || '');
-      case 'file': return '📄 [收藏文件] ' + (d.name || '');
-      case 'message': return '💬 [聊天记录] ' + (d.content || '');
-      case 'moment': return '⭕ [朋友圈] ' + (d.content || '');
+      case 'link': return '[链接] ' + (d.title || '') + ' ' + (d.url || '');
+      case 'image': return '[收藏图片] ' + (d.url || '');
+      case 'file': return '[收藏文件] ' + (d.name || '');
+      case 'message': return '[聊天记录] ' + (d.content || '');
+      case 'moment': return '[朋友圈] ' + (d.content || '');
       default: return '';
     }
   }
