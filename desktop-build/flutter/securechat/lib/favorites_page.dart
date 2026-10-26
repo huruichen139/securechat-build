@@ -74,7 +74,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
     if (name == null || name.isEmpty) return;
     try {
-      await _svc.createClassifier(name, icon: '📁');
+      await _svc.createClassifier(name);
       _curClassifier = null;
       await _reload();
     } catch (e) {
@@ -229,10 +229,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
     final data = item['data'] as Map<String, dynamic>? ?? const {};
     final kind = item['kind'].toString();
     switch (kind) {
-      case 'link': return '🔗 ${data['title'] ?? data['url'] ?? ''}';
-      case 'file': return '📄 ${data['name'] ?? ''}';
+      case 'link': return '[链接] ${data['title'] ?? data['url'] ?? ''}';
+      case 'file': return '[文件] ${data['name'] ?? ''}';
       case 'moment': return '${data['content'] ?? ''}';
-      case 'message': return '💬 ${data['content'] ?? ''}';
+      case 'message': return '[聊天记录] ${data['content'] ?? ''}';
       default: return data['text']?.toString() ?? data['content']?.toString() ?? '';
     }
   }

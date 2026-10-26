@@ -85,16 +85,16 @@ class _DeviceManagePageState extends State<DeviceManagePage> {
   String _iconFor(String type) {
     switch (type) {
       case 'android':
-        return '📱';
+        return '安卓';
       case 'ios':
-        return '🍎';
+        return 'iOS';
       case 'macos':
-        return '💻';
+        return 'Mac';
       case 'linux':
       case 'desktop':
-        return '🖥️';
+        return '桌面';
       default:
-        return '📟';
+        return '其他';
     }
   }
 

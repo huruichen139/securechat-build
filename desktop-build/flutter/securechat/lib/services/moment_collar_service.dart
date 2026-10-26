@@ -102,7 +102,7 @@ class MomentCollarService {
     return ((d['classifiers'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> createClassifier(String name, {String icon = '📁'}) =>
+  Future<Map<String, dynamic>> createClassifier(String name, {String icon = ''}) =>
       _post('/api/favorites/classifiers', {'name': name, 'icon': icon});
 
   Future<void> renameClassifier(int id, String name) => _patch('/api/favorites/classifiers/$id', {'name': name});
