@@ -785,9 +785,11 @@ module.exports = function registerPayment(app, db, auth) {
   app.post('/api/pay/gateway/order', mw, (req, res) => {
     const merchant = prepare('SELECT * FROM pay_merchants WHERE user_id=? AND status=?').get(req.user.id, 'approved');
     if (!merchant) return res.status(403).json({ error: '商户未审核通过' });
-    const amount = Number(req.body?.amount);
+    const rawAmount = Number(req.body?.amount);
+    // 金额归一到分，避免 1.005 入库后 confirm 严格比对失败、doPay 又舍成 1.01 的对账偏差
+    const amount = Math.round(rawAmount * 100) / 100;
     const subject = String(req.body?.subject || '').trim().slice(0, 120);
-    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return res.status(400).json({ error: '金额无效' });
+    if (!Number.isFinite(amount) || amount < 0.01 || amount > 1000000) return res.status(400).json({ error: '金额无效' });
     if (!subject) return res.status(400).json({ error: '商品说明不能为空' });
     const orderNo = 'SC' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(4).toString('hex').toUpperCase();
     const expiresAt = Date.now() + 30 * 60 * 1000;

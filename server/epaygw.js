@@ -70,9 +70,12 @@ function safeExternalUrl(u) {
   try {
     const parsed = new URL(String(u || ''));
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
-    const h = parsed.hostname;
+    const h = parsed.hostname.toLowerCase();
+    // 数字/十六进制整数形式的主机名会被 http 模块解析成 IPv4（2130706433 -> 127.0.0.1）
+    if (/^\d+$/.test(h) || /^0x[0-9a-f]+$/.test(h)) return '';
     if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0|\[::1\])/.test(h)) return '';
     if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return '';
+    if (/^\[?::1?\]?$/.test(h) || h === '[::]' || h === '0') return '';
     return parsed.toString();
   } catch (e) { return ''; }
 }
@@ -414,16 +417,31 @@ module.exports = function (app, db, authMw) {
       if (ap.amount !== undefined && ap.amount !== '' && !ap.money) ap.money = String(Number(ap.amount) / 100);
       if (!ap.pid) ap.pid = '1000';
       if (!ap.type) ap.type = 'wxpay';
-      // 该分支不验签，绝不能让请求方决定金额/回调地址：
-      // 若订单号已存在于站内 pay_orders，一律以库内金额与回调为准。
+      // 该分支不走 MD5 验签，绝不能让请求方决定金额/回调地址。
+      // 之前只看 Authorization 前缀 "Bearer Cr"，任何人可伪造 0.01 元订单。
+      // 现在：配置了 CLOUDREVE_GW_KEY 时必须带完整共享密钥；未配置时只允许站内已登记的订单号。
+      let sc0 = null;
       try {
-        const sc0 = db.prepare('SELECT amount, subject, callback_url FROM pay_orders WHERE order_no=?').get(String(ap.out_trade_no || ''));
-        if (sc0) {
-          ap.money = Number(sc0.amount).toFixed(2);
-          ap.name = sc0.subject || ap.name;
-          ap.notify_url = sc0.callback_url || '';
+        sc0 = db.prepare('SELECT amount, subject, callback_url, status FROM pay_orders WHERE order_no=?')
+          .get(String(ap.out_trade_no || ''));
+      } catch (e) { sc0 = null; }
+      const sharedKey = process.env.CLOUDREVE_GW_KEY || '';
+      let keyOk = false;
+      if (sharedKey) {
+        const want = 'Bearer Cr' + sharedKey;
+        if (auth.length === want.length) {
+          try { keyOk = crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(want)); } catch (e) { keyOk = false; }
         }
-      } catch (e) { console.error('[epaygw] load sc order failed: ' + (e && e.message || e)); }
+      }
+      if (!keyOk && !sc0) {
+        console.warn('[epaygw] Cloudreve 下单被拒绝（未配置共享密钥且订单未登记）: ' + String(ap.out_trade_no || '').slice(0, 64));
+        return res.status(403).json({ code: -1, msg: 'order not registered' });
+      }
+      if (sc0) {
+        ap.money = Number(sc0.amount).toFixed(2);
+        ap.name = sc0.subject || ap.name;
+        ap.notify_url = sc0.callback_url || '';
+      }
       const o = createOrder(ap);
       if (!o) return res.status(400).json({ code: -1, msg: 'order amount invalid' });
       const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');

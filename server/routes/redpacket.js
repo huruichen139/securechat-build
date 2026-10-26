@@ -96,6 +96,10 @@ module.exports = function registerRedpacket(app, db, auth) {
       const target = prepare('SELECT id FROM users WHERE id=?').get(parseInt(to, 10));
       if (!target) return res.status(404).json({ error: '对方不存在' });
       if (target.id === me.id) return res.status(400).json({ error: '不能发给自己' });
+      // 单聊红包必须双方未拉黑（与私聊消息一致，否则可向拉黑自己/陌生人硬塞消息）
+      const blk = prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)')
+        .get(me.id, target.id, target.id, me.id);
+      if (blk) return res.status(403).json({ error: '无法向该用户发红包' });
       targetId = target.id;
     }
 
