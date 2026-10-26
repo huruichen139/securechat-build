@@ -290,6 +290,20 @@ const OAUTH_APPKEY = process.env.MAPAY_APPKEY || '';
 const OAUTH_CALLBACK = process.env.MAPAY_CALLBACK_URL
   || ((process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '') + '/api/oauth/callback');
 const OAUTH_TYPES = ['qq', 'wx', 'alipay', 'github'];
+// 第三方登录 state/票据签名密钥必须独立于支付网关 APPKEY：
+// 原实现直接用 MAPAY_APPKEY，未配置时退化为 sha256(body)（无密钥），任何人都能伪造 state
+// 与绑定票据，从而把攻击者自己的第三方账号绑到受害者账户或直接接管登录。
+const OAUTH_STATE_KEY = process.env.OAUTH_STATE_SECRET
+  || crypto.createHash('sha256').update('oauth-state-v1:' + JWT_SECRET).digest('hex');
+function oauthSig(data) {
+  return crypto.createHmac('sha256', OAUTH_STATE_KEY).update(String(data)).digest('hex').slice(0, 32);
+}
+// 定长、恒时字符串比较，用于比较签名类凭证
+function constantEq(a, b) {
+  const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || ''));
+  if (x.length !== y.length) return false;
+  return crypto.timingSafeEqual(x, y);
+}
 
 // 第三方登录绑定/登录的公共收尾逻辑：
 // 找到绑定则直接登录；否则返回一次性票据，交由前端配合账密绑定（不自动建号）
@@ -315,7 +329,7 @@ function oauthCompleteBind(req, res, provider, socialUid, nickname, avatar, toFr
     nn: crypto.createHash('sha256').update(socialUid + provider + Date.now() + Math.random()).digest('hex').slice(0, 20),
     exp: Date.now() + 10 * 60 * 1000
   })).toString('base64url');
-  const sig = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+  const sig = oauthSig(body);
   const ticket = body + '.' + sig;
   if (wantsHtml) return toFront({ key: 'oauthbind', data: { ticket, type: provider, nickname } });
   res.json({ ok: true, needBind: true, ticket, type: provider, nickname });
@@ -350,7 +364,7 @@ function oauthFail(req, res, msg, code) {
 // state = base64url(payload).HMAC，10 分钟有效，payload 内含 type 与防重放 nonce
 function oauthSignState(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+  const sig = oauthSig(body);
   return body + '.' + sig;
 }
 function oauthVerifyState(state) {
@@ -359,7 +373,7 @@ function oauthVerifyState(state) {
     const dot = s.lastIndexOf('.');
     if (dot <= 0) return null;
     const body = s.slice(0, dot), sig = s.slice(dot + 1);
-    const expect = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+    const expect = oauthSig(body);
     // 定长比较，避免时序侧信道
     if (sig.length !== expect.length) return null;
     let diff = 0;
@@ -409,6 +423,14 @@ function publicUser(u) {
     pubkey: u.pubkey || '',
     lastSeen: u.last_seen || null
   };
+}
+
+// 他人视角的用户信息：不暴露邮箱（原实现让任意人加好友即可拿到对方邮箱，
+// 好友列表/群成员/好友请求也会把邮箱扩散给所有人，便于撞库与钓鱼）。
+function publicUserBrief(u) {
+  const p = publicUser(u);
+  delete p.email;
+  return p;
 }
 
 function signToken(user, deviceId) {
@@ -695,6 +717,8 @@ async function sendMail(to, subject, html) {
 // 获取图形数字验证码：GET /api/captcha —— 返回 SVG + captchaId（一次性）
 app.get('/api/captcha', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  // SVG 生成有 CPU 成本，不设限可被打码机批量拉取或用于耗 CPU
+  if (rateLimit('captcha:' + getIp(req), 30, 10 * 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
   const { id, svg } = createCaptcha();
   res.json({ ok: true, id, svg, style: 'numeric' });
 });
@@ -723,6 +747,9 @@ app.post('/api/email/code', async (req, res) => {
   } else if (taken) {
     return res.status(409).json({ error: '该邮箱已被绑定' });
   }
+
+  // 发码限流：除按 IP 外，再按邮箱限 3 次/10 分钟，防止对同一邮箱轰炸替换旧码
+  if (rateLimit('emailcode:' + email.toLowerCase(), 3, 10 * 60 * 1000)) return res.status(429).json({ error: '该邮箱请求过于频繁，请10分钟后再试' });
 
   const code = genCode();
   emailCodes.set(email, { code, expireAt: Date.now() + 10 * 60 * 1000, purpose: purpose || 'register', used: false });
@@ -767,6 +794,8 @@ app.post('/api/register', (req, res) => {
   if (!email) return res.status(400).json({ error: '请填写邮箱' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
   if (username.length < 2 || username.length > 20) return res.status(400).json({ error: '用户名长度需2-20' });
+  // 用户名禁止 @ 等分隔符：登录把含 @ 的账号按邮箱解析，用户名带 @ 会造成歧义与撞库混淆
+  if (/[@:\s]/.test(username)) return res.status(400).json({ error: '用户名不能包含 @ : 或空白字符' });
   if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
   if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(email, code, 'register');
@@ -866,7 +895,7 @@ app.get('/api/oauth/callback', async (req, res) => {
       nn: crypto.createHash('sha256').update(socialUid + type + Date.now() + Math.random()).digest('hex').slice(0, 20),
       exp: Date.now() + 10 * 60 * 1000
     })).toString('base64url');
-    const sig = crypto.createHash('sha256').update(body + OAUTH_APPKEY).digest('hex').slice(0, 32);
+    const sig = oauthSig(body);
     return body + '.' + sig;
   }
   const frontBase = (process.env.PUBLIC_BASE_URL || 'https://mc.32768.top:8888').replace(/\/+$/, '');
@@ -1017,7 +1046,7 @@ app.post('/api/oauth/bind', (req, res) => {
   const dot = ticket.lastIndexOf('.');
   if (dot <= 0) return res.status(400).json({ error: '绑定票据无效，请重新发起登录' });
   const b = ticket.slice(0, dot), sig = ticket.slice(dot + 1);
-  const expect = crypto.createHash('sha256').update(b + OAUTH_APPKEY).digest('hex').slice(0, 32);
+  const expect = oauthSig(b);
   if (sig.length !== expect.length) return res.status(400).json({ error: '绑定票据无效，请重新发起登录' });
   let diff = 0;
   for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expect.charCodeAt(i);
@@ -1255,8 +1284,16 @@ app.post('/api/email/bind', (req, res) => {
   const auth = req.headers.authorization || '';
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const { email, code } = req.body || {};
+  const { email, code, password } = req.body || {};
   if (!email || !code) return res.status(400).json({ error: '请填写邮箱和验证码' });
+  // 改绑/换绑邮箱必须验证原密码：否则一旦会话 token 被窃取，
+  // 攻击者可直接换成自己的邮箱再走 /api/password/reset 完成账号接管。
+  const cur = prepare('SELECT id,password,email FROM users WHERE id=?').get(payload.id);
+  if (cur && cur.email && cur.password) {
+    if (!password) return res.status(400).json({ error: '修改已绑定邮箱需要输入当前密码' });
+    if (!bcrypt.compareSync(String(password), cur.password)) return res.status(403).json({ error: '当前密码错误' });
+  }
+  if (rateLimit('emailbind:' + payload.id, 5, 60 * 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请1小时后再试' });
   if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
   const codeErr = checkCode(email, code, 'bind');
   if (codeErr) { recordCodeFail(email); return res.status(400).json({ error: codeErr }); }
@@ -1384,6 +1421,8 @@ app.post('/api/password/reset', (req, res) => {
   if (!user) return res.status(400).json({ error: '该邮箱未注册' });
   const hash = bcrypt.hashSync(String(newPassword), 10);
   prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, user.id);
+  // token_version 已让旧 token 失效，但已建立的 WS 连接不会重新校验，必须主动踢下线。
+  try { forceLogoutUser(user.id, '密码已重置，请重新登录'); } catch (e) {}
   res.json({ ok: true });
 });
 
@@ -1401,6 +1440,7 @@ app.post('/api/password/change', (req, res) => {
   const hash = bcrypt.hashSync(String(newPassword), 10);
   prepare('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?').run(hash, user.id);
   logAudit(payload.id, 'password_change', null, 'user', '自助修改密码', clientIp(req));
+  try { forceLogoutUser(user.id, '密码已修改，请重新登录'); } catch (e) {}
   res.json({ ok: true });
 });
 
@@ -1535,10 +1575,10 @@ app.post('/api/friend/add', (req, res) => {
   if (existing && existing.status === 0) return res.status(409).json({ error: '已发送请求，待对方接受' });
   prepare('INSERT OR IGNORE INTO friends(user_id,friend_id,status,created_at) VALUES(?,?,0,?)')
     .run(payload.id, friendId, Date.now());
-  res.json({ ok: true, friend: publicUser(target) });
+  res.json({ ok: true, friend: publicUserBrief(target) });
   if (onlineAny(friendId)) {
     const me = prepare('SELECT id,username,nickname,avatar,uid,email,country,province,city,extra,pubkey FROM users WHERE id=?').get(payload.id);
-    sendToUser(friendId, P.S_FRIEND_REQ, { from: payload.id, fromUser: publicUser(me) });
+    sendToUser(friendId, P.S_FRIEND_REQ, { from: payload.id, fromUser: publicUserBrief(me) });
   }
 });
 
@@ -1609,7 +1649,7 @@ app.get('/api/friends', (req, res) => {
      LEFT JOIN friend_remarks fr ON fr.user_id=? AND fr.friend_id=u.id
      WHERE f.user_id=? AND f.status=1 ORDER BY u.nickname`
   ).all(payload.id, payload.id);
-  res.json({ friends: rows.map(r => ({ ...publicUser(r), online: onlineHas(r.id), remark: r.remark || '' })) });
+  res.json({ friends: rows.map(r => ({ ...publicUserBrief(r), online: onlineHas(r.id), remark: r.remark || '' })) });
 });
 
 // 待处理好友请求列表：GET /api/friend/requests
@@ -1623,7 +1663,7 @@ app.get('/api/friend/requests', (req, res) => {
      FROM friends f JOIN users u ON u.id = f.user_id
      WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
   ).all(payload.id);
-  res.json({ requests: rows });
+  res.json({ requests: rows.map(r => publicUserBrief(r)) });
 });
 
 function pushFriendList(uid) {
@@ -1633,7 +1673,7 @@ function pushFriendList(uid) {
      FROM friends f JOIN users u ON u.id = f.friend_id
      WHERE f.user_id=? AND f.status=1 ORDER BY u.nickname`
   ).all(uid);
-  const list = rows.map(r => ({ ...publicUser(r), online: onlineHas(r.id) }));
+  const list = rows.map(r => ({ ...publicUserBrief(r), online: onlineHas(r.id) }));
   sendToUser(uid, P.S_FRIEND_LIST, { friends: list });
 }
 
@@ -1949,23 +1989,28 @@ app.get('/api/export/messages', (req, res) => {
   const peerId = parseInt(req.query.peerId, 10);
   if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人ID无效' });
   const format = req.query.format === 'txt' ? 'txt' : 'json';
+  // 导出原先无任何上限且不过滤已撤回/已隐藏消息：可一次性拉走全量历史，
+  // 也能导出自己已清空（hidden_messages）的对话。这里限制最近 20000 条并做过滤。
+  if (rateLimit('export:' + payload.id, 10, 10 * 60 * 1000)) return res.status(429).json({ error: '导出过于频繁，请稍后再试' });
   const rows = prepare(
     `SELECT m.*,u1.nickname AS fromName,u2.nickname AS toName FROM messages m
      LEFT JOIN users u1 ON u1.id=m.from_id LEFT JOIN users u2 ON u2.id=m.to_id
-     WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?)
-     ORDER BY m.created_at ASC`
-  ).all(payload.id, peerId, peerId, payload.id);
+     WHERE ((m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?))
+       AND NOT EXISTS (SELECT 1 FROM hidden_messages h WHERE h.user_id=? AND h.message_id=m.id)
+     ORDER BY m.created_at ASC LIMIT 20000`
+  ).all(payload.id, peerId, peerId, payload.id, payload.id);
+  const safeContent = (r) => (r.recalled ? '[消息已撤回]' : r.content);
   if (format === 'txt') {
     const lines = rows.map(r => {
       const time = new Date(r.created_at).toLocaleString('zh-CN');
       const name = r.from_id === payload.id ? (r.fromName || '我') : (r.toName || '对方');
-      return `[${time}] ${name}: ${r.content}`;
+      return `[${time}] ${name}: ${safeContent(r)}`;
     });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="chat-${peerId}.txt"`);
     res.send(lines.join('\n'));
   } else {
-    const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, fromName: r.fromName, toName: r.toName, content: r.content, createdAt: r.created_at, read: r.read }));
+    const msgs = rows.map(r => ({ id: r.id, from: r.from_id, to: r.to_id, fromName: r.fromName, toName: r.toName, content: safeContent(r), createdAt: r.created_at, read: r.read }));
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="chat-${peerId}.json"`);
     res.json({ messages: msgs, exportedAt: Date.now() });
@@ -2233,17 +2278,17 @@ app.get('/api/files/:id', (req, res) => {
   const SWEEP = 6 * 3600 * 1000;     // 每 6 小时清扫一次
   const run = () => {
     try {
-      if (!ready || !db) return;
+      if (!ready) return;
       const cutoff = Date.now() - TTL;
-      const rows = db.prepare('SELECT id, path FROM file_transfers WHERE created_at < ?').all(cutoff);
+      const rows = prepare('SELECT id, path FROM file_transfers WHERE created_at < ?').all(cutoff);
       if (!rows || !rows.length) return;
       let removed = 0;
       for (const r of rows) {
         try { if (r.path && fs.existsSync(r.path)) fs.unlinkSync(r.path); } catch (e) {}
-        try { db.prepare('DELETE FROM file_transfers WHERE id=?').run(r.id); removed++; } catch (e) {}
+        try { prepare('DELETE FROM file_transfers WHERE id=?').run(r.id); removed++; } catch (e) {}
       }
       if (removed) {
-        try { if (typeof db.persist === 'function') db.persist(); } catch (e) {}
+        try { persist(); } catch (e) {}
         console.log('[file-transfers] 已清理过期中转文件 ' + removed + ' 个');
       }
     } catch (e) {
@@ -2264,10 +2309,10 @@ app.get('/api/files/:id', (req, res) => {
   const SWEEP = 12 * 3600 * 1000;
   const run = () => {
     try {
-      if (!ready || !db) return;
-      const r = db.prepare('DELETE FROM offline_queue WHERE created_at < ?').run(Date.now() - TTL);
+      if (!ready) return;
+      const r = prepare('DELETE FROM offline_queue WHERE created_at < ?').run(Date.now() - TTL);
       if (r && r.changes) {
-        try { if (typeof db.persist === 'function') db.persist(); } catch (e) {}
+        try { persist(); } catch (e) {}
         console.log('[offline-queue] 已清理过期离线消息 ' + r.changes + ' 条');
       }
     } catch (e) {
@@ -2285,12 +2330,12 @@ app.get('/api/files/:id', (req, res) => {
   const SWEEP = 6 * 3600 * 1000;
   const run = () => {
     try {
-      if (!ready || !db) return;
+      if (!ready) return;
       const now = Date.now();
-      const r = db.prepare('DELETE FROM revoked_tokens WHERE expires_at <= ?').run(now);
+      const r = prepare('DELETE FROM revoked_tokens WHERE expires_at <= ?').run(now);
       for (const [h, exp] of revokedTokenCache) if (exp <= now) revokedTokenCache.delete(h);
       if (r && r.changes) {
-        try { if (typeof db.persist === 'function') db.persist(); } catch (e) {}
+        try { persist(); } catch (e) {}
         console.log('[revoked-token] 已清理过期吊销记录 ' + r.changes + ' 条');
       }
     } catch (e) {
@@ -2444,6 +2489,11 @@ app.post('/api/call-recordings', rawAuthGate, express.raw({
   if (!Number.isInteger(toId) || !prepare('SELECT id FROM users WHERE id=?').get(toId)) return res.status(400).json({ error: '接收方无效' });
   const areFriends = prepare('SELECT 1 FROM friends WHERE user_id=? AND friend_id=? AND status=1').get(payload.id, toId);
   if (!areFriends) return res.status(403).json({ error: '只能录制好友通话' });
+  // 通话录像原先无任何配额与 TTL，单账号可无限上传 500MB 文件写满磁盘。
+  const used = prepare('SELECT COALESCE(SUM(size),0) AS bytes, COUNT(*) AS cnt FROM call_recordings WHERE from_id=?').get(payload.id) || { bytes: 0, cnt: 0 };
+  if (used.cnt >= 500 || used.bytes + req.body.length > 2 * 1024 * 1024 * 1024) {
+    return res.status(413).json({ error: '回放存储配额已满，请先删除旧回放' });
+  }
   const id = crypto.randomUUID();
   const filePath = path.join(CALLS_DIR, id + '.webm');
   try {
@@ -2466,7 +2516,10 @@ app.get('/api/call-recordings/:id', (req, res) => {
   try {
     liveRef = prepare('SELECT 1 FROM live_rooms WHERE host_id=? AND (replay_url=? OR replay_url LIKE ?)').get(payload.id, '/api/call-recordings/' + req.params.id, '/api/call-recordings/' + req.params.id + '%');
   } catch (e) { /* live_rooms 未建表（直播模块未挂载）时视为无引用 */ }
-  if (row.from_id !== payload.id && row.to_id !== payload.id && !liveRef) {
+  // 直播回放豁免必须同时满足「引用者是该直播间主播」和「录像属于该主播本人」，
+  // 否则任意用户可自建直播间把 replay_url 指向他人录像 id 来下载私密通话录像。
+  const ownsRecording = row.from_id === payload.id || row.to_id === payload.id;
+  if (!ownsRecording && !(liveRef && row.from_id === payload.id)) {
     // 管理员可查看所有回放
     const meA = prepare('SELECT * FROM users WHERE id=?').get(payload.id);
     const adminOk = !!meA && !!meA.email && String(process.env.ADMIN_EMAILS || '').toLowerCase().split(',').includes(meA.email.toLowerCase());
@@ -2474,10 +2527,59 @@ app.get('/api/call-recordings/:id', (req, res) => {
   }
   if (!fs.existsSync(row.path)) return res.status(404).json({ error: '回放不存在' });
   const resolved = path.resolve(row.path);
-  if (!resolved.startsWith(path.resolve(CALLS_DIR))) return res.status(403).json({ error: '路径非法' });
+  if (!resolved.startsWith(path.resolve(CALLS_DIR) + path.sep)) return res.status(403).json({ error: '路径非法' });
   res.setHeader('Content-Type', row.kind === 'audio' ? 'audio/webm' : 'video/webm');
-  fs.createReadStream(resolved).pipe(res);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  const stream = fs.createReadStream(resolved);
+  stream.on('error', (e) => {
+    console.error('[call-recordings] 读取失败: ' + (e && e.message || e));
+    if (!res.headersSent) { try { res.status(404).json({ error: '回放不存在' }); } catch (_) {} }
+    else { try { res.destroy(); } catch (_) {} }
+  });
+  stream.pipe(res);
 });
+
+// 删除通话回放：通话任一方可删除（删除后双方都不可再访问）
+app.delete('/api/call-recordings/:id', (req, res) => {
+  if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  const payload = apiUser(req);
+  if (!payload) return res.status(401).json({ error: '未授权' });
+  const row = prepare('SELECT * FROM call_recordings WHERE id=?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: '回放不存在' });
+  if (row.from_id !== payload.id && row.to_id !== payload.id) return res.status(404).json({ error: '回放不存在' });
+  try { if (row.path && fs.existsSync(row.path)) fs.unlinkSync(row.path); } catch (e) { console.error('[call-recordings] 删除文件失败: ' + (e && e.message || e)); }
+  try { prepare('DELETE FROM call_recordings WHERE id=?').run(row.id); persist(); } catch (e) { return res.status(500).json({ error: '删除失败' }); }
+  res.json({ ok: true });
+});
+
+// ---------- 通话回放 TTL 清理 ----------
+// 录像文件与数据库行此前只增不减，配合配额上限兜底，定期清理 90 天前的回放。
+(function __callRecordingJanitor() {
+  const TTL = 90 * 24 * 3600 * 1000;
+  const SWEEP = 12 * 3600 * 1000;
+  const run = () => {
+    try {
+      if (!ready) return;
+      const rows = prepare('SELECT id, path FROM call_recordings WHERE created_at < ?').all(Date.now() - TTL);
+      if (!rows || !rows.length) return;
+      let removed = 0;
+      for (const r of rows) {
+        try { if (r.path && fs.existsSync(r.path)) fs.unlinkSync(r.path); } catch (e) {}
+        try { prepare('DELETE FROM call_recordings WHERE id=?').run(r.id); removed++; } catch (e) {}
+      }
+      if (removed) {
+        try { persist(); } catch (e) {}
+        console.log('[call-recordings] 已清理过期回放 ' + removed + ' 个');
+      }
+    } catch (e) {
+      console.error('[call-recordings] 清理失败: ' + (e && e.message || e));
+    }
+  };
+  const kick = setTimeout(run, 45000);
+  if (kick && typeof kick.unref === 'function') kick.unref();
+  const t = setInterval(run, SWEEP);
+  if (t && typeof t.unref === 'function') t.unref();
+})();
 
 // ---------- 群组 ----------
 // 建群：POST /api/group/create { name }
@@ -3173,7 +3275,7 @@ function buildGroupsForUser(userId) {
       `SELECT u.id, u.username, u.nickname, u.avatar, u.uid, u.email, u.country, u.province, u.city, u.extra
        FROM group_members m JOIN users u ON u.id = m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at`
-    ).all(g.id).map(m => ({ ...publicUser(m), online: onlineHas(m.id) }));
+    ).all(g.id).map(m => ({ ...publicUserBrief(m), online: onlineHas(m.id) }));
     const last = prepare(
       `SELECT gm.id, gm.from_id AS fromId, CASE WHEN gm.recalled=1 THEN '' ELSE gm.content END AS content, gm.created_at AS createdAt,
               u.id AS userId, u.username, u.nickname, u.avatar, u.uid AS userUid
@@ -3279,6 +3381,11 @@ function zipEntryNames(buf) {
       throw new Error('ZIP 含有不允许更新的路径: ' + name);
     }
     if (name.startsWith('server/update-packages/')) throw new Error('不允许更新包覆盖自身存储目录');
+    // 禁止更新包携带任何运行时数据：旧快照会覆盖线上库/文件，等于数据回滚
+    for (const keep of ['server/data/', 'server/files/', 'server/call-recordings/', 'server/media/', 'server/group-files/', 'server/downloads/', 'server/node_modules/', 'server/backups/']) {
+      if (name.startsWith(keep)) throw new Error('更新包不允许包含运行时数据: ' + name);
+    }
+    if (name === 'server/.env' || name.endsWith('/.env')) throw new Error('更新包不允许包含 .env');
     if (name.startsWith('data/') && name !== 'data/version.json') throw new Error('只允许更新 data/version.json');
   }
   return names;
@@ -3294,7 +3401,7 @@ function copyTree(source, destination, preserveUpdatePackages) {
   if (!fs.existsSync(source)) return;
   fs.mkdirSync(destination, { recursive: true });
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    if (preserveUpdatePackages && entry.name === 'update-packages') continue;
+    if (preserveUpdatePackages && RUNTIME_KEEP.has(entry.name)) continue;
     const from = path.join(source, entry.name);
     const to = path.join(destination, entry.name);
     if (entry.isDirectory()) copyTree(from, to, false);
@@ -3302,10 +3409,18 @@ function copyTree(source, destination, preserveUpdatePackages) {
   }
 }
 
+// 运行时目录/文件：更新包替换代码时必须原样保留。
+// 原实现只保留 update-packages，apply 一次就会删掉 data（含线上 sqlite）、files、
+// call-recordings、media、group-files、downloads、node_modules、.env —— 直接丢数据且可能起不来。
+const RUNTIME_KEEP = new Set([
+  'update-packages', 'data', 'files', 'call-recordings', 'media', 'group-files',
+  'downloads', 'node_modules', 'backups', '.env', 'guard_miss.count'
+]);
+
 function clearTree(source, preserveUpdatePackages) {
   if (!fs.existsSync(source)) return;
   for (const entry of fs.readdirSync(source)) {
-    if (preserveUpdatePackages && entry === 'update-packages') continue;
+    if (preserveUpdatePackages && RUNTIME_KEEP.has(entry)) continue;
     fs.rmSync(path.join(source, entry), { recursive: true, force: true });
   }
 }
@@ -3812,12 +3927,17 @@ app.get('/api/oauth/qq/url', (req, res) => {
     '&redirect_uri=' + encodeURIComponent(cfg.redirect) +
     '&state=' + encodeURIComponent(state) +
     '&scope=get_user_info';
-  res.json({ url, state });
+  // pollKey：与 state 绑定的轮询凭证，只有真正发起登录的客户端才知道，
+  // 防止拿到 state（日志/历史记录泄露）的第三方直接轮询窃取登录 token。
+  const pollKey = oauthSig('poll:' + state);
+  res.json({ url, state, pollKey });
 });
 
 // 轮询：客户端（桌面/网页）获取登录结果
 app.get('/api/oauth/qq/poll', (req, res) => {
   const state = String((req.query || {}).state || '').trim();
+  const key = String((req.query || {}).key || '').trim();
+  if (!state || !constantEq(key, oauthSig('poll:' + state))) return res.status(403).json({ error: '缺少轮询凭证' });
   const s = qqSessions.get(state);
   if (!s) return res.status(404).json({ error: '登录会话不存在或已过期' });
   if (s.status === 'ok') {
@@ -3947,14 +4067,14 @@ app.get('/oauth/qq/callback', async (req, res) => {
     '<div id="waitBox"><div class="sub">正在处理…</div></div>' +
     '</div>' +
     '<script>' +
-    'var STATE=' + JSON.stringify(script(state)) + ';var OPENID=' + JSON.stringify(script(od.openid)) + ';var BOUND=' + (bound ? 'true' : 'false') + ';' +
+    'var STATE=' + JSON.stringify(script(state)) + ';var POLLKEY=' + JSON.stringify(script(oauthSig('poll:' + state))) + ';var OPENID=' + JSON.stringify(script(od.openid)) + ';var BOUND=' + (bound ? 'true' : 'false') + ';' +
     'var t=null;' +
     'function toast(m){document.getElementById("errBox").textContent=m;}' +
     'function showOk(){document.getElementById("okBox").style.display="block";document.getElementById("bindBox").style.display="none";document.getElementById("waitBox").style.display="none";}' +
     'function sendCode(){var em=document.getElementById("email").value.trim();if(!/^[^@]+@[^@]+\\.[^@]+$/.test(em)){toast("邮箱格式不正确");return;}toast("验证码已发送，请查收邮箱");fetch("/api/email/code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em,purpose:"login"})}).then(function(r){return r.json()}).then(function(d){if(!d.ok&&d.error)toast(d.error)}).catch(function(e){toast("发送失败")});}' +
     'function bind(){var em=document.getElementById("email").value.trim();var cd=document.getElementById("code").value.trim();if(!em||!cd){toast("请填写邮箱和验证码");return;}fetch("/api/oauth/qq/bind",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,openid:OPENID,email:em,code:cd})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
     'function reg(){fetch("/api/oauth/qq/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,openid:OPENID})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
-    'function poll(){fetch("/api/oauth/qq/poll?state="+encodeURIComponent(STATE)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
+    'function poll(){fetch("/api/oauth/qq/poll?state="+encodeURIComponent(STATE)+"&key="+encodeURIComponent(POLLKEY)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
     'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_qq_login",state:STATE,ok:true},location.origin);}setTimeout(function(){location.href="/?qq_done=1";},1200);}catch(e){}}' +
     'if(BOUND){showOk();poll();}else{document.getElementById("bindBox").style.display="block";document.getElementById("waitBox").style.display="none";}' +
     'setTimeout(function(){try{window.opener&&window.opener.postMessage({type:"securechat_qq_ready",state:STATE},location.origin)}catch(e){}},300);' +
@@ -4099,12 +4219,15 @@ app.get('/api/oauth/github/url', (req, res) => {
   });
   const url = 'https://github.com/login/oauth/authorize?client_id=' + encodeURIComponent(cfg.clientId) +
     '&redirect_uri=' + encodeURIComponent(cfg.redirect) + '&state=' + encodeURIComponent(state) + '&scope=read:user';
-  res.json({ url, state });
+  const pollKey = oauthSig('poll:' + state);
+  res.json({ url, state, pollKey });
 });
 
 // 轮询：客户端获取登录结果
 app.get('/api/oauth/github/poll', (req, res) => {
   const state = String((req.query || {}).state || '').trim();
+  const key = String((req.query || {}).key || '').trim();
+  if (!state || !constantEq(key, oauthSig('poll:' + state))) return res.status(403).json({ error: '缺少轮询凭证' });
   const s = githubSessions.get(state);
   if (!s) return res.status(404).json({ error: '登录会话不存在或已过期' });
   if (s.status === 'ok') {
@@ -4230,13 +4353,13 @@ app.get('/oauth/github/callback', async (req, res) => {
     '<div id="waitBox"><div class="sub">正在处理…</div></div>' +
     '</div>' +
     '<script>' +
-    'var STATE=' + JSON.stringify(script(state)) + ';var GITHUB_ID=' + JSON.stringify(script(ui.githubId)) + ';var BOUND=' + (bound ? 'true' : 'false') + ';' +
+    'var STATE=' + JSON.stringify(script(state)) + ';var POLLKEY=' + JSON.stringify(script(oauthSig('poll:' + state))) + ';var GITHUB_ID=' + JSON.stringify(script(ui.githubId)) + ';var BOUND=' + (bound ? 'true' : 'false') + ';' +
     'function toast(m){document.getElementById("errBox").textContent=m;}' +
     'function showOk(){document.getElementById("okBox").style.display="block";document.getElementById("bindBox").style.display="none";document.getElementById("waitBox").style.display="none";}' +
     'function sendCode(){var em=document.getElementById("email").value.trim();if(!/^[^@]+@[^@]+\\.[^@]+$/.test(em)){toast("邮箱格式不正确");return;}toast("验证码已发送，请查收邮箱");fetch("/api/email/code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em,purpose:"login"})}).then(function(r){return r.json()}).then(function(d){if(!d.ok&&d.error)toast(d.error)}).catch(function(e){toast("发送失败")});}' +
     'function bind(){var em=document.getElementById("email").value.trim();var cd=document.getElementById("code").value.trim();if(!em||!cd){toast("请填写邮箱和验证码");return;}fetch("/api/oauth/github/bind",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,githubId:GITHUB_ID,email:em,code:cd})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
     'function reg(){fetch("/api/oauth/github/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:STATE,githubId:GITHUB_ID})}).then(function(r){return r.json()}).then(function(d){if(d.error){toast(d.error);return;}showOk();finish();}).catch(function(e){toast("网络错误");});}' +
-    'function poll(){fetch("/api/oauth/github/poll?state="+encodeURIComponent(STATE)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
+    'function poll(){fetch("/api/oauth/github/poll?state="+encodeURIComponent(STATE)+"&key="+encodeURIComponent(POLLKEY)).then(function(r){return r.json()}).then(function(d){if(d.status==="ok"){showOk();finish();}else if(d.status==="waiting"){setTimeout(poll,1500);}else{toast(d.error||"登录失败");}}).catch(function(){setTimeout(poll,2000);});}' +
     'function finish(){try{if(window.opener){window.opener.postMessage({type:"securechat_github_login",state:STATE,ok:true},location.origin);}setTimeout(function(){location.href="/?github_done=1";},1200);}catch(e){}}' +
     'if(BOUND){showOk();poll();}else{document.getElementById("bindBox").style.display="block";document.getElementById("waitBox").style.display="none";}' +
     '</script></body></html>';
@@ -5562,7 +5685,7 @@ wss.on('connection', (ws, req) => {
          FROM friends f JOIN users u ON u.id = f.user_id
          WHERE f.friend_id=? AND f.status=0 ORDER BY f.created_at DESC`
       ).all(dbUser.id);
-      for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUser(r) });
+      for (const r of reqs) send(ws, P.S_FRIEND_REQ, { from: r.id, fromUser: publicUserBrief(r) });
       // 推送离线未读消息（断线期间积累的消息，带 seq 供增量去重）
       // 原实现每次重连都把「全部未读」重推一遍（最多 500 条），且与 offline_queue 双通道重复投递；
       // 现按客户端上报的 lastMsgSeq 只补新消息，并在投递后清掉对应离线队列行，避免重复与队列无限膨胀。

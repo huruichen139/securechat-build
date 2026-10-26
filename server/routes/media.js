@@ -617,13 +617,14 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     prepare('UPDATE videos SET play_count=play_count+1 WHERE id=?').run(v.id);
     const fresh = prepare('SELECT * FROM videos WHERE id=?').get(v.id);
     const pub = videoPublic(fresh, meId);
-    pub.comments = prepare(`
+    let pubComments = prepare(`
       SELECT c.id,c.video_id AS videoId,c.reply_to AS replyTo,c.content,c.created_at AS createdAt,
              u.id AS userId,u.nickname,u.username,u.avatar
       FROM video_comments c LEFT JOIN users u ON u.id=c.user_id
       WHERE c.video_id=? ORDER BY c.created_at ASC`).all(Number(req.params.id));
-      if (blkDetail) vcRows = vcRows.filter(c => !blkDetail.has(Number(c.userId)));
-      pub.comments = vcRows;
+    // 原实现残留引用了未定义的 vcRows（ReferenceError，拉黑用户访问直接 500）
+    if (blkDetail) pubComments = pubComments.filter(c => !blkDetail.has(Number(c.userId)));
+    pub.comments = pubComments;
     okay(res, { video: pub });
   });
 
@@ -631,13 +632,14 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const payload = authed(req); const meId = payload ? payload.id : null;
     const vid = Number(req.params.id);
     if (!prepare('SELECT id FROM videos WHERE id=?').get(vid)) return deny(res, 404, '视频不存在');
-    const comments = prepare(`
+    let comments = prepare(`
       SELECT c.id,c.video_id AS videoId,c.reply_to AS replyTo,c.content,c.created_at AS createdAt,
              u.id AS userId,u.nickname,u.username,u.avatar
       FROM video_comments c LEFT JOIN users u ON u.id=c.user_id
       WHERE c.video_id=? ORDER BY c.created_at ASC`).all(vid);
-      const blkC = blockedUserIds(meId);
-      if (blkC) comments = comments.filter(c => !blkC.has(Number(c.userId)));
+    // 原实现给 const 数组重新赋值（TypeError，拉黑用户访问直接 500）
+    const blkC = blockedUserIds(meId);
+    if (blkC) comments = comments.filter(c => !blkC.has(Number(c.userId)));
     okay(res, { comments });
   });
 
