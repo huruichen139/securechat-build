@@ -5196,12 +5196,14 @@ async function hmacHex(secretHex, msgHex) {
 
 async function passkeyRegister() {
   if (!passkeyAvailable()) { toast('当前环境不支持 Passkey（需 HTTPS 或 localhost）', 'warn'); return; }
-  const deviceName = window.prompt('给这台设备起个名字（便于识别）', (navigator.platform || '本机设备').slice(0, 30)) || '本机设备';
+  const deviceName = window.prompt('给这台设备起个名字（便于识别）', (navigator.platform || '本机设备').slice(0, 30));
+  if (deviceName === null) return;
+  const password = window.prompt('为安全起见，请输入当前密码以确认创建 Passkey', '') || '';
   try {
     const res = await fetch(state.serverHost + '/api/passkey/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
-      body: JSON.stringify({ deviceName })
+      body: JSON.stringify({ deviceName: deviceName || '本机设备', password })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { toast(data.error || '注册失败', 'error'); return; }

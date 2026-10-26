@@ -4385,6 +4385,14 @@ app.post('/api/passkey/register', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '请先登录' });
+  // 注册新凭据必须验证当前密码：仅凭会话 token 就能新增"永久登录凭证"，
+  // token 被窃取（XSS/设备失窃）即可无痕加凭据，让受害者的密码防线彻底失效。
+  const { password } = req.body || {};
+  const me = prepare('SELECT id,password FROM users WHERE id=?').get(payload.id);
+  if (me && me.password) {
+    if (!password) return res.status(400).json({ error: '请输入当前密码以确认操作' });
+    if (!bcrypt.compareSync(String(password), me.password)) return res.status(403).json({ error: '当前密码错误' });
+  }
   const deviceName = String((req.body || {}).deviceName || '').trim().slice(0, 50) || '默认设备';
   const credentialId = crypto.randomUUID();
   const secret = crypto.randomBytes(32).toString('hex');

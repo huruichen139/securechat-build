@@ -1008,8 +1008,8 @@ class SecureChatApi {
       });
 
   // ============ Passkey 本地设备凭据 ============
-  Future<Map<String, dynamic>> passkeyRegister(String deviceName) =>
-      _json('POST', '/api/passkey/register', body: {'deviceName': deviceName});
+  Future<Map<String, dynamic>> passkeyRegister(String deviceName, {String password = ''}) =>
+      _json('POST', '/api/passkey/register', body: {'deviceName': deviceName, 'password': password});
 
   Future<List<Map<String, dynamic>>> passkeyList() async {
     final data = await _json('GET', '/api/passkey/list');

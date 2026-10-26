@@ -42,8 +42,17 @@ class _PasskeyPageState extends State<PasskeyPage> {
     ));
     c.dispose();
     if (name == null || name.isEmpty) return;
+    final pc = TextEditingController();
+    final password = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: _t.card,
+      title: Text('确认操作', style: TextStyle(color: _t.text)),
+      content: TextField(controller: pc, obscureText: true, style: TextStyle(color: _t.text), decoration: InputDecoration(labelText: '当前密码', labelStyle: TextStyle(color: _t.subText))),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(ctx, pc.text), child: const Text('确认'))],
+    ));
+    pc.dispose();
+    if (password == null) return;
     try {
-      final r = await widget.api.passkeyRegister(name);
+      final r = await widget.api.passkeyRegister(name, password: password);
       final sp = await SharedPreferences.getInstance();
       final raw = sp.getString('sc_passkeys');
       final list = raw == null ? <dynamic>[] : jsonDecode(raw) as List;
