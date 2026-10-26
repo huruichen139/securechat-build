@@ -71,8 +71,22 @@ module.exports = function registerLifestyle(app, db, auth) {
     b.count++;
     return b.count > 20;
   }
+  // 列表读限流（附近的人/摇一摇）：每用户每分钟 30 次，防高频枚举刷库
+  const _listBuckets = new Map();
+  function listLimited(userId) {
+    const key = 'list:' + userId;
+    const now = Date.now();
+    let b = _listBuckets.get(key);
+    if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + 60 * 1000 }; _listBuckets.set(key, b); }
+    b.count++;
+    return b.count > 30;
+  }
   // 定期清理过期桶，防内存增长
-  setInterval(() => { const now = Date.now(); for (const [k, b] of _helloBuckets) { if (now > b.resetAt) _helloBuckets.delete(k); } }, 5 * 60 * 1000);
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, b] of _helloBuckets) { if (now > b.resetAt) _helloBuckets.delete(k); }
+    for (const [k, b] of _listBuckets) { if (now > b.resetAt) _listBuckets.delete(k); }
+  }, 5 * 60 * 1000);
 
   // 确保既有表补齐需要的列（幂等）
   function ensureColumn(table, col, ddl) {
@@ -298,6 +312,7 @@ module.exports = function registerLifestyle(app, db, auth) {
   // 附近的人列表（同城 + 活跃）
   app.get('/api/nearby/list', (req, res) => {
     const id = me(res, req); if (!id) return;
+    if (listLimited(id.id)) return deny(res, 429, '请求过于频繁，请稍后再试');
     const m = prepare('SELECT * FROM nearby_markers WHERE user_id=?').get(id.id);
     // 读接口不做写操作：原实现在这里 INSERT 一条 (0,0) 标记，
     // 任何人反复 GET 都会产生/刷新数据（GET 不幂等），且 0,0 会让"同城"匹配到所有未设置位置的人。
@@ -365,6 +380,7 @@ module.exports = function registerLifestyle(app, db, auth) {
   // 拉取当前同样在摇的用户
   app.get('/api/shake/matches', (req, res) => {
     const id = me(res, req); if (!id) return;
+    if (listLimited(id.id)) return deny(res, 429, '请求过于频繁，请稍后再试');
     // 刷新自己的有效期（保持活跃）
     prepare('UPDATE shake_sessions SET expires_at=? WHERE user_id=?').run(Date.now() + SHAKE_TTL, id.id);
     // 清理过期
