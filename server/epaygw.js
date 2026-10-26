@@ -457,7 +457,10 @@ module.exports = function (app, db, authMw) {
     const need = process.env.EPAYGW_ADMIN_KEY;
     if (!need) return false;
     const got = String(req.headers['x-admin-key'] || '');
-    return got.length > 0 && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(need));
+    if (!got.length) return false;
+    // timingSafeEqual 要求等长 buffer，长度不等直接抛异常；先粗比对长度（也等价于拒绝非法长度）
+    if (got.length !== need.length) return false;
+    try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(need)); } catch (e) { return false; }
   }
   app.get('/epaygw/settings', (req, res) => {
     if (!gwAdminAuth(req)) return res.status(403).json({ code: 0, msg: '禁止访问' });
