@@ -42,10 +42,15 @@ const path = require('path');
 
 const STATUS_TTL = 24 * 3600 * 1000; // 状态 24 小时自动消失
 
-module.exports = function registerStatusCollar(app, db, auth) {
+module.exports = function registerStatusCollar(app, db, auth, opts) {
   const { prepare, persist, nextSeq } = db || {};
   const dbNextSeq = typeof nextSeq === 'function' ? nextSeq : (() => null);
   if (!prepare) throw new Error('[status-collar] db 参数必须是 require("../db")（需含 prepare）');
+  const checkSensitive = (opts && typeof opts.checkSensitive === 'function') ? opts.checkSensitive : null;
+  function sensitiveBad(t) {
+    if (!checkSensitive) return null;
+    try { return checkSensitive(String(t || '')) || null; } catch (e) { return null; }
+  }
 
   let jwt;
   function apiUser(req) {
@@ -265,6 +270,8 @@ module.exports = function registerStatusCollar(app, db, auth) {
     // 这个 ext 重复实现两者都没有，客户端实际走这里，等于限流形同虚设。
     const text = content.trim();
     if (text.length > 2000) return deny(res, 400, '评论过长（限2000字）');
+    const badWord = sensitiveBad(text);
+    if (badWord) return deny(res, 400, '评论包含违规词：' + badWord);
     if (momentCommentLimited(me)) return deny(res, 429, '评论过于频繁，请稍后再试');
     let replyTo = null;
     if (replyToId) {
@@ -400,11 +407,18 @@ module.exports = function registerStatusCollar(app, db, auth) {
     const { text, icon, bgUrl, emoji } = req.body || {};
     const body = String(text || '').trim().slice(0, 40);
     if (!body) return deny(res, 400, '状态内容不能为空');
+    // bgUrl 只允许 http(s)/本站路径/图片 data-uri，防 javascript: 等可执行来源进客户端
+    const bg = String(bgUrl || '').trim().slice(0, 500);
+    if (bg && !(/^https?:\/\//i.test(bg) || /^\/api\//.test(bg) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(bg))) {
+      return deny(res, 400, '背景图地址无效');
+    }
+    const badSt = sensitiveBad(body);
+    if (badSt) return deny(res, 400, '状态包含违规词：' + badSt);
     const now = Date.now();
     prepare(`INSERT INTO user_status(user_id,text,icon,bg_url,emoji,created_at,expires_at,updated_at) VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(user_id) DO UPDATE SET text=excluded.text,icon=excluded.icon,bg_url=excluded.bg_url,emoji=excluded.emoji,
         created_at=excluded.created_at,expires_at=excluded.expires_at,updated_at=excluded.updated_at`)
-      .run(me, body, String(icon || '').slice(0, 3), String(bgUrl || '').slice(0, 500), String(emoji || '').slice(0, 10), now, now + STATUS_TTL, now);
+      .run(me, body, String(icon || '').slice(0, 3), bg, String(emoji || '').slice(0, 10), now, now + STATUS_TTL, now);
     persist();
     okay(res, { expiresAt: now + STATUS_TTL });
   });
@@ -696,6 +710,8 @@ module.exports = function registerStatusCollar(app, db, auth) {
     // 组装转发文本
     const text = composeForwardText(item.kind, data, (req.body || {}).content);
     if (text.length > 100 * 1024) return deny(res, 413, '内容过长');
+    const badFw = sensitiveBad(text.slice(0, 2000));
+    if (badFw) return deny(res, 400, '内容包含违规词：' + badFw);
     const now = Date.now();
     const fwdSeq = dbNextSeq();
     const info = prepare('INSERT INTO messages(from_id,to_id,content,created_at,seq) VALUES(?,?,?,?,?)')

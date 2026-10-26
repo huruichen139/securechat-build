@@ -2834,6 +2834,8 @@ app.post('/api/moments/:id/comment', (req, res) => {
   const { content, replyToId } = req.body || {};
   if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '评论不能为空' });
   if (content.length > 2000) return res.status(400).json({ error: '评论过长（限2000字）' });
+  const _sw = checkSensitive(content.trim());
+  if (_sw) return res.status(400).json({ error: '评论包含违规词：' + _sw });
   // 限流：同一用户 5 分钟内最多 30 条评论，防刷
   if (rateLimit('mcomment:' + payload.id, 30, 5 * 60 * 1000)) return res.status(429).json({ error: '评论过于频繁，请稍后再试' });
   let replyTo = null;
@@ -6155,7 +6157,7 @@ function mountFeatureRoutes(app, db) {
   } catch (e) {}
   rx('./routes/payment', [app, db, null]);
   rx('./epaygw', [app, db, null]);
-  rx('./routes/status-collar', [app, db, apiUser]);
+  rx('./routes/status-collar', [app, db, apiUser, { checkSensitive: (t) => checkSensitive(t) }]);
   rx('./routes/lifestyle-msg', [app, db, apiUser]);
   global.__scSendToUser = sendToUser;
   rx('./routes/redpacket', [app, db, apiUser]);
