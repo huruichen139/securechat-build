@@ -655,6 +655,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
   // 说明：群语音的字节上传仍走 server/index.js 的 POST /api/files（media.js 风格的原始 body）。
   //       本端点仅提供「面向群内的语音 marker 快捷发送」，供 Web/Flutter 三端调用。
   // ============================================================
+  const _voiceHits = new Map();
   app.post('/api/solang/voice', (req, res) => {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
@@ -663,6 +664,15 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!Number.isInteger(groupId) || !groupExists(groupId)) return deny(res, 400, '群不存在');
     if (!inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
     if (!fileId) return deny(res, 400, '缺少语音文件id');
+    // fileId 必须是本站上传的 uuid 格式：否则 marker 里可被塞进任意文本/引用内容
+    if (!/^[0-9a-f-]{8,64}$/i.test(fileId)) return deny(res, 400, '语音文件id无效');
+    // 限流：语音快捷发送 10 次/分钟（防刷屏）
+    const _vk = 'sv:' + payload.id;
+    const nowTs = Date.now();
+    let vh = _voiceHits.get(_vk);
+    if (!vh || nowTs > vh.resetAt) { vh = { count: 0, resetAt: nowTs + 60000 }; _voiceHits.set(_vk, vh); }
+    vh.count++;
+    if (vh.count > 10) return deny(res, 429, '语音发送过于频繁');
     const marker = '[语音消息:' + fileId + ']';
     const now = Date.now();
     const voiceSeq = nextSeq();
