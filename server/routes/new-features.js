@@ -24,6 +24,16 @@ module.exports = function register(app, db, auth) {
     }
   };
 
+  // 转写限流（内存级，5 次/分钟）
+  const _sttHits = new Map();
+  function _sttLimited(uid) {
+    const now = Date.now();
+    const arr = (_sttHits.get(uid) || []).filter(t => now - t < 60000);
+    if (arr.length >= 5) { _sttHits.set(uid, arr); return true; }
+    arr.push(now); _sttHits.set(uid, arr);
+    return false;
+  }
+
   // ========== 消息翻译 ==========
   // 归属校验：翻译记录挂在 message_id 上，若不校验，任何人都能读别人消息的译文，
   // 也能把自己编造的文本写成某条消息的"官方翻译"（误导对方）。
@@ -83,6 +93,9 @@ module.exports = function register(app, db, auth) {
   app.post('/api/quick-replies', requireAuth, (req, res) => {
     const { title, content } = req.body || {};
     if (!title || !content) return res.status(400).json({ error: '标题和内容不能为空' });
+    if (typeof title !== 'string' || title.trim().length > 50) return res.status(400).json({ error: '标题需1-50字符' });
+    if (typeof content !== 'string' || content.trim().length > 500) return res.status(400).json({ error: '内容需1-500字符' });
+    if (db.prepare('SELECT COUNT(*) AS c FROM quick_replies WHERE user_id=?').get(req.user.id).c >= 50) return res.status(429).json({ error: '快捷回复已满（50条）' });
     const now = Date.now();
     db.run('INSERT INTO quick_replies(user_id, title, content, created_at, updated_at) VALUES(?,?,?,?,?)',
       [req.user.id, title, content, now, now]);
@@ -111,9 +124,21 @@ module.exports = function register(app, db, auth) {
   app.post('/api/scheduled-messages', requireAuth, (req, res) => {
     const { peerId, isGroup, content, kind, scheduledAt } = req.body || {};
     if (!peerId || !scheduledAt || !content) return res.status(400).json({ error: '参数缺失' });
+    if (typeof content !== 'string' || !content.trim() || content.length > 4000) return res.status(400).json({ error: '内容长度需1-4000字符' });
+    const at = Number(scheduledAt);
+    const now = Date.now();
+    if (!Number.isFinite(at) || at < now - 60 * 1000 || at > now + 30 * 24 * 3600 * 1000) return res.status(400).json({ error: '定时时间无效（需在未来30天内）' });
+    if (db.prepare('SELECT COUNT(*) AS c FROM scheduled_messages WHERE user_id=? AND cancelled=0 AND sent_at IS NULL').get(req.user.id).c >= 20) return res.status(429).json({ error: '待发送定时消息已满（20条）' });
+    const targetId = Number(peerId);
+    if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: '对象无效' });
+    if (isGroup) {
+      if (!memberOf(targetId, req.user.id)) return res.status(403).json({ error: '你不在此群' });
+    } else if (!db.prepare('SELECT 1 FROM friends WHERE user_id=? AND friend_id=? AND status=1').get(req.user.id, targetId)) {
+      return res.status(403).json({ error: '只能定时发送给好友' });
+    }
     db.run(
       'INSERT INTO scheduled_messages(user_id, peer_id, is_group, content, kind, scheduled_at, created_at) VALUES(?,?,?,?,?,?,?)',
-      [req.user.id, peerId, isGroup ? 1 : 0, content, kind || 'text', scheduledAt, Date.now()]
+      [req.user.id, targetId, isGroup ? 1 : 0, content, kind || 'text', at, Date.now()]
     );
     res.json({ success: true });
   });
@@ -418,7 +443,8 @@ module.exports = function register(app, db, auth) {
       return res.status(400).json({ error: '超过5分钟无法撤回' });
     }
     db.run('UPDATE group_messages SET recalled=1 WHERE id=?', [messageId]);
-    broadcastGroupRecall(messageId, groupId || msg.group_id, msg.from_id, reason);
+    // 固定用消息所属群广播：参数 groupId 可能伪造，改用它会让其他群收到无关撤回
+    broadcastGroupRecall(messageId, msg.group_id, msg.from_id, reason);
     res.json({ success: true });
   });
 
@@ -426,12 +452,23 @@ module.exports = function register(app, db, auth) {
   app.post('/api/message/transcribe', requireAuth, (req, res) => {
     const { audioPath } = req.body || {};
     if (!audioPath || typeof audioPath !== 'string' || audioPath.length > 500) return res.status(400).json({ error: '音频路径不能为空' });
+    // 路径白名单：只允许转写服务器媒体目录内的文件，且必须存在（防把任意本地文件送进模型、防路径穿越）
+    const pathMod = require('path');
+    const fsMod = require('fs');
+    const roots = ['server/media', 'media', 'call-recordings', 'files', 'server/group-files', 'group-files']
+      .map(r => pathMod.resolve(__dirname, '../../', r) + pathMod.sep);
+    const resolved = pathMod.resolve(String(audioPath));
+    if (!roots.some(r => resolved.startsWith(r))) return res.status(400).json({ error: '音频路径不在允许目录内' });
+    if (!fsMod.existsSync(resolved)) return res.status(404).json({ error: '音频文件不存在' });
+    if (_sttLimited(req.user.id)) return res.status(429).json({ error: '转写请求过于频繁，请稍后再试' });
     try {
-      const { execFileSync } = require('child_process');
-      const result = execFileSync('python', [require('path').join(__dirname, '../stt_whisper.py'), String(audioPath)], { encoding: 'utf8', timeout: 30000 });
-      res.json({ success: true, text: result.trim() });
+      const { execFile } = require('child_process');
+      execFile('python', [pathMod.join(__dirname, '../stt_whisper.py'), resolved], { encoding: 'utf8', timeout: 30000 }, (err, stdout) => {
+        if (err) return res.status(500).json({ error: '转写失败' });
+        res.json({ success: true, text: String(stdout || '').trim() });
+      });
     } catch (e) {
-      res.status(500).json({ error: '转写失败: ' + e.message });
+      res.status(500).json({ error: '转写失败' });
     }
   });
 

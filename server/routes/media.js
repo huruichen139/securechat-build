@@ -550,11 +550,28 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
       return deny(res, 400, '封面地址无效');
     }
     const fileType = /\.(webm)(\?|$)/i.test(url) ? 'webm' : 'mp4';
+    const bad = checkSensitiveLocal(title + ' ' + content);
+    if (bad) return deny(res, 400, '内容包含违规词：' + bad);
     const now = Date.now();
     const info = prepare(`INSERT INTO videos(user_id,title,cover,content,url,file_type,created_at)
       VALUES(?,?,?,?,?,?,?)`).run(payload.id, title, cover, content, url, fileType, now);
     const v = prepare('SELECT * FROM videos WHERE id=?').get(info.lastInsertRowid);
     okay(res, { video: videoPublic(v, payload.id) });
+  });
+
+  // 删除自己的视频（原实现作者无法删除自己的视频）
+  app.delete('/api/videos/:id', (req, res) => {
+    const payload = authed(req);
+    if (!payload) return deny(res, 401, '未授权');
+    const vid = Number(req.params.id);
+    const v = prepare('SELECT id,user_id FROM videos WHERE id=?').get(vid);
+    if (!v) return deny(res, 404, '视频不存在');
+    if (Number(v.user_id) !== Number(payload.id)) return deny(res, 403, '只能删除自己的视频');
+    try { prepare('DELETE FROM video_comments WHERE video_id=?').run(vid); } catch (_) {}
+    try { prepare('DELETE FROM video_likes WHERE video_id=?').run(vid); } catch (_) {}
+    try { prepare('DELETE FROM video_favorites WHERE video_id=?').run(vid); } catch (_) {}
+    prepare('DELETE FROM videos WHERE id=?').run(vid);
+    okay(res, { deleted: vid });
   });
 
   // 推荐流（最新，按时间倒序）
