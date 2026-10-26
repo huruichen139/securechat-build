@@ -386,6 +386,16 @@ module.exports = function registerChatExt(app, db, auth) {
     if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
     const kind = (req.body || {}).kind === 'image' ? 'image' : 'color';
     const value = String((req.body || {}).value || '').slice(0, 4096);
+    // scheme 白名单：防止 javascript:/data:text/html 等可执行来源被存入并回放到客户端背景
+    if (kind === 'color') {
+      if (!/^#[0-9a-fA-F]{3,8}$/.test(value) && !/^(rgba?\([0-9,.\s%]+\)|transparent|linear-gradient\([^;{}]{0,300}\))$/.test(value)) {
+        return res.status(400).json({ error: '颜色值无效' });
+      }
+    } else {
+      if (!(/^https?:\/\//i.test(value) || /^\/api\//.test(value) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(value))) {
+        return res.status(400).json({ error: '背景图地址无效' });
+      }
+    }
     const opacity = Math.min(Math.max(Number((req.body || {}).opacity) || 1, 0), 1);
     try {
       prepare('CREATE TABLE IF NOT EXISTS chat_bg(user_id INTEGER NOT NULL, peer_id INTEGER NOT NULL, kind TEXT NOT NULL, value TEXT, opacity REAL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, peer_id))').run();
