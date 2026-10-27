@@ -242,27 +242,35 @@ function createRtc(ctx) {
 
   function bindDc(peerId, dc) {
     dc.binaryType = 'arraybuffer';
+    // 传输上限 512MB：共同好友可通过文件通道无限推送把内存耗尽
+    const MAX_RECV = 512 * 1024 * 1024;
     dc.onmessage = (ev) => {
       const e = peers.get(peerId);
       if (typeof ev.data === 'string') {
         let m; try { m = JSON.parse(ev.data); } catch { return; }
         if (m.t === 'meta') {
-          e.fileRecv = { name: m.name, size: m.size, mime: m.mime, chunks: [], received: 0 };
+          const size = Number(m.size) || 0;
+          if (size < 0 || size > MAX_RECV) { window.dispatchEvent(new CustomEvent('file-start', { detail: { peerId, name: '（过大已拒绝）', size: 0 } })); try { dc.close(); } catch (_) {} return; }
+          e.fileRecv = { name: m.name, size, mime: m.mime, chunks: [], received: 0 };
           window.dispatchEvent(new CustomEvent('file-start', { detail: { peerId, name: m.name, size: m.size } }));
         } else if (m.t === 'done') {
           const f = e.fileRecv;
           if (!f) return;
           const blob = new Blob(f.chunks, { type: f.mime });
           const url = URL.createObjectURL(blob);
-          window.dispatchEvent(new CustomEvent('file-done', { detail: { peerId, name: f.name, size: f.size, url } }));
+          // 文件名消毒：只保留文件名本身，避免下载被改写成其他目录
+          const safeName = String(f.name || 'file').split(/[\\/]/).pop().replace(/[<>:"|?*\u0000-\u001f]/g, '_').slice(0, 200) || 'file';
+          window.dispatchEvent(new CustomEvent('file-done', { detail: { peerId, name: safeName, size: f.size, url } }));
           e.fileRecv = null;
         }
       } else {
         const e2 = peers.get(peerId);
         const f = e2.fileRecv;
         if (!f) return;
+        const incoming = ev.data.byteLength || 0;
+        if (f.received + incoming > MAX_RECV) { try { dc.close(); } catch (_) {} return; }
         f.chunks.push(ev.data);
-        f.received += ev.data.byteLength;
+        f.received += incoming;
         window.dispatchEvent(new CustomEvent('file-progress', { detail: { peerId, received: f.received, size: f.size } }));
       }
     };

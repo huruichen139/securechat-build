@@ -62,8 +62,9 @@ class CallService extends ChangeNotifier {
       if (status == CallStatus.calling || status == CallStatus.connecting) _end('对方不在线');
       return;
     }
-    // 除来电(call)外，其余信号必须来自当前通话对端，否则拒绝（防第三方伪造 hangup/answer 等）
-    if (sub != 'call' && peerId != null && from != peerId) return;
+    // 除来电(call)外，其余信号必须来自当前通话对端；无通话状态一律丢弃，
+    // 否则可被伪造 offer 静默拉起麦克风/摄像头并推流给对方。
+    if (sub != 'call' && (peerId == null || from != peerId)) return;
     final payload = (data is Map) ? data.cast<String, dynamic>() : <String, dynamic>{};
     switch (sub) {
       case 'call':
