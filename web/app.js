@@ -2522,7 +2522,7 @@ function renderGroupList() {
     const groupTime = state.groupLastMsgTime[g.id] ? fmtChatListTime(state.groupLastMsgTime[g.id]) : '';
     const isPinned = !!chatPrefs().pinned['g:' + g.id];
     const isMuted = !!chatPrefs().muted['g:' + g.id];
-    div.innerHTML = `<div class="avatar">${(g.name || '?').charAt(0).toUpperCase()}</div>
+    div.innerHTML = `<div class="avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div>
        <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(g.name)}<span class="last" style="margin-left:6px">ID:${g.id}${ownerMark}</span></div>
         <div class="last">${escapeHtml(String(lastMsg).slice(0, 30))}</div>
@@ -5360,7 +5360,7 @@ function openSettingsPage() {
   // 个人信息卡片
   const profileCard = document.createElement('div');
   profileCard.style.cssText = 'background:var(--surface,#fff);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;cursor:pointer;border:1px solid var(--border,#e5e5e5)';
-  const av = (me && me.avatar) ? '<img src="' + me.avatar + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + (me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
+  const av = (me && me.avatar) ? '<img src="' + escapeHtml(me.avatar) + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + escapeHtml(me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
   profileCard.innerHTML = av + '<div style="flex:1"><div style="font-size:17px;font-weight:600;color:var(--text,#191919)">' + (me ? escapeHtml(me.nickname) : '') + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">微信号：' + (me ? escapeHtml(me.uid || '') : '') + '</div></div><span style="color:#ccc;font-size:16px">\u203a</span>';
   profileCard.onclick = () => showMyCard();
   content.appendChild(profileCard);

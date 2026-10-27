@@ -135,7 +135,7 @@
   function _itemContent(it) {
     const d = it.data || {};
     switch (it.kind) {
-      case 'image': return '<div class="sc-fav-image-wrap">' + (d.url ? '<img loading="lazy" src="' + HOST + d.url + '">' : '<span>图片</span>') + '</div>';
+      case 'image': return '<div class="sc-fav-image-wrap">' + (d.url ? '<img loading="lazy" src="' + esc(HOST + d.url) + '">' : '<span>图片</span>') + '</div>';
       case 'link': return '<div class="sc-fav-link">[链接] ' + esc(d.title || d.url || '') + '</div>';
       case 'file': return '<div class="sc-fav-file">[文件] ' + esc(d.name || 'file') + '</div>';
       case 'moment': return '<div class="sc-fav-moment">' + esc(d.content || '') + '</div>';
