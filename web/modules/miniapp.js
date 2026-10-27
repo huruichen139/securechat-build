@@ -27,7 +27,7 @@
       .then(function (r) { if (r.status === 401) throw new Error('未登录或登录已过期'); return r.json().catch(function () { return {}; }); })
       .then(function (d) { if (d && d.error) throw new Error(d.error); return d; });
   }
-  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s); }
+  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function toastMsg(m, k) { if (window.toast) window.toast(m, k || 'info'); }
   function fmt(ts) { if (!ts) return ''; const d = new Date(Number(ts)); const p = n => (n < 10 ? '0' + n : '' + n); return d.getMonth() + 1 + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 
@@ -142,7 +142,7 @@
           '<span class="miniapp-view-sub">' + esc(a.url) + '</span>' +
           '<button class="miniapp-close">✕</button>' +
         '</div>' +
-        '<iframe class="miniapp-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="' + esc(a.url) + '"></iframe>';
+        '<iframe class="miniapp-frame" sandbox="allow-scripts allow-forms allow-popups" src="' + esc(a.url) + '"></iframe>';
       mask.appendChild(box);
       document.body.appendChild(mask);
       box.querySelector('.miniapp-close').addEventListener('click', function () { mask.remove(); });

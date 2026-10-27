@@ -3628,7 +3628,11 @@ function buildDownloads(cfg) {
       .map((entry) => entry.name)
       .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0];
     downloads[key] = fallback ? '/downloads/' + fallback : null;
-    if (fallback) downloadVersions[key] = fallback.slice(prefix.length, -suffix.length);
+    // fallback 版本段必须是 x.y.z，避免管理员误放的外部文件引导客户端"升级"到假版本
+    if (fallback) {
+      const verSeg = fallback.slice(prefix.length, -suffix.length);
+      downloadVersions[key] = /^\d+\.\d+\.\d+$/.test(verSeg) ? verSeg : cfg.latest;
+    }
   }
   return { downloads, downloadVersions };
 }

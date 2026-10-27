@@ -45,9 +45,8 @@ function signOf(params, key) {
   const keys = Object.keys(arr);
   const qs = keys.map(k => k + '=' + arr[k]).join('&');
   const qsEnc = keys.map(k => k + '=' + encodeURIComponent(arr[k])).join('&');
-  const concat = keys.map(k => arr[k]).join('');
-  const concatEnc = keys.map(k => encodeURIComponent(arr[k])).join('');
-  return [qs, qsEnc, concat, concatEnc].map(s => md5(s + key));
+  // 仅保留标准易支付两种键值拼接；纯值拼接（无 key 名）易产生跨参数集碰撞，已移除
+  return [qs, qsEnc].map(s => md5(s + key));
 }
 
 function verifySign(params, sign) {
@@ -377,7 +376,8 @@ module.exports = function (app, db, authMw) {
   async function renderCashier(req, res, p) {
     const o = createOrder(p);
     const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-    const base = proto + '://' + req.get('host');
+    // 基址优先用环境白名单，防止 Host / x-forwarded-proto 被客户端伪造注入 cashier 链接
+    const base = (process.env.PUBLIC_BASE_URL || (proto + '://' + req.get('host'))).replace(/\/+$/, '');
     try {
       let sc = db.prepare('SELECT id,status,paid_at FROM pay_orders WHERE order_no=?').get(o.out_trade_no);
       if (sc && !sc.paid_at && (sc.status !== 'pending' || !sc.expires_at || sc.expires_at < Date.now())) {
@@ -445,7 +445,8 @@ module.exports = function (app, db, authMw) {
       const o = createOrder(ap);
       if (!o) return res.status(400).json({ code: -1, msg: 'order amount invalid' });
       const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-      const base = proto + '://' + req.get('host');
+      // 同上：基址走环境白名单
+      const base = (process.env.PUBLIC_BASE_URL || (proto + '://' + req.get('host'))).replace(/\/+$/, '');
       const cashierUrl = base + '/api/pay/gateway/epay/cashier?order=' + encodeURIComponent(o.out_trade_no) + '&v=2';
       try {
         const sc = db.prepare('SELECT id FROM pay_orders WHERE order_no=?').get(o.out_trade_no);
