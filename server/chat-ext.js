@@ -114,8 +114,11 @@ module.exports = function registerChatExt(app, db, auth) {
 
   // 取得某条私聊消息（必须与当前用户相关）
   function messageForUser(id, userId) {
-    return prepare('SELECT * FROM messages WHERE id=? AND (from_id=? OR to_id=?)')
+    const row = prepare('SELECT * FROM messages WHERE id=? AND (from_id=? OR to_id=?)')
       .get(id, userId, userId) || null;
+    // 撤回后正文不得经转发接口回读
+    if (row && row.recalled) row.content = '';
+    return row;
   }
 
   // 取得某条群消息（必须是群成员）

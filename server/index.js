@@ -1845,13 +1845,16 @@ app.post('/api/profile', (req, res) => {
 // （背景自定义由前端 localStorage 处理；不需要服务端）
 
 function messageForUser(messageId, userId) {
-  return prepare(`
-    SELECT m.id,m.from_id AS from,m.to_id AS to,m.content,m.created_at AS createdAt,m.read,
+  const row = prepare(`
+    SELECT m.id,m.from_id AS fromId,m.to_id AS toId,m.content,m.recalled,m.created_at AS createdAt,m.read,
       mm.reply_to AS replyTo,mm.forwarded_from AS forwardedFrom,
       mm.burn_after_reading AS burnAfterReading,mm.pinned
     FROM messages m LEFT JOIN message_meta mm ON mm.message_id=m.id
     WHERE m.id=? AND (m.from_id=? OR m.to_id=?)
   `).get(messageId, userId, userId);
+  // 撤回后正文不得再经 pin/reply/favorite 等接口回读
+  if (row && row.recalled) row.content = '';
+  return row;
 }
 
 const _ALLOWED_META_FIELDS = new Set(['reply_to', 'forwarded_from', 'burn_after_reading', 'pinned']);
@@ -1872,14 +1875,28 @@ app.post('/api/messages/:id/reply', (req, res) => {
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const id = Number(req.params.id); const message = messageForUser(id, payload.id);
   if (!message) return res.status(404).json({ error: '消息不存在' });
-  const meta = messageMetaUpdate(id, payload.id, 'reply_to', Number(req.body && req.body.replyTo) || 0);
+  // message_meta 是全局共享行：只允许消息发送者修改，否则收件人可篡改对方消息的引用/置顶
+  if (Number(message.fromId) !== Number(payload.id)) return res.status(403).json({ error: '只能操作自己发送的消息' });
+  const replyToRaw = Number(req.body && req.body.replyTo) || 0;
+  if (replyToRaw) {
+    // 引用必须属于同一会话，否则可跨私聊把他人消息正文带进来
+    const peer = Number(message.fromId) === Number(payload.id) ? Number(message.toId) : Number(message.fromId);
+    const own = prepare('SELECT 1 FROM messages WHERE id=? AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))')
+      .get(replyToRaw, payload.id, peer, peer, payload.id);
+    if (!own) return res.status(400).json({ error: '被引用消息不属于当前会话' });
+  }
+  const meta = messageMetaUpdate(id, payload.id, 'reply_to', replyToRaw);
   res.json({ ok: true, message: meta });
 });
 
 app.post('/api/messages/:id/pin', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
-  const meta = messageMetaUpdate(Number(req.params.id), payload.id, 'pinned', !!(req.body && req.body.pinned));
+  const id = Number(req.params.id);
+  const message = messageForUser(id, payload.id);
+  if (!message) return res.status(404).json({ error: '消息不存在' });
+  if (Number(message.fromId) !== Number(payload.id)) return res.status(403).json({ error: '只能操作自己发送的消息' });
+  const meta = messageMetaUpdate(id, payload.id, 'pinned', !!(req.body && req.body.pinned));
   if (!meta) return res.status(404).json({ error: '消息不存在' });
   res.json({ ok: true, message: meta });
 });
@@ -1896,15 +1913,20 @@ app.post('/api/messages/:id/favorite', (req, res) => {
 app.get('/api/favorites', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
-  const rows = prepare(`SELECT m.id,m.from_id AS from,m.to_id AS to,m.content,m.created_at AS createdAt,f.created_at AS favoritedAt
+  const rows = prepare(`SELECT m.id,m.from_id AS fromId,m.to_id AS toId,
+      CASE WHEN m.recalled=1 THEN '' ELSE m.content END AS content,
+      m.created_at AS createdAt,f.created_at AS favoritedAt
     FROM message_favorites f JOIN messages m ON m.id=f.message_id WHERE f.user_id=? ORDER BY f.created_at DESC`).all(payload.id);
-  res.json({ messages: rows });
+  res.json({ messages: rows.map(r => ({ id: r.id, from: r.fromId, to: r.toId, content: r.content, createdAt: r.createdAt, favoritedAt: r.favoritedAt })) });
 });
 
 app.post('/api/chats/:peerId/settings', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req); if (!payload) return res.status(401).json({ error: '未授权' });
   const peerId = Number(req.params.peerId); if (!Number.isInteger(peerId)) return res.status(400).json({ error: '联系人无效' });
+  // 目标必须真实存在，并限制写入频率（否则可对任意整数无限写行撑大 DB）
+  if (!prepare('SELECT 1 FROM users WHERE id=?').get(peerId)) return res.status(404).json({ error: '联系人不存在' });
+  if (rateLimit('chatset:' + payload.id, 120, 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
   const body = req.body || {}; const now = Date.now();
   const current = prepare('SELECT muted,pinned FROM user_chat_settings WHERE user_id=? AND peer_id=?').get(payload.id, peerId) || { muted: 0, pinned: 0 };
   const muted = body.muted === undefined ? current.muted : (body.muted ? 1 : 0);
@@ -2136,7 +2158,9 @@ app.post('/api/messages', (req, res) => {
   // 越权防护:replyTo/forwardedFrom 必须属于当前用户的会话,防 id 枚举读取任意私聊正文
   const dmReplyTo = Number(replyTo) || null;
   const dmFwdFrom = Number(forwardedFrom) || null;
-  const dmOwnsMsg = (mid) => !!prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(mid, payload.id, payload.id);
+  // 必须是「发件人↔本收件人」这一会话内的消息，避免引用到与其他人的私聊
+  const dmOwnsMsg = (mid) => !!prepare('SELECT 1 FROM messages WHERE id=? AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))')
+    .get(mid, payload.id, toId, toId, payload.id);
   const okReply = dmReplyTo ? dmOwnsMsg(dmReplyTo) : true;
   const okFwd = dmFwdFrom ? dmOwnsMsg(dmFwdFrom) : true;
   if (!okReply || !okFwd) return res.status(403).json({ error: '引用的消息不存在或无权访问' });
@@ -2546,8 +2570,12 @@ app.delete('/api/call-recordings/:id', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const row = prepare('SELECT * FROM call_recordings WHERE id=?').get(req.params.id);
   if (!row) return res.status(404).json({ error: '回放不存在' });
-  if (row.from_id !== payload.id && row.to_id !== payload.id) return res.status(404).json({ error: '回放不存在' });
-  try { if (row.path && fs.existsSync(row.path)) fs.unlinkSync(row.path); } catch (e) { console.error('[call-recordings] 删除文件失败: ' + (e && e.message || e)); }
+  // 只有上传者（发起方）可删除，避免收件人单方面销毁对方的唯一录像
+  if (Number(row.from_id) !== Number(payload.id)) return res.status(404).json({ error: '回放不存在' });
+  try {
+    const resolved = path.resolve(String(row.path || ''));
+    if (row.path && resolved.startsWith(path.resolve(CALLS_DIR) + path.sep) && fs.existsSync(resolved)) fs.unlinkSync(resolved);
+  } catch (e) { console.error('[call-recordings] 删除文件失败: ' + (e && e.message || e)); }
   try { prepare('DELETE FROM call_recordings WHERE id=?').run(row.id); persist(); } catch (e) { return res.status(500).json({ error: '删除失败' }); }
   res.json({ ok: true });
 });
@@ -2562,9 +2590,25 @@ app.delete('/api/call-recordings/:id', (req, res) => {
       if (!ready) return;
       const rows = prepare('SELECT id, path FROM call_recordings WHERE created_at < ?').all(Date.now() - TTL);
       if (!rows || !rows.length) return;
+      // 仍被直播回放引用的录像不删，否则直播回放 404
+      let liveRefs = new Set();
+      try {
+        for (const lr of prepare('SELECT replay_url FROM live_rooms').all()) {
+          const m = /\/api\/call-recordings\/(\d+)/.exec(String((lr && lr.replay_url) || ''));
+          if (m) liveRefs.add(Number(m[1]));
+        }
+      } catch (e) {}
       let removed = 0;
+      const baseDir = path.resolve(CALLS_DIR) + path.sep;
       for (const r of rows) {
-        try { if (r.path && fs.existsSync(r.path)) fs.unlinkSync(r.path); } catch (e) {}
+        if (liveRefs.has(Number(r.id))) continue;
+        try {
+          if (r.path) {
+            const resolved = path.resolve(String(r.path));
+            if (!resolved.startsWith(baseDir)) continue;
+            if (fs.existsSync(resolved)) fs.unlinkSync(resolved);
+          }
+        } catch (e) { continue; }
         try { prepare('DELETE FROM call_recordings WHERE id=?').run(r.id); removed++; } catch (e) {}
       }
       if (removed) {
@@ -5756,7 +5800,9 @@ wss.on('connection', (ws, req) => {
       // 越权防护:replyTo/forwardedFrom 必须属于当前会话
       const dmR = Number(replyTo) || null;
       const dmF = Number(forwardedFrom) || null;
-      const dmOwns = (mid) => !!prepare('SELECT 1 FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(mid, ws.uid, ws.uid);
+      // 必须是与「本收件人」的同一会话，否则可跨私聊把他人消息正文带进来
+      const dmOwns = (mid) => !!prepare('SELECT 1 FROM messages WHERE id=? AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))')
+        .get(mid, ws.uid, toId, toId, ws.uid);
       if (dmR && !dmOwns(dmR)) return send(ws, P.S_ERROR, { error: '引用的消息无权访问' });
       if (dmF && !dmOwns(dmF)) return send(ws, P.S_ERROR, { error: '转发的消息无权访问' });
       const wsMsgSeq = nextSeq();
@@ -5771,8 +5817,10 @@ wss.on('connection', (ws, req) => {
       let replyContent = null, replyFrom = null, replyRecalled = false;
       if (msgObj.replyTo) {
         try {
-          const pm = prepare('SELECT content,from_id,recalled FROM messages WHERE id=? AND (from_id=? OR to_id=?)').get(msgObj.replyTo, ws.uid, ws.uid);
-          if (pm) { replyContent = pm.content; replyFrom = pm.from_id; replyRecalled = !!pm.recalled; }
+          const pm = prepare('SELECT content,from_id,recalled FROM messages WHERE id=? AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))')
+            .get(msgObj.replyTo, ws.uid, toId, toId, ws.uid);
+          // 撤回消息不得通过引用块回显原文
+          if (pm) { replyContent = pm.recalled ? null : pm.content; replyFrom = pm.from_id; replyRecalled = !!pm.recalled; }
         } catch (e) {}
       }
       msgObj.replyContent = replyContent; msgObj.replyFrom = replyFrom; msgObj.replyRecalled = replyRecalled;
@@ -5980,6 +6028,8 @@ wss.on('connection', (ws, req) => {
       // 信令必须限定在好友之间且 sub 在白名单内，否则任意用户可对任意在线用户伪造
       // offer/answer/hangup（强制弹呼叫、挂断他人通话、向攻击者推流音视频）
       if (!ALLOWED_SIGNAL_SUBS.has(String(sub))) return;
+      // 信令独立限流：避免共同好友高频刷 call/ring 造成持续响铃骚扰
+      if (rateLimit('wsig:' + ws.uid, 120, 60 * 1000)) return;
       // 必须是已通过的好友（status=1）且双向未拉黑：原实现不判 status，
       // 发一条好友请求就能对陌生人弹呼叫框/伪造 hangup，与 REST 通道不一致。
       if (!prepare('SELECT 1 FROM friends WHERE status=1 AND ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?))').get(ws.uid, toId, toId, ws.uid)) return;

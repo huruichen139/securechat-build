@@ -137,7 +137,9 @@ module.exports = function registerRtc(app, db, auth) {
     // 任意用户可对任意在线用户发 offer/hangup（挂断通话、强制推流）。
     let isFriend = false;
     try {
-      isFriend = !!prepare('SELECT 1 FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)')
+      // 必须 status=1（已接受）：status=0 只是待处理的好友请求，
+      // 否则任意用户发一条好友申请即可向对方伪造来电/挂断信令。
+      isFriend = !!prepare('SELECT 1 FROM friends WHERE ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)) AND status=1')
         .get(me, toId, toId, me);
     } catch (e) { isFriend = false; }
     // 定向限流必须在校验之前执行：收件箱上限 200 且 TTL 2 分钟，
@@ -181,7 +183,17 @@ module.exports = function registerRtc(app, db, auth) {
     const { to } = (req.body && typeof req.body === 'object') ? req.body : {};
     const toId = Number(to);
     if (Number.isInteger(toId) && toId && toId !== me) {
-      let blocked = false;
+      // 与 /signal 同等校验：目标存在 + 已接受好友 + 双向未拉黑 + 限流。
+      // 原实现只查拉黑，任意登录用户可向任意人注入 hangup 强行挂断通话。
+      let target = null, isFriend = false, blocked = false;
+      try { target = prepare('SELECT id FROM users WHERE id=?').get(toId); } catch (e) { target = null; }
+      if (!target) return res.status(404).json({ error: '用户不存在' });
+      try {
+        isFriend = !!prepare('SELECT 1 FROM friends WHERE ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)) AND status=1')
+          .get(me, toId, toId, me);
+      } catch (e) { isFriend = false; }
+      if (!isFriend) return res.status(403).json({ error: '仅可向好友发送通话信令' });
+      if (hitSignalLimit(me + ':' + toId)) return res.status(429).json({ error: '信令发送过于频繁' });
       try {
         blocked = !!prepare('SELECT 1 FROM blocklist WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(toId, me, me, toId);
       } catch (e) { blocked = false; }
@@ -294,7 +306,13 @@ module.exports = function registerRtc(app, db, auth) {
       } catch (e) { return 'application/octet-stream'; }
     })());
     res.setHeader('Content-Disposition', `attachment; filename="${String(name).replace(/["\\\r\n]/g, '_')}"`);
-    fs.createReadStream(filePath).pipe(res);
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', (e) => {
+      console.error('[filehelper] 读取失败: ' + (e && e.message || e));
+      if (!res.headersSent) { try { res.status(404).json({ error: '文件不存在' }); } catch (_) {} }
+      else { try { res.destroy(); } catch (_) {} }
+    });
+    stream.pipe(res);
   });
 
   app.delete('/api/rtc/filehelper/file/:id', (req, res) => {

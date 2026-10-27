@@ -273,6 +273,11 @@ function createRtc(ctx) {
   // 对外：处理收到的信令
   async function handleSignal(msg) {
     const { from, sub, data } = msg || {};
+    // 会话绑定：answer/ice/hangup/call_reject 只接受当前通话对端，
+    // 否则共同好友可跨会话注入挂断/拒绝信令，强行结束他人通话
+    if (sub === 'answer' || sub === 'ice' || sub === 'hangup' || sub === 'call_reject') {
+      if (!peers.has(Number(from))) return;
+    }
     if (sub === 'offer') await onOffer(from, data);
     else if (sub === 'answer') await onAnswer(from, data);
     else if (sub === 'ice') await onIce(from, data);
