@@ -2142,6 +2142,8 @@ app.post('/api/messages', (req, res) => {
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
   const { to, content, clientMsgId, replyTo, forwardedFrom, burnAfterReading } = req.body || {};
+  // REST 发送限流：WS 通道有 60 条/10s 限制，REST 此前无限流，可绕过刷库/骚扰
+  if (rateLimit('msg:' + payload.id, 120, 60 * 1000)) return res.status(429).json({ error: '发送过于频繁，请稍后再试' });
   const toId = parseInt(to, 10);
   if (!Number.isInteger(toId) || !content || typeof content !== 'string') return res.status(400).json({ error: '消息内容无效' });
   if (toId === payload.id) return res.status(400).json({ error: '不能给自己发送消息' });
