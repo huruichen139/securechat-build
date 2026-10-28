@@ -2439,6 +2439,8 @@ app.post('/api/stt', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = apiUser(req);
   if (!payload) return res.status(401).json({ error: '未授权' });
+  // STT 限流：30MB 音频识别吃 CPU（外部 python 进程），不设限可并发刷爆
+  if (rateLimit('stt:' + payload.id, 10, 60 * 1000)) return res.status(429).json({ error: '识别请求过于频繁，请稍后再试' });
   const id = String((req.body && req.body.id) || '');
   const audioB64 = req.body && req.body.audioB64;
   let filePath = null;
@@ -4570,6 +4572,8 @@ app.post('/api/ai/chat', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '请先登录' });
+  // AI 代理限流：Key 是用户自带的，但 60s 长连接可被打满带宽/并发
+  if (rateLimit('aichat:' + payload.id, 60, 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
   const body = req.body || {};
   let baseUrl = String(body.baseUrl || '').trim().replace(/\/+$/, '');
   // Allow users to paste either the API base URL or the full completion URL.
