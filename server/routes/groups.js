@@ -510,6 +510,8 @@ module.exports = function registerGroups(app, db, auth) {
     const content = String((req.body || {}).content || '');
     if (!content) return fail(res, 400, '消息内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
+    // 敏感词校验：单聊入口有过滤，群聊此前完全绕过
+    if (SENSITIVE_FN) { const _bad = SENSITIVE_FN(content); if (_bad) return fail(res, 400, '消息包含违规词：' + _bad); }
     const cidRaw = String((req.body || {}).clientMsgId || '');
     if (cidRaw && !/^[A-Za-z0-9_-]{8,100}$/.test(cidRaw)) return fail(res, 400, '消息标识无效');
     const msgId = insertGroupMessage(groupId, req.user.id, content, String((req.body || {}).clientMsgId || ''), { replyTo: (req.body || {}).replyTo, forwardedFrom: (req.body || {}).forwardedFrom });
@@ -526,6 +528,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可编辑群公告');
     const content = String((req.body || {}).content || '').slice(0, 2000);
+    if (SENSITIVE_FN) { const _bad = SENSITIVE_FN(content); if (_bad) return fail(res, 400, '公告包含违规词：' + _bad); }
     const now = Date.now();
     p.run(`INSERT INTO group_announcements(group_id,content,publisher_id,pinned,created_at,updated_at)
        VALUES(?,?,?,0,?,?)
@@ -769,6 +772,7 @@ module.exports = function registerGroups(app, db, auth) {
     const content = (req.body || {}).content;
     if (!content || typeof content !== 'string' || !content.trim()) return fail(res, 400, '内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
+    if (SENSITIVE_FN) { const _bad = SENSITIVE_FN(content.trim()); if (_bad) return fail(res, 400, '消息包含违规词：' + _bad); }
     try {
       p.run('UPDATE group_messages SET content=? WHERE id=?', content.trim(), msgId);
     } catch (e) {
@@ -786,4 +790,8 @@ module.exports = function registerGroups(app, db, auth) {
   module.exports.attachGroupRecall = setRecallHook;
   module.exports.attachGroupMemberChange = setMemberChangeHook;
   return { ok: true, routes: ['/api/groups/*'] };
-};
+}
+
+// 敏感词函数由宿主（index.js）注入，避免重复实现
+let SENSITIVE_FN = null;
+module.exports.setSensitiveCheck = function (fn) { SENSITIVE_FN = typeof fn === 'function' ? fn : null; };

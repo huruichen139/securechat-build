@@ -2093,6 +2093,9 @@ app.post('/api/messages/:id/edit', (req, res) => {
   const content = (req.body || {}).content;
   if (!content || typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: '内容不能为空' });
   if (content.length > MAX_MSG_CONTENT) return res.status(413).json({ error: '消息内容过长（最大100KB）' });
+  // 编辑同样受限：发送时过滤了敏感词，但编辑此前可直接改成违规内容
+  const _badEdit = checkSensitive(content.trim());
+  if (_badEdit) return res.status(400).json({ error: '内容包含违规词：' + _badEdit });
   prepare('UPDATE messages SET content=? WHERE id=?').run(content.trim(), id);
   persist();
   const editPayload = { messageId: id, from: row.from_id, to: row.to_id, content: content.trim() };
@@ -2149,6 +2152,9 @@ app.post('/api/messages', (req, res) => {
   if (toId === payload.id) return res.status(400).json({ error: '不能给自己发送消息' });
   if (!prepare('SELECT 1 FROM users WHERE id=?').get(toId)) return res.status(404).json({ error: '目标用户不存在' });
   if (content.length > MAX_MSG_CONTENT) return res.status(413).json({ error: '消息内容过长（最大100KB）' });
+  // 敏感词过滤：单聊主链路此前完全缺失（WS 通道同样缺失）
+  const _swMsg = checkSensitive(String(content));
+  if (_swMsg) return res.status(400).json({ error: '消息包含违规词：' + _swMsg });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(payload.id, toId)) return res.status(403).json({ error: '你已拉黑对方，无法发送消息' });
   if (prepare('SELECT 1 FROM blocklist WHERE blocker_id=? AND blocked_id=?').get(toId, payload.id)) return res.status(403).json({ error: '对方已把你拉黑，无法发送消息' });
   if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) return res.status(400).json({ error: '消息标识无效' });
@@ -5779,6 +5785,9 @@ wss.on('connection', (ws, req) => {
       // {"0":1,...}），数字/布尔则破坏协议类型，且非字符串绕过了长度语义。
       if (typeof content !== 'string') return send(ws, P.S_ERROR, { error: '消息内容无效' });
       if (content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
+      // 敏感词过滤：E2EE 已停用，WS 与 REST 均为明文，主链路此前完全缺失
+      const _swWs = checkSensitive(content);
+      if (_swWs) return send(ws, P.S_ERROR, { error: '消息包含违规词：' + _swWs });
       // 发送限流：登录/注册/加好友都有限流，唯独核心消息路径没有，
       // 单连接可每秒数百帧刷屏并把 sql.js 全库落盘打满。
       if (rateLimit('wsmsg:' + ws.uid, 60, 10 * 1000)) return send(ws, P.S_ERROR, { error: '发送过于频繁，请稍后再试' });
@@ -6141,6 +6150,7 @@ function mountFeatureRoutes(app, db) {
   }
 
   rx('./routes/groups', [app, db, null]);
+  try { require('./routes/groups').setSensitiveCheck((t) => checkSensitive(t)); } catch (e) {}
   try {
     require('./routes/groups').attachGroupBroadcast((groupId, msg) => {
       try {
