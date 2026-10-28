@@ -16,7 +16,7 @@
     if (window.state && window.state.token) return 'Bearer ' + window.state.token;
     try { const t = localStorage.getItem('sc_token'); return t ? 'Bearer ' + t : ''; } catch (e) { return ''; }
   }
-  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s); }
+  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function toastMsg(m, k) { if (window.toast) window.toast(m, k || 'info'); }
 
   // jsQR 全局可用性探测
@@ -174,7 +174,7 @@
         '<span class="miniapp-view-title">' + esc(miniApp.name) + '</span>' +
         '<button class="miniapp-close">✕</button>' +
       '</div>' +
-      '<iframe class="miniapp-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="' + esc(miniApp.url) + '"></iframe>';
+      '<iframe class="miniapp-frame" sandbox="allow-scripts allow-forms allow-popups" src="' + esc(miniApp.url) + '"></iframe>';
     mask.appendChild(box);
     document.body.appendChild(mask);
     box.querySelector('.miniapp-close').addEventListener('click', function () { mask.remove(); });

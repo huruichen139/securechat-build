@@ -23,7 +23,7 @@
       .then(function (r) { if (r.status === 401) throw new Error('未登录或登录已过期'); return r.json().catch(function () { return {}; }); })
       .then(function (d) { if (d && d.error) throw new Error(d.error); return d; });
   }
-  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s); }
+  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function toastMsg(m, k) { if (window.toast) window.toast(m, k || 'info'); }
   function fmtRel(ts) {
     if (!ts) return '';

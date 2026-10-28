@@ -3,7 +3,7 @@
   'use strict';
   if (window.SecureChatRead) return;
 
-  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s); }
+  function esc(s) { return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function toastMsg(m, k) { if (window.toast) window.toast(m, k || 'info'); }
 
   var FEED = [
