@@ -5875,7 +5875,11 @@ wss.on('connection', (ws, req) => {
       const { groupId, content, clientMsgId, replyTo, forwardedFrom } = payload || {};
       const gid = Number(groupId);
       if (!Number.isInteger(gid) || !content) return send(ws, P.S_ERROR, { error: '消息内容无效' });
-      if (typeof content === 'string' && content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
+      if (typeof content !== 'string') return send(ws, P.S_ERROR, { error: '消息内容无效' });
+      if (content.length > MAX_MSG_CONTENT) return send(ws, P.S_ERROR, { error: '消息内容过大（最大100KB）' });
+      // 敏感词过滤：与 REST 群消息通道保持一致
+      const _swG = checkSensitive(content);
+      if (_swG) return send(ws, P.S_ERROR, { error: '消息包含违规词：' + _swG });
       if (clientMsgId !== undefined && (typeof clientMsgId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(clientMsgId))) {
         return send(ws, P.S_ERROR, { error: '消息标识无效' });
       }
@@ -5894,9 +5898,10 @@ wss.on('connection', (ws, req) => {
       const grpMsgSeq = nextSeq();
       const info = prepare('INSERT INTO group_messages(group_id,from_id,content,client_msg_id,created_at,seq) VALUES(?,?,?,?,?,?)')
         .run(gid, ws.uid, enc, clientMsgId || null, now, grpMsgSeq);
-      const replyToId = Number(replyTo) || null;
-      const forwardedFromId = Number(forwardedFrom) || null;
       // 越权防护:replyTo/forwardedFrom 必须是本群消息,防 id 枚举跨群泄露正文
+      // （必须用 let：下面要把无效 id 置 null，const 会在运行时抛 TypeError 导致整条消息丢失）
+      let replyToId = Number(replyTo) || null;
+      let forwardedFromId = Number(forwardedFrom) || null;
       if (replyToId && !prepare('SELECT 1 FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid)) replyToId = null;
       if (forwardedFromId && !prepare('SELECT 1 FROM group_messages WHERE id=? AND group_id=?').get(forwardedFromId, gid)) forwardedFromId = null;
       let replyContent = null, replyFrom = null;
@@ -5904,8 +5909,8 @@ wss.on('connection', (ws, req) => {
         try {
           prepare('INSERT INTO group_message_meta(message_id,reply_to,forwarded_from,updated_at) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET reply_to=COALESCE(excluded.reply_to,group_message_meta.reply_to),forwarded_from=COALESCE(excluded.forwarded_from,group_message_meta.forwarded_from),updated_at=excluded.updated_at')
             .run(info.lastInsertRowid, replyToId, forwardedFromId || null, now);
-          const pm = prepare('SELECT content,from_id FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid);
-          if (pm) { replyContent = pm.content; replyFrom = pm.from_id; }
+          const pm = prepare('SELECT CASE WHEN recalled=1 THEN NULL ELSE content END AS content, from_id, recalled FROM group_messages WHERE id=? AND group_id=?').get(replyToId, gid);
+          if (pm) { replyContent = pm.recalled ? null : pm.content; replyFrom = pm.from_id; }
         } catch (e) {}
       } else if (forwardedFromId) {
         try {
