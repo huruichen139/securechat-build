@@ -3243,6 +3243,8 @@ app.post('/api/notes', (req, res) => {
   const content = String((req.body || {}).content || '').trim();
   if (!content) return res.status(400).json({ error: '内容不能为空' });
   if (content.length > 50000) return res.status(400).json({ error: '内容过长（限5万字）' });
+  // 限流：防单请求连环插入撑爆笔记配额
+  if (rateLimit('note:' + payload.id, 30, 60 * 1000)) return res.status(429).json({ error: '保存过于频繁，请稍后再试' });
   // 配额：单用户最多 2000 条笔记，防刷库
   const noteCount = prepare('SELECT COUNT(*) AS c FROM favorites WHERE user_id=? AND type=?').get(payload.id, 'note');
   if (noteCount && noteCount.c >= 2000) return res.status(400).json({ error: '笔记数量已达上限（2000条）' });

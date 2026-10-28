@@ -483,6 +483,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const content = String((req.body || {}).content || '').trim();
     const replyTo = Number((req.body || {}).commentId) || null;
     if (!content) return deny(res, 400, '回复内容不能为空');
+    if (content.length > 2000) return deny(res, 400, '回复内容过长（限2000字）');
     if (mediaRateLimit('ar:' + payload.id, 30, 60 * 1000)) return deny(res, 429, '回复过于频繁，请稍后再试');
     const bad = checkSensitiveLocal(content);
     if (bad) return deny(res, 400, '内容包含违规词：' + bad);
