@@ -5444,6 +5444,14 @@ app.get('/api/conversations/preview', (req, res) => {
     for (const r of grows) {
       previews['g' + r.groupId] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.created_at, seq: r.seq };
     }
+    // 私聊未读：每个好友发给我的未读消息数（重启后恢复角标）
+    try {
+      const dpUnread = prepare('SELECT from_id AS peer, COUNT(*) AS c FROM messages WHERE to_id=? AND read=0 AND recalled=0 GROUP BY from_id');
+      for (const u of dpUnread.all(me)) {
+        const key = 'f' + u.peer;
+        if (previews[key]) previews[key].unread = Number(u.c) || 0; else previews[key] = { text: '', mine: false, unread: Number(u.c) || 0 };
+      }
+    } catch (e) { /* 忽略 */ }
   } catch (e) {
     // 窗口函数不支持时降级为空，不影响主流程
   }

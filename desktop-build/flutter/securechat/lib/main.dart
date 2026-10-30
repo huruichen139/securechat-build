@@ -1080,6 +1080,9 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             'read': true,
             'ts': (v['ts'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
           };
+          // 以服务端为准同步私聊未读角标（重启后恢复）
+          final fu = v['unread'];
+          if (fu is num && e.key.startsWith('f') && fu.toInt() > 0) _unread[e.key] = fu.toInt();
         }
       } catch (_) {}
       if (!mounted) return;
@@ -2221,7 +2224,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       } else {
         return PopScope(
           canPop: false,
-          onPopInvokedWithResult: (didPop, _) { if (!didPop && mounted) setState(() => selected = -1); },
+          onPopInvokedWithResult: (didPop, _) { if (!didPop && mounted) setState(() { selected = -1; messages.clear(); }); },
           child: _chatArea(config, isMobile: true),
         );
       }
@@ -2381,7 +2384,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     final bgColor = convKey != null ? _chatBgColors[convKey] : null;
     return Column(children: [
       Container(height: 60, padding: const EdgeInsets.symmetric(horizontal: 20), decoration: BoxDecoration(color: t.panel.withValues(alpha: 0.5), border: border), child: Row(children: [
-        if (isMobile) IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => selected = -1), color: t.text),
+        if (isMobile) IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() { selected = -1; messages.clear(); }), color: t.text),
         CircleAvatar(backgroundColor: avatarBg, child: Icon(selConv?['icon'] ?? Icons.person, color: t.primary, size: 22)),
         const SizedBox(width: 10),
         Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
