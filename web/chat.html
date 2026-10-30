@@ -8,9 +8,9 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=1822x" />
-<link rel="stylesheet" href="modules.css?v=1822x" />
-  <link rel="stylesheet" href="theme-white.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=1825x" />
+<link rel="stylesheet" href="modules.css?v=1825x" />
+  <link rel="stylesheet" href="theme-white.css?v=6" />
 
 <script>
   // API / WebSocket 自动跟随当前页面来源（同源），避免硬编码地址连不通。
@@ -154,7 +154,7 @@
     <!-- 右侧 -->
     <div class="main">
       <!-- 桌面端聊天头部 -->
-      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系人</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话" data-i18n="search">搜索</button><button id="pinChatBtn" class="head-tool" title="置顶当前会话" data-i18n="pin">置顶</button><button id="muteChatBtn" class="head-tool" title="当前会话免打扰" data-i18n="mute">免打扰</button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录" data-i18n="clear">清空</button><button id="notifyBtn" class="head-tool" title="开启浏览器通知" data-i18n="notify">通知</button><button id="chatHeaderMoreBtn" class="head-tool" title="更多">⋯</button></div></div>
+      <div class="header"><button id="backToListBtn" class="back-to-list-btn" style="display:none" data-i18n="back">返回</button><span id="chatHeader" data-i18n="noConversation">请选择联系人</span><div class="chat-head-actions"><button id="messageSearchBtn" class="head-tool" title="搜索当前会话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button><button id="pinChatBtn" class="head-tool" title="置顶当前会话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></button><button id="muteChatBtn" class="head-tool" title="当前会话免打扰"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 13A18 18 0 0 1 18 8"/><path d="M6.3 6.3A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.3-5"/><path d="m1 1 22 22"/></svg></button><button id="clearChatBtn" class="head-tool" title="清空当前聊天记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button><button id="notifyBtn" class="head-tool" title="开启浏览器通知"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button><button id="chatHeaderMoreBtn" class="head-tool" title="更多">⋯</button></div></div>
       <!-- 聊天式移动端聊天头部（默认隐藏） -->
       <div id="chatMobileHeader" class="chat-header" style="display:none">
         <button class="header-back" id="chatMobileBackBtn">返回</button>
@@ -208,11 +208,11 @@
       <!-- 原桌面端输入栏（保留，PC 端使用） -->
       <div class="composer" id="chatDesktopComposer">
         <div class="composer-tools">
-          <button id="fileBtn" class="tool" title="发送文件" data-i18n="files">文件</button>
-          <button id="voiceBtn" class="tool" title="点一下开始说话，再点一下发送" data-i18n="voice">语音</button>
-          <button id="speechBtn" class="tool" title="语音转文字" data-i18n="transcribe">转文字</button>
-          <button id="audioBtn" class="tool" title="语音通话" data-i18n="audio">通话</button>
-          <button id="videoBtn" class="tool" title="视频通话" data-i18n="video">视频</button>
+          <button id="fileBtn" class="tool" title="发送文件"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.05 12.2 20.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button>
+          <button id="voiceBtn" class="tool" title="点一下开始说话，再点一下发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
+          <button id="speechBtn" class="tool" title="语音转文字"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h7"/></svg></button>
+          <button id="audioBtn" class="tool" title="语音通话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.1 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2z"/></svg></button>
+          <button id="videoBtn" class="tool" title="视频通话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="m22 8-5 4 5 4z"/></svg></button>
         </div>
         <div class="composer-input-wrap"><textarea id="desktopInput" placeholder="输入消息，Enter 发送，Shift+Enter 或 Ctrl+Enter 换行" data-i18n-placeholder="inputPlaceholder"></textarea><span id="draftStateDesktop" class="draft-state" data-i18n="draftAuto">草稿自动保存</span></div>
         <button id="desktopSendBtn" class="btn send" data-i18n="send">发送</button>
@@ -365,44 +365,44 @@
 
 <div class="mobile-bottom-nav" id="mobileBottomNav"></div>
 
-<script src="webrtc.js?v=1822x"></script>
-<script src="i18n.js?v=1822x"></script>
-<script src="ai.js?v=1822x"></script>
+<script src="webrtc.js?v=1825x"></script>
+<script src="i18n.js?v=1825x"></script>
+<script src="ai.js?v=1825x"></script>
 <script src="download.js"></script>
-<script src="e2ee.js?v=1822x"></script>
-<script src="features-knowledge-core.js?v=1822x"></script>
-<script src="features-knowledge-idioms.js?v=1822x"></script>
-<script src="features-knowledge-xiehouyu.js?v=1822x"></script>
-<script src="features-knowledge-riddles.js?v=1822x"></script>
-<script src="features-knowledge-quotes.js?v=1822x"></script>
-<script src="features-knowledge-jokes.js?v=1822x"></script>
-<script src="features-knowledge-poems.js?v=1822x"></script>
-<script src="features-knowledge-tongue.js?v=1822x"></script>
-<script src="jsqr.js?v=1822x"></script>
-  <script src="app.js?v=1822x"></script>
-<script src="modules/registry.js?v=1822x"></script>
-<script src="modules/groups.js?v=1822x"></script>
-<script src="modules/chat-ext.js?v=1822x"></script>
-<script src="modules/rtc.js?v=1822x"></script>
-<script src="modules/voicemsg.js?v=1822x"></script>
-<script src="modules/filehelper.js?v=1822x"></script>
-<script src="modules/oa.js?v=1822x"></script>
-<script src="modules/feedback.js?v=1822x"></script>
-<script src="modules/miniapp.js?v=1822x"></script>
-<script src="modules/shake.js?v=1822x"></script>
-<script src="modules/scan.js?v=1822x"></script>
-<script src="modules/pay.js?v=1822x"></script>
-<script src="modules/status.js?v=1822x"></script>
-<script src="modules/favorites.js?v=1822x"></script>
-<script src="modules/moment-ext.js?v=1822x"></script>
-<script src="modules/polls.js?v=1822x"></script>
-<script src="modules/remind.js?v=1822x"></script>
-<script src="modules/todos.js?v=1822x"></script>
-<script src="modules/translate.js?v=1822x"></script>
-<script src="modules/album.js?v=1822x"></script>
-<script src="modules/cards.js?v=1822x"></script>
-<script src="modules/sticker.js?v=1822x"></script>
-<script src="modules/redpacket.js?v=1822x"></script>
+<script src="e2ee.js?v=1825x"></script>
+<script src="features-knowledge-core.js?v=1825x"></script>
+<script src="features-knowledge-idioms.js?v=1825x"></script>
+<script src="features-knowledge-xiehouyu.js?v=1825x"></script>
+<script src="features-knowledge-riddles.js?v=1825x"></script>
+<script src="features-knowledge-quotes.js?v=1825x"></script>
+<script src="features-knowledge-jokes.js?v=1825x"></script>
+<script src="features-knowledge-poems.js?v=1825x"></script>
+<script src="features-knowledge-tongue.js?v=1825x"></script>
+<script src="jsqr.js?v=1825x"></script>
+  <script src="app.js?v=1825x"></script>
+<script src="modules/registry.js?v=1825x"></script>
+<script src="modules/groups.js?v=1825x"></script>
+<script src="modules/chat-ext.js?v=1825x"></script>
+<script src="modules/rtc.js?v=1825x"></script>
+<script src="modules/voicemsg.js?v=1825x"></script>
+<script src="modules/filehelper.js?v=1825x"></script>
+<script src="modules/oa.js?v=1825x"></script>
+<script src="modules/feedback.js?v=1825x"></script>
+<script src="modules/miniapp.js?v=1825x"></script>
+<script src="modules/shake.js?v=1825x"></script>
+<script src="modules/scan.js?v=1825x"></script>
+<script src="modules/pay.js?v=1825x"></script>
+<script src="modules/status.js?v=1825x"></script>
+<script src="modules/favorites.js?v=1825x"></script>
+<script src="modules/moment-ext.js?v=1825x"></script>
+<script src="modules/polls.js?v=1825x"></script>
+<script src="modules/remind.js?v=1825x"></script>
+<script src="modules/todos.js?v=1825x"></script>
+<script src="modules/translate.js?v=1825x"></script>
+<script src="modules/album.js?v=1825x"></script>
+<script src="modules/cards.js?v=1825x"></script>
+<script src="modules/sticker.js?v=1825x"></script>
+<script src="modules/redpacket.js?v=1825x"></script>
 <script>
   // 不再注册新的 Service Worker，并注销任何已存在的 SW，避免旧缓存顽固拦截静态资源。
   if ('serviceWorker' in navigator) {

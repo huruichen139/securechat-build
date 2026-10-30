@@ -6452,3 +6452,32 @@ document.addEventListener('click', function(e){
   b.appendChild(el);
   setTimeout(function(){ el.remove(); }, 600);
 });
+
+
+// 侧栏「+」：展开添加好友 / 建群入口（微信式收纳）
+(function () {
+  function initSidePlus() {
+    var tools = document.querySelector('.sidebar-tools');
+    if (!tools || document.getElementById('sidePlusBtn')) return;
+    var b = document.createElement('button');
+    b.id = 'sidePlusBtn';
+    b.className = 'side-plus';
+    b.type = 'button';
+    b.title = '添加好友 / 建群';
+    b.textContent = '+';
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      tools.classList.toggle('show-add');
+      if (tools.classList.contains('show-add')) {
+        var inp = document.getElementById('addFriendInput');
+        if (inp) setTimeout(function () { inp.focus(); }, 30);
+      }
+    });
+    tools.appendChild(b);
+    document.addEventListener('click', function (e) {
+      if (!tools.contains(e.target)) tools.classList.remove('show-add');
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSidePlus);
+  else initSidePlus();
+})();

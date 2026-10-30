@@ -599,3 +599,223 @@ html.dark-mode, body.dark-mode {
 .dark-mode .msg-row.me .bubble { background: var(--w-mine) !important; color: #eaf1ff !important; border-color: var(--w-mine-line) !important; }
 .dark-mode .msg-row.me .bubble::before { border-color: transparent transparent transparent var(--w-mine) !important; }
 .dark-mode .msg-row.me .bubble::after { border-color: transparent transparent transparent var(--w-mine-line) !important; }
+
+/* ============================================================
+   v3.1 细节打磨：微信桌面版比例（窄导航栏 / 紧凑工具区 / 56px 头部）
+   ============================================================ */
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* 左侧竖导航 */
+.sidebar-rail { width: 64px !important; flex: 0 0 64px !important; }
+.sidebar-rail-brand { width: 38px !important; height: 38px !important; margin: 14px 0 14px !important; border-radius: 10px !important; font-size: 17px !important; }
+.sidebar-rail-group { gap: 4px !important; padding: 0 4px !important; }
+.sidebar-rail .side-tab {
+  flex: 0 0 auto !important;
+  width: 56px !important;
+  height: 56px !important;
+  padding: 6px 2px !important;
+  font-size: 10px !important;
+  line-height: 1.2;
+  gap: 3px !important;
+  border-left: none !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+}
+.rail-icon { width: 24px !important; height: 22px !important; }
+.rail-icon svg { width: 21px !important; height: 21px !important; }
+.sidebar-rail .side-tab.on { background: var(--w-accent-soft) !important; box-shadow: none !important; }
+.sidebar-rail-bottom { padding: 10px 0 14px !important; gap: 4px; }
+
+/* 侧栏工具区：去卡片化，紧凑 */
+.sidebar-tools {
+  margin: 0 !important;
+  padding: 10px 12px 4px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.sidebar-tools .section-label { display: none !important; }
+.sidebar-tools .add-friend { padding: 0 !important; margin: 0 0 6px !important; display: flex !important; gap: 6px; flex-wrap: nowrap !important; }
+.sidebar-tools .add-friend .search { flex: 1; height: 30px; font-size: 12.5px; padding: 5px 10px; }
+.sidebar-tools .add-friend .add-btn { height: 30px; padding: 0 10px; font-size: 12px; flex: 0 0 auto; }
+.sidebar-tools .group-actions { padding: 0 !important; margin: 0 0 6px !important; gap: 6px; }
+.sidebar-tools .group-actions .add-btn { height: 28px; font-size: 12px; padding: 0 8px; }
+.sidebar-tools > .search { width: 100% !important; height: 32px !important; margin: 0 !important; font-size: 13px; }
+.sidebar-mini-stats { display: none !important; }
+.list-heading { display: none !important; }
+
+/* 会话条目 */
+.contact { height: 64px; padding: 10px 12px !important; gap: 10px; }
+.contact .avatar { width: 40px !important; height: 40px !important; flex: 0 0 40px !important; }
+.contact .name { font-size: 14px !important; }
+.contact .last { font-size: 12px !important; }
+.contact-list { padding: 4px 6px !important; }
+
+/* 头部 */
+.header { min-height: 56px !important; padding: 0 20px !important; }
+.header::before { display: none !important; }
+.header #chatHeader { font-size: 15px !important; }
+.chat-head-actions { gap: 2px; }
+.chat-head-actions .head-tool {
+  font-size: 12px !important;
+  padding: 6px 9px !important;
+  color: #6b7280 !important;
+  border-radius: 6px !important;
+}
+.chat-head-actions .head-tool:hover { background: #f2f3f5 !important; color: var(--w-text) !important; }
+
+/* 消息区留白 */
+.messages { padding: 20px 28px !important; }
+
+/* 输入区 */
+.composer { padding: 10px 20px 16px !important; gap: 8px 12px !important; }
+.composer-tools .tool {
+  font-size: 12.5px !important;
+  padding: 5px 9px !important;
+  border-radius: 6px !important;
+  background: #f5f6f8 !important;
+  color: #55555c !important;
+  transition: background .15s ease, color .15s ease;
+}
+.composer-tools .tool:hover { background: #eceef2 !important; color: var(--w-text) !important; }
+.composer textarea { height: 50px !important; font-size: 14px !important; }
+.composer-input-wrap textarea { height: 50px !important; }
+.composer .send { height: 50px !important; width: 80px !important; font-size: 14px !important; }
+
+/* 欢迎页 */
+.welcome-kicker { color: #9aa3b2 !important; font-size: 10px !important; }
+.welcome-panel h1 { font-size: 26px !important; font-weight: 700 !important; color: var(--w-text) !important; }
+.welcome-sub { color: var(--w-muted) !important; font-size: 13px !important; }
+.welcome-action {
+  border-radius: 10px !important;
+  border: 1px solid var(--w-line) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  padding: 18px 14px !important;
+}
+.welcome-action:hover {
+  transform: none !important;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, .06) !important;
+  border-color: #dfe3ea !important;
+}
+.welcome-action b { font-size: 13.5px !important; color: var(--w-text) !important; }
+.welcome-action small { font-size: 11.5px !important; color: var(--w-muted) !important; }
+.welcome-icon { width: 34px !important; height: 34px !important; border-radius: 9px !important; background: var(--w-accent-soft) !important; color: var(--w-accent) !important; font-size: 11px !important; font-weight: 600; display: grid; place-items: center; }
+.welcome-features span {
+  background: #f4f5f7 !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  font-size: 11.5px !important;
+  color: #6b7280 !important;
+}
+.welcome-tip { color: #b0b3bb !important; font-size: 11px !important; }
+
+/* 我的信息条 */
+.my-info { background: #fafafb !important; }
+
+/* 移动端 */
+@media (max-width: 820px) {
+  .sidebar-rail { width: 60px !important; flex-basis: 60px !important; }
+  .messages { padding: 14px 14px !important; }
+  .composer { padding: 8px 12px 12px !important; }
+}
+
+
+/* ============================================================
+   v3.2 图标化（微信式）：头部/输入栏改图标按钮，导航栏纯图标
+   ============================================================ */
+.chat-head-actions .head-tool {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 17px !important;
+  color: #7b7b84 !important;
+  background: transparent !important;
+  border: none !important;
+}
+.chat-head-actions .head-tool svg { width: 18px; height: 18px; display: block; }
+.chat-head-actions .head-tool:hover { background: #f2f3f5 !important; color: var(--w-text) !important; }
+
+.composer-tools .tool {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  background: transparent !important;
+  color: #7b7b84 !important;
+  border-radius: 6px !important;
+}
+.composer-tools .tool svg { width: 18px; height: 18px; display: block; }
+.composer-tools .tool:hover { background: #f2f3f5 !important; color: var(--w-text) !important; }
+
+/* 左侧导航：纯图标（隐藏文字标签） */
+.sidebar-rail .side-tab > span:last-child { display: none !important; }
+.sidebar-rail .side-tab {
+  width: 48px !important;
+  height: 48px !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+.sidebar-rail .rail-icon { width: 24px !important; height: 24px !important; }
+.sidebar-rail .rail-icon svg { width: 22px !important; height: 22px !important; }
+
+/* 侧栏「+」：展开加好友 / 建群入口 */
+.sidebar-tools { position: relative; }
+.sidebar-tools .add-friend, .sidebar-tools .group-actions { display: none !important; }
+.sidebar-tools.show-add .add-friend { display: flex !important; margin: 0 0 6px !important; }
+.sidebar-tools.show-add .group-actions { display: flex !important; margin: 0 0 6px !important; }
+.sidebar-tools > .search { padding-right: 36px !important; }
+.side-plus {
+  position: absolute;
+  right: 14px;
+  bottom: 9px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8a8a92;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.side-plus:hover { background: #eceef2; color: var(--w-text); }
+
+
+/* ============================================================
+   v3.3 纯白收口：全站 #fff 底 + 淡蓝气泡 + 细灰线（去掉所有灰底）
+   ============================================================ */
+html, body, .chat-wrap { background: #fff !important; }
+.messages, .ai-view .ai-msgs { background: #fff !important; }
+.sidebar-rail { background: #fff !important; }
+.my-info { background: #fff !important; }
+.auth-wrap, .auth-wrap.mica-bg { background: #fff !important; background-image: none !important; }
+.auth-card {
+  border-color: #ececf0 !important;
+  box-shadow: 0 10px 34px rgba(17, 24, 39, .06) !important;
+}
+
+/* 对方气泡：淡灰白（无描边），自己气泡：淡蓝 */
+.msg-row.other .bubble {
+  background: #f4f5f7 !important;
+  border-color: #f4f5f7 !important;
+  color: var(--w-text) !important;
+}
+.msg-row.other .bubble::before { border-color: transparent #f4f5f7 transparent transparent !important; }
+.msg-row.other .bubble::after { border-color: transparent #f4f5f7 transparent transparent !important; }
+.msg-row.me .bubble { background: #dbe8ff !important; border-color: #dbe8ff !important; }
+.msg-row.me .bubble::after { border-color: transparent transparent transparent #dbe8ff !important; }
+
+/* 全屏页面（发现/我/通讯录）左边界对齐 64px 导航栏 */
+html.chat-list-hidden:not(.is-mobile) .wechat-page { left: 64px !important; }
+
