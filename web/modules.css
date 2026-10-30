@@ -6,7 +6,7 @@
         完全缺失，运行时由 createElement 动态拼接，导致打开后是未样式化
         的原生控件堆叠（画风崩坏的直接原因）。
    本表为这些模块补齐视觉规范，并与 styles.css 的微信系设计语言对齐：
-   主色 --primary #07c160、面板圆角 12px、卡片 8px、按钮 6px、
+   主色 --primary #2f6fed、面板圆角 12px、卡片 8px、按钮 6px、
    遮罩 rgba(0,0,0,.45)、统一阴影与暗色模式适配。
    ============================================================ */
 
@@ -151,8 +151,8 @@
 
 .sc-fav-btn-primary, .btn-primary, .sc-status-btn-link,
 .fh-send, .scan-btn, .shake-btn, .sol-join, .oa-follow {
-  background: var(--primary, #07c160);
-  border-color: var(--primary, #07c160);
+  background: var(--primary, #2f6fed);
+  border-color: var(--primary, #2f6fed);
   color: #fff;
 }
 .sc-fav-btn-primary:hover, .btn-primary:hover, .sc-status-btn-link:hover,
@@ -180,7 +180,7 @@
 .sc-fav-search:focus, .sc-status-input:focus, .fh-input:focus,
 .miniapp-search:focus, .feedback-box:focus,
 .sc-mext-form input:focus, .sc-mext-form textarea:focus, .oa-composer:focus {
-  border-color: var(--primary, #07c160);
+  border-color: var(--primary, #2f6fed);
   outline: none;
 }
 .sc-mext-form textarea { resize: vertical; min-height: 76px; }
@@ -214,10 +214,10 @@
   transition: all .15s;
   user-select: none;
 }
-.sc-fav-tag:hover, .sc-fav-cls:hover { border-color: var(--primary, #07c160); color: var(--primary, #07c160); }
+.sc-fav-tag:hover, .sc-fav-cls:hover { border-color: var(--primary, #2f6fed); color: var(--primary, #2f6fed); }
 .sc-fav-tag-active, .sc-fav-cfg-active {
-  background: var(--primary, #07c160);
-  border-color: var(--primary, #07c160);
+  background: var(--primary, #2f6fed);
+  border-color: var(--primary, #2f6fed);
   color: #fff;
 }
 .sc-fav-tag-mini {
@@ -225,7 +225,7 @@
   padding: 1px 7px;
   border-radius: 4px;
   background: var(--primary-soft, #e9f7ef);
-  color: var(--primary, #07c160);
+  color: var(--primary, #2f6fed);
   font-size: 11.5px;
 }
 .sc-fav-classifiers { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; }
@@ -243,10 +243,10 @@
   border-radius: 8px;
   transition: box-shadow .15s, border-color .15s;
 }
-.sc-fav-item:hover { border-color: rgba(7,193,96,.4); box-shadow: 0 3px 12px rgba(0,0,0,.05); }
+.sc-fav-item:hover { border-color: rgba(47,111,237,.4); box-shadow: 0 3px 12px rgba(0,0,0,.05); }
 .sc-fav-item-body { flex: 1; min-width: 0; }
 .sc-fav-item-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-size: 12px; color: var(--muted, #888); }
-.sc-fav-item-tag { color: var(--primary, #07c160); }
+.sc-fav-item-tag { color: var(--primary, #2f6fed); }
 .sc-fav-item-fwd { font-size: 12px; color: var(--muted, #888); margin-bottom: 4px; }
 .sc-fav-kind, .sc-fav-text, .sc-fav-link, .sc-fav-message, .sc-fav-moment {
   font-size: 14px; color: var(--text, #191919); line-height: 1.6; word-break: break-word;
@@ -283,7 +283,7 @@
 .sc-mext-reply-to { color: var(--link, #576b95); }
 .sc-mext-del { border: none; background: transparent; color: var(--muted, #888); font-size: 12.5px; cursor: pointer; }
 .sc-mext-del:hover { color: #e64545; }
-.sc-mext-add { margin-left: auto; border: none; background: transparent; color: var(--primary, #07c160); font-size: 13px; cursor: pointer; }
+.sc-mext-add { margin-left: auto; border: none; background: transparent; color: var(--primary, #2f6fed); font-size: 13px; cursor: pointer; }
 
 /* ============================ 状态 ============================ */
 .sc-status-icons { display: flex; justify-content: space-around; gap: 10px; padding: 20px 12px; border-bottom: 1px solid var(--border, #e5e5e5); }
@@ -294,7 +294,7 @@
 }
 .sc-status-icon-big { width: 62px; height: 62px; border-radius: 50%; font-size: 28px; justify-content: center; }
 .sc-status-icon:hover, .sc-status-icon-big:hover { background: var(--chip, #f1f5f9); }
-.sc-status-icon-active { background: var(--primary-soft, #e9f7ef); color: var(--primary, #07c160); }
+.sc-status-icon-active { background: var(--primary-soft, #e9f7ef); color: var(--primary, #2f6fed); }
 .sc-status-card-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 14px; }
 .sc-status-card { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--chip, #f1f5f9); }
 .sc-status-card img, .sc-status-file { width: 100%; height: 100%; object-fit: cover; }
@@ -302,7 +302,7 @@
 .sc-status-badge, .sc-status-badge-self {
   position: absolute; right: 4px; bottom: 4px;
   width: 20px; height: 20px; border-radius: 50%;
-  background: var(--primary, #07c160); color: #fff;
+  background: var(--primary, #2f6fed); color: #fff;
   font-size: 11px; display: flex; align-items: center; justify-content: center;
 }
 .sc-status-badge-self { background: var(--link, #576b95); }
@@ -317,9 +317,9 @@
 /* ============================ 待办 / 提醒 ============================ */
 .todo-bar { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border, #e5e5e5); }
 .todo-bar .td-title { flex: 1; border: none; padding: 6px 0; background: transparent; font-size: 14px; }
-.todo-ck { width: 19px; height: 19px; flex: none; accent-color: var(--primary, #07c160); cursor: pointer; }
+.todo-ck { width: 19px; height: 19px; flex: none; accent-color: var(--primary, #2f6fed); cursor: pointer; }
 .td-add, .td-cancel, .td-confirm, .rm-del, .rm-cancel, .rm-confirm {
-  border: none; background: transparent; color: var(--primary, #07c160);
+  border: none; background: transparent; color: var(--primary, #2f6fed);
   font-size: 13.5px; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-family: inherit;
 }
 .td-cancel, .rm-cancel { color: var(--muted, #888); }
@@ -329,7 +329,7 @@
 
 /* ============================ 翻译 ============================ */
 .tr-copy {
-  border: none; background: transparent; color: var(--primary, #07c160);
+  border: none; background: transparent; color: var(--primary, #2f6fed);
   font-size: 13px; cursor: pointer; padding: 4px 7px; font-family: inherit;
 }
 
@@ -347,8 +347,8 @@
 .oa-avatar { width: 30px; height: 30px; border-radius: 4px; object-fit: cover; }
 .oa-name { font-weight: 600; color: var(--link, #576b95); }
 .oa-host { color: var(--muted, #888); }
-.oa-badge { padding: 1px 7px; border-radius: 4px; background: var(--primary-soft, #e9f7ef); color: var(--primary, #07c160); font-size: 11.5px; }
-.oa-wow { margin-left: auto; color: var(--primary, #07c160); font-size: 12.5px; }
+.oa-badge { padding: 1px 7px; border-radius: 4px; background: var(--primary-soft, #e9f7ef); color: var(--primary, #2f6fed); font-size: 11.5px; }
+.oa-wow { margin-left: auto; color: var(--primary, #2f6fed); font-size: 12.5px; }
 .oa-actions { display: flex; gap: 8px; margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--border, #e5e5e5); }
 .oa-list { display: flex; flex-direction: column; }
 .oa-item { display: flex; gap: 11px; padding: 13px 0; border-bottom: 1px solid var(--border, #e5e5e5); }
@@ -375,23 +375,23 @@
   background: var(--bg, #fff); color: var(--text, #191919);
   font-size: 14px; font-family: inherit; cursor: pointer; transition: all .15s;
 }
-.polls-opt:hover { border-color: var(--primary, #07c160); }
-.polls-opt-on { border-color: var(--primary, #07c160); background: var(--primary-soft, #e9f7ef); }
+.polls-opt:hover { border-color: var(--primary, #2f6fed); }
+.polls-opt-on { border-color: var(--primary, #2f6fed); background: var(--primary-soft, #e9f7ef); }
 .polls-pie { width: 15px; height: 15px; flex: none; border: 2px solid var(--border, #e5e5e5); border-radius: 50%; }
-.polls-opt-on .polls-pie { border-color: var(--primary, #07c160); background: var(--primary, #07c160); }
+.polls-opt-on .polls-pie { border-color: var(--primary, #2f6fed); background: var(--primary, #2f6fed); }
 .pc-add, .pc-cancel, .pc-confirm, .pc-min, .pc-multi, .pc-anon, .pc-only {
   border: 1px solid var(--border, #e5e5e5); border-radius: 6px;
   background: var(--bg, #fff); color: var(--text, #191919);
   padding: 6px 13px; font-size: 13px; font-family: inherit; cursor: pointer;
 }
 .pc-min, .pc-multi, .pc-anon, .pc-only { margin-right: 6px; }
-.pc-confirm, .pc-add { background: var(--primary, #07c160); border-color: var(--primary, #07c160); color: #fff; }
+.pc-confirm, .pc-add { background: var(--primary, #2f6fed); border-color: var(--primary, #2f6fed); color: #fff; }
 
 /* ============================ 扫一扫 ============================ */
 .scan-stage { flex-direction: column; gap: 16px; background: #000; }
 .scan-head { width: min(94vw, 420px); background: rgba(0,0,0,.75); border: none; color: #fff; }
 .scan-canvas { position: relative; width: min(78vw, 268px); aspect-ratio: 1; }
-.scan-corner { position: absolute; width: 26px; height: 26px; border: 3px solid var(--primary, #07c160); }
+.scan-corner { position: absolute; width: 26px; height: 26px; border: 3px solid var(--primary, #2f6fed); }
 .scan-corner:nth-child(1) { top: 0; left: 0; border-right: none; border-bottom: none; }
 .scan-corner:nth-child(2) { top: 0; right: 0; border-left: none; border-bottom: none; }
 .scan-corner:nth-child(3) { bottom: 0; left: 0; border-right: none; border-top: none; }
@@ -399,7 +399,7 @@
 .scan-video { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: #111; }
 .scan-status { color: rgba(255,255,255,.82); font-size: 13.5px; }
 .scan-actions { display: flex; gap: 12px; }
-.scan-done { color: var(--primary, #07c160); font-size: 14px; }
+.scan-done { color: var(--primary, #2f6fed); font-size: 14px; }
 .scan-text-view { min-height: 130px; margin: 12px 14px; color: var(--text, #191919); }
 .scan-text-copy { margin: 0 14px 14px; }
 .scan-upload { display: flex; flex-direction: column; gap: 11px; padding: 22px; color: #fff; }
@@ -434,7 +434,7 @@
 .miniapp-body, .oa-body { display: flex; flex-direction: column; gap: 10px; padding: 14px; overflow-y: auto; }
 .miniapp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; padding: 14px; }
 .miniapp-card { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 15px 7px; border: 1px solid var(--border, #e5e5e5); border-radius: 8px; background: var(--bg, #fff); cursor: pointer; transition: all .15s; }
-.miniapp-card:hover { border-color: var(--primary, #07c160); }
+.miniapp-card:hover { border-color: var(--primary, #2f6fed); }
 .miniapp-icon { font-size: 30px; line-height: 1; }
 .miniapp-name { font-size: 13px; font-weight: 500; }
 .miniapp-desc, .miniapp-meta { font-size: 11.5px; color: var(--muted, #888); text-align: center; }
@@ -448,15 +448,15 @@
 .ce-modal-title { flex: none; }
 .ce-modal-actions { flex: none; display: flex; gap: 9px; padding: 12px 16px; border-top: 1px solid var(--border, #e5e5e5); }
 .ce-ok, .ce-cancel { flex: 1; padding: 10px; border-radius: 6px; font-size: 15px; font-family: inherit; cursor: pointer; border: none; }
-.ce-ok { background: var(--primary, #07c160); color: #fff; }
+.ce-ok { background: var(--primary, #2f6fed); color: #fff; }
 .ce-cancel { background: var(--chip, #f1f5f9); color: var(--text, #191919); }
 .ce-emoji-panel { display: flex; flex-direction: column; max-height: 320px; }
 .ce-emoji-head { flex: none; padding: 12px 16px; font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border, #e5e5e5); }
 .ce-emoji-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 12px; }
 .ce-emoji { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; font-size: 24px; border-radius: 6px; cursor: pointer; transition: background .12s; }
 .ce-emoji:hover { background: var(--chip, #f1f5f9); }
-.ce-selecting { position: absolute; inset: 0; z-index: 10; background: rgba(7,193,96,.1); }
-.ce-select-bar { display: flex; align-items: center; gap: 9px; padding: 9px 14px; background: var(--primary-soft, #e9f7ef); font-size: 13px; color: var(--primary, #07c160); }
+.ce-selecting { position: absolute; inset: 0; z-index: 10; background: rgba(47,111,237,.1); }
+.ce-select-bar { display: flex; align-items: center; gap: 9px; padding: 9px 14px; background: var(--primary-soft, #e9f7ef); font-size: 13px; color: var(--primary, #2f6fed); }
 .ce-selected { font-weight: 600; }
 .ce-target-list { flex: 1; overflow-y: auto; padding: 8px; }
 .ce-target { display: flex; align-items: center; gap: 11px; padding: 10px; border-radius: 7px; cursor: pointer; }
@@ -465,7 +465,7 @@
 .ce-bg-row { display: flex; align-items: center; gap: 11px; padding: 11px 0; }
 .ce-bg-presets { display: flex; flex-wrap: wrap; gap: 9px; }
 .ce-bg-swatch { width: 46px; height: 46px; border-radius: 7px; border: 2px solid transparent; cursor: pointer; }
-.ce-bg-swatch:hover { border-color: var(--primary, #07c160); }
+.ce-bg-swatch:hover { border-color: var(--primary, #2f6fed); }
 .ce-bg-reset { margin-left: auto; border: none; background: transparent; color: var(--muted, #888); font-size: 13px; cursor: pointer; }
 .ce-merged-list { flex: 1; overflow-y: auto; padding: 10px; }
 .ce-merged-item { display: flex; gap: 9px; padding: 10px; border-bottom: 1px solid var(--border, #e5e5e5); }
@@ -490,9 +490,9 @@
 /* ============================ 反馈 / 群 @ ============================ */
 .feedback-box { min-height: 128px; resize: vertical; }
 .fb-tab { padding: 7px 16px; border: none; background: transparent; color: var(--muted, #888); font-size: 14px; font-family: inherit; cursor: pointer; border-bottom: 2px solid transparent; }
-.fb-tab.active { color: var(--primary, #07c160); border-bottom-color: var(--primary, #07c160); }
+.fb-tab.active { color: var(--primary, #2f6fed); border-bottom-color: var(--primary, #2f6fed); }
 .group-at-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; }
-.group-at-wrap .at-chip { padding: 3px 9px; border-radius: 4px; background: var(--primary-soft, #e9f7ef); color: var(--primary, #07c160); font-size: 12.5px; cursor: pointer; }
+.group-at-wrap .at-chip { padding: 3px 9px; border-radius: 4px; background: var(--primary-soft, #e9f7ef); color: var(--primary, #2f6fed); font-size: 12.5px; cursor: pointer; }
 
 /* ---------- 补齐：列表流 / 网格 / 强调 / 标签 ---------- */
 .sc-fav-tag-label {
@@ -519,7 +519,7 @@
 .oa-acc { margin: 10px 0; }
 .oa-sub { font-size: 12.5px; color: var(--muted, #888); line-height: 1.6; }
 .oa-c-reply { border: none; background: transparent; color: var(--muted, #888); font-size: 12.5px; font-family: inherit; cursor: pointer; }
-.oa-c-reply:hover { color: var(--primary, #07c160); }
+.oa-c-reply:hover { color: var(--primary, #2f6fed); }
 
 /* ---------- 第三方聚合登录按钮 ---------- */
 .oauth-row { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
@@ -563,7 +563,7 @@
   margin: 0; padding: 13px 16px 4px;
   font-size: 13px; line-height: 1.65; color: var(--muted, #888);
 }
-.bind-tip b { color: var(--primary, #07c160); }
+.bind-tip b { color: var(--primary, #2f6fed); }
 .bind-modal .field { padding: 0 16px; margin-top: 12px; }
 .bind-modal .field label { font-size: 12.5px; }
 .bind-modal .err { padding: 8px 16px 0; }
@@ -636,20 +636,20 @@
 .mica-primary {
   color: #fff;
   background:
-    linear-gradient(135deg, rgba(12, 199, 101, .95) 0%, rgba(6, 173, 86, .92) 100%);
+    linear-gradient(135deg, rgba(47,111,237, .95) 0%, rgba(31,95,216, .92) 100%);
   border: 1px solid rgba(255, 255, 255, .28);
   box-shadow:
     0 1px 0 0 rgba(255, 255, 255, .40) inset,
-    0 6px 18px rgba(7, 193, 96, .34),
-    0 1px 3px rgba(6, 140, 70, .22);
+    0 6px 18px rgba(47,111,237, .34),
+    0 1px 3px rgba(23,64,143, .22);
 }
 .mica-primary::before { opacity: .32; mix-blend-mode: soft-light; }
 .mica-primary:hover {
   transform: translateY(-1px);
   box-shadow:
     0 1px 0 0 rgba(255, 255, 255, .5) inset,
-    0 10px 26px rgba(7, 193, 96, .42),
-    0 2px 6px rgba(6, 140, 70, .26);
+    0 10px 26px rgba(47,111,237, .42),
+    0 2px 6px rgba(23,64,143, .26);
 }
 
 /* 登录页极光背景：为云母提供可透视的内容，否则半透明看不出材质 */
@@ -657,7 +657,7 @@
 .auth-wrap.mica-bg {
   position: relative;
   background:
-    radial-gradient(90% 60% at 12% 8%, rgba(7, 193, 96, .16) 0%, transparent 58%),
+    radial-gradient(90% 60% at 12% 8%, rgba(47,111,237, .16) 0%, transparent 58%),
     radial-gradient(80% 55% at 88% 12%, rgba(56, 132, 255, .14) 0%, transparent 60%),
     radial-gradient(95% 70% at 50% 100%, rgba(168, 120, 255, .13) 0%, transparent 62%),
     linear-gradient(160deg, #f4f8f6 0%, #eef3f8 55%, #f3f0fa 100%) !important;
@@ -671,7 +671,7 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(40% 35% at 25% 30%, rgba(7, 193, 96, .18), transparent 70%),
+    radial-gradient(40% 35% at 25% 30%, rgba(47,111,237, .18), transparent 70%),
     radial-gradient(38% 32% at 75% 65%, rgba(120, 90, 255, .14), transparent 70%);
   filter: blur(28px);
   animation: micaDrift 18s ease-in-out infinite alternate;
@@ -720,7 +720,7 @@
   .oauth-btn.mica:hover { background: linear-gradient(135deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .08)); }
   .auth-wrap.mica-bg {
     background:
-      radial-gradient(90% 60% at 12% 8%, rgba(7, 193, 96, .18) 0%, transparent 58%),
+      radial-gradient(90% 60% at 12% 8%, rgba(47,111,237, .18) 0%, transparent 58%),
       radial-gradient(80% 55% at 88% 12%, rgba(56, 132, 255, .16) 0%, transparent 60%),
       radial-gradient(95% 70% at 50% 100%, rgba(140, 100, 255, .14) 0%, transparent 62%),
       linear-gradient(160deg, #10151a 0%, #0d1117 60%, #131020 100%);
@@ -785,7 +785,7 @@
 /* 主界面极光底衬 */
 .app-mica .chat-wrap {
   background:
-    radial-gradient(70% 50% at 8% 0%, rgba(7, 193, 96, .09) 0%, transparent 60%),
+    radial-gradient(70% 50% at 8% 0%, rgba(47,111,237, .09) 0%, transparent 60%),
     radial-gradient(65% 45% at 92% 6%, rgba(56, 132, 255, .08) 0%, transparent 60%),
     radial-gradient(80% 60% at 50% 100%, rgba(150, 110, 255, .07) 0%, transparent 62%) !important;
   background-attachment: fixed;
@@ -802,7 +802,7 @@
 .vt-btn {
   margin-left: 10px;
   font-size: 12px;
-  color: var(--accent, #07c160);
+  color: var(--accent, #2f6fed);
   cursor: pointer;
   user-select: none;
   white-space: nowrap;

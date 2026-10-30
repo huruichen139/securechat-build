@@ -335,7 +335,7 @@ function openAiSettings() {
   const fetchBtn = document.createElement('button');
   fetchBtn.type = 'button';
   fetchBtn.textContent = '拉取模型列表';
-  fetchBtn.style.cssText = 'padding:6px 10px;border:1px solid #07c160;background:#07c16014;color:#07c160;border-radius:6px;font-size:12px;cursor:pointer;';
+  fetchBtn.style.cssText = 'padding:6px 10px;border:1px solid #2f6fed;background:#2f6fed14;color:#2f6fed;border-radius:6px;font-size:12px;cursor:pointer;';
   const fetchTip = document.createElement('span');
   fetchTip.style.cssText = 'font-size:11px;color:#94a3b8;';
   fetchRow.appendChild(fetchBtn);
@@ -367,7 +367,7 @@ function openAiSettings() {
         opt.value = id;
         dataList.appendChild(opt);
       });
-      fetchTip.style.color = '#07c160';
+      fetchTip.style.color = '#2f6fed';
       fetchTip.textContent = '已拉取到 ' + ids.length + ' 个模型，点击「模型名」输入框选择';
       // 现有 model 值为空时自动填第一个
       if (!fldModel.input.value && ids.length) {
