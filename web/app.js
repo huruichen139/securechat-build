@@ -1730,7 +1730,10 @@ function openFeatureCenter() {
 
 // 打开「容器型」特性：为它新建一个 modal 容器并传给 feature.open(container)
 function openContainerFeature(feature, title) {
-  if (!feature || typeof feature.open !== 'function') { toast('该功能组件未加载', 'warn'); return; }
+  // 部分容器型特性没有统一的 open()：moment-ext 只提供 openFilterPanel(container)，
+  // 之前直接判定「组件未加载」，导致「更多功能 → 朋友圈增强」永远打不开。
+  const render = feature && (feature.open || feature.renderInto || feature.openFilterPanel || feature.mount);
+  if (!feature || typeof render !== 'function') { toast('该功能组件未加载', 'warn'); return; }
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
   const box = document.createElement('div');
@@ -1756,7 +1759,7 @@ function openContainerFeature(feature, title) {
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
   const onKey = (ev) => { if (ev.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
-  try { feature.open(host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
+  try { render.call(feature, host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
 }
 
 // 打开「自带浮层」特性：feature[method] 为方法名（缺省用 open），且该方法可能接受容器参数。
@@ -5115,7 +5118,7 @@ function renderDiscoverPage() {
   if (!list) return;
   const openAiView = () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
   const items = [
-    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMoments) window.SecureChatMoments.open(); else if (window.SecureChatMomentExt && typeof window.SecureChatMomentExt.open === 'function') window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
+    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMoments) window.SecureChatMoments.open(); else { const f = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('moment-ext'); if (f) openContainerFeature(f, '朋友圈管理'); else toast('朋友圈功能开发中', 'info'); } } },
     { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
   ];
   // 分组：顶部常用，中间小程序区
