@@ -1258,7 +1258,7 @@ function openQrScanner() {
   const drop = document.createElement('div');
   const dropId = 'scanDrop_' + Date.now();
   drop.className = 'scan-drop'; drop.id = dropId;
-  drop.innerHTML = '<div style="font-size:40px;opacity:.6">&#2f6fed;</div>'
+  drop.innerHTML = '<div style="font-size:40px;opacity:.6">&#2563eb;</div>'
     + '<div style="margin-top:8px;font-size:14px">选择或拖拽二维码图片到此处</div>'
     + '<div style="margin-top:4px;font-size:12px;color:#64748b">也支持 Ctrl+V 粘贴图片，图片仅在本机解码</div>';
   const preview = document.createElement('img');
@@ -1445,7 +1445,7 @@ function showInfoModal(title, html) {
 // openFeatureCenter 对前者调用 open()，对后者新建 modal 并把内容容器传给 feature.open(container)。
 // 每个入口的渐变配色（135deg）：微信「发现」页风格彩色圆角方块。
 const FEATURE_GRADS = [
-  'linear-gradient(135deg,#2f6fed,#1f5fd8)',
+  'linear-gradient(135deg,#2563eb,#1d4ed8)',
   'linear-gradient(135deg,#10aeff,#0a7fe0)',
   'linear-gradient(135deg,#fa9d3b,#f97316)',
   'linear-gradient(135deg,#ff5b5b,#ef4444)',
@@ -1455,7 +1455,7 @@ const FEATURE_GRADS = [
   'linear-gradient(135deg,#6ea1fa,#4a86f7)',
   'linear-gradient(135deg,#e91e63,#d81b60)',
   'linear-gradient(135deg,#3f51b5,#303f9f)',
-  'linear-gradient(135deg,#2f6fed,#1f5fd8)',
+  'linear-gradient(135deg,#2563eb,#1d4ed8)',
   'linear-gradient(135deg,#ff4081,#f50057)',
 ];
 function featureGrad(i) {
@@ -1531,7 +1531,7 @@ document.addEventListener('keydown', onKey);
         row.onmouseenter = () => { row.style.background = '#f5f5f5'; };
         row.onmouseleave = () => { row.style.background = '#fff'; };
         const av = document.createElement('div');
-        av.style.cssText = 'width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#2f6fed,#1f5fd8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0';
+        av.style.cssText = 'width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0';
         av.textContent = (g.displayName || g.name || '?').charAt(0);
         const info = document.createElement('div');
         info.style.cssText = 'flex:1;overflow:hidden';
@@ -3598,11 +3598,11 @@ function appendMessage(m, prepend) {
       const cnt = m.readCount > 1 ? '已读 ' + m.readCount + '人' : '已读';
       readLabel = '__GRPREAD__';
       // 在插入处用统一 icon；先存人数标记
-      readLabel = '<span class="read-state read" title="' + cnt + '"><svg viewBox="0 0 24 24" width="15" height="15" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/><path fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 13l3 3 8-8" opacity="0.9"/></svg></span><span class="read-state" title="' + cnt + '">' + cnt + '</span>';
+      readLabel = '<span class="read-state read" title="' + cnt + '"><svg viewBox="0 0 24 24" width="15" height="15" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/><path fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 13l3 3 8-8" opacity="0.9"/></svg></span><span class="read-state" title="' + cnt + '">' + cnt + '</span>';
     } else {
       // 单聊：双勾=已读(绿)，单勾=未读(灰)（微信式图标）
       readLabel = m.read
-        ? '<span class="read-state read" title="已读"><svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/><path fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 13l3 3 8-8" opacity="0.9"/></svg></span>'
+        ? '<span class="read-state read" title="已读"><svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/><path fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 13l3 3 8-8" opacity="0.9"/></svg></span>'
         : '<span class="read-state" title="未读"><svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:middle"><path fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 13l4 4L14 9"/></svg></span>';
     }
   }
@@ -5360,7 +5360,7 @@ function openSettingsPage() {
   // 个人信息卡片
   const profileCard = document.createElement('div');
   profileCard.style.cssText = 'background:var(--surface,#fff);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;cursor:pointer;border:1px solid var(--border,#e5e5e5)';
-  const av = (me && me.avatar) ? '<img src="' + escapeHtml(me.avatar) + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#2f6fed);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + escapeHtml(me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
+  const av = (me && me.avatar) ? '<img src="' + escapeHtml(me.avatar) + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#2563eb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + escapeHtml(me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
   profileCard.innerHTML = av + '<div style="flex:1"><div style="font-size:17px;font-weight:600;color:var(--text,#191919)">' + (me ? escapeHtml(me.nickname) : '') + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">微信号：' + (me ? escapeHtml(me.uid || '') : '') + '</div></div><span style="color:#ccc;font-size:16px">\u203a</span>';
   profileCard.onclick = () => showMyCard();
   content.appendChild(profileCard);
@@ -5552,7 +5552,7 @@ const panel = document.getElementById('settingsPanel');
       items: [
         { label: '意见反馈', desc: '提交问题或建议', icon: '反', fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
         { label: '关于我们', desc: 'SecureChat v' + PACKAGE_VERSION, icon: '关', fn: () => {
-          showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#2f6fed);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">传输全程加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#2f6fed);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
+          showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#2563eb);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">传输全程加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#2563eb);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
         }},
       ]
     },
@@ -5594,7 +5594,7 @@ const panel = document.getElementById('settingsPanel');
       row.onmouseover = () => row.style.background = 'var(--surface2,#f9f9f9)';
       row.onmouseout = () => row.style.background = '';
       const ic = document.createElement('div');
-      ic.style.cssText = 'width:32px;height:32px;border-radius:6px;background:var(--primary,#2f6fed);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-right:12px;flex-shrink:0';
+      ic.style.cssText = 'width:32px;height:32px;border-radius:6px;background:var(--primary,#2563eb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-right:12px;flex-shrink:0';
       ic.textContent = item.icon;
       const info = document.createElement('div');
       info.style.cssText = 'flex:1;min-width:0';
@@ -6354,7 +6354,7 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
         const claimedAt = c.claimed_at ? new Date(c.claimed_at).toLocaleString() : '-';
         const statusCls = c.claimed_by ? 'used' : 'unused';
         const statusText = c.claimed_by ? '已使用' : '未使用';
-        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #2f6fed;color:#2f6fed;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + escapeHtml(String(c.value)) + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
+        return '<div class="admin-code-row"><span class="code">' + escapeHtml(c.code) + '</span><button type="button" class="admin-code-copy" data-code="' + escapeHtml(c.code) + '" style="border:1px solid #2563eb;color:#2563eb;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:6px">复制</button><span class="value">' + escapeHtml(String(c.value)) + '元</span><span class="status ' + statusCls + '">' + statusText + '</span><span style="color:#999;font-size:11px">' + escapeHtml(claimedAt) + '</span></div>';
       }).join('');
       tbl.querySelectorAll('.admin-code-copy').forEach(btn => {
         btn.onclick = () => {
