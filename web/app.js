@@ -311,6 +311,30 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
   }, ms);
 }
 
+// 剪贴板复制：navigator.clipboard 在非安全上下文/未聚焦时会 reject，
+// 统一降级到 execCommand 兜底，避免用户只看到「复制失败」。
+function copyText(text) {
+  const str = String(text == null ? '' : text);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(str).then(() => true, () => legacyCopy(str));
+  }
+  return Promise.resolve(legacyCopy(str));
+}
+function legacyCopy(str) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = str;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch (e) { return false; }
+}
+
 // ============ 登录/注册 ============
 let mode = 'login';
 let loginMode = 'password'; // 'password' | 'code'（仅登录模式生效）
@@ -1099,13 +1123,10 @@ function renderMyInfo() {
   $('myIdText').onclick = () => {
     const uid = state.me && state.me.uid;
     if (!uid) { toast('暂无ID可复制', 'warn', 1000); return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(String(uid))
-        .then(() => toast('ID 已复制', 'success', 1000))
-        .catch(() => toast('复制失败', 'error', 1000));
-    } else {
-      toast('当前浏览器不支持复制', 'warn', 1000);
-    }
+    copyText(uid).then((ok) => {
+      if (ok) toast('ID 已复制', 'success', 1000);
+      else toast('复制失败，请手动选择文本', 'warn', 1200);
+    });
   };
 }
 
@@ -3129,8 +3150,9 @@ function appendGroupMessage(m, prepend) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
   }
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
-    catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
+    const ok = await copyText(m.content || '');
+    if (ok) toast('已复制', 'success', 1200);
+    else toast('复制失败，请手动选择文本', 'warn', 1500);
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
     if (m.id == null) { toast('无法引用该消息', 'warn', 1200); return; }
@@ -3627,8 +3649,9 @@ function appendMessage(m, prepend) {
   }
   row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在本端消失，确定删除吗？')) deleteMsgLocal(m.id); };
   row.querySelector('[data-action="copy"]').onclick = async () => {
-    try { await navigator.clipboard.writeText(String(m.content || '')); toast('已复制', 'success', 1200); }
-    catch { toast('复制失败，请手动选择文本', 'warn', 1500); }
+    const ok = await copyText(m.content || '');
+    if (ok) toast('已复制', 'success', 1200);
+    else toast('复制失败，请手动选择文本', 'warn', 1500);
   };
   row.querySelector('[data-action="quote"]').onclick = () => {
     if (m.id == null) { toast('无法引用该消息', 'warn', 1200); return; }
@@ -4110,6 +4133,9 @@ function sendCurrent() {
   if (!text || !state.activePeer) return;
   const clientMsgId = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
   const peerId = state.activePeer;
+  // 引用（回复）此前只接入了群聊，单聊引用按钮点了没反应：把 pendingReply 一并带上，
+  // 否则服务端收不到 replyTo，气泡也不会渲染引用块。
+  const reply = pendingReply || null;
   state.pendingLocal[clientMsgId] = true;
   input.value = '';
   saveCurrentDraft();
@@ -4117,10 +4143,11 @@ function sendCurrent() {
   const localCreatedAt = Date.now();
   state.lastFrom[peerId] = text;
   state.lastMsgTime[peerId] = localCreatedAt;
-  appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId }, false);
+  appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId, replyTo: reply }, false);
+  if (reply) clearPendingReply();
   try { playSendSfx(); } catch (e) {}
   _e2eeSendContent(peerId, text).then(async (ct) => {
-    const payload = { to: peerId, content: ct || text, clientMsgId };
+    const payload = { to: peerId, content: ct || text, clientMsgId, replyTo: reply };
     fetch(state.serverHost + '/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
@@ -4132,7 +4159,7 @@ function sendCurrent() {
     }).catch((e) => toast('消息保存失败：' + e.message, 'error'));
   }).catch(() => {
     // 加密失败降级明文
-    const payload = { to: peerId, content: text, clientMsgId };
+    const payload = { to: peerId, content: text, clientMsgId, replyTo: reply };
     fetch(state.serverHost + '/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
