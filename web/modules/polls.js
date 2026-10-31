@@ -20,7 +20,7 @@
     const pad = (n) => String(n).padStart(2, '0');
     return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
-  function colors() { return ['#07c160', '#10aeff', '#fa9d3b', '#ff5b5b', '#9a6bff', '#00bcd4', '#ff9800', '#8bc34a', '#e91e63', '#3f51b5']; }
+  function colors() { return ['#2563eb', '#10aeff', '#fa9d3b', '#ff5b5b', '#9a6bff', '#00bcd4', '#ff9800', '#7c5cf5', '#e91e63', '#3f51b5']; }
 
   // 简易饼图：div 用 conic-gradient
   function pieHTML(options) {
@@ -142,7 +142,7 @@
       '<div style="font-size:13px;color:#666;margin-bottom:10px">截止时间（分）：<input type="number" class="pc-min" min="0" placeholder="0=长期" style="width:90px;padding:6px;border:1px solid #ddd;border-radius:6px"></div>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="pc-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +
-      '<button class="pc-confirm" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +
+      '<button class="pc-confirm" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +
       '</div></div>';
     document.body.appendChild(wrap);
     const optsBox = wrap.querySelector('#pc-opts');
@@ -227,13 +227,13 @@
       '<div style="font-size:12px;color:#888;margin-bottom:8px">已有 ' + s.count + ' 人报名</div>' +
       '<div style="display:flex;flex-direction:column;gap:4px">' + (s.entries || []).map((e) =>
         '<div style="display:flex;gap:8px;font-size:14px;align-items:center">' +
-        '<span style="display:inline-flex;min-width:24px;height:24px;align-items:center;justify-content:center;background:#07c160;color:#fff;border-radius:50%;font-size:12px">' + e.seq + '</span>' +
+        '<span style="display:inline-flex;min-width:24px;height:24px;align-items:center;justify-content:center;background:#2563eb;color:#fff;border-radius:50%;font-size:12px">' + e.seq + '</span>' +
         '<span>' + esc(e.nickname || ('用户' + e.userId)) + '</span>' +
         (e.note ? '<span style="color:#999;font-size:12px">（' + esc(e.note) + '）</span>' : '') +
         '</div>').join('') + '</div>' +
       '<div style="display:flex;gap:8px;margin-top:12px">' +
       (s.status === 'open' ? '<input class="sol-join" placeholder="备注（可选）" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px">' +
-        '<button class="sol-go" data-id="' + s.id + '" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">我接 ' + ((s.count || 0) + 1) + ' 号</button>' : '') +
+        '<button class="sol-go" data-id="' + s.id + '" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:20px;cursor:pointer">我接 ' + ((s.count || 0) + 1) + ' 号</button>' : '') +
       (isCreator && s.status === 'open' ? '<button class="sol-close" data-id="' + s.id + '" style="padding:8px 14px;background:#eee;border:none;border-radius:20px;cursor:pointer;color:#666">结束</button>' : '') +
       '</div></div>';
     const go = container.querySelector('.sol-go');

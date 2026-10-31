@@ -81,7 +81,7 @@
       '<textarea class="rm-ct" placeholder="提醒内容" rows="2" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px">' + esc(defaultContent || '') + '</textarea>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="rm-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +
-      '<button class="rm-confirm" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">确认</button>' +
+      '<button class="rm-confirm" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:20px;cursor:pointer">确认</button>' +
       '</div></div>';
     document.body.appendChild(wrap);
     wrap.querySelector('.rm-cancel').onclick = () => wrap.remove();

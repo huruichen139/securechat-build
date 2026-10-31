@@ -19,7 +19,7 @@
     { id: 'card_1', type: 'member', name: 'SecureChat 会员卡', level: '黄金会员', no: 'SC' + Date.now().toString(36).toUpperCase().substring(0, 8), balance: 888, points: 12500, color: '#ffd700', validUntil: '2026-12-31' },
     { id: 'card_2', type: 'coupon', name: '咖啡优惠券', amount: 15, threshold: 30, expireAt: Date.now() + 7 * 86400000, used: false, color: '#8b4513' },
     { id: 'card_3', type: 'coupon', name: '外卖红包', amount: 8, threshold: 20, expireAt: Date.now() + 3 * 86400000, used: false, color: '#e74c3c' },
-    { id: 'card_4', type: 'ticket', name: '电影票兑换券', code: 'FILM2025' + Math.floor(Math.random() * 9000 + 1000), expireAt: Date.now() + 30 * 86400000, used: false, color: '#2ecc71' },
+    { id: 'card_4', type: 'ticket', name: '电影票兑换券', code: 'FILM2025' + Math.floor(Math.random() * 9000 + 1000), expireAt: Date.now() + 30 * 86400000, used: false, color: '#2563eb' },
   ];
 
   function ensureCards() {

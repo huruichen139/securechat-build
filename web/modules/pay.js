@@ -182,7 +182,7 @@
     }, (acts, close) => {
       const ok = document.createElement('button');
       ok.className = 'btn-primary'; ok.textContent = '生成';
-      ok.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+      ok.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
       ok.onclick = async () => {
         const a = amt.inp.value.trim();
         try {
@@ -202,7 +202,7 @@
     const info = document.createElement('div');
     const countdown = document.createElement('div');
     info.style.cssText = 'text-align:center;font-size:14px;color:#333';
-    countdown.style.cssText = 'text-align:center;font-size:24px;font-weight:800;letter-spacing:1px;color:#07c160;margin:4px 0 8px';
+    countdown.style.cssText = 'text-align:center;font-size:24px;font-weight:800;letter-spacing:1px;color:#2563eb;margin:4px 0 8px';
     const tip = document.createElement('div');
     tip.style.cssText = 'text-align:center;font-size:12px;color:#999;margin-top:8px';
 
@@ -264,7 +264,7 @@
       (acts, close) => {
         const ok = document.createElement('button');
         ok.className = 'btn-primary'; ok.textContent = '解析并继续';
-        ok.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+        ok.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         ok.onclick = async () => {
           let raw = inp.inp.value.trim();
           if (!raw) { showToast('请输入内容', 'warn'); return; }
@@ -285,7 +285,7 @@
             }, (acts2, close2) => {
               const go = document.createElement('button');
               go.className = 'btn-primary'; go.textContent = '确认' + (expectType === 'pay' ? '收款' : '付款');
-              go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+              go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
               go.onclick = async () => {
                 if (go.disabled) return; go.disabled = true;
                 try {
@@ -314,7 +314,7 @@
       (acts, close) => {
         const go = document.createElement('button');
         go.className = 'btn-primary'; go.textContent = '转账';
-        go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+        go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
           if (go.disabled) return; go.disabled = true;
           try {
@@ -340,7 +340,7 @@
       (acts, close) => {
         const go = document.createElement('button');
         go.className = 'btn-primary'; go.textContent = '发起';
-        go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+        go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
           if (go.disabled) return; go.disabled = true;
           try {
@@ -372,7 +372,7 @@
   function drawCollect(c, out) {
     const head = document.createElement('div');
     head.style.cssText = 'text-align:center;padding:8px 0 14px;border-bottom:1px solid #eee;margin-bottom:12px';
-    head.innerHTML = `<div style="font-size:28px;font-weight:800;color:#07c160">¥${Number(c.amount).toFixed(2)}</div>
+    head.innerHTML = `<div style="font-size:28px;font-weight:800;color:#2563eb">¥${Number(c.amount).toFixed(2)}</div>
       <div style="font-size:14px;color:#333;margin-top:4px">${esc(c.title)}</div>
       <div style="font-size:12px;color:#999;margin-top:4px">${esc(c.groupName)} · ${c.paidCount}/${c.memberCount} 已缴</div>`;
     out.appendChild(head);
@@ -381,7 +381,7 @@
       payBtn.className = 'btn-primary';
       payBtn.textContent = c.viewerPaid ? '你已缴款' : '立即缴款（¥' + Number(c.amount).toFixed(2) + '）';
       payBtn.disabled = c.viewerPaid;
-      payBtn.style.cssText = 'width:100%;box-sizing:border-box;padding:11px;border:none;border-radius:10px;font-size:15px;cursor:pointer;margin-bottom:12px;' + (c.viewerPaid ? 'background:#ccc;color:#666' : 'background:#07c160;color:#fff');
+      payBtn.style.cssText = 'width:100%;box-sizing:border-box;padding:11px;border:none;border-radius:10px;font-size:15px;cursor:pointer;margin-bottom:12px;' + (c.viewerPaid ? 'background:#ccc;color:#666' : 'background:#2563eb;color:#fff');
       if (!c.viewerPaid) {
         payBtn.onclick = async () => {
           try { await Pay.payCollect(c.id, c.title); showToast('缴款成功', 'success'); renderCollectDetail(c.id, out.parentElement); }
@@ -396,14 +396,14 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #f0f0f0;border-radius:8px';
       const av = document.createElement('div');
-      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#e6f7ee;color:#07c160;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
+      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
       if (m.avatar) av.innerHTML = `<img src="${esc(m.avatar)}" style="width:100%;height:100%;object-fit:cover">`;
       else av.textContent = (m.name || '?').charAt(0);
       const nm = document.createElement('div');
       nm.style.cssText = 'flex:1;font-size:14px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       nm.textContent = (m.name || '') + (m.remark ? '（' + m.remark + '）' : '');
       const st = document.createElement('div');
-      st.style.cssText = 'font-size:12px;color:' + (m.paid ? '#07c160' : '#999');
+      st.style.cssText = 'font-size:12px;color:' + (m.paid ? '#2563eb' : '#999');
       st.textContent = m.paid ? '已缴' : '未缴';
       row.appendChild(av); row.appendChild(nm); row.appendChild(st);
       list.appendChild(row);
@@ -421,7 +421,7 @@
       (acts, close) => {
         const go = document.createElement('button');
         go.className = 'btn-primary'; go.textContent = '发起';
-        go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+        go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
           const gid = parseInt(gsel.sel.value, 10);
           if (!gid || !subject.inp.value) { showToast('请填写完整', 'warn'); return; }
@@ -460,7 +460,7 @@
         const rm = field('留言（可选，如 +1）', '+1');
         const joinBtn = document.createElement('button');
         joinBtn.className = 'btn-primary'; joinBtn.textContent = '报名接龙 +1';
-        joinBtn.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border:none;border-radius:10px;cursor:pointer;background:#07c160;color:#fff;margin-bottom:8px';
+        joinBtn.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border:none;border-radius:10px;cursor:pointer;background:#2563eb;color:#fff;margin-bottom:8px';
         joinBtn.onclick = async () => { try { await Pay.joinSolection(s.id, rm.inp.value.trim()); showToast('报名成功', 'success'); renderSolectionDetail(s.id, out.parentElement); } catch (e) { showToast('失败：' + e.message, 'error'); } };
         out.appendChild(rm.w);
         out.appendChild(joinBtn);
@@ -472,7 +472,7 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #f0f0f0;border-radius:8px';
       const av = document.createElement('div');
-      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#e6f7ee;color:#07c160;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
+      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
       if (e.avatar) av.innerHTML = `<img src="${esc(e.avatar)}" style="width:100%;height:100%;object-fit:cover">`;
       else av.textContent = (e.name || '?').charAt(0);
       const nm = document.createElement('div');
@@ -505,7 +505,7 @@
     }, (acts, close) => {
       const go = document.createElement('button');
       go.className = 'btn-primary'; go.textContent = '确认缴费';
-      go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+      go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
           if (go.disabled) return; go.disabled = true;
           try {
@@ -526,7 +526,7 @@
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
     const title = document.createElement('h3');
-    title.textContent = '钱包账单'; title.style.cssText = 'margin:0;color:#07c160';
+    title.textContent = '钱包账单'; title.style.cssText = 'margin:0;color:#2563eb';
     head.appendChild(title);
     wrap.appendChild(head);
     container.appendChild(wrap);
@@ -543,7 +543,7 @@
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eee;border-radius:10px;background:#fff';
         const icon = document.createElement('div');
-        icon.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + (ined ? '#e6f7ee' : '#fdecea') + ';color:' + (ined ? '#07c160' : '#e74c3c') + ';display:flex;align-items:center;justify-content:center;font-size:14px';
+        icon.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + (ined ? '#eff4ff' : '#fdecea') + ';color:' + (ined ? '#2563eb' : '#e74c3c') + ';display:flex;align-items:center;justify-content:center;font-size:14px';
         icon.textContent = ined ? '收' : '支';
         const mid = document.createElement('div');
         mid.style.cssText = 'flex:1;min-width:0';
@@ -552,7 +552,7 @@
         mid.appendChild(t1); mid.appendChild(t2);
         const amt = document.createElement('div');
         amt.textContent = (ined ? '+' : '-') + Number(b.amount).toFixed(2);
-        amt.style.cssText = 'font-size:16px;font-weight:700;color:' + (ined ? '#07c160' : '#333');
+        amt.style.cssText = 'font-size:16px;font-weight:700;color:' + (ined ? '#2563eb' : '#333');
         row.appendChild(icon); row.appendChild(mid); row.appendChild(amt);
         inner.appendChild(row);
       });
@@ -567,13 +567,13 @@
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px';
     const title = document.createElement('h3');
-    title.textContent = '钱包与生活服务'; title.style.cssText = 'margin:0;color:#07c160';
+    title.textContent = '钱包与生活服务'; title.style.cssText = 'margin:0;color:#2563eb';
     head.appendChild(title);
     wrap.appendChild(head);
 
     // 余额卡
     const balCard = document.createElement('div');
-    balCard.style.cssText = 'background:linear-gradient(135deg,#07c160,#05a14f);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px';
+    balCard.style.cssText = 'background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px';
     balCard.innerHTML = `<div style="font-size:13px;opacity:.85">我的余额（元）</div>
       <div id="pay-bal" style="font-size:34px;font-weight:800;margin:6px 0">0.00</div>
       <div id="pay-recv" style="font-size:13px;opacity:.85">累计收款 ¥0.00</div>`;
@@ -595,7 +595,7 @@
       const cell = document.createElement('button');
       cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 4px;border:1px solid #f0f0f0;border-radius:12px;background:#fff;cursor:pointer';
       const ic = document.createElement('div');
-      ic.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#e6f7ee;color:#07c160;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700';
+      ic.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700';
       ic.textContent = it.icon;
       const lb = document.createElement('div'); lb.textContent = it.label; lb.style.cssText = 'font-size:12px;color:#333';
       cell.appendChild(ic); cell.appendChild(lb);
@@ -626,8 +626,8 @@
     const m = modal('充值', (body) => {
       body.style.cssText = 'padding:0';
       const options = [
-        { label: '兑换码充值', desc: '输入兑换码兑换余额', icon: '\u5151', color: '#07c160', fn: redeemFlow },
-        { label: '聊天支付', desc: '聊天扫码支付充值', icon: '\u5fae', color: '#07c160', fn: () => onlineRechargeFlow('wxpay') },
+        { label: '兑换码充值', desc: '输入兑换码兑换余额', icon: '\u5151', color: '#2563eb', fn: redeemFlow },
+        { label: '聊天支付', desc: '聊天扫码支付充值', icon: '\u5fae', color: '#2563eb', fn: () => onlineRechargeFlow('wxpay') },
         { label: '支付宝支付', desc: '支付宝扫码支付充值', icon: '\u652f', color: '#1677ff', fn: () => onlineRechargeFlow('alipay') },
       ];
       options.forEach(opt => {
@@ -669,9 +669,9 @@
         payType = t.id;
         btns.forEach(x => {
           const on = x.dataset.type === payType;
-          x.style.borderColor = on ? '#07c160' : '#e5e7eb';
+          x.style.borderColor = on ? '#2563eb' : '#e5e7eb';
           x.style.background = on ? 'rgba(7,193,96,.08)' : '#fff';
-          x.style.color = on ? '#07c160' : '#555';
+          x.style.color = on ? '#2563eb' : '#555';
           x.style.fontWeight = on ? '700' : '400';
         });
       };
@@ -691,14 +691,14 @@
       body.appendChild(tip);
       const redeemLink = document.createElement('button');
       redeemLink.textContent = '使用兑换码充值';
-      redeemLink.style.cssText = 'margin-top:4px;background:none;border:none;color:#07c160;font-size:12.5px;cursor:pointer;padding:0';
+      redeemLink.style.cssText = 'margin-top:4px;background:none;border:none;color:#2563eb;font-size:12.5px;cursor:pointer;padding:0';
       redeemLink.onclick = () => redeemFlow();
       body.appendChild(redeemLink);
       setTimeout(() => btns[0].click(), 0);
     }, (acts, close) => {
       const go = document.createElement('button');
       go.className = 'btn-primary'; go.textContent = '去支付';
-      go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-weight:600';
+      go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-weight:600';
       go.onclick = async () => {
         const v = parseFloat(amount.inp.value);
         if (!Number.isFinite(v) || v < 0.01 || v > 50000) { showToast('请输入有效金额', 'warn'); return; }
@@ -743,7 +743,7 @@
       (acts, close) => {
         const go = document.createElement('button');
         go.className = 'btn-primary'; go.textContent = '兑换';
-        go.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+        go.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
         go.onclick = async () => {
           if (go.disabled) return; go.disabled = true;
           try {

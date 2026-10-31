@@ -36,7 +36,7 @@
         '<button id="fbCloseBtn" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2,#888);line-height:1;">&times;</button>' +
       '</div>' +
       '<div style="display:flex;gap:18px;border-bottom:1px solid var(--border,#eee);padding:0 18px;">' +
-        '<button class="fb-tab" data-tab="write" style="padding:10px 2px;border:none;background:none;cursor:pointer;font-size:14px;border-bottom:2px solid var(--accent,#07c160);">提交反馈</button>' +
+        '<button class="fb-tab" data-tab="write" style="padding:10px 2px;border:none;background:none;cursor:pointer;font-size:14px;border-bottom:2px solid var(--accent,#2563eb);">提交反馈</button>' +
         '<button class="fb-tab" data-tab="list" style="padding:10px 2px;border:none;background:none;cursor:pointer;font-size:14px;color:var(--text2,#888);border-bottom:2px solid transparent;">我的反馈</button>' +
       '</div>' +
       '<div id="fbBody" style="flex:1;overflow-y:auto;padding:18px;"></div>';
@@ -45,7 +45,7 @@
     document.getElementById('fbCloseBtn').addEventListener('click', closeModal);
     mask.querySelectorAll('.fb-tab').forEach(b => b.addEventListener('click', () => {
       mask.querySelectorAll('.fb-tab').forEach(x => { x.style.borderBottomColor = 'transparent'; x.style.color = 'var(--text2,#888)'; });
-      b.style.borderBottomColor = 'var(--accent,#07c160)'; b.style.color = '';
+      b.style.borderBottomColor = 'var(--accent,#2563eb)'; b.style.color = '';
       renderTab(b.dataset.tab);
     }));
     renderTab('write');
@@ -59,17 +59,17 @@
       curKind = 'bug';
       body.innerHTML =
         '<div style="margin-bottom:12px;">' +
-          KINDS.map(k => '<button class="fb-kind" data-k="' + k.id + '" style="padding:6px 14px;margin-right:8px;border:1px solid var(--border,#ddd);border-radius:18px;background:' + (k.id === curKind ? 'var(--accent,#07c160)' : 'transparent') + ';color:' + (k.id === curKind ? '#fff' : 'inherit') + ';cursor:pointer;font-size:13px;">' + k.label + '</button>').join('') +
+          KINDS.map(k => '<button class="fb-kind" data-k="' + k.id + '" style="padding:6px 14px;margin-right:8px;border:1px solid var(--border,#ddd);border-radius:18px;background:' + (k.id === curKind ? 'var(--accent,#2563eb)' : 'transparent') + ';color:' + (k.id === curKind ? '#fff' : 'inherit') + ';cursor:pointer;font-size:13px;">' + k.label + '</button>').join('') +
         '</div>' +
         '<textarea id="fbContent" placeholder="请描述您的问题或建议（至少 10 字）" style="width:100%;min-height:120px;resize:vertical;border:1px solid var(--border,#ddd);border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box;background:var(--bg,#fafafa);color:var(--text,#222);"></textarea>' +
         '<input id="fbContact" placeholder="联系方式（选填，手机/邮箱）" style="width:100%;margin-top:10px;border:1px solid var(--border,#ddd);border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box;background:var(--bg,#fafafa);color:var(--text,#222);" />' +
         '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
-          '<button id="fbSubmit" style="padding:9px 22px;border:none;border-radius:8px;background:var(--accent,#07c160);color:#fff;cursor:pointer;font-size:14px;">提交</button>' +
+          '<button id="fbSubmit" style="padding:9px 22px;border:none;border-radius:8px;background:var(--accent,#2563eb);color:#fff;cursor:pointer;font-size:14px;">提交</button>' +
         '</div>';
       body.querySelectorAll('.fb-kind').forEach(b => b.addEventListener('click', () => {
         curKind = b.dataset.k;
         body.querySelectorAll('.fb-kind').forEach(x => { x.style.background = 'transparent'; x.style.color = 'inherit'; });
-        b.style.background = 'var(--accent,#07c160)'; b.style.color = '#fff';
+        b.style.background = 'var(--accent,#2563eb)'; b.style.color = '#fff';
       }));
       document.getElementById('fbSubmit').addEventListener('click', submit);
     } else {
@@ -97,7 +97,7 @@
       const tabs = document.querySelectorAll('.fb-tab');
       tabs.forEach(x => { x.style.borderBottomColor = 'transparent'; x.style.color = 'var(--text2,#888)'; });
       const listTab = Array.from(tabs).find(x => x.dataset.tab === 'list');
-      if (listTab) { listTab.style.borderBottomColor = 'var(--accent,#07c160)'; listTab.style.color = ''; }
+      if (listTab) { listTab.style.borderBottomColor = 'var(--accent,#2563eb)'; listTab.style.color = ''; }
     } catch (e) {
       if (window.toast) window.toast('提交失败：' + e.message, 'error', 2000);
     } finally {

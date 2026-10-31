@@ -15,7 +15,7 @@
     { id: 'guess', name: '猜数字', icon: '🔢', desc: '猜 1-100 之间的数字，看看你几次能猜中', color: '#3498db' },
     { id: '2048', name: '2048', icon: '🎮', desc: '经典数字合并游戏，挑战 2048', color: '#e67e22' },
     { id: 'reaction', name: '反应力测试', icon: '⚡', desc: '测试你的反应速度，越快越好', color: '#e74c3c' },
-    { id: 'memory', name: '记忆翻牌', icon: '🃏', desc: '翻牌找对子，考验记忆力', color: '#2ecc71' },
+    { id: 'memory', name: '记忆翻牌', icon: '🃏', desc: '翻牌找对子，考验记忆力', color: '#2563eb' },
     { id: 'typing', name: '打字速度', icon: '⌨️', desc: '测试你的打字速度（WPM）', color: '#9b59b6' },
     { id: 'tictactoe', name: '井字棋', icon: '❌', desc: '和 AI 对战井字棋', color: '#1abc9c' },
   ];
@@ -167,11 +167,11 @@
         waiting = true;
         var delay = 1000 + Math.random() * 3000;
         timeoutId = setTimeout(function () {
-          box.style.background = '#2ecc71';
+          box.style.background = '#2563eb';
           box.textContent = '快点击！';
           startTime = Date.now();
         }, delay);
-      } else if (box.style.background === 'rgb(46, 204, 113)' || box.style.background === '#2ecc71') {
+      } else if (box.style.background === 'rgb(37, 99, 235)' || box.style.background === '#2563eb') {
         var reaction = Date.now() - startTime;
         result.textContent = '反应时间：' + reaction + 'ms';
         saveScore('reaction', reaction);
