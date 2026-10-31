@@ -221,6 +221,7 @@ app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 // ---------- Cap Core：自托管人机验证路由 + token 验证 ----------
 // POST /api/cap/challenge：生成 PoW + instrumentation 挑战
 app.post('/api/cap/challenge', async (req, res) => {
+  if (rateLimit('cap:' + getIp(req), 60, 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
   const cap = await getCapCore();
   if (!cap) return res.status(503).json({ error: 'CAPTCHA 未配置' });
   try {
@@ -1539,6 +1540,8 @@ app.post('/api/login/qr/consume', (req, res) => {
 // 通用二维码渲染：GET /api/qrcode/render?text=...&w=...（返回 PNG，用于网页端展示名片等）
 app.get('/api/qrcode/render', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  // QR 生成是 CPU 密集操作，未登录接口必须限流，否则可被刷满 CPU
+  if (rateLimit('qrcode:' + getIp(req), 60, 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
   const text = (req.query.text || '').toString().slice(0, 1024);
   if (!text) return res.status(400).json({ error: '缺少 text 参数' });
   try {
