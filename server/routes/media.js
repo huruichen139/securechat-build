@@ -251,7 +251,16 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Type', safe ? rawMime : 'application/octet-stream');
     res.setHeader('Content-Disposition', (safe ? 'inline' : 'attachment') + '; filename="' + String(f.name || 'file').replace(/["\\\r\n]/g, '_') + '"');
-    fs.createReadStream(f.path).pipe(res);
+    // 媒体 id 为 UUID 且内容不可变，允许长缓存；避免信息流反复回源
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    const stream = fs.createReadStream(f.path);
+    // 文件可能被并发删除（用户删除 / 磁盘清理）：无 error 监听会变成 uncaughtException 打挂进程
+    stream.on('error', (e) => {
+      console.error('[media] 读取失败: ' + (e && e.message || e));
+      if (!res.headersSent) { try { res.status(404).json({ error: '文件不存在' }); } catch (_) {} }
+      else { try { res.destroy(); } catch (_) {} }
+    });
+    stream.pipe(res);
   });
 
   // ============================================================
