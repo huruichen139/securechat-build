@@ -5951,6 +5951,8 @@ wss.on('connection', (ws, req) => {
       }
       const isMember = prepare('SELECT id FROM group_members WHERE group_id=? AND user_id=?').get(gid, ws.uid);
       if (!isMember) return send(ws, P.S_ERROR, { error: '你不在此群' });
+      // 群消息限流：REST 群消息入口有限流，WS 通道此前缺失，单连接可刷屏并拖垮全群扇出
+      if (rateLimit('wsmsg:' + ws.uid, 60, 10 * 1000)) return send(ws, P.S_ERROR, { error: '发送过于频繁，请稍后再试' });
       // 重试复用 clientMsgId：返回原消息，不再插入/广播第二条
       if (clientMsgId) {
         const existing = prepare('SELECT id,group_id AS groupId,from_id AS fromId,content,created_at AS createdAt FROM group_messages WHERE client_msg_id=? AND from_id=? AND group_id=?').get(clientMsgId, ws.uid, gid);
