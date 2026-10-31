@@ -1496,6 +1496,7 @@ app.post('/api/login/qr/create', (req, res) => {
 
 app.get('/api/login/qr/image', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
+  if (rateLimit('qrimg:' + getIp(req), 60, 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
   const session = getQrLoginSession(req.query.token);
   if (!session) return res.status(410).json({ error: '二维码已过期，请重新生成' });
   try {
@@ -1719,6 +1720,7 @@ app.post('/api/avatar', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const avatar = (req.body || {}).avatar;
+  if (rateLimit('avatar:' + payload.id, 20, 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
   if (typeof avatar !== 'string' || !avatar.startsWith('data:image/')) {
     return res.status(400).json({ error: '头像格式错误' });
   }
@@ -1834,6 +1836,8 @@ app.post('/api/profile', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const body = req.body || {};
+  // 资料修改会触发 broadcastUserList 全量广播，必须限流防止高频改昵称刷全站
+  if (rateLimit('profile:' + payload.id, 20, 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
   // 允许更新的字段白名单（nickname/country/province/city 维持单独列，extra 存 JSON 字符串）
   const fields = [];
   const args = [];
