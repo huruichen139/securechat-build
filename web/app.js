@@ -810,7 +810,7 @@ $('authBtn').onclick = async () => {
     x.onclick = close;
     cancel.onclick = close;
     mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
-    const onKey = (e) => { if (e.key === 'Escape') if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+    const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
     document.addEventListener('keydown', onKey);
 
     ok.onclick = async () => {
@@ -1719,9 +1719,12 @@ function openFeatureCenter() {
 
   mask.appendChild(box);
   document.body.appendChild(mask);
-  xBtn.onclick = () => mask.remove(); document.removeEventListener('keydown', onKey);
-  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); document.removeEventListener('keydown', onKey); });
-    const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  // 原实现在 const onKey 声明前同步调用 removeEventListener('keydown', onKey)，
+  // 触发 TDZ ReferenceError（每次打开「更多功能」都抛错，ESC 监听也没绑上）。
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  xBtn.onclick = close;
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  const onKey = (ev) => { if (ev.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
 }
 
@@ -1746,9 +1749,12 @@ function openContainerFeature(feature, title) {
   box.appendChild(host);
   mask.appendChild(box);
   document.body.appendChild(mask);
-  xBtn.onclick = () => mask.remove(); document.removeEventListener('keydown', onKey);
-  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); document.removeEventListener('keydown', onKey); });
-    const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
+  // 同 openFeatureCenter：不能在 const onKey 之前同步使用 onKey（TDZ 会抛错，
+  // 且异常发生在 feature.open 之前，导致「收藏」等容器型功能空白无内容）。
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  xBtn.onclick = close;
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  const onKey = (ev) => { if (ev.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
   try { feature.open(host); } catch (e) { console.error('[feature] 打开失败', e); toast('打开失败：' + (e && e.message || e), 'error'); }
 }
@@ -1770,11 +1776,11 @@ function openFeatureModalFrom(feature, method, hint) {
       head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
       const host = document.createElement('div'); box.appendChild(host);
       mask.appendChild(box); document.body.appendChild(mask);
-      xBtn.onclick = () => { mask.remove(); document.removeEventListener('keydown', onKey); };
-      mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); document.removeEventListener('keydown', onKey); });
-  const onKey = (ev) => { if (ev.key === 'Escape') { mask.remove(); document.removeEventListener('keydown', onKey); } };
-
-  document.addEventListener('keydown', onKey);
+      const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+      xBtn.onclick = close;
+      mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+      const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+      document.addEventListener('keydown', onKey);
       call(host);
     } else {
       call();
@@ -5109,7 +5115,7 @@ function renderDiscoverPage() {
   if (!list) return;
   const openAiView = () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
   const items = [
-    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMomentExt) window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
+    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMoments) window.SecureChatMoments.open(); else if (window.SecureChatMomentExt && typeof window.SecureChatMomentExt.open === 'function') window.SecureChatMomentExt.open(); else toast('朋友圈功能开发中', 'info'); } },
     { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
   ];
   // 分组：顶部常用，中间小程序区
@@ -5329,7 +5335,7 @@ async function passkeyPanel() {
   mask.appendChild(box);
   document.body.appendChild(mask);
   const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
-  const onKey = e => { if (e.key === 'Escape') if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+  const onKey = e => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
   box.querySelector('.modal-x').onclick = close;
   box.querySelector('.cancel').onclick = close;
@@ -5676,7 +5682,7 @@ const services = [
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
       else toast('支付功能开发中', 'info');
     } },
-    { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) window.SecureChatFavorites.open(); else toast('收藏功能开发中', 'info'); } },
+    { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) openContainerFeature(window.SecureChatFavorites, '我的收藏'); else toast('收藏功能开发中', 'info'); } },
     { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
     { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
     { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },

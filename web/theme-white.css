@@ -68,6 +68,9 @@ html, body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+/* 移动端把 .main / #downloadView 用 translateX(100%) 移出屏幕，布局盒仍占位，
+   会撑出 390px 的水平滚动（手机上能左右拖动整个聊天页）。直接裁掉水平溢出。 */
+html, body { overflow-x: hidden; }
 body::before { display: none !important; }
 ::selection { background: #dbe7ff; }
 
@@ -971,3 +974,114 @@ html.dark-mode, body.dark-mode {
   .composer { padding: 8px 12px 12px !important; }
   .auth-card { border-radius: 18px !important; padding: 30px 22px 24px !important; }
 }
+
+/* ---------- 朋友圈（modules/moments.js）---------- */
+.moments-page { background: var(--w-bg) !important; }
+.moments-page .page-body { padding: 0 0 24px; background: var(--w-bg); }
+.moments-header { position: relative; }
+.moments-publish-btn {
+  margin-left: auto; border: 1px solid var(--w-accent-line); background: var(--w-accent-soft);
+  color: var(--w-accent); font-size: 13px; font-weight: 600; padding: 6px 14px;
+  border-radius: 999px; cursor: pointer; transition: background .15s, color .15s;
+}
+.moments-publish-btn:hover { background: var(--w-accent); color: #fff; }
+.moments-feed { max-width: 760px; margin: 0 auto; padding: 14px 14px 0; display: flex; flex-direction: column; gap: 12px; }
+.moment-card {
+  display: flex; gap: 10px; padding: 14px; background: var(--w-surface);
+  border: 1px solid var(--w-line); border-radius: var(--w-radius); box-shadow: var(--w-shadow-xs);
+}
+.moment-avatar {
+  flex: 0 0 42px; width: 42px; height: 42px; border-radius: 12px; overflow: hidden;
+  background: var(--w-grad); color: #fff; font-weight: 700; font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+}
+.moment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.moment-main { flex: 1; min-width: 0; }
+.moment-name { font-size: 14px; font-weight: 650; color: var(--w-text); }
+.moment-content { margin-top: 5px; font-size: 14.5px; line-height: 1.62; color: var(--w-text); white-space: pre-wrap; word-break: break-word; }
+.moments-images { margin-top: 8px; display: grid; gap: 5px; }
+.moments-images.n1 { grid-template-columns: minmax(0, 220px); }
+.moments-images.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 300px; }
+.moments-images.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.moments-images.n4, .moments-images.n5, .moments-images.n6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.moments-images.n7, .moments-images.n8, .moments-images.n9 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.moments-img {
+  padding: 0; border: 0; background: var(--w-surface-3); border-radius: 10px;
+  overflow: hidden; cursor: zoom-in; aspect-ratio: 1 / 1;
+}
+.moments-images.n1 .moments-img { aspect-ratio: 4 / 3; }
+.moments-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.moment-foot { margin-top: 8px; display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--w-muted); }
+.moment-time { margin-right: auto; }
+.moment-like, .moment-comment-btn {
+  border: 0; background: transparent; color: var(--w-accent); font-size: 12.5px;
+  cursor: pointer; padding: 2px 4px; border-radius: 6px;
+}
+.moment-like:hover, .moment-comment-btn:hover { background: var(--w-accent-soft); }
+.moment-like.on { color: var(--w-danger); font-weight: 600; }
+.moment-social {
+  margin-top: 8px; padding: 8px 10px; background: var(--w-surface-3);
+  border-radius: 10px; font-size: 12.5px; color: var(--w-text-2);
+}
+.moment-likes { color: var(--w-accent); }
+.moment-comments { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+.moment-comment { line-height: 1.5; word-break: break-word; }
+.moment-comment b { color: var(--w-accent); font-weight: 600; margin-right: 2px; }
+.moment-comment-form { margin-top: 8px; display: flex; gap: 8px; }
+.moment-comment-form input {
+  flex: 1; min-width: 0; height: 32px; padding: 0 10px; font-size: 13px;
+  border: 1px solid var(--w-line-2); border-radius: 9px; background: var(--w-surface-2); color: var(--w-text);
+  outline: none;
+}
+.moment-comment-form input:focus { border-color: var(--w-accent); background: #fff; }
+.moment-comment-form button {
+  border: 0; background: var(--w-grad); color: #fff; font-size: 12.5px; font-weight: 600;
+  padding: 0 14px; height: 32px; border-radius: 9px; cursor: pointer;
+}
+.moment-comment-form button:disabled { opacity: .6; cursor: default; }
+.moments-loading, .moments-error, .moments-empty {
+  padding: 40px 20px; text-align: center; color: var(--w-muted); font-size: 13.5px;
+}
+.moments-more { text-align: center; padding: 14px 0 4px; }
+.moments-more button {
+  border: 1px solid var(--w-line-2); background: var(--w-surface); color: var(--w-text-2);
+  font-size: 13px; padding: 7px 20px; border-radius: 999px; cursor: pointer;
+}
+.moments-viewer {
+  position: fixed; inset: 0; z-index: 9999; background: rgba(8, 12, 22, .88);
+  display: flex; align-items: center; justify-content: center; cursor: zoom-out;
+  backdrop-filter: blur(2px);
+}
+.moments-viewer img { max-width: 92vw; max-height: 90vh; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.5); }
+.moments-composer { width: min(560px, 94vw); }
+.moments-textarea {
+  width: 100%; min-height: 120px; resize: vertical; border: 1px solid var(--w-line-2);
+  border-radius: var(--w-radius-sm); padding: 12px; font-size: 14.5px; line-height: 1.6;
+  font-family: inherit; color: var(--w-text); background: var(--w-surface-2); outline: none;
+}
+.moments-textarea:focus { border-color: var(--w-accent); background: #fff; }
+.moments-picked { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.moments-picked-item { position: relative; width: 72px; height: 72px; padding: 0; border: 0; border-radius: 10px; overflow: hidden; cursor: pointer; }
+.moments-picked-item img { width: 100%; height: 100%; object-fit: cover; }
+.moments-picked-item::after {
+  content: "移除"; position: absolute; inset: auto 0 0 0; font-size: 10px; color: #fff;
+  background: rgba(0,0,0,.45); text-align: center; padding: 2px 0;
+}
+.moments-compose-bar { margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+.moments-addimg {
+  border: 1px dashed var(--w-line-2); color: var(--w-text-2); font-size: 12.5px;
+  padding: 7px 14px; border-radius: 9px; cursor: pointer;
+}
+.moments-addimg:hover { border-color: var(--w-accent); color: var(--w-accent); }
+.moments-hint { font-size: 12px; color: var(--w-muted); margin-right: auto; }
+.moments-compose-bar .ok {
+  border: 0; background: var(--w-grad); color: #fff; font-size: 13px; font-weight: 600;
+  padding: 8px 20px; border-radius: 999px; cursor: pointer;
+}
+.moments-compose-bar .ok:disabled { opacity: .6; cursor: default; }
+.dark-mode .moments-page, .dark-mode .moments-page .page-body { background: #12141a !important; }
+.dark-mode .moment-card { background: #1a1d24; border-color: #262a33; }
+.dark-mode .moment-name, .dark-mode .moment-content { color: #e6e8ee; }
+.dark-mode .moment-social { background: #22262e; color: #b9bfcc; }
+.dark-mode .moment-comment-form input, .dark-mode .moments-textarea { background: #1f2229; color: #e6e8ee; border-color: #2c313b; }
+.dark-mode .moments-addimg { border-color: #2c313b; color: #b9bfcc; }
