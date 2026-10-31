@@ -798,7 +798,21 @@ body::before { display: none !important; }
   padding: 8px 10px !important;
 }
 .page-body .contact-section .contact + .contact { border-top: 1px solid var(--w-line) !important; }
-html.chat-list-hidden:not(.is-mobile) .wechat-page { left: 64px !important; }
+/* 全屏页（通讯录/发现/我/朋友圈）在桌面端与主聊天面板对齐：
+   左侧让出窄导航栏（rail 右缘 = 12px 内边距 + 1px 边框 + 64px），上下右留 12px 内边距。
+   之前写死 left:64px 会压住 rail 右侧 13px，且右侧顶到屏幕边缘、圆角丢失。 */
+html.chat-list-hidden:not(.is-mobile) .wechat-page,
+html:not(.is-mobile) .wechat-page.active {
+  left: 77px !important;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  height: auto;
+  border-radius: var(--w-radius);
+  border: 1px solid var(--w-line);
+  box-shadow: var(--w-shadow-sm);
+  overflow: hidden;
+}
 
 /* ---------- 管理端 ---------- */
 .admin-body { background: var(--w-bg) !important; color: var(--w-text) !important; }
