@@ -769,9 +769,119 @@ body::before { display: none !important; }
 html.chat-list-hidden:not(.is-mobile) .wechat-page { left: 64px !important; }
 
 /* ---------- 管理端 ---------- */
-.admin-table th { background: #fafbfc !important; color: #6b7280 !important; }
-.admin-table tr:hover td { background: #fafbfc !important; }
-.admin-tag { border-radius: 6px !important; }
+.admin-body { background: var(--w-bg) !important; color: var(--w-text) !important; }
+.admin-topbar {
+  background: rgba(255, 255, 255, .88) !important;
+  border-bottom: 1px solid var(--w-line) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+}
+.admin-brand-mark {
+  background: var(--w-grad) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 5px 14px rgba(37, 99, 235, .24) !important;
+}
+.admin-btn {
+  background: #fff !important;
+  border: 1px solid var(--w-line) !important;
+  border-radius: 10px !important;
+  color: var(--w-text-2) !important;
+  box-shadow: var(--w-shadow-xs) !important;
+  font-weight: 500;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.admin-btn:hover { background: var(--w-surface-2) !important; border-color: #dfe3ea !important; box-shadow: var(--w-shadow-sm) !important; }
+.admin-btn.primary {
+  background: var(--w-grad) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .24) !important;
+}
+.admin-btn.primary:hover { filter: brightness(1.05) !important; }
+.admin-btn.danger { color: var(--w-danger) !important; border-color: #f6d5d5 !important; background: #fff !important; }
+.admin-btn.danger:hover { background: #fff5f5 !important; }
+
+.admin-loginmask {
+  background: radial-gradient(900px 520px at 50% -10%, rgba(79, 139, 255, .12), transparent 62%), var(--w-bg) !important;
+}
+.admin-logincard {
+  background: #fff !important;
+  border: 1px solid var(--w-line) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--w-shadow-lg) !important;
+}
+.admin-login-tabs {
+  background: #f3f4f6 !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 4px !important;
+  display: flex !important;
+  gap: 4px !important;
+}
+.admin-login-tab {
+  border: none !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  color: var(--w-muted) !important;
+  font-weight: 600 !important;
+}
+.admin-login-tab.active {
+  background: #fff !important;
+  color: var(--w-text) !important;
+  box-shadow: var(--w-shadow-xs) !important;
+}
+.admin-login-input {
+  background: #f4f5f7 !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  color: var(--w-text) !important;
+  box-shadow: none !important;
+}
+.admin-login-input:focus {
+  background: #fff !important;
+  border-color: var(--w-accent) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12) !important;
+  outline: none !important;
+}
+.admin-search {
+  background: #f4f5f7 !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+}
+.admin-search:focus { background: #fff !important; border-color: var(--w-accent) !important; outline: none !important; }
+
+.admin-sidebar {
+  background: #fff !important;
+  border-right: 1px solid var(--w-line) !important;
+}
+.admin-nav-item {
+  border-radius: 10px !important;
+  color: var(--w-text-2) !important;
+  transition: background .15s ease, color .15s ease;
+}
+.admin-nav-item:hover { background: #f7f8fa !important; color: var(--w-text) !important; }
+.admin-nav-item.on, .admin-nav-item.active {
+  background: var(--w-accent-soft) !important;
+  color: var(--w-accent) !important;
+  font-weight: 600 !important;
+}
+.admin-panel {
+  background: #fff !important;
+  border: 1px solid var(--w-line) !important;
+  border-radius: var(--w-radius) !important;
+  box-shadow: var(--w-shadow-xs) !important;
+}
+.admin-tablewrap {
+  border: 1px solid var(--w-line) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+.admin-table th { background: #fbfbfc !important; color: #6b7280 !important; font-weight: 600 !important; }
+.admin-table td { border-top: 1px solid var(--w-line) !important; }
+.admin-table tr:hover td { background: #fbfbfc !important; }
+.admin-tag { border-radius: 999px !important; }
 
 /* ---------- 深色模式（中性灰 + 蓝点缀） ---------- */
 html.dark-mode, body.dark-mode {
