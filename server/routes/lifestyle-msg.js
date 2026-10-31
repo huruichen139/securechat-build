@@ -592,8 +592,9 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!payload) return deny(res, 401, '未授权');
     if (_trLimited(payload.id)) return deny(res, 429, '翻译过于频繁，请稍后再试');
     const { text, target = 'zh' } = req.body || {};
-    const src = String(text || '').slice(0, 2000);
-    if (!src) return deny(res, 400, '没有待翻译文本');
+    if (typeof text !== 'string') return deny(res, 400, '没有待翻译文本');
+    const src = text.slice(0, 2000);
+    if (!src.trim()) return deny(res, 400, '没有待翻译文本');
     const lang = String(target) === 'en' ? 'en' : 'zh';
     handleTranslate(src, lang)
       .then((out) => res.json({ ok: true, text, translated: out.translated, source: out.source, detected: out.detected }))

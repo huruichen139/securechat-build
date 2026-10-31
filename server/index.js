@@ -2682,8 +2682,9 @@ app.post('/api/group/create', (req, res) => {
   const payload = verifyToken(auth.replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
   const name = (req.body || {}).name;
-  if (!name || !String(name).trim()) return res.status(400).json({ error: '群名不能为空' });
-  const groupName = String(name).trim().slice(0, 50);
+  // 类型校验：传对象时 String() 会得到 "[object Object]" 并真的建出一个怪群名
+  if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: '群名不能为空' });
+  const groupName = name.trim().slice(0, 50);
   const sw = checkSensitive(groupName);
   if (sw) return res.status(400).json({ error: '群名包含敏感词：' + sw });
   const now = Date.now();
@@ -2724,7 +2725,8 @@ app.post('/api/group/invite', (req, res) => {
   if (!payload) return res.status(401).json({ error: '未授权' });
   const body = req.body || {};
   const groupId = parseInt(body.groupId, 10);
-  const uid = body.uid;
+  // uid 必须是字符串/数字：传对象会让 sql.js 绑定抛错（500）而不是返回 400
+  const uid = typeof body.uid === 'string' || typeof body.uid === 'number' ? String(body.uid).trim() : '';
   if (!groupId) return res.status(400).json({ error: '群ID不能为空' });
   if (!uid) return res.status(400).json({ error: '对方UID不能为空' });
   const g = prepare('SELECT id FROM groups WHERE id=?').get(groupId);
@@ -3279,7 +3281,9 @@ app.post('/api/notes', (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   const payload = verifyToken((req.headers.authorization || '').replace('Bearer ', ''));
   if (!payload) return res.status(401).json({ error: '未授权' });
-  const content = String((req.body || {}).content || '').trim();
+  const rawNote = (req.body || {}).content;
+  if (typeof rawNote !== 'string') return res.status(400).json({ error: '内容格式错误' });
+  const content = rawNote.trim();
   if (!content) return res.status(400).json({ error: '内容不能为空' });
   if (content.length > 50000) return res.status(400).json({ error: '内容过长（限5万字）' });
   // 限流：防单请求连环插入撑爆笔记配额
