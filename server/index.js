@@ -730,13 +730,16 @@ app.get('/api/captcha/config', (req, res) => {
 
 // 请求验证码：POST /api/email/code { email, purpose: "register"|"bind" }
 app.post('/api/email/code', async (req, res) => {
+ try {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   cleanCode();
   const ip = getIp(req);
   if (rateLimit('email:' + ip, 5, 10 * 60 * 1000)) return res.status(429).json({ error: '请求过于频繁，请10分钟后再试' });
   // 人机验证（图形验证码 或 Cloudflare Turnstile 二选一，均可切换）
   if (!(await verifyHuman(req, res, true))) return;
-  const { email, purpose } = req.body || {};
+  const body = req.body || {};
+  const email = typeof body.email === 'string' ? body.email.trim().slice(0, 254) : '';
+  const purpose = typeof body.purpose === 'string' ? body.purpose : '';
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
     return res.status(400).json({ error: '邮箱格式错误' });
   }
@@ -756,14 +759,18 @@ app.post('/api/email/code', async (req, res) => {
 
   const subject = 'SecureChat 验证码';
   const html = `<div style="font-family:'Microsoft YaHei',Arial;background:#f7f8fa;padding:24px;color:#222">
-    <h2 style="color:#07c160;margin:0 0 12px">SecureChat</h2>
+    <h2 style="color:#2563eb;margin:0 0 12px">SecureChat</h2>
     <p>你的验证码是：</p>
-    <div style="font-size:28px;font-weight:700;letter-spacing:4px;color:#07c160;margin:10px 0">${code}</div>
+    <div style="font-size:28px;font-weight:700;letter-spacing:4px;color:#2563eb;margin:10px 0">${code}</div>
     <p style="color:#888;font-size:12px">10 分钟内有效。如果不是你本人请求的，请忽略此邮件。</p>
   </div>`;
   const r = await sendMail(email, subject, html);
   if (!r.ok) return res.status(500).json({ error: '邮件发送失败：' + (r.err || '未知错误') });
   res.json({ ok: true });
+ } catch (e) {
+  console.error('[email/code] 处理失败:', e && e.message || e);
+  if (!res.headersSent) { try { res.status(500).json({ error: '验证码发送失败，请稍后再试' }); } catch (_) {} }
+ }
 });
 
 function checkCode(email, code, purpose) {
@@ -789,7 +796,14 @@ app.post('/api/register', (req, res) => {
   verifyHuman(req, res, true).then((ok) => {
     if (!ok) return;
     (function doRegister() {
-      const { username, password, nickname, email, code, customUid } = req.body || {};
+      try {
+      const body = req.body || {};
+      const username = typeof body.username === 'string' ? body.username.trim().slice(0, 64) : '';
+      const password = typeof body.password === 'string' ? body.password : '';
+      const nickname = typeof body.nickname === 'string' ? body.nickname.trim().slice(0, 40) : '';
+      const email = typeof body.email === 'string' ? body.email.trim().slice(0, 254) : '';
+      const code = typeof body.code === 'string' ? body.code.trim().slice(0, 16) : '';
+      const customUid = typeof body.customUid === 'string' ? body.customUid.trim().slice(0, 32) : '';
   if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
   if (!email) return res.status(400).json({ error: '请填写邮箱' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
@@ -822,6 +836,10 @@ app.post('/api/register', (req, res) => {
   const user = prepare('SELECT * FROM users WHERE username=?').get(username);
   const token = signToken(user);
   res.json({ token, user: publicUser(user), uidChangedAt: now });
+      } catch (e) {
+        console.error('[register] 处理失败:', e && e.message || e);
+        if (!res.headersSent) { try { res.status(500).json({ error: '注册失败，请稍后再试' }); } catch (_) {} }
+      }
     })();
   });
 });
@@ -1315,9 +1333,11 @@ app.post('/api/login', (req, res) => {
   verifyHuman(req, res, false).then((ok) => {
     if (!ok) return;
     (function doLogin() {
+  try {
   // account 可为用户名或邮箱（兼容旧字段 username）
-  const account = String((req.body || {}).account || (req.body || {}).username || '').trim();
-  const password = (req.body || {}).password;
+  const account = String((req.body || {}).account || (req.body || {}).username || '').trim().slice(0, 320);
+  const rawPassword = (req.body || {}).password;
+  const password = typeof rawPassword === 'string' ? rawPassword : '';
   if (!account || !password) return res.status(400).json({ error: '用户名/邮箱和密码不能为空' });
   let user = prepare('SELECT * FROM users WHERE username=?').get(account);
   if (!user && account.indexOf('@') > -1) {
@@ -1346,6 +1366,11 @@ app.post('/api/login', (req, res) => {
   const token = signToken(user, loginDeviceId || undefined);
   clearRateLimit('login_fail:' + String(account).toLowerCase());
   res.json({ token, user: publicUser(user) });
+  } catch (e) {
+    // 类型异常的 body（如 password 传对象）会让 bcrypt 抛错；若不兜底响应会一直挂起并占用连接
+    console.error('[login] 处理失败:', e && e.message || e);
+    if (!res.headersSent) { try { res.status(500).json({ error: '登录失败，请稍后再试' }); } catch (_) {} }
+  }
     })();
   });
 });
@@ -1356,7 +1381,10 @@ app.post('/api/login/code', (req, res) => {
   verifyHuman(req, res, true).then((ok) => {
     if (!ok) return;
     (function doCodeLogin() {
-  const { email, code } = req.body || {};
+  try {
+  const body = req.body || {};
+  const email = typeof body.email === 'string' ? body.email.trim().slice(0, 254) : '';
+  const code = typeof body.code === 'string' ? body.code.trim().slice(0, 16) : '';
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return res.status(400).json({ error: '邮箱格式错误' });
   if (!code) return res.status(400).json({ error: '请输入邮箱验证码' });
   if (codeAttemptsExceeded(email)) return res.status(429).json({ error: '尝试次数过多，请10分钟后再试' });
@@ -1378,6 +1406,10 @@ app.post('/api/login/code', (req, res) => {
   }
   const token = signToken(user, codeDeviceId || undefined);
   res.json({ token, user: publicUser(user) });
+  } catch (e) {
+    console.error('[login/code] 处理失败:', e && e.message || e);
+    if (!res.headersSent) { try { res.status(500).json({ error: '登录失败，请稍后再试' }); } catch (_) {} }
+  }
     })();
   });
 });
@@ -5577,6 +5609,23 @@ app.use(express.static(webDir, { setHeaders: (res, filePath) => {
 }}));
 app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'index.html')); });
 app.get('/chat', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'chat.html')); });
+
+// 统一错误处理：JSON 解析失败等异常不再输出带服务器路径的 HTML 堆栈（信息泄露 + 体验差）
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = Number(err && (err.status || err.statusCode)) || 500;
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ error: '请求体过大' });
+  }
+  if (status >= 500) {
+    try { console.error('[http] ' + req.method + ' ' + req.originalUrl + ': ' + (err && err.message || err)); } catch (_) {}
+  }
+  const code = status >= 400 && status < 600 ? status : 500;
+  if (req.path && req.path.indexOf('/api/') === 0) {
+    return res.status(code).json({ error: code === 400 ? '请求格式错误' : '服务器错误' });
+  }
+  res.status(code).type('text/plain').send(code === 400 ? 'Bad Request' : 'Server Error');
+});
 
 const CERT_PATH = process.env.CERT_PATH || path.join(process.cwd(), 'portable', 'le.crt');
 const KEY_PATH = process.env.KEY_PATH || path.join(process.cwd(), 'portable', 'le.key');
