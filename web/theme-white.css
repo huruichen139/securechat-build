@@ -140,12 +140,41 @@ body::before { display: none !important; }
   box-shadow: none !important;
   transition: background .16s ease, color .16s ease;
 }
-.sidebar-rail .side-tab > span:last-child { display: none !important; }
+.sidebar-rail .side-tab > span:not(.rail-icon):not(.rail-badge) { display: none !important; }
+.sidebar-rail .side-tab .rail-badge {
+  position: absolute !important;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--w-danger) !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  line-height: 16px;
+  text-align: center;
+}
 .sidebar-rail .side-tab:hover { background: #f1f3f7 !important; color: var(--w-text) !important; }
 .sidebar-rail .side-tab.on { background: var(--w-accent-soft) !important; color: var(--w-accent) !important; }
 .rail-icon { width: 24px !important; height: 24px !important; }
 .rail-icon svg { width: 22px !important; height: 22px !important; }
 .sidebar-rail-bottom { padding: 10px 0 14px !important; gap: 4px; }
+.sidebar-rail-bottom .rail-action {
+  width: 44px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #7b8291 !important;
+  font-size: 10.5px !important;
+  line-height: 26px !important;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.sidebar-rail-bottom .rail-action:hover { background: #f1f3f7 !important; color: var(--w-text) !important; }
 .rail-dot { background: var(--w-accent) !important; }
 
 /* 品牌区 */
