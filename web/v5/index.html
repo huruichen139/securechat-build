@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<title>SecureChat</title>
+<link rel="stylesheet" href="app.css?v=1" />
+</head>
+<body>
+<div id="app" class="app">
+
+  <section id="authView" class="auth">
+    <div class="auth-card">
+      <div class="auth-logo">S</div>
+      <h1 class="auth-title">SecureChat</h1>
+      <p class="auth-sub">端到端加密通信</p>
+      <div class="auth-tabs">
+        <button class="auth-tab on" data-mode="login">登录</button>
+        <button class="auth-tab" data-mode="register">注册</button>
+      </div>
+      <label class="field"><span>账号</span><input id="authAccount" type="text" autocomplete="username" placeholder="用户名 / 邮箱 / UID" /></label>
+      <label class="field"><span>密码</span><input id="authPassword" type="password" autocomplete="current-password" placeholder="请输入密码" /></label>
+      <label class="field reg-only" hidden><span>昵称</span><input id="authNickname" type="text" placeholder="显示名称（可选）" /></label>
+      <p id="authErr" class="auth-err" hidden></p>
+      <button id="authBtn" class="btn primary block">登录</button>
+      <p class="auth-foot">登录即表示同意服务条款与隐私政策</p>
+    </div>
+  </section>
+
+  <main id="chatView" class="shell" hidden>
+    <aside class="rail">
+      <div class="rail-brand">S</div>
+      <nav class="rail-nav">
+        <button class="rail-btn on" data-tab="chats" title="聊天"><span>聊</span></button>
+        <button class="rail-btn" data-tab="contacts" title="通讯录"><span>联</span></button>
+        <button class="rail-btn" data-tab="discover" title="发现"><span>发</span></button>
+        <button class="rail-btn" data-tab="me" title="我"><span>我</span></button>
+      </nav>
+      <div class="rail-foot">
+        <button id="themeBtn" class="rail-btn" title="主题"><span>◐</span></button>
+      </div>
+    </aside>
+
+    <section class="list-pane">
+      <header class="pane-head">
+        <h2 id="paneTitle">聊天</h2>
+        <div class="pane-actions">
+          <input id="listSearch" class="search" type="search" placeholder="搜索" />
+          <button id="newChatBtn" class="icon-btn" title="发起">+</button>
+        </div>
+      </header>
+      <div id="listBody" class="list-body"></div>
+    </section>
+
+    <section id="mainPane" class="main-pane">
+      <div id="welcome" class="welcome">
+        <div class="welcome-mark">S</div>
+        <h3>SecureChat</h3>
+        <p>选择左侧会话开始聊天，消息端到端加密</p>
+      </div>
+
+      <div id="conversation" class="conversation" hidden>
+        <header class="conv-head">
+          <button id="convBack" class="icon-btn back">‹</button>
+          <div class="conv-who">
+            <div id="convTitle" class="conv-title">会话</div>
+            <div id="convSub" class="conv-sub"></div>
+          </div>
+          <div class="conv-tools">
+            <button id="convSearchBtn" class="icon-btn" title="搜索">搜</button>
+            <button id="convMoreBtn" class="icon-btn" title="更多">⋯</button>
+          </div>
+        </header>
+        <div id="noticeBar" class="notice" hidden></div>
+        <div id="messages" class="messages"></div>
+        <div id="typing" class="typing" hidden></div>
+        <footer class="composer">
+          <div class="composer-tools">
+            <button id="emojiBtn" class="icon-btn" title="表情">☺</button>
+            <button id="fileBtn" class="icon-btn" title="发送文件">+</button>
+          </div>
+          <textarea id="input" rows="1" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+          <button id="sendBtn" class="btn primary send">发送</button>
+        </footer>
+      </div>
+    </section>
+
+    <nav class="tabbar">
+      <button class="tab on" data-tab="chats"><span>聊</span><em>聊天</em></button>
+      <button class="tab" data-tab="contacts"><span>联</span><em>通讯录</em></button>
+      <button class="tab" data-tab="discover"><span>发</span><em>发现</em></button>
+      <button class="tab" data-tab="me"><span>我</span><em>我</em></button>
+    </nav>
+  </main>
+
+  <div id="toastWrap" class="toast-wrap"></div>
+  <div id="modalWrap" class="modal-wrap" hidden></div>
+</div>
+<script src="core.js?v=1"></script>
+<script src="chat.js?v=1"></script>
+<script src="pages.js?v=1"></script>
+<script src="../modules/registry.js?v=1828g"></script>
+<script src="../modules/chat-ext.js?v=1828g"></script>
+<script src="../modules/voicemsg.js?v=1828g"></script>
+<script src="../modules/filehelper.js?v=1828g"></script>
+<script src="../modules/oa.js?v=1828g"></script>
+<script src="../modules/feedback.js?v=1828g"></script>
+<script src="../modules/miniapp.js?v=1828g"></script>
+<script src="../modules/shake.js?v=1828g"></script>
+<script src="../modules/scan.js?v=1828g"></script>
+<script src="../modules/pay.js?v=1828g"></script>
+<script src="../modules/status.js?v=1828g"></script>
+<script src="../modules/favorites.js?v=1828g"></script>
+<script src="../modules/moment-ext.js?v=1828g"></script>
+<script src="../modules/moments.js?v=1828f"></script>
+<script src="../modules/polls.js?v=1828g"></script>
+<script src="../modules/remind.js?v=1828g"></script>
+<script src="../modules/todos.js?v=1828g"></script>
+<script src="../modules/translate.js?v=1828g"></script>
+<script src="../modules/album.js?v=1828g"></script>
+<script src="../modules/cards.js?v=1828g"></script>
+<script src="../modules/sticker.js?v=1828g"></script>
+<script src="../modules/redpacket.js?v=1828g"></script>
+<script src="../modules/groups.js?v=1828g"></script>
+<script src="../features-knowledge-core.js?v=1828h"></script>
+<script src="../features-knowledge-idioms.js?v=1828h"></script>
+<script src="../features-knowledge-poems.js?v=1828h"></script>
+<script src="../features-knowledge-xiehouyu.js?v=1828h"></script>
+<script src="../features-knowledge-jokes.js?v=1828h"></script>
+<script src="../features-knowledge-quotes.js?v=1828h"></script>
+<script src="../features-knowledge-riddles.js?v=1828h"></script>
+<script src="../features-knowledge-tongue.js?v=1828h"></script>
+</body>
+</html>
