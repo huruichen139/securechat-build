@@ -326,7 +326,7 @@ module.exports = function registerPayment(app, db, auth) {
   // 我的长期收款码列表（含使用计数）
   app.get('/api/pay/code/mine', mw, (req, res) => {
     const rows = prepare("SELECT * FROM pay_codes WHERE owner_id=? AND type='receive' AND status IN ('active','used') ORDER BY created_at DESC LIMIT 20").all(req.user.id);
-    res.json({ codes: rows.map(codePublic) });
+    res.json({ codes: rows.map(r => codePublic(r)) });
   });
 
   // 删除我的收款码
@@ -449,7 +449,7 @@ module.exports = function registerPayment(app, db, auth) {
   app.get('/api/pay/code', mw, (req, res) => {
     const type = (req.query.type === 'pay') ? 'pay' : 'receive';
     const rows = prepare('SELECT * FROM pay_codes WHERE owner_id=? AND type=? ORDER BY created_at DESC LIMIT 20').all(req.user.id, type);
-    res.json({ codes: rows.map(codePublic) });
+    res.json({ codes: rows.map(r => codePublic(r)) });
   });
 
   // ============ 群收款 ============
