@@ -33,14 +33,16 @@
     try { window.alert(msg); } catch (e) {}
   }
 
-  const ICONS = ['😄', '😴', '🌙', '💼', '🏃', '📚', '🎵', '🍜', '✈️', '❤️', '💪', '🎮', '🧘', '☕', '📱', '🚴'];
+  const ICONS = ['开心','睡觉','夜晚','工作','运动','学习','音乐','美食','出行','喜欢','健身','游戏','放松','咖啡','手机','骑行'];
+  const LEGACY_ICONS = {'😄':'开心','😴':'睡觉','🌙':'夜晚','💼':'工作','🏃':'运动','📚':'学习','🎵':'音乐','🍜':'美食','✈️':'出行','❤️':'喜欢','💪':'健身','🎮':'游戏','🧘':'放松','☕':'咖啡','📱':'手机','🚴':'骑行'};
+  function iconLabel(v) { return LEGACY_ICONS[v] || v || ICONS[0]; }
 
   // 状态徽标 DOM：好友头像旁小图标
   function statusBadge(status, size) {
     const span = document.createElement('span');
     span.className = 'sc-status-badge';
     span.setAttribute('data-status', status.text);
-    span.textContent = status.icon || '😄';
+    span.textContent = iconLabel(status.icon);
     if (size) { span.style.width = size + 'px'; span.style.height = size + 'px'; }
     span.style.cssText += ';position:absolute;right:-2px;bottom:-2px;background:' + (status.bgColor || '#2563eb') +
       ';border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:' + (size ? (size / 2) : 10) + 'px;width:' + (size || 16) + 'px;height:' + (size || 16) + 'px;';
@@ -103,7 +105,7 @@
   }
 
   function _bindSetStatus(el) {
-    let icon = '😄';
+    let icon = ICONS[0];
     const icons = el.querySelectorAll('.sc-status-icon');
     icons.forEach((b) => b.addEventListener('click', () => {
       icons.forEach((x) => x.classList.remove('sc-status-icon-active'));
@@ -147,7 +149,7 @@
     const bg = bgSafe ? 'style="background-image:linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.35)),url(' + HOST + bgSafe + ');background-size:cover"' : 'style="background:#2a9d8f;color:#fff"';
     let html = '<div class="sc-status-card" ' + bg + '>';
     html += '<div class="sc-status-avatar">' + esc((s.user && (s.user.nickname || s.user.username) || '?').charAt(0)) + '</div>';
-    html += '<div class="sc-status-icon-big">' + (s.icon || '😄') + '</div>';
+    html += '<div class="sc-status-icon-big">' + esc(iconLabel(s.icon)) + '</div>';
     html += '<div class="sc-status-text">' + esc(s.text) + '</div>';
     if (s.messageCount) html += '<div class="sc-status-msgs">' + s.messageCount + ' 条留言</div>';
     if (isSelf) html += '<div class="sc-status-badge-self"><span>状态</span></div>';
