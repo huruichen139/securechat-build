@@ -28,7 +28,9 @@
     activeGroup: null,
     ws: null,
     wsReady: false,
-    typingTimers: {}
+    typingTimers: {},
+    msgMap: {},
+    reply: null
   };
   try { state.me = JSON.parse(localStorage.getItem(ME_KEY) || 'null'); } catch (e) { state.me = null; }
 

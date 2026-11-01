@@ -4,8 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#ffffff" />
+<link rel="icon" href="data:,">
 <title>SecureChat</title>
-<link rel="stylesheet" href="app.css?v=1" />
+<link rel="stylesheet" href="app.css?v=4" />
 </head>
 <body>
 <div id="app" class="app">
@@ -68,6 +69,8 @@
             <div id="convSub" class="conv-sub"></div>
           </div>
           <div class="conv-tools">
+            <button id="callAudioBtn" class="icon-btn" title="语音通话">语音</button>
+            <button id="callVideoBtn" class="icon-btn" title="视频通话">视频</button>
             <button id="convSearchBtn" class="icon-btn" title="搜索">搜</button>
             <button id="convMoreBtn" class="icon-btn" title="更多">⋯</button>
           </div>
@@ -77,7 +80,7 @@
         <div id="typing" class="typing" hidden></div>
         <footer class="composer">
           <div class="composer-tools">
-            <button id="emojiBtn" class="icon-btn" title="表情">☺</button>
+            <button id="emojiBtn" class="icon-btn" title="表情">表情</button>
             <button id="fileBtn" class="icon-btn" title="发送文件">+</button>
           </div>
           <textarea id="input" rows="1" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
@@ -97,8 +100,8 @@
   <div id="toastWrap" class="toast-wrap"></div>
   <div id="modalWrap" class="modal-wrap" hidden></div>
 </div>
-<script src="core.js?v=1"></script>
-<script src="chat.js?v=1"></script>
+<script src="core.js?v=2"></script>
+<script src="chat.js?v=7"></script>
 <script src="pages.js?v=1"></script>
 <script src="../modules/registry.js?v=1828g"></script>
 <script src="../modules/chat-ext.js?v=1828g"></script>
@@ -123,6 +126,14 @@
 <script src="../modules/sticker.js?v=1828g"></script>
 <script src="../modules/redpacket.js?v=1828g"></script>
 <script src="../modules/groups.js?v=1828g"></script>
+<script src="../modules/rtc.js?v=1828g"></script>
+<script src="../modules/search.js?v=1828g"></script>
+<script src="../modules/live.js?v=1828g"></script>
+<script src="../modules/nearby.js?v=1828g"></script>
+<script src="../modules/shop.js?v=1828g"></script>
+<script src="../modules/videos.js?v=1828g"></script>
+<script src="../modules/games.js?v=1828g"></script>
+<script src="../modules/read.js?v=1828g"></script>
 <script src="../features-knowledge-core.js?v=1828h"></script>
 <script src="../features-knowledge-idioms.js?v=1828h"></script>
 <script src="../features-knowledge-poems.js?v=1828h"></script>

@@ -269,12 +269,19 @@
       var mine = m.mine != null ? !!m.mine : (m.from === meId);
       var row = el('div', 'msg' + (mine ? ' mine' : ''));
       row.dataset.id = m.id || '';
+      row.dataset.mine = mine ? '1' : '0';
+      state.msgMap[m.id] = m;
       row.appendChild(avatarNode(msgSenderName(m, state.activeGroup ? 'group' : 'friend'), '', 'msg-avatar'));
       var body = el('div', 'msg-body');
       var meta = el('div', 'msg-meta');
       meta.appendChild(el('span', '', mine ? '我' : msgSenderName(m, state.activeGroup ? 'group' : 'friend')));
       meta.appendChild(el('span', '', S.fmtTime(m.createdAt)));
       body.appendChild(meta);
+      if (m.replyContent) {
+        var q = el('div', 'reply-quote');
+        q.textContent = '回复 ' + (m.replyFrom ? '用户 ' + m.replyFrom : '') + '：' + String(m.replyContent).slice(0, 60);
+        body.appendChild(q);
+      }
       var bubble = el('div', 'bubble');
       bubble.innerHTML = bubbleContent(m);
       body.appendChild(bubble);
@@ -310,15 +317,21 @@
     var content = String(text || '').trim();
     if (!content) return;
     var cmid = 'c_' + S.uid8();
+    var replyTo = state.reply && state.reply.id ? state.reply.id : null;
+    var rep = state.reply;
     var optimistic = { id: 'local_' + cmid, from: state.me && state.me.id, content: content, createdAt: Date.now(), clientMsgId: cmid, mine: true };
+    if (rep) { optimistic.replyContent = rep.content; optimistic.replyFrom = rep.from; }
     appendMessage(optimistic);
     scrollBottom();
     var req = target.type === 'group'
-      ? S.post('/api/groups/' + target.id + '/messages', { content: content, clientMsgId: cmid })
-      : S.post('/api/messages', { to: target.id, content: content, clientMsgId: cmid });
+      ? S.post('/api/groups/' + target.id + '/messages', { content: content, clientMsgId: cmid, replyTo: replyTo || undefined })
+      : S.post('/api/messages', { to: target.id, content: content, clientMsgId: cmid, replyTo: replyTo || undefined });
     req.then(function (d) {
       var row = document.querySelector('.msg[data-id="local_' + cmid + '"]');
-      if (row && d.message) row.dataset.id = d.message.id;
+      if (row && d.message) {
+        row.dataset.id = d.message.id;
+        state.msgMap[d.message.id] = Object.assign({}, optimistic, d.message, { mine: true });
+      }
     }).catch(function (e) {
       var row = document.querySelector('.msg[data-id="local_' + cmid + '"]');
       if (row) row.style.opacity = '.5';
@@ -326,6 +339,9 @@
     });
     var key = (target.type === 'group' ? 'g' : 'f') + target.id;
     state.previews[key] = { text: content, mine: true, ts: Date.now() };
+    var rb = document.getElementById('replyBar');
+    if (rb) rb.remove();
+    state.reply = null;
     renderList();
   }
 
@@ -425,7 +441,43 @@
       renderList();
     });
     S.$('newChatBtn').onclick = openNewChat;
-    S.$('convSearchBtn').onclick = function () { S.toast('会话内搜索开发中', 'info'); };
+    S.$('convSearchBtn').onclick = openConvSearch;
+    S.$('callAudioBtn').onclick = function () { startCall('audio'); };
+    S.$('callVideoBtn').onclick = function () { startCall('video'); };
+  }
+
+  function startCall(kind) {
+    if (state.activeGroup) { S.toast('群通话暂不支持', 'info'); return; }
+    if (!state.activePeer) { S.toast('请先选择联系人', 'warn'); return; }
+    var rtc = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('rtc');
+    if (!rtc || typeof rtc.startCall !== 'function') { S.toast('通话组件未就绪', 'error'); return; }
+    rtc.startCall(state.activePeer, kind);
+  }
+
+  function openConvSearch() {
+    var box = S.openModal('搜索聊天记录', '<div class="card"><input id="convSearchInput" class="conv-search-input" placeholder="输入关键词" /><div id="convSearchInfo" class="conv-search-info"></div></div>', { className: 'narrow' });
+    var inp = box.querySelector('#convSearchInput');
+    var info = box.querySelector('#convSearchInfo');
+    if (!inp) return;
+    inp.focus();
+    function apply() {
+      var kw = String(inp.value || '').trim().toLowerCase();
+      var rows = [].slice.call(document.querySelectorAll('#messages .msg'));
+      var hit = 0;
+      rows.forEach(function (r) {
+        var txt = (r.textContent || '').toLowerCase();
+        var ok = !kw || txt.indexOf(kw) >= 0;
+        r.style.display = ok ? '' : 'none';
+        if (ok && kw) hit++;
+      });
+      info.textContent = kw ? ('匹配 ' + hit + ' 条') : '显示全部消息';
+      if (kw) {
+        var first = rows.filter(function (r) { return r.style.display !== 'none'; })[0];
+        if (first) first.scrollIntoView({ block: 'center' });
+      }
+    }
+    inp.addEventListener('input', apply);
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') apply(); });
   }
 
   function openChatMenu() {
@@ -433,18 +485,36 @@
     if (!target) return;
     var box = S.openModal('会话设置', '<div class="card" id="chatMenuCard"></div>', { className: 'narrow' });
     var card = box.querySelector('#chatMenuCard');
-    var actions = [
-      ['查看资料', function () { S.closeModal(); S.toast('资料页开发中', 'info'); }],
-      ['清空聊天记录', function () {
-        S.confirm('清空聊天记录', '删除后不可恢复，仅影响你自己').then(function (ok) {
+    function clearHistory() {
+      S.confirm('清空聊天记录', '删除后不可恢复，仅影响你自己').then(function (ok) {
+        if (!ok) return;
+        S.api('DELETE', '/api/history/' + target.id).then(function () {
+          S.$('messages').innerHTML = '';
+          S.toast('已清空', 'success');
+        }).catch(function (e) { S.toast(e.message, 'error'); });
+      });
+    }
+    var actions = target.type === 'group' ? [
+      ['群成员', function () { S.closeModal(); openGroupMembers(target.id); }],
+      ['邀请成员', function () { S.closeModal(); openInviteMembers(target.id); }],
+      ['群公告', function () { S.closeModal(); openGroupAnnouncement(target.id); }],
+      ['清空聊天记录', clearHistory],
+      ['退出群聊', function () {
+        S.confirm('退出群聊', '退出后将不再接收该群消息').then(function (ok) {
           if (!ok) return;
-          S.api('DELETE', '/api/history/' + target.id).then(function () {
-            S.$('messages').innerHTML = '';
-            S.toast('已清空', 'success');
+          S.post('/api/groups/' + target.id + '/leave', {}).then(function () {
+            S.closeModal();
+            S.toast('已退出群聊', 'success');
+            loadGroups().then(renderList);
+            document.querySelector('.main-pane').classList.remove('open');
+            state.activeGroup = null;
           }).catch(function (e) { S.toast(e.message, 'error'); });
         });
-      }],
-      ['退出', function () { S.closeModal(); S.logout(); }]
+      }]
+    ] : [
+      ['查看资料', function () { S.closeModal(); openProfile(target.id); }],
+      ['清空聊天记录', clearHistory],
+      ['退出登录', function () { S.closeModal(); S.logout(); }]
     ];
     actions.forEach(function (a) {
       var cell = el('div', 'cell');
@@ -453,6 +523,115 @@
       cell.onclick = a[1];
       card.appendChild(cell);
     });
+  }
+
+  function openGroupMembers(gid) {
+    var box = S.openModal('群成员', '<div id="gMembers" class="card"><div class="empty">加载中…</div></div>', { className: 'narrow' });
+    S.get('/api/groups/' + gid).then(function (d) {
+      var g = (d && d.group) || {};
+      var host = box.querySelector('#gMembers');
+      if (!host) return;
+      host.innerHTML = '';
+      var members = g.members || [];
+      if (!members.length) { host.appendChild(el('div', 'empty', '暂无成员')); return; }
+      members.forEach(function (m) {
+        var cell = el('div', 'cell');
+        cell.appendChild(avatarNode(m.nickname || m.username || ('用户 ' + m.id), m.avatar, 'cell-ico'));
+        var main = el('div', 'cell-main');
+        main.appendChild(el('div', 'cell-title', (m.nickname || m.username || ('用户 ' + m.id)) + (m.role === 'owner' ? '（群主）' : (m.role === 'admin' ? '（管理员）' : ''))));
+        cell.appendChild(main);
+        host.appendChild(cell);
+      });
+    }).catch(function (e) { S.toast('加载失败：' + e.message, 'error'); });
+  }
+
+  function openInviteMembers(gid) {
+    var box = S.openModal('邀请成员', '<div><input id="invSearch" class="conv-search-input" placeholder="搜索好友" /><div id="invList"></div></div>', { className: 'narrow' });
+    var inp = box.querySelector('#invSearch');
+    var list = box.querySelector('#invList');
+    var picked = {};
+    S.get('/api/groups/' + gid).then(function (d) {
+      var g = (d && d.group) || {};
+      var inGroup = {};
+      (g.members || []).forEach(function (m) { inGroup[m.id] = true; });
+      function render() {
+        var q = (inp.value || '').trim().toLowerCase();
+        list.innerHTML = '';
+        var cands = state.friends.filter(function (f) { return !inGroup[f.id] && (!q || f.name.toLowerCase().indexOf(q) >= 0); });
+        if (!cands.length) { list.appendChild(el('div', 'empty', '没有可邀请的好友')); return; }
+        cands.forEach(function (f) {
+          var cell = el('div', 'cell');
+          cell.appendChild(avatarNode(f.name, f.avatar, 'cell-ico'));
+          var main = el('div', 'cell-main');
+          main.appendChild(el('div', 'cell-title', f.name));
+          cell.appendChild(main);
+          var tick = el('div', 'cell-arrow', '');
+          cell.appendChild(tick);
+          cell.onclick = function () {
+            picked[f.id] = !picked[f.id];
+            tick.textContent = picked[f.id] ? '已选' : '';
+            cell.style.background = picked[f.id] ? 'var(--surface-2)' : '';
+          };
+          list.appendChild(cell);
+        });
+        var bar = el('div', 'conv-search-info');
+        bar.textContent = '选中 ' + Object.keys(picked).filter(function (k) { return picked[k]; }).length + ' 人';
+        list.appendChild(bar);
+      }
+      inp.addEventListener('input', render);
+      render();
+      var footer = el('div', 'moments-compose-bar');
+      var btn = el('button', 'btn primary', '邀请');
+      btn.onclick = function () {
+        var ids = Object.keys(picked).filter(function (k) { return picked[k]; }).map(Number);
+        if (!ids.length) { S.toast('请先选择好友', 'warn'); return; }
+        S.post('/api/groups/' + gid + '/invite', { userIds: ids }).then(function () {
+          S.closeModal();
+          S.toast('已邀请 ' + ids.length + ' 人', 'success');
+          loadGroups().then(renderList);
+        }).catch(function (e) { S.toast(e.message, 'error'); });
+      };
+      footer.appendChild(btn);
+      list.appendChild(footer);
+    }).catch(function (e) { S.toast('加载失败：' + e.message, 'error'); });
+  }
+
+  function openGroupAnnouncement(gid) {
+    S.get('/api/groups/' + gid).then(function (d) {
+      var g = (d && d.group) || {};
+      var cur = (g.announcement && g.announcement.content) || '';
+      var box = S.openModal('群公告', '<textarea id="annText" class="moments-textarea" placeholder="填写群公告"></textarea><div class="moments-compose-bar"><button id="annSave" class="btn primary">保存</button></div>', { className: 'narrow' });
+      var ta = box.querySelector('#annText');
+      ta.value = cur;
+      box.querySelector('#annSave').onclick = function () {
+        S.post('/api/groups/' + gid + '/announcement', { content: ta.value }).then(function () {
+          S.closeModal();
+          S.toast('公告已更新', 'success');
+          if (state.activeGroup === gid) { S.$('noticeBar').textContent = ta.value; S.$('noticeBar').hidden = !ta.value; }
+        }).catch(function (e) { S.toast(e.message, 'error'); });
+      };
+    }).catch(function (e) { S.toast('加载失败：' + e.message, 'error'); });
+  }
+
+  function openProfile(uid) {
+    S.get('/api/users').then(function (d) {
+      var u = ((d && d.users) || []).filter(function (x) { return x.id === uid; })[0] || {};
+      var name = u.nickname || u.username || ('用户 ' + uid);
+      var box = S.openModal('资料', '<div class="card" id="profCard"></div>', { className: 'narrow' });
+      var card = box.querySelector('#profCard');
+      var head = el('div', 'prof-head');
+      head.appendChild(avatarNode(name, u.avatar, 'prof-avatar'));
+      var meta = el('div', 'prof-meta');
+      meta.appendChild(el('div', 'prof-name', name));
+      meta.appendChild(el('div', 'prof-sub', 'UID ' + uid + (u.signature ? ' · ' + u.signature : '')));
+      head.appendChild(meta);
+      card.appendChild(head);
+      var bar = el('div', 'moments-compose-bar');
+      var btn = el('button', 'btn primary', '发消息');
+      btn.onclick = function () { S.closeModal(); openChat('friend', uid); };
+      bar.appendChild(btn);
+      card.appendChild(bar);
+    }).catch(function (e) { S.toast('加载失败：' + e.message, 'error'); });
   }
 
   function openNewChat() {
@@ -517,6 +696,95 @@
   });
   S.on(window.P.S_KICKED, function () { S.toast('账号已在其他设备登录', 'warn'); });
 
+  /* ---------------- 消息操作 ---------------- */
+  function closeMsgMenu() {
+    var old = document.getElementById('msgMenu');
+    if (old) old.remove();
+    state.reply = null;
+    var bar = document.getElementById('replyBar');
+    if (bar) bar.remove();
+  }
+
+  function openMsgMenu(row, x, y) {
+    closeMsgMenu();
+    var m = state.msgMap[row.dataset.id];
+    if (!m) return;
+    var menu = el('div', 'msg-menu');
+    menu.id = 'msgMenu';
+    function add(label, fn) {
+      var b = el('button', 'msg-menu-item', label);
+      b.onclick = function (e) { e.stopPropagation(); closeMsgMenu(); fn(); };
+      menu.appendChild(b);
+    }
+    if (m.content && String(m.content).indexOf('__FILE__') !== 0 && !m.recalled) {
+      add('复制', function () {
+        var text = String(m.content);
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { S.toast('已复制'); }, function () { S.toast('复制失败', 'error'); });
+        else S.toast('当前环境不支持复制', 'warn');
+      });
+      add('回复', function () { startReply(m); });
+    }
+    if (row.dataset.mine === '1' && !m.recalled && m.id && String(m.id).indexOf('local_') !== 0) {
+      add('撤回', function () {
+        var req = state.activeGroup
+          ? S.post('/api/groups/' + state.activeGroup + '/messages/' + m.id + '/recall', {})
+          : S.post('/api/messages/' + m.id + '/recall', {});
+        req.then(function () {
+          var b = row.querySelector('.bubble');
+          if (b) b.innerHTML = '<span style="opacity:.6">消息已撤回</span>';
+        }).catch(function (e) { S.toast('撤回失败：' + (e.message || '超过时限'), 'error'); });
+      });
+    }
+    add('删除', function () { row.remove(); });
+    document.body.appendChild(menu);
+    var w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+    menu.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + 'px';
+  }
+
+  function startReply(m) {
+    state.reply = m;
+    var old = document.getElementById('replyBar');
+    if (old) old.remove();
+    var bar = el('div', 'reply-bar');
+    bar.id = 'replyBar';
+    bar.appendChild(el('span', 'reply-bar-text', '回复：' + String(m.content || '').slice(0, 50)));
+    var x = el('button', 'reply-bar-x', '取消');
+    x.onclick = function () { bar.remove(); state.reply = null; };
+    bar.appendChild(x);
+    var composer = document.querySelector('.composer');
+    if (composer && composer.parentNode) composer.parentNode.insertBefore(bar, composer);
+    S.$('input').focus();
+  }
+
+  function bindMsgActions() {
+    var box = S.$('messages');
+    if (!box || box.dataset.actionsBound) return;
+    box.dataset.actionsBound = '1';
+    box.addEventListener('click', function (e) {
+      var bubble = e.target.closest ? e.target.closest('.bubble') : null;
+      if (!bubble) return;
+      var row = bubble.closest('.msg');
+      if (!row) return;
+      if (e.target.tagName === 'A' || e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') return;
+      e.stopPropagation();
+      openMsgMenu(row, e.clientX, e.clientY);
+    });
+    document.addEventListener('click', function (e) {
+      var menu = document.getElementById('msgMenu');
+      if (menu && !menu.contains(e.target)) menu.remove();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMsgMenu(); });
+  }
+
+  var _origOpenChat = openChat;
+  openChat = function (type, id) {
+    _origOpenChat(type, id);
+    closeMsgMenu();
+    bindMsgActions();
+  };
+
+  window.SC5.__dbg = { state: state, openMsgMenu: openMsgMenu };
   window.SC5.boot = boot;
   window.SC5.openChat = openChat;
   window.SC5.renderList = renderList;
