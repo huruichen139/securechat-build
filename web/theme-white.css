@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    SecureChat Web — Modern White（现代精致白）
    白色面板 + 柔和阴影 + 大圆角 + 蓝色渐变点缀（无绿色）
    覆盖 styles.css / modules.css
@@ -814,6 +814,27 @@ html:not(.is-mobile) .wechat-page.active {
   overflow: hidden;
 }
 
+/* 移动端全屏页（通讯录/发现/我）：#chatView 是 flex 行，.sidebar 占满整行宽度，
+   页面作为后续 flex 子项会被挤到 left:390px 并压成残宽（完全看不见）。
+   改为绝对定位覆盖整个视图，保留微信式右侧滑入。 */
+html.is-mobile #chatView > .wechat-page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 30;
+  transform: translateX(100%);
+  transition: transform .22s ease;
+  animation: none !important;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+}
+html.is-mobile #chatView > .wechat-page.active { transform: translateX(0); }
+/* 滑入中的 .main / #downloadView 会以 translateX(100%) 停在视口外，撑大 scrollWidth；
+   在容器层裁切，彻底杜绝移动端横向拖动。 */
+html.is-mobile #chatView { overflow: hidden; position: relative; }
+
 /* ---------- 管理端 ---------- */
 .admin-body { background: var(--w-bg) !important; color: var(--w-text) !important; }
 .admin-topbar {
@@ -1099,3 +1120,4 @@ html.dark-mode, body.dark-mode {
 .dark-mode .moment-social { background: #22262e; color: #b9bfcc; }
 .dark-mode .moment-comment-form input, .dark-mode .moments-textarea { background: #1f2229; color: #e6e8ee; border-color: #2c313b; }
 .dark-mode .moments-addimg { border-color: #2c313b; color: #b9bfcc; }
+
