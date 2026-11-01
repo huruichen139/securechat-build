@@ -322,12 +322,11 @@ module.exports = function registerStatusCollar(app, db, auth, opts) {
       return ' AND ' + field + ' IN (' + ids.map(() => '?').join(',') + ')';
     }
     where += notInList(blocked, 'm.user_id');
+    params.push(...blocked);
     if (only.length) {
       // 只看这些人的动态
       where += inList(only, 'm.user_id');
       params.push(...only);
-    } else {
-      params.push(...blocked);
     }
     const candidates = prepare(
       `SELECT m.id,m.user_id AS userId,m.created_at AS createdAt FROM moments m
@@ -495,6 +494,7 @@ module.exports = function registerStatusCollar(app, db, auth, opts) {
     if (!statusVisibleTo(me, targetId)) return deny(res, 403, '无权查看该状态');
     const content = String((req.body || {}).content || '').trim().slice(0, 200);
     if (!content) return deny(res, 400, '留言不能为空');
+    if (momentCommentLimited(me)) return deny(res, 429, '留言过于频繁，请稍后再试');
     prepare('INSERT INTO status_messages(user_id,status_user_id,content,created_at) VALUES(?,?,?,?)')
       .run(me, targetId, content, Date.now());
     persist();

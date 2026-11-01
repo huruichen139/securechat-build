@@ -147,7 +147,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     const groupId = parseInt((req.body || {}).groupId, 10);
     if (!Number.isInteger(groupId) || !groupExists(groupId)) return deny(res, 400, '群不存在');
     if (!inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
-    const title = String((req.body || {}).title || '').trim();
+    const title = typeof (req.body || {}).title === 'string' ? req.body.title.trim() : '';
     const opts = Array.isArray((req.body || {}).options) ? (req.body.options) : [];
     const cleanOpts = opts.map(o => String(o == null ? '' : o).trim()).filter(o => o && o.length <= 100);
     if (!title || title.length > 120) return deny(res, 400, '投票标题不能为空（120字内）');
@@ -265,7 +265,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     const groupId = parseInt((req.body || {}).groupId, 10);
     if (!Number.isInteger(groupId) || !groupExists(groupId)) return deny(res, 400, '群不存在');
     if (!inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
-    const title = String((req.body || {}).title || '').trim();
+    const title = typeof (req.body || {}).title === 'string' ? req.body.title.trim() : '';
     if (!title || title.length > 200) return deny(res, 400, '接龙主题不能为空（200字内）');
     const info = prepare('INSERT INTO solang(group_id,creator_id,title,status,created_at) VALUES(?,?,?,?,?)')
       .run(groupId, payload.id, title, 'open', Date.now());
@@ -299,7 +299,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     if (!s) return deny(res, 404, '接龙不存在');
     if (s.status !== 'open') return deny(res, 400, '接龙已结束');
     if (!inGroup(s.group_id, payload.id)) return deny(res, 403, '你不在此群');
-    const note = String((req.body || {}).note || '').trim().slice(0, 200);
+    const note = typeof (req.body || {}).note === 'string' ? req.body.note.trim().slice(0, 200) : '';
     // 去重：同一用户不能重复报名（solang_entries 只有 UNIQUE(solang_id,seq)，没有 user 唯一约束）
     const dup = prepare('SELECT id FROM solang_entries WHERE solang_id=? AND user_id=?').get(s.id, payload.id);
     if (dup) return deny(res, 409, '你已报名');
@@ -359,7 +359,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     const groupId = parseInt((req.body || {}).groupId, 10);
     if (!Number.isInteger(groupId) || !groupExists(groupId)) return deny(res, 400, '群不存在');
     if (!inGroup(groupId, payload.id)) return deny(res, 403, '你不在此群');
-    const title = String((req.body || {}).title || '').trim().slice(0, 120) || '今日待办';
+    const title = (typeof (req.body || {}).title === 'string' ? req.body.title.trim().slice(0, 120) : '') || '今日待办';
     const items = Array.isArray((req.body || {}).items) ? (req.body.items) : [];
     // 条数上限：原实现不限条数，每个 item 一次 INSERT（每次还带 last_insert_rowid + 防抖落盘），
     // 十万级数组单请求即可阻塞事件循环数十秒。
@@ -516,7 +516,7 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
     const rawTargetType = String((req.body || {}).targetType || 'direct');
     const targetId = parseInt((req.body || {}).targetId, 10);
     const at = parseInt((req.body || {}).at, 10);
-    const content = String((req.body || {}).content || '').trim().slice(0, 300) || '定时提醒';
+    const content = (typeof (req.body || {}).content === 'string' ? req.body.content.trim().slice(0, 300) : '') || '定时提醒';
     if (!Number.isInteger(targetId)) return deny(res, 400, '目标无效');
     if (!Number.isInteger(at) || at <= 0) return deny(res, 400, '提醒时间无效');
     // 拒绝过去时间（否则 schedule 会立即触发，等于"立刻发消息"）与超过 1 年的远期
@@ -641,10 +641,17 @@ module.exports = function registerLifestyleMsg(app, db, auth) {
       const https = require('https');
       const u = new URL(url);
       u.search = new URLSearchParams(params).toString();
+      const MAX_BODY = 512 * 1024;
+      let over = false;
       const req = https.get(u, (resp) => {
         let d = '';
-        resp.on('data', (c) => { d += c; });
-        resp.on('end', () => resolve(d));
+        resp.on('data', (c) => {
+          if (over) return;
+          d += c;
+          if (d.length > MAX_BODY) { over = true; try { resp.destroy(new Error('翻译响应过大')); } catch (_) {} }
+        });
+        resp.on('error', reject);
+        resp.on('end', () => { if (!over) resolve(d); });
       });
       req.on('error', reject);
       req.setTimeout(timeout || 12000, () => { req.destroy(new Error('翻译服务超时')); });

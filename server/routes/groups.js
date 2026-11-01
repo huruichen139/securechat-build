@@ -277,7 +277,7 @@ module.exports = function registerGroups(app, db, auth) {
   app.post('/api/groups', mw, (req, res) => {
     // 限流:每小时最多建 20 个群,防垃圾建群与 DB 膨胀
     if (groupRateLimit('gcreate:' + req.user.id, 20, 60 * 60 * 1000)) return fail(res, 429, '建群过于频繁，请稍后再试');
-    const name = String((req.body || {}).name || '').trim();
+    const name = typeof (req.body || {}).name === 'string' ? req.body.name.trim() : '';
     if (!name) return fail(res, 400, '群名不能为空');
     const groupName = name.slice(0, 50);
     const memberUids = Array.isArray((req.body || {}).memberUids) ? (req.body.memberUids) : [];
@@ -378,7 +378,7 @@ module.exports = function registerGroups(app, db, auth) {
       grantJoin(groupId, target.id);
       added.push(target.id); remaining--;
     }
-    const intro = String(body.intro || '').trim().slice(0, 200);
+    const intro = typeof body.intro === 'string' ? body.intro.trim().slice(0, 200) : '';
     if (added.length && intro) {
       insertGroupMessage(groupId, req.user.id, '邀请说明：' + intro);
     }
@@ -507,7 +507,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     // 发送限流：群消息按成员数扇出 + 每条落盘，无限制时可被单连接刷爆
     if (groupRateLimit('gmsg:' + req.user.id, 60, 10 * 1000)) return fail(res, 429, '发送过于频繁，请稍后再试');
-    const content = String((req.body || {}).content || '');
+    const content = typeof (req.body || {}).content === 'string' ? req.body.content : '';
     if (!content) return fail(res, 400, '消息内容不能为空');
     if (content.length > 100 * 1024) return fail(res, 413, '消息内容过长（最大100KB）');
     // 敏感词校验：单聊入口有过滤，群聊此前完全绕过
@@ -527,7 +527,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!g) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
     if (g.owner_id !== req.user.id) return fail(res, 403, '仅群主可编辑群公告');
-    const content = String((req.body || {}).content || '').slice(0, 2000);
+    const content = (typeof (req.body || {}).content === 'string' ? req.body.content : '').slice(0, 2000);
     if (SENSITIVE_FN) { const _bad = SENSITIVE_FN(content); if (_bad) return fail(res, 400, '公告包含违规词：' + _bad); }
     const now = Date.now();
     p.run(`INSERT INTO group_announcements(group_id,content,publisher_id,pinned,created_at,updated_at)
@@ -562,13 +562,13 @@ module.exports = function registerGroups(app, db, auth) {
     if (body.muted !== undefined || body.nickname !== undefined) {
       const cur = p.get('SELECT my_nickname, muted FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, req.user.id) || { my_nickname: null, muted: 0 };
       const muted = body.muted === undefined ? cur.muted : (body.muted ? 1 : 0);
-      const nickname = body.nickname === undefined ? (cur.my_nickname || null) : (String(body.nickname || '').trim().slice(0, 32) || null);
+      const nickname = body.nickname === undefined ? (cur.my_nickname || null) : ((typeof body.nickname === 'string' ? body.nickname.trim().slice(0, 32) : '') || null);
       p.run(`INSERT INTO group_member_settings(group_id,user_id,my_nickname,muted,updated_at) VALUES(?,?,?,?,?)
         ON CONFLICT(group_id,user_id) DO UPDATE SET my_nickname=excluded.my_nickname,muted=excluded.muted,updated_at=excluded.updated_at`,
         groupId, req.user.id, nickname, muted, now);
     }
     if (body.note !== undefined) {
-      const note = String(body.note || '').trim().slice(0, 64);
+      const note = typeof body.note === 'string' ? body.note.trim().slice(0, 64) : '';
       p.run(`INSERT INTO group_setting_notes(group_id,user_id,note,updated_at) VALUES(?,?,?,?)
         ON CONFLICT(group_id,user_id) DO UPDATE SET note=excluded.note,updated_at=excluded.updated_at`,
         groupId, req.user.id, note, now);
@@ -584,7 +584,7 @@ module.exports = function registerGroups(app, db, auth) {
     if (!Number.isInteger(groupId)) return fail(res, 400, '群ID错误');
     if (!groupExists(groupId)) return fail(res, 404, '群不存在');
     if (!memberOf(groupId, req.user.id)) return fail(res, 403, '你不在此群');
-    const nickname = String((req.body || {}).nickname || '').trim().slice(0, 32);
+    const nickname = typeof (req.body || {}).nickname === 'string' ? req.body.nickname.trim().slice(0, 32) : '';
     p.run(`INSERT INTO group_member_settings(group_id,user_id,my_nickname,updated_at) VALUES(?,?,?,?)
       ON CONFLICT(group_id,user_id) DO UPDATE SET my_nickname=excluded.my_nickname,updated_at=excluded.updated_at`,
       groupId, req.user.id, nickname || null, Date.now());

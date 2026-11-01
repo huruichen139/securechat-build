@@ -174,16 +174,16 @@ module.exports = function registerLifestyle(app, db, auth) {
   // 发布小程序（任何登录用户均可，含 admin）
   app.post('/api/mini-program/publish', (req, res) => {
     const id = me(res, req); if (!id) return;
-    const name = String((req.body || {}).name || '').trim();
-    const url = String((req.body || {}).url || '').trim();
+    const name = typeof (req.body || {}).name === 'string' ? req.body.name.trim() : '';
+    const url = typeof (req.body || {}).url === 'string' ? req.body.url.trim() : '';
     if (!name || name.length > 30) return deny(res, 400, '小程序名称不能为空（30字内）');
     if (!url || !/^https?:\/\//i.test(url) || url.length > 2000) return deny(res, 400, '请填写 http(s) 开头的 web 入口地址');
-    const icon = String((req.body || {}).icon || '').trim().slice(0, 2000);
+    const icon = (typeof (req.body || {}).icon === 'string' ? req.body.icon : '').trim().slice(0, 2000);
     // icon 只允许 http(s) 或安全光栅 data-uri，禁止 javascript:/data:text/html 等可执行来源
     if (icon && !(/^https?:\/\//i.test(icon) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(icon))) {
       return deny(res, 400, '图标地址仅支持 http(s) 链接或图片 data-uri');
     }
-    const description = String((req.body || {}).description || '').trim().slice(0, 500);
+    const description = (typeof (req.body || {}).description === 'string' ? req.body.description : '').trim().slice(0, 500);
     // 配额：单用户最多发布 50 个小程序，防刷
     const own = prepare('SELECT COUNT(*) AS c FROM mini_programs WHERE owner_id=?').get(id.id);
     if (own && own.c >= 50) return deny(res, 400, '发布数量已达上限（50个）');
@@ -295,7 +295,7 @@ module.exports = function registerLifestyle(app, db, auth) {
     // 攻击者填任意城市名即可枚举该城全部活跃用户（等价于开放"全城通讯录"）。
     const rawCity = String((req.body || {}).city || '').trim().slice(0, 40);
     const city = rawCity && isKnownCity(rawCity) ? rawCity : guessCity(req, id.id);
-    const region = String((req.body || {}).region || '').trim().slice(0, 40);
+    const region = typeof (req.body || {}).region === 'string' ? req.body.region.trim().slice(0, 40) : '';
     // 经纬度必须落在合法范围内：原先 Number()||0 无任何范围校验
     const rawLat = Number((req.body || {}).lat);
     const rawLng = Number((req.body || {}).lng);

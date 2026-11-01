@@ -117,7 +117,7 @@ module.exports = function registerRedpacket(app, db, auth) {
 
       // 先创建红包记录（msg_id 暂置 0），拿到自增 id 作为消息里的红包标识
       const rp = prepare('INSERT INTO red_packets(sender_id,target_type,target_id,total_amount,count,remaining_amount,remaining_count,mode,greeting,status,msg_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,0,?)')
-        .run(me.id, targetType, targetId, value, c, value, c, m, (greeting || '恭喜发财，大吉大利！').slice(0, 60), 'active', Date.now());
+        .run(me.id, targetType, targetId, value, c, value, c, m, String(greeting || '恭喜发财，大吉大利！').slice(0, 60), 'active', Date.now());
       packetId = rp.lastInsertRowid;
       // 消息内容用数字 id（[红包:<id>]），保证前端点击后能命中 red_packets.id 查询
       const msgContent = '[红包:' + packetId + ']';

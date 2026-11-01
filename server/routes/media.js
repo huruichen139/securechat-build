@@ -207,6 +207,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
         return deny(res, 400, '媒体空间已满（上限500个或2GB）');
       }
     } catch (e) { /* 配额表缺失时放行 */ }
+    if (mediaRateLimit('mu:' + payload.id, 30, 60 * 1000)) return deny(res, 429, '上传过于频繁，请稍后再试');
     const mime = String(req.query.mime || 'application/octet-stream').slice(0, 120);
     const id = crypto.randomUUID();
     const filePath = path.join(MEDIA_DIR, id + '.bin');
@@ -279,7 +280,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   app.post('/api/oa/register', (req, res) => {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
-    const name = String((req.body || {}).name || '').trim();
+    const name = typeof (req.body || {}).name === 'string' ? req.body.name.trim() : '';
     if (!name || name.length > 40) return deny(res, 400, '公众号名称不能为空（40字内）');
     const existing = prepare('SELECT id FROM official_accounts WHERE owner_id=?').get(payload.id);
     if (existing) return deny(res, 409, '你已拥有公众号');
@@ -373,8 +374,8 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const a = prepare('SELECT * FROM official_accounts WHERE id=?').get(aid);
     if (!a) return deny(res, 404, '公众号不存在');
     if (a.owner_id !== payload.id) return deny(res, 403, '仅公众号作者可以发文');
-    const title = String((req.body || {}).title || '').trim();
-    const content = String((req.body || {}).content || '').trim();
+    const title = typeof (req.body || {}).title === 'string' ? req.body.title.trim() : '';
+    const content = typeof (req.body || {}).content === 'string' ? req.body.content.trim() : '';
     if (!title || !content) return deny(res, 400, '标题和正文不能为空');
     if (title.length > 200) return deny(res, 400, '标题过长（限200字）');
     if (content.length > 100 * 1024) return deny(res, 413, '正文过长（限100KB）');
@@ -449,7 +450,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     if (!payload) return deny(res, 401, '未授权');
     const aid = Number(req.params.id);
     if (!prepare('SELECT id FROM articles WHERE id=?').get(aid)) return deny(res, 404, '文章不存在');
-    const content = String((req.body || {}).content || '').trim();
+    const content = typeof (req.body || {}).content === 'string' ? req.body.content.trim() : '';
     if (!content || content.length > 2000) return deny(res, 400, '留言内容不能为空');
     if (mediaRateLimit('ac:' + payload.id, 20, 60 * 1000)) return deny(res, 429, '留言过于频繁，请稍后再试');
     const bad = checkSensitiveLocal(content);
@@ -489,7 +490,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     const a = prepare('SELECT * FROM articles WHERE id=? ').get(aid);
     const acc = a ? prepare('SELECT * FROM official_accounts WHERE id=?').get(a.account_id) : null;
     if (!acc || acc.owner_id !== payload.id) return deny(res, 403, '仅公众号作者可回复');
-    const content = String((req.body || {}).content || '').trim();
+    const content = typeof (req.body || {}).content === 'string' ? req.body.content.trim() : '';
     const replyTo = Number((req.body || {}).commentId) || null;
     if (!content) return deny(res, 400, '回复内容不能为空');
     if (content.length > 2000) return deny(res, 400, '回复内容过长（限2000字）');
@@ -548,13 +549,13 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
   app.post('/api/videos/publish', (req, res) => {
     const payload = authed(req);
     if (!payload) return deny(res, 401, '未授权');
-    const title = String((req.body || {}).title || '').trim();
+    const title = typeof (req.body || {}).title === 'string' ? req.body.title.trim() : '';
     if (!title) return deny(res, 400, '视频标题不能为空');
     if (title.length > 100) return deny(res, 400, '标题过长（限100字）');
     const url = String((req.body || {}).url || '').trim().slice(0, 2000);
     if (!url) return deny(res, 400, '请先上传视频文件');
     if (!(/^https?:\/\//i.test(url) || /^\/api\//.test(url))) return deny(res, 400, '视频地址无效');
-    const content = String((req.body || {}).content || '').trim().slice(0, 5000);
+    const content = (typeof (req.body || {}).content === 'string' ? req.body.content : '').trim().slice(0, 5000);
     const cover = String((req.body || {}).cover || '').slice(0, 2000);
     if (cover && !(/^https?:\/\//i.test(cover) || /^\/api\//.test(cover) || /^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(cover))) {
       return deny(res, 400, '封面地址无效');
@@ -704,7 +705,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     if (!payload) return deny(res, 401, '未授权');
     const vid = Number(req.params.id);
     if (!prepare('SELECT id FROM videos WHERE id=?').get(vid)) return deny(res, 404, '视频不存在');
-    const content = String((req.body || {}).content || '').trim();
+    const content = typeof (req.body || {}).content === 'string' ? req.body.content.trim() : '';
     if (!content || content.length > 2000) return deny(res, 400, '评论不能为空');
     if (mediaRateLimit('vc:' + payload.id, 20, 60 * 1000)) return deny(res, 429, '评论过于频繁，请稍后再试');
     const bad = checkSensitiveLocal(content);
@@ -758,7 +759,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     // 一个用户同时只能开一个直播间
     const live = prepare('SELECT id FROM live_rooms WHERE host_id=? AND status=\'live\'').get(payload.id);
     if (live) return deny(res, 409, '你已有正在直播的直播间');
-    const title = String((req.body || {}).title || '').trim();
+    const title = typeof (req.body || {}).title === 'string' ? req.body.title.trim() : '';
     if (!title) return deny(res, 400, '直播间标题不能为空');
     if (title.length > 100) return deny(res, 400, '标题过长（限100字）');
     const cover = String((req.body || {}).cover || '').slice(0, 2000);
@@ -840,7 +841,7 @@ function deny(res, code, msg) { res.status(code).json({ error: msg }); }
     // 直播已结束/未开播时不得继续补弹幕（否则回放被污染）
     if (String(room.status || '') !== 'live') return deny(res, 400, '直播已结束，无法发送弹幕');
     if (mediaRateLimit('lc:' + payload.id, 30, 60 * 1000)) return deny(res, 429, '弹幕发送过于频繁');
-    const content = String((req.body || {}).content || '').trim();
+    const content = typeof (req.body || {}).content === 'string' ? req.body.content.trim() : '';
     if (!content || content.length > 300) return deny(res, 400, '弹幕内容不能为空（300字内）');
     const bad = checkSensitiveLocal(content);
     if (bad) return deny(res, 400, '内容包含违规词：' + bad);

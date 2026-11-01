@@ -230,13 +230,16 @@ module.exports = function registerPayment(app, db, auth) {
   function groupName(gid) { const g = prepare('SELECT name FROM groups WHERE id=?').get(gid); return g ? g.name : ('群' + gid); }
 
   function codePayload(c) { return 'securechat://pay?type=' + c.type + '&token=' + encodeURIComponent(c.token); }
-  function codePublic(c) {
+  function codePublic(c, anonOwner) {
+    const owner = getUserRow(c.owner_id);
     return {
       id: c.id, type: c.type, token: c.token, amount: c.amount, remark: c.remark,
       status: c.status, expiresAt: c.expires_at, createdAt: c.created_at,
       maxUses: c.max_uses === undefined ? -1 : c.max_uses,
       usedCount: c.used_count || 0,
-      owner: publicUser(getUserRow(c.owner_id))
+      owner: (anonOwner && owner)
+        ? { id: owner.id, nickname: owner.nickname, avatar: owner.avatar, uid: owner.uid }
+        : publicUser(owner)
     };
   }
   function publicUser(u) {
@@ -364,7 +367,7 @@ module.exports = function registerPayment(app, db, auth) {
     if (expired) prepare('UPDATE pay_codes SET status=? WHERE id=?').run('expired', code.id);
     if (exhausted) prepare("UPDATE pay_codes SET status='used' WHERE id=?").run(code.id);
     if (code.status !== 'active' || expired || exhausted) return res.status(410).json({ error: '码已失效' });
-    res.json({ code: codePublic(code) });
+    res.json({ code: codePublic(code, true) });
   });
 
   // 扫码获取对象信息（不校验登录，供解码跳转）：GET /api/pay/code/:token/info
@@ -696,8 +699,8 @@ module.exports = function registerPayment(app, db, auth) {
   // ============ 钱包账单流水 ============
   // GET /api/pay/bills?category=&limit=&offset=
   app.get('/api/pay/bills', mw, (req, res) => {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
-    const offset = parseInt(req.query.offset, 10) || 0;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const cat = String(req.query.category || '');
     let sql = 'SELECT * FROM pay_bills WHERE user_id=?';
     const args = [req.user.id];
@@ -1004,7 +1007,7 @@ module.exports = function registerPayment(app, db, auth) {
   app.get('/api/pay/gateway/epay/mock/cashier', (req, res) => {
     const c = epayConfig(prepare);
     if (!c.enabled || !c.sandbox) return res.status(503).json({ error: '模拟模式未启用' });
-    const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(req.query.orderNo || ''));
+    let order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String(req.query.orderNo || ''));
     if (!order) return res.status(404).send('订单不存在');
     if (order.status !== 'pending' && order.paid_at) return res.send('订单已处理');
     if (!order.paid_at && (order.status !== 'pending' || !order.expires_at || order.expires_at < Date.now())) {
@@ -1025,24 +1028,25 @@ module.exports = function registerPayment(app, db, auth) {
     if (!c.enabled || !c.sandbox) return res.status(503).json({ error: '模拟模式未启用' });
     const order = prepare('SELECT * FROM pay_orders WHERE order_no=?').get(String((req.body && req.body.orderNo) || ''));
     if (!order) return res.status(404).json({ error: '订单不存在' });
-    if (!order.paid_at && (order.status !== 'pending' || !order.expires_at || order.expires_at < Date.now())) {
-      prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=?").run(Date.now() + 30 * 60 * 1000, order.id);
-      order = prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id);
+    let cur = order;
+    if (!cur.paid_at && (cur.status !== 'pending' || !cur.expires_at || cur.expires_at < Date.now())) {
+      prepare("UPDATE pay_orders SET status='pending',expires_at=? WHERE id=?").run(Date.now() + 30 * 60 * 1000, cur.id);
+      cur = prepare('SELECT * FROM pay_orders WHERE id=?').get(cur.id);
     }
-    if (order.status !== 'pending' || (order.expires_at && order.expires_at < Date.now())) return res.status(409).json({ error: '订单已失效或已处理' });
-    const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(order.merchant_id);
+    if (cur.status !== 'pending' || (cur.expires_at && cur.expires_at < Date.now())) return res.status(409).json({ error: '订单已失效或已处理' });
+    const merchant = prepare('SELECT user_id FROM pay_merchants WHERE id=?').get(cur.merchant_id);
     if (!merchant) return res.status(404).json({ error: '商户不存在' });
     // 先原子抢占订单再扣款,避免并发双请求对同一订单重复扣款
-    const claim = prepare("UPDATE pay_orders SET payer_id=?,status='paid',paid_at=? WHERE id=? AND status='pending'").run(req.user.id, Date.now(), order.id);
+    const claim = prepare("UPDATE pay_orders SET payer_id=?,status='paid',paid_at=? WHERE id=? AND status='pending'").run(req.user.id, Date.now(), cur.id);
     if (!claim.changes) return res.status(409).json({ error: '订单已失效或已处理' });
-    doPay(req.user.id, merchant.user_id, Number(order.amount), '支付 ' + order.subject, 'epay', order.id, (err, result) => {
+    doPay(req.user.id, merchant.user_id, Number(cur.amount), '支付 ' + cur.subject, 'epay', cur.id, (err, result) => {
       if (err) {
-        prepare("UPDATE pay_orders SET status='pending',payer_id=NULL,paid_at=NULL WHERE id=? AND status='paid'").run(order.id);
+        prepare("UPDATE pay_orders SET status='pending',payer_id=NULL,paid_at=NULL WHERE id=? AND status='paid'").run(cur.id);
         persist();
         return res.status(err.code || 400).json({ error: err.message });
       }
       persist();
-      res.json({ ok: true, sandbox: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(order.id)), balance: result.balance, note: '支付成功（钱包扣款）' });
+      res.json({ ok: true, sandbox: true, order: orderPublic(prepare('SELECT * FROM pay_orders WHERE id=?').get(cur.id)), balance: result.balance, note: '支付成功（钱包扣款）' });
     });
   });
 

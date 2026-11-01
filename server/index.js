@@ -6159,7 +6159,7 @@ wss.on('connection', (ws, req) => {
 // WebSocket 心跳：自适应间隔，基础 30 秒
 const WS_PING_BASE_INTERVAL = 30000;
 let wsPingInterval = WS_PING_BASE_INTERVAL;
-const wsPingTimer = setInterval(() => {
+let wsPingTimer = setInterval(() => {
   for (const ws of wss.clients) {
     if (ws.isAlive === false) { try { ws.terminate(); } catch {} continue; }
     ws.isAlive = false;
@@ -6418,6 +6418,7 @@ process.on('exit', () => { try { persistNow(); } catch {} });
 // 全局异常兜底：防止未捕获异常导致进程退出
 process.on('uncaughtException', (err) => {
   console.error('[fatal] uncaughtException:', err && err.message || err);
+  if (err && err.stack) console.error(String(err.stack).split('\n').slice(0, 8).join('\n'));
   // 端口占用等致命错误必须让进程退出：否则会残留"占着端口却不服务"的僵尸进程，
   // 导致 watchdog 持续判定 offline 并反复杀/拉，形成重启死循环。
   if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES' || err.code === 'EADDRNOTAVAIL')) {

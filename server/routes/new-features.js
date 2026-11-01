@@ -34,6 +34,16 @@ module.exports = function register(app, db, auth) {
     return false;
   }
 
+  // 翻译限流（内存级，30 次/分钟）
+  const _trHits = new Map();
+  function _trLimited(uid) {
+    const now = Date.now();
+    const arr = (_trHits.get(uid) || []).filter(t => now - t < 60000);
+    if (arr.length >= 30) { _trHits.set(uid, arr); return true; }
+    arr.push(now); _trHits.set(uid, arr);
+    return false;
+  }
+
   // ========== 消息翻译 ==========
   // 归属校验：翻译记录挂在 message_id 上，若不校验，任何人都能读别人消息的译文，
   // 也能把自己编造的文本写成某条消息的"官方翻译"（误导对方）。
@@ -48,13 +58,17 @@ module.exports = function register(app, db, auth) {
   }
 
   app.post('/api/message/translate', requireAuth, (req, res) => {
-    const { messageId, sourceLang, targetLang, text } = req.body || {};
-    const target = targetLang || 'zh';
+    const body = req.body || {};
+    const { messageId } = body;
+    const text = typeof body.text === 'string' ? body.text : '';
+    const sourceLang = typeof body.sourceLang === 'string' ? body.sourceLang.slice(0, 20) : '';
+    const target = (typeof body.targetLang === 'string' && body.targetLang) ? body.targetLang.slice(0, 20) : 'zh';
     if (messageId) {
       if (!canAccessMessage(req.user.id, messageId)) return res.status(403).json({ error: '无权访问该消息' });
     } else if (!text) {
       return res.status(400).json({ error: '参数缺失' });
     }
+    if (_trLimited(req.user.id)) return res.status(429).json({ error: '翻译请求过于频繁，请稍后再试' });
     try {
       // 有 messageId 时以库内原文为准，忽略客户端传入的 text（防止伪造译文）
       let source = text;
@@ -105,6 +119,8 @@ module.exports = function register(app, db, auth) {
   app.put('/api/quick-replies/:id', requireAuth, (req, res) => {
     const { title, content } = req.body || {};
     if (!title || !content) return res.status(400).json({ error: '标题和内容不能为空' });
+    if (typeof title !== 'string' || !title.trim() || title.trim().length > 50) return res.status(400).json({ error: '标题需1-50字符' });
+    if (typeof content !== 'string' || !content.trim() || content.trim().length > 500) return res.status(400).json({ error: '内容需1-500字符' });
     db.run('UPDATE quick_replies SET title=?, content=?, updated_at=? WHERE id=? AND user_id=?',
       [title, content, Date.now(), req.params.id, req.user.id]);
     res.json({ success: true });
@@ -131,6 +147,7 @@ module.exports = function register(app, db, auth) {
     if (db.prepare('SELECT COUNT(*) AS c FROM scheduled_messages WHERE user_id=? AND cancelled=0 AND sent_at IS NULL').get(req.user.id).c >= 20) return res.status(429).json({ error: '待发送定时消息已满（20条）' });
     const targetId = Number(peerId);
     if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: '对象无效' });
+    const kindVal = typeof kind === 'string' && kind.trim() ? kind.trim().slice(0, 20) : 'text';
     if (isGroup) {
       if (!memberOf(targetId, req.user.id)) return res.status(403).json({ error: '你不在此群' });
     } else if (!db.prepare('SELECT 1 FROM friends WHERE user_id=? AND friend_id=? AND status=1').get(req.user.id, targetId)) {
@@ -138,7 +155,7 @@ module.exports = function register(app, db, auth) {
     }
     db.run(
       'INSERT INTO scheduled_messages(user_id, peer_id, is_group, content, kind, scheduled_at, created_at) VALUES(?,?,?,?,?,?,?)',
-      [req.user.id, targetId, isGroup ? 1 : 0, content, kind || 'text', at, Date.now()]
+      [req.user.id, targetId, isGroup ? 1 : 0, content, kindVal, at, Date.now()]
     );
     res.json({ success: true });
   });
@@ -154,8 +171,15 @@ module.exports = function register(app, db, auth) {
   }
 
   app.post('/api/groups/votes', requireAuth, (req, res) => {
-    const { groupId, title, content, options, isAnonymous, allowChange } = req.body || {};
-    if (!groupId || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
+    const body = req.body || {};
+    const groupId = Number(body.groupId);
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const content = typeof body.content === 'string' ? body.content : '';
+    const options = body.options;
+    const isAnonymous = body.isAnonymous;
+    const allowChange = body.allowChange;
+    if (!Number.isInteger(groupId) || groupId <= 0 || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
+    if (title.length > 200) return res.status(400).json({ error: '标题过长（限200字）' });
     if (!memberOf(groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     const now = Date.now();
     // db.run 是 sql.js 原生 run（返回 Database 对象，不带 lastInsertRowid），
@@ -234,12 +258,19 @@ module.exports = function register(app, db, auth) {
 
   // ========== 群待办 ==========
   app.post('/api/groups/todos', requireAuth, (req, res) => {
-    const { groupId, title, description, assignedTo, dueAt } = req.body || {};
-    if (!groupId || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
+    const body = req.body || {};
+    const groupId = Number(body.groupId);
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const description = typeof body.description === 'string' ? body.description.slice(0, 2000) : '';
+    const assignedToNum = Number(body.assignedTo);
+    const assignedTo = Number.isInteger(assignedToNum) && assignedToNum > 0 ? assignedToNum : null;
+    const dueAtNum = Number(body.dueAt);
+    const dueAt = Number.isFinite(dueAtNum) && dueAtNum > 0 ? dueAtNum : null;
+    if (!Number.isInteger(groupId) || groupId <= 0 || !title) return res.status(400).json({ error: '群ID和标题不能为空' });
     if (!memberOf(groupId, req.user.id)) return res.status(403).json({ error: '非群成员' });
     db.run(
       'INSERT INTO group_todos(group_id, title, description, created_by, assigned_to, due_at, created_at) VALUES(?,?,?,?,?,?,?)',
-      [groupId, title, description || '', req.user.id, assignedTo || null, dueAt || null, Date.now()]
+      [groupId, title.slice(0, 200), description, req.user.id, assignedTo, dueAt, Date.now()]
     );
     res.json({ success: true });
   });
@@ -251,10 +282,14 @@ module.exports = function register(app, db, auth) {
   });
 
   app.put('/api/groups/todos/:id', requireAuth, (req, res) => {
-    const { status, completedAt } = req.body || {};
+    const body = req.body || {};
+    const status = typeof body.status === 'string' ? body.status.slice(0, 20) : '';
+    if (!status) return res.status(400).json({ error: '状态不能为空' });
     if (status === 'completed') {
+      const completedAtNum = Number(body.completedAt);
+      const completedAt = Number.isFinite(completedAtNum) && completedAtNum > 0 ? completedAtNum : Date.now();
       db.run('UPDATE group_todos SET status=?, completed_at=? WHERE id=? AND created_by=?',
-        [status, completedAt || Date.now(), req.params.id, req.user.id]);
+        [status, completedAt, req.params.id, req.user.id]);
     } else {
       db.run('UPDATE group_todos SET status=? WHERE id=? AND created_by=?',
         [status, req.params.id, req.user.id]);
@@ -264,8 +299,10 @@ module.exports = function register(app, db, auth) {
 
   // ========== 阅后即焚 ==========
   app.post('/api/message/burn', requireAuth, (req, res) => {
-    const { messageId, duration } = req.body || {};
-    if (!messageId || !duration) return res.status(400).json({ error: '参数缺失' });
+    const body = req.body || {};
+    const messageId = Number(body.messageId);
+    const duration = body.duration;
+    if (!Number.isInteger(messageId) || messageId <= 0 || !duration) return res.status(400).json({ error: '参数缺失' });
     const dur = parseInt(duration, 10);
     if (!Number.isFinite(dur) || dur < 1 || dur > 86400) return res.status(400).json({ error: 'duration 无效' });
     const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
@@ -384,8 +421,11 @@ module.exports = function register(app, db, auth) {
   }
 
   app.post('/api/message/pin', requireAuth, (req, res) => {
-    const { messageId, groupId } = req.body || {};
-    if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
+    const body = req.body || {};
+    const messageId = Number(body.messageId);
+    const groupId = (body.groupId === undefined || body.groupId === null || body.groupId === '') ? null : Number(body.groupId);
+    if (!Number.isInteger(messageId) || messageId <= 0) return res.status(400).json({ error: '消息ID不能为空' });
+    if (groupId !== null && (!Number.isInteger(groupId) || groupId <= 0)) return res.status(400).json({ error: '群ID无效' });
     const perm = pinPermission(req, res, groupId, messageId);
     if (perm.err) return res.status(perm.err[0]).json({ error: perm.err[1] });
     if (groupId) {
@@ -398,8 +438,11 @@ module.exports = function register(app, db, auth) {
   });
 
   app.post('/api/message/unpin', requireAuth, (req, res) => {
-    const { messageId, groupId } = req.body || {};
-    if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
+    const body = req.body || {};
+    const messageId = Number(body.messageId);
+    const groupId = (body.groupId === undefined || body.groupId === null || body.groupId === '') ? null : Number(body.groupId);
+    if (!Number.isInteger(messageId) || messageId <= 0) return res.status(400).json({ error: '消息ID不能为空' });
+    if (groupId !== null && (!Number.isInteger(groupId) || groupId <= 0)) return res.status(400).json({ error: '群ID无效' });
     const perm = pinPermission(req, res, groupId, messageId);
     if (perm.err) return res.status(perm.err[0]).json({ error: perm.err[1] });
     if (groupId) {
@@ -418,8 +461,10 @@ module.exports = function register(app, db, auth) {
 
   // ========== 消息撤回增强 ==========
   app.post('/api/message/recall', requireAuth, (req, res) => {
-    const { messageId, reason } = req.body || {};
-    if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
+    const body = req.body || {};
+    const messageId = Number(body.messageId);
+    const reason = body.reason;
+    if (!Number.isInteger(messageId) || messageId <= 0) return res.status(400).json({ error: '消息ID不能为空' });
     // 检查是否在撤回时间范围内（5分钟内）
     const msg = db.prepare('SELECT * FROM messages WHERE id=?').get(messageId);
     if (!msg) return res.status(404).json({ error: '消息不存在' });
@@ -434,8 +479,10 @@ module.exports = function register(app, db, auth) {
   });
 
   app.post('/api/group-message/recall', requireAuth, (req, res) => {
-    const { messageId, groupId, reason } = req.body || {};
-    if (!messageId) return res.status(400).json({ error: '消息ID不能为空' });
+    const body = req.body || {};
+    const messageId = Number(body.messageId);
+    const reason = body.reason;
+    if (!Number.isInteger(messageId) || messageId <= 0) return res.status(400).json({ error: '消息ID不能为空' });
     const msg = db.prepare('SELECT * FROM group_messages WHERE id=?').get(messageId);
     if (!msg) return res.status(404).json({ error: '消息不存在' });
     if (msg.from_id !== req.user.id) return res.status(403).json({ error: '只能撤回自己的消息' });
