@@ -84,7 +84,7 @@
         (v.content ? '<div class="vid-content">' + esc(v.content) + '</div>' : '') +
         '<div class="vid-ops">' +
           '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
-          '<button data-cmt="' + v.id + '">💬 ' + (v.commentCount || 0) + '</button>' +
+          '<button data-cmt="' + v.id + '">评论 ' + (v.commentCount || 0) + '</button>' +
           '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
           '<button data-share="' + v.id + '">↗ ' + (v.shareCount || 0) + '</button>' +
           '<span class="vid-time">' + fmt(v.createdAt) + '</span>' +

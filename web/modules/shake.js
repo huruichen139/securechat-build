@@ -31,7 +31,7 @@
     host.className = (host.className || '') + ' shake-panel';
     host.innerHTML =
       '<div class="shake-stage">' +
-        '<div class="shake-phone">📱</div>' +
+        '<div class="shake-phone">摇</div>' +
         '<div class="shake-hint">摇动手机，或点击下方按钮模拟摇一摇</div>' +
         '<button class="shake-btn" data-now>现在摇</button>' +
       '</div>' +

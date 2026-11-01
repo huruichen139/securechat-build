@@ -183,17 +183,17 @@ async function sendAi(text) {
   const cfg = getAiConfig();
   if (!text) return;
   if (!cfg.apiKey) {
-    appendAiMsg('assistant', '尚未配置 API Key，请点击右上角 ⚙️ 设置。');
+    appendAiMsg('assistant', '尚未配置 API Key，请点击右上角「设置」。');
     openAiSettings();
     return;
   }
   if (!cfg.baseUrl) {
-    appendAiMsg('assistant', '尚未配置 baseUrl，请点击 ⚙️ 设置。');
+    appendAiMsg('assistant', '尚未配置 baseUrl，请点击「设置」。');
     openAiSettings();
     return;
   }
   if (!cfg.model) {
-    appendAiMsg('assistant', '尚未配置 model，请点击 ⚙️ 设置。');
+    appendAiMsg('assistant', '尚未配置 model，请点击「设置」。');
     openAiSettings();
     return;
   }

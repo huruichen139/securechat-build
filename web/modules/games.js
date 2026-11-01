@@ -12,12 +12,12 @@
   function saveScores(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (e) {} }
 
   var GAMES = [
-    { id: 'guess', name: '猜数字', icon: '🔢', desc: '猜 1-100 之间的数字，看看你几次能猜中', color: '#3498db' },
-    { id: '2048', name: '2048', icon: '🎮', desc: '经典数字合并游戏，挑战 2048', color: '#e67e22' },
-    { id: 'reaction', name: '反应力测试', icon: '⚡', desc: '测试你的反应速度，越快越好', color: '#e74c3c' },
-    { id: 'memory', name: '记忆翻牌', icon: '🃏', desc: '翻牌找对子，考验记忆力', color: '#2563eb' },
-    { id: 'typing', name: '打字速度', icon: '⌨️', desc: '测试你的打字速度（WPM）', color: '#9b59b6' },
-    { id: 'tictactoe', name: '井字棋', icon: '❌', desc: '和 AI 对战井字棋', color: '#1abc9c' },
+    { id: 'guess', name: '猜数字', icon: '猜', desc: '猜 1-100 之间的数字，看看你几次能猜中', color: '#3498db' },
+    { id: '2048', name: '2048', icon: '2048', desc: '经典数字合并游戏，挑战 2048', color: '#e67e22' },
+    { id: 'reaction', name: '反应力测试', icon: '速', desc: '测试你的反应速度，越快越好', color: '#e74c3c' },
+    { id: 'memory', name: '记忆翻牌', icon: '牌', desc: '翻牌找对子，考验记忆力', color: '#2563eb' },
+    { id: 'typing', name: '打字速度', icon: '字', desc: '测试你的打字速度（WPM）', color: '#9b59b6' },
+    { id: 'tictactoe', name: '井字棋', icon: '棋', desc: '和 AI 对战井字棋', color: '#1abc9c' },
   ];
 
   function mount(host) {
