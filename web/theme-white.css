@@ -991,8 +991,8 @@ html.dark-mode, body.dark-mode {
 
 /* ---------- 朋友圈（modules/moments.js）---------- */
 .moments-page { background: var(--w-bg) !important; }
-.moments-page .page-body { padding: 0 0 24px; background: var(--w-bg); }
-.moments-header { position: relative; }
+.moments-page .page-body { padding: 0 0 24px !important; background: var(--w-bg); }
+.moments-header { position: relative; padding: 4px 14px 0; }
 .moments-publish-btn {
   margin-left: auto; border: 1px solid var(--w-accent-line); background: var(--w-accent-soft);
   color: var(--w-accent); font-size: 13px; font-weight: 600; padding: 6px 14px;
