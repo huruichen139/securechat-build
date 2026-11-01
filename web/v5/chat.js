@@ -429,7 +429,25 @@
       inp.onchange = function () { if (inp.files && inp.files[0]) sendFile(inp.files[0]); };
       inp.click();
     };
-    S.$('emojiBtn').onclick = function () { S.toast('表情面板开发中', 'info'); };
+    S.$('emojiBtn').onclick = function () { S.openContainerFeature('stickers'); };
+    S.$('voiceBtn').onclick = function () {
+      var vm = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('voicemsg');
+      if (!vm) { S.toast('语音组件未就绪', 'error'); return; }
+      if (vm.isRecording && vm.isRecording()) {
+        if (state.activeGroup) { vm.cancel(); S.toast('群聊暂不支持语音消息', 'info'); return; }
+        vm.recordAndSend(state.activePeer).then(function (r) {
+          if (r) { appendMessage({ id: 'local_' + S.uid8(), from: state.me && state.me.id, content: '[语音消息:' + r.id + ']', createdAt: Date.now(), mine: true }); scrollBottom(); }
+        }).catch(function (e) { S.toast('发送失败：' + (e.message || e), 'error'); });
+        S.$('voiceBtn').style.color = '';
+      } else {
+        if (!vm.supported || !vm.supported()) { S.toast('当前环境不支持录音', 'warn'); return; }
+        vm.start().then(function (ok) {
+          if (ok === false) return;
+          S.$('voiceBtn').style.color = 'var(--danger)';
+          S.toast('正在录音，再次点击发送', 'info');
+        }).catch(function (e) { S.toast('录音失败：' + (e.message || e), 'error'); });
+      }
+    };
     S.$('convBack').onclick = function () {
       document.querySelector('.main-pane').classList.remove('open');
       state.activePeer = null; state.activeGroup = null;

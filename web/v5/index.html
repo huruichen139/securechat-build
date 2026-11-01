@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#ffffff" />
 <link rel="icon" href="data:,">
 <title>SecureChat</title>
-<link rel="stylesheet" href="app.css?v=4" />
+<link rel="stylesheet" href="/v5/app.css?v=5" />
 </head>
 <body>
 <div id="app" class="app">
@@ -81,6 +81,7 @@
         <footer class="composer">
           <div class="composer-tools">
             <button id="emojiBtn" class="icon-btn" title="表情">表情</button>
+            <button id="voiceBtn" class="icon-btn" title="语音消息">语音</button>
             <button id="fileBtn" class="icon-btn" title="发送文件">+</button>
           </div>
           <textarea id="input" rows="1" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
@@ -100,47 +101,47 @@
   <div id="toastWrap" class="toast-wrap"></div>
   <div id="modalWrap" class="modal-wrap" hidden></div>
 </div>
-<script src="core.js?v=2"></script>
-<script src="chat.js?v=7"></script>
-<script src="pages.js?v=1"></script>
-<script src="../modules/registry.js?v=1828g"></script>
-<script src="../modules/chat-ext.js?v=1828g"></script>
-<script src="../modules/voicemsg.js?v=1828g"></script>
-<script src="../modules/filehelper.js?v=1828g"></script>
-<script src="../modules/oa.js?v=1828g"></script>
-<script src="../modules/feedback.js?v=1828g"></script>
-<script src="../modules/miniapp.js?v=1828g"></script>
-<script src="../modules/shake.js?v=1828g"></script>
-<script src="../modules/scan.js?v=1828g"></script>
-<script src="../modules/pay.js?v=1828g"></script>
-<script src="../modules/status.js?v=1828g"></script>
-<script src="../modules/favorites.js?v=1828g"></script>
-<script src="../modules/moment-ext.js?v=1828g"></script>
-<script src="../modules/moments.js?v=1828f"></script>
-<script src="../modules/polls.js?v=1828g"></script>
-<script src="../modules/remind.js?v=1828g"></script>
-<script src="../modules/todos.js?v=1828g"></script>
-<script src="../modules/translate.js?v=1828g"></script>
-<script src="../modules/album.js?v=1828g"></script>
-<script src="../modules/cards.js?v=1828g"></script>
-<script src="../modules/sticker.js?v=1828g"></script>
-<script src="../modules/redpacket.js?v=1828g"></script>
-<script src="../modules/groups.js?v=1828g"></script>
-<script src="../modules/rtc.js?v=1828g"></script>
-<script src="../modules/search.js?v=1828g"></script>
-<script src="../modules/live.js?v=1828g"></script>
-<script src="../modules/nearby.js?v=1828g"></script>
-<script src="../modules/shop.js?v=1828g"></script>
-<script src="../modules/videos.js?v=1828g"></script>
-<script src="../modules/games.js?v=1828g"></script>
-<script src="../modules/read.js?v=1828g"></script>
-<script src="../features-knowledge-core.js?v=1828h"></script>
-<script src="../features-knowledge-idioms.js?v=1828h"></script>
-<script src="../features-knowledge-poems.js?v=1828h"></script>
-<script src="../features-knowledge-xiehouyu.js?v=1828h"></script>
-<script src="../features-knowledge-jokes.js?v=1828h"></script>
-<script src="../features-knowledge-quotes.js?v=1828h"></script>
-<script src="../features-knowledge-riddles.js?v=1828h"></script>
-<script src="../features-knowledge-tongue.js?v=1828h"></script>
+<script src="/v5/core.js?v=2"></script>
+<script src="/v5/chat.js?v=8"></script>
+<script src="/v5/pages.js?v=1"></script>
+<script src="/modules/registry.js?v=1828g"></script>
+<script src="/modules/chat-ext.js?v=1828g"></script>
+<script src="/modules/voicemsg.js?v=1828g"></script>
+<script src="/modules/filehelper.js?v=1828g"></script>
+<script src="/modules/oa.js?v=1828g"></script>
+<script src="/modules/feedback.js?v=1828g"></script>
+<script src="/modules/miniapp.js?v=1828g"></script>
+<script src="/modules/shake.js?v=1828g"></script>
+<script src="/modules/scan.js?v=1828g"></script>
+<script src="/modules/pay.js?v=1828g"></script>
+<script src="/modules/status.js?v=1828g"></script>
+<script src="/modules/favorites.js?v=1828g"></script>
+<script src="/modules/moment-ext.js?v=1828g"></script>
+<script src="/modules/moments.js?v=1828f"></script>
+<script src="/modules/polls.js?v=1828g"></script>
+<script src="/modules/remind.js?v=1828g"></script>
+<script src="/modules/todos.js?v=1828g"></script>
+<script src="/modules/translate.js?v=1828g"></script>
+<script src="/modules/album.js?v=1828g"></script>
+<script src="/modules/cards.js?v=1828g"></script>
+<script src="/modules/sticker.js?v=1828g"></script>
+<script src="/modules/redpacket.js?v=1828g"></script>
+<script src="/modules/groups.js?v=1828g"></script>
+<script src="/modules/rtc.js?v=1828g"></script>
+<script src="/modules/search.js?v=1828g"></script>
+<script src="/modules/live.js?v=1828g"></script>
+<script src="/modules/nearby.js?v=1828g"></script>
+<script src="/modules/shop.js?v=1828g"></script>
+<script src="/modules/videos.js?v=1828g"></script>
+<script src="/modules/games.js?v=1828g"></script>
+<script src="/modules/read.js?v=1828g"></script>
+<script src="/features-knowledge-core.js?v=1828h"></script>
+<script src="/features-knowledge-idioms.js?v=1828h"></script>
+<script src="/features-knowledge-poems.js?v=1828h"></script>
+<script src="/features-knowledge-xiehouyu.js?v=1828h"></script>
+<script src="/features-knowledge-jokes.js?v=1828h"></script>
+<script src="/features-knowledge-quotes.js?v=1828h"></script>
+<script src="/features-knowledge-riddles.js?v=1828h"></script>
+<script src="/features-knowledge-tongue.js?v=1828h"></script>
 </body>
 </html>

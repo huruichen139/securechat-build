@@ -5613,13 +5613,15 @@ app.get(['/admin.html', '/chat.html', '/merchant.html', '/wallet-pay.html', '/in
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
+// v5 为新客户端，作为默认聊天入口；旧版保留在 /chat-legacy.html 便于回退
+app.get(['/chat', '/chat.html'], (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'v5', 'index.html')); });
+app.get(['/chat-legacy', '/chat-legacy.html'], (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'chat.html')); });
 app.use(express.static(webDir, { setHeaders: (res, filePath) => {
   if (/\.html$/i.test(filePath)) { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
   if (/\.js$/i.test(filePath)) { res.set('Content-Type', 'text/javascript; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
   if (/\.css$/i.test(filePath)) { res.set('Content-Type', 'text/css; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
 }}));
 app.get('/', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'index.html')); });
-app.get('/chat', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'chat.html')); });
 
 // 统一错误处理：JSON 解析失败等异常不再输出带服务器路径的 HTML 堆栈（信息泄露 + 体验差）
 app.use((err, req, res, next) => {
