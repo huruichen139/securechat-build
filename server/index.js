@@ -5613,9 +5613,8 @@ app.get(['/admin.html', '/chat.html', '/merchant.html', '/wallet-pay.html', '/in
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
-// v5 为新客户端，作为默认聊天入口；旧版保留在 /chat-legacy.html 便于回退
-app.get(['/chat', '/chat.html'], (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'v5', 'index.html')); });
-app.get(['/chat-legacy', '/chat-legacy.html'], (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'chat.html')); });
+// 旧版仍为默认聊天入口；v5 试验版在 /v5/index.html，不影响现有体验
+app.get(['/chat', '/chat.html'], (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); res.sendFile(path.join(webDir, 'chat.html')); });
 app.use(express.static(webDir, { setHeaders: (res, filePath) => {
   if (/\.html$/i.test(filePath)) { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
   if (/\.js$/i.test(filePath)) { res.set('Content-Type', 'text/javascript; charset=utf-8'); res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); }
