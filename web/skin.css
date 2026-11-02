@@ -1,0 +1,502 @@
+/* ============================================================
+   SecureChat — 统一外观（skin.css）
+   纯色、细边、小圆角、弱阴影；不使用渐变、光斑、玻璃模糊
+   ============================================================ */
+
+:root {
+  --sk-bg: #f7f7f7;
+  --sk-surface: #ffffff;
+  --sk-surface-2: #f2f2f2;
+  --sk-line: #e8e8e8;
+  --sk-line-2: #dcdcdc;
+  --sk-text: #1a1a1a;
+  --sk-text-2: #666666;
+  --sk-muted: #999999;
+  --sk-accent: #07c160;
+  --sk-accent-dark: #06ad56;
+  --sk-danger: #fa5151;
+  --sk-mine: #95ec69;
+  --sk-other: #ffffff;
+  --sk-r: 6px;
+}
+
+html, body {
+  background: var(--sk-bg) !important;
+  color: var(--sk-text) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif !important;
+  font-size: 14px !important;
+}
+
+/* ---------- 外壳 ---------- */
+.chat-wrap {
+  background: var(--sk-bg) !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+.sidebar {
+  width: 320px !important;
+  min-width: 320px !important;
+  background: var(--sk-surface) !important;
+  border: none !important;
+  border-right: 1px solid var(--sk-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.sidebar-rail {
+  width: 56px !important;
+  min-width: 56px !important;
+  background: #f2f2f2 !important;
+  border-right: 1px solid var(--sk-line) !important;
+  padding: 10px 0 !important;
+  gap: 4px !important;
+}
+.sidebar-rail-brand,
+.rail-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  background: var(--sk-accent) !important;
+  background-image: none !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.sidebar-rail-group { gap: 4px !important; }
+.sidebar-rail-group button,
+.sidebar-rail button.rail-btn {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #555 !important;
+  font-size: 12px !important;
+}
+.sidebar-rail-group button:hover,
+.sidebar-rail button.rail-btn:hover { background: #e6e6e6 !important; }
+.sidebar-rail-group button.on,
+.sidebar-rail-group button.active,
+.sidebar-rail button.rail-btn.on { background: #e0e0e0 !important; color: #111 !important; }
+
+.sidebar-content { background: var(--sk-surface) !important; }
+.sidebar .sidebar-brand {
+  flex: 0 0 52px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 12px !important;
+  border-bottom: 1px solid var(--sk-line) !important;
+  background: var(--sk-surface) !important;
+}
+.brand-mark {
+  width: 28px !important;
+  height: 28px !important;
+  flex: 0 0 28px !important;
+  border-radius: 6px !important;
+  background: var(--sk-accent) !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.brand-copy strong { font-size: 13.5px !important; font-weight: 600 !important; color: var(--sk-text) !important; }
+.brand-copy span, .brand-copy small { font-size: 11.5px !important; color: var(--sk-muted) !important; }
+
+.sidebar-tools { padding: 8px 10px !important; background: var(--sk-surface) !important; }
+.sidebar-tools input,
+.sidebar-tools .search {
+  height: 30px !important;
+  border-radius: 4px !important;
+  border: 1px solid transparent !important;
+  background: var(--sk-surface-2) !important;
+  font-size: 12.5px !important;
+  color: var(--sk-text) !important;
+}
+.sidebar-tools input::placeholder { color: var(--sk-muted) !important; }
+.sidebar-tools input:focus {
+  background: #fff !important;
+  border-color: var(--sk-line-2) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 会话行 ---------- */
+.contact-list { padding: 2px 4px 6px !important; background: var(--sk-surface) !important; }
+.contact-list .contact {
+  height: 54px !important;
+  min-height: 54px !important;
+  max-height: 54px !important;
+  box-sizing: border-box !important;
+  padding: 6px 8px !important;
+  gap: 9px !important;
+  margin: 0 !important;
+  border-radius: 4px !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.contact-list .contact + .contact { border-top: none !important; }
+.contact-list .contact:hover { background: #f2f2f2 !important; }
+.contact-list .contact.on,
+.contact-list .contact.active,
+.contact-list .contact.selected { background: #e6e6e6 !important; }
+.contact-list .contact .avatar {
+  width: 36px !important;
+  height: 36px !important;
+  flex: 0 0 36px !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+.contact-list .contact .name { font-size: 13.5px !important; font-weight: 500 !important; color: var(--sk-text) !important; }
+.contact-list .contact .last { font-size: 12px !important; color: var(--sk-muted) !important; }
+.contact-list .contact .chat-time { font-size: 11px !important; color: #b3b3b3 !important; }
+.contact-list .contact .badge,
+.contact-list .contact .unread {
+  background: var(--sk-danger) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  font-size: 10.5px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  padding: 0 4px !important;
+  box-shadow: none !important;
+}
+.contact-mark { background: #f0f0f0 !important; color: #777 !important; border-radius: 3px !important; }
+
+.sidebar .my-info {
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 8px 12px !important;
+  background: var(--sk-surface) !important;
+  border-top: 1px solid var(--sk-line) !important;
+}
+.sidebar .my-info .avatar,
+.sidebar .my-info-head .avatar { width: 30px !important; height: 30px !important; flex: 0 0 30px !important; border-radius: 4px !important; }
+.sidebar .my-info .name, .sidebar .my-info strong { font-size: 12.5px !important; font-weight: 500 !important; }
+.sidebar .my-info .my-id, .sidebar .my-info small { font-size: 11px !important; color: var(--sk-muted) !important; }
+
+/* ---------- 主区 ---------- */
+.main {
+  background: var(--sk-surface) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.main .header {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 16px !important;
+  background: var(--sk-surface) !important;
+  border-bottom: 1px solid var(--sk-line) !important;
+  box-shadow: none !important;
+}
+.main .header #chatHeader { font-size: 14px !important; font-weight: 600 !important; color: var(--sk-text) !important; }
+.main .header::before { display: none !important; }
+.chat-head-actions button {
+  height: 28px !important;
+  min-width: 28px !important;
+  padding: 0 8px !important;
+  border: none !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: #555 !important;
+  font-size: 12.5px !important;
+  box-shadow: none !important;
+}
+.chat-head-actions button:hover { background: var(--sk-surface-2) !important; }
+
+.messages {
+  background: #ededed !important;
+  padding: 16px !important;
+}
+.msg-row { margin-bottom: 12px !important; }
+.msg-row .avatar, .msg-row .msg-avatar { width: 34px !important; height: 34px !important; flex: 0 0 34px !important; border-radius: 4px !important; }
+.bubble-wrap .name { font-size: 11.5px !important; color: #8c8c8c !important; margin-bottom: 4px !important; }
+.msg-row .bubble {
+  border-radius: 4px !important;
+  padding: 8px 11px !important;
+  font-size: 13.5px !important;
+  line-height: 1.55 !important;
+  box-shadow: none !important;
+  max-width: 62% !important;
+}
+.msg-row.me .bubble {
+  background: var(--sk-mine) !important;
+  color: #111 !important;
+  border: none !important;
+}
+.msg-row.other .bubble {
+  background: var(--sk-other) !important;
+  color: var(--sk-text) !important;
+  border: 1px solid var(--sk-line) !important;
+}
+.msg-row .bubble::before,
+.msg-row .bubble::after { display: none !important; }
+.msg-meta, .msg-row .time, .msg-row .msg-time { font-size: 11px !important; color: #a3a3a3 !important; }
+
+.composer {
+  background: var(--sk-surface) !important;
+  border-top: 1px solid var(--sk-line) !important;
+  padding: 8px 12px !important;
+  gap: 8px !important;
+  box-shadow: none !important;
+}
+.composer-tools { height: 26px !important; gap: 2px !important; }
+.composer-tools button {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  border: none !important;
+  color: #666 !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+.composer-tools button:hover { background: var(--sk-surface-2) !important; }
+.composer-input-wrap {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.composer-input-wrap textarea,
+.composer-input-wrap input,
+#messageInput {
+  background: var(--sk-surface-2) !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px !important;
+  font-size: 13.5px !important;
+  color: var(--sk-text) !important;
+  box-shadow: none !important;
+  padding: 8px 10px !important;
+}
+.composer-input-wrap textarea:focus,
+#messageInput:focus { background: #fff !important; border-color: var(--sk-line-2) !important; }
+.composer .btn.send,
+#desktopSendBtn {
+  height: 32px !important;
+  min-width: 62px !important;
+  border-radius: 4px !important;
+  background: var(--sk-accent) !important;
+  background-image: none !important;
+  border: none !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+.composer .btn.send:hover, #desktopSendBtn:hover { background: var(--sk-accent-dark) !important; }
+
+/* ---------- 全屏页（通讯录/发现/我） ---------- */
+.wechat-page {
+  background: var(--sk-bg) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.wechat-page .page-header,
+.wechat-page .page-body {
+  background: var(--sk-surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+}
+.wechat-page .page-header {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid var(--sk-line) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+.wechat-page .page-body { padding: 8px 0 !important; }
+.page-body .contact-group-label {
+  padding: 6px 16px !important;
+  font-size: 11.5px !important;
+  color: var(--sk-muted) !important;
+  background: transparent !important;
+}
+.page-body .contact-section {
+  background: var(--sk-surface) !important;
+  border: none !important;
+  border-top: 1px solid var(--sk-line) !important;
+  border-bottom: 1px solid var(--sk-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 0 8px !important;
+}
+.page-body .contact-section .contact {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 6px 16px !important;
+  border-radius: 0 !important;
+  background: var(--sk-surface) !important;
+}
+.page-body .contact-section .contact + .contact { border-top: 1px solid var(--sk-line) !important; }
+.page-body .contact-section .contact:hover { background: #f5f5f5 !important; }
+.page-body .contact-section .contact .avatar { width: 32px !important; height: 32px !important; flex: 0 0 32px !important; border-radius: 4px !important; }
+
+/* ---------- 功能宫格 ---------- */
+.feature-grid {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)) !important;
+  gap: 14px 8px !important;
+  padding: 4px 12px 12px !important;
+}
+.feature-item,
+.feature-item:hover {
+  padding: 6px 4px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.feature-item:hover { background: #f2f2f2 !important; }
+.feature-item .feature-icon,
+.feature-item:hover .feature-icon {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 6px !important;
+  background: #f0f0f0 !important;
+  background-image: none !important;
+  border: none !important;
+  color: #4a4a4a !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.feature-item .feature-label {
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  color: #4a4a4a !important;
+  margin-top: 6px !important;
+}
+.feature-tab {
+  height: 34px !important;
+  border-radius: 4px !important;
+  font-size: 12.5px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--sk-text-2) !important;
+}
+.feature-tab.active {
+  background: var(--sk-surface-2) !important;
+  background-image: none !important;
+  color: var(--sk-text) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 弹层 / 表单 / 按钮 ---------- */
+.modal-box, .profile-card, .update-dialog, .chat-more-menu,
+.conv-context-menu, .locale-menu, .plus-panel {
+  background: var(--sk-surface) !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.modal-mask, .overlay, .mask { background: rgba(0, 0, 0, .4) !important; backdrop-filter: none !important; }
+
+.btn, button.btn {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+.btn.mica-primary, .btn.primary {
+  background: var(--sk-accent) !important;
+  background-image: none !important;
+  border-color: var(--sk-accent) !important;
+  color: #fff !important;
+}
+.btn.mica-primary:hover, .btn.primary:hover { background: var(--sk-accent-dark) !important; }
+.btn-secondary, .btn.secondary {
+  background: var(--sk-surface-2) !important;
+  background-image: none !important;
+  color: var(--sk-text) !important;
+  border: 1px solid var(--sk-line-2) !important;
+}
+
+.input, input.input, textarea.input, select.input {
+  border: 1px solid var(--sk-line-2) !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  font-size: 13.5px !important;
+  box-shadow: none !important;
+}
+.input:focus, input.input:focus, textarea.input:focus { border-color: var(--sk-accent) !important; box-shadow: none !important; }
+
+/* ---------- 登录页 ---------- */
+.auth-wrap {
+  background: var(--sk-bg) !important;
+  background-image: none !important;
+}
+.auth-card {
+  width: 340px !important;
+  padding: 28px 24px !important;
+  background: var(--sk-surface) !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .08) !important;
+}
+.auth-logo { font-size: 17px !important; font-weight: 600 !important; color: var(--sk-text) !important; }
+.auth-sub { font-size: 12px !important; color: var(--sk-muted) !important; margin-top: 4px !important; }
+.auth-card .tabs { border-bottom: 1px solid var(--sk-line) !important; }
+.auth-card .tab {
+  font-size: 13px !important;
+  color: var(--sk-text-2) !important;
+  padding: 8px 2px !important;
+  border-radius: 0 !important;
+}
+.auth-card .tab.on { color: var(--sk-accent) !important; border-bottom: 2px solid var(--sk-accent) !important; }
+.auth-card .input { height: 38px !important; }
+.auth-card .btn { height: 38px !important; font-size: 13.5px !important; }
+
+/* ---------- 杂项 ---------- */
+.welcome-panel { padding: 28px 20px !important; }
+.welcome-panel h1 { font-size: 16px !important; font-weight: 600 !important; margin: 0 0 6px !important; }
+.welcome-sub { font-size: 12.5px !important; color: var(--sk-muted) !important; }
+.welcome-action {
+  background: #fff !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.welcome-action:hover { background: #f5f5f5 !important; }
+.welcome-action .welcome-icon {
+  background: var(--sk-surface-2) !important;
+  background-image: none !important;
+  color: #555 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+.welcome-orb, .welcome-kicker { display: none !important; }
+
+.announce-banner, .call-bar, .file-bar {
+  background: #f5f5f5 !important;
+  background-image: none !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: 4px !important;
+  color: var(--sk-text-2) !important;
+  box-shadow: none !important;
+}
+.announce-banner *, .file-bar * { color: var(--sk-text-2) !important; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, .18) !important; border-radius: 4px !important; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, .3) !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
+
+@media (max-width: 760px) {
+  .sidebar { width: 100% !important; min-width: 0 !important; }
+  .sidebar-rail { display: none !important; }
+  .chat-wrap { padding: 0 !important; }
+  .messages { padding: 12px !important; }
+  .msg-row .bubble { max-width: 76% !important; }
+}
