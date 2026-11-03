@@ -500,3 +500,36 @@ html, body {
   .messages { padding: 12px !important; }
   .msg-row .bubble { max-width: 76% !important; }
 }
+
+/* ---------- 模块面板统一（去渐变/大阴影） ---------- */
+.rp-send-box button, .rp-grab-box button,
+.shop-panel button, .vid-panel button, .vid-container button,
+.live-panel button, .live-view button, .live-container button,
+.shake-panel button, .oa-panel button, .oa-view button,
+.read-panel button, .search-panel button,
+.album-panel button, .album-view button,
+.games-panel button, .games-view button,
+.unified-group-actions .add-btn {
+  background: var(--sk-accent) !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 4px !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.rp-send-box, .rp-grab-box, .sc-status-modal, .sc-mext-modal,
+.scan-head, .miniapp-frame, .ce-modal, .emoji-panel,
+.oa-container > .oa-body {
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .14) !important;
+}
+.oa-container, .sc-status-panel, .sc-mext-panel, .sc-fav-panel,
+.scan-overlay, .scan-stage, .shake-stage {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.emoji-panel, .reply-hint, .profile-head {
+  background: #fff !important;
+  background-image: none !important;
+}
