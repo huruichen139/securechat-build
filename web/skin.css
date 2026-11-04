@@ -1803,3 +1803,11 @@ body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 
 }
 #chatView .wx-me-group:nth-of-type(2) .wx-me-item .wx-me-icon { background: #f0a020 !important; }
 #chatView .wx-me-group:nth-of-type(3) .wx-me-item .wx-me-icon { background: #576b95 !important; }
+
+/* ---------- 侧栏顶部顺序：搜索在最上（微信布局） ---------- */
+#chatView .sidebar-tools { display: flex !important; flex-direction: column !important; }
+#chatView .sidebar-tools > #search { order: -1 !important; margin-top: 0 !important; margin-bottom: 8px !important; }
+#chatView .sidebar-tools > .add-friend { order: 1 !important; }
+#chatView .sidebar-tools > .unified-group-actions { order: 2 !important; margin-top: 6px !important; }
+#chatView .sidebar-tools > .friend-req-bar { order: 3 !important; }
+.nearby-btn { border-radius: 4px !important; }
