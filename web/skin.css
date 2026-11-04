@@ -1811,3 +1811,37 @@ body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 
 #chatView .sidebar-tools > .unified-group-actions { order: 2 !important; margin-top: 6px !important; }
 #chatView .sidebar-tools > .friend-req-bar { order: 3 !important; }
 .nearby-btn { border-radius: 4px !important; }
+
+/* ---------- 桌面端全屏页铺满聊天区 ---------- */
+@media (min-width: 761px) {
+  #chatView .wechat-page {
+    right: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  #chatView .wechat-page .page-body {
+    max-width: none !important;
+    width: auto !important;
+    margin: 0 !important;
+  }
+}
+
+/* ---------- 桌面端全屏页：紧贴侧栏铺满，不做悬浮卡片 ---------- */
+html:not(.is-mobile) #chatView > .wechat-page.active,
+html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page {
+  left: 300px !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !important; }
+
+/* ---------- 侧栏「+」与群按钮 ---------- */
+#chatView .sidebar-tools .side-plus { display: none !important; }
+#chatView .sidebar-tools .unified-group-actions { display: flex !important; }
