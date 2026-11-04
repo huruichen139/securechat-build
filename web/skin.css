@@ -1773,3 +1773,6 @@ body.dark-mode .chat-more-menu { background: #2c2c2c !important; }
 body.dark-mode .chat-more-item { color: #d6d6d6 !important; }
 body.dark-mode .chat-more-item:hover { background: #3a3a3a !important; }
 body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 !important; }
+
+/* 单聊不显示对方昵称，仅群聊显示 */
+#chatView .messages:not(.group-chat) .bubble-wrap .name { display: none !important; }
