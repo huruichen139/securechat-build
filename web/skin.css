@@ -1845,3 +1845,12 @@ html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !import
 /* ---------- 侧栏「+」与群按钮 ---------- */
 #chatView .sidebar-tools .side-plus { display: none !important; }
 #chatView .sidebar-tools .unified-group-actions { display: flex !important; }
+
+/* ---------- 桌面端图标栏：仅图标（微信 PC） ---------- */
+@media (min-width: 761px) {
+  #chatView .sidebar-rail-group button span:not(.rail-icon) { display: none !important; }
+  #chatView .sidebar-rail-group button { height: 42px !important; }
+  #chatView .sidebar-rail-group button svg { width: 22px !important; height: 22px !important; }
+  #chatView .sidebar-rail-bottom .rail-action { font-size: 0 !important; }
+  #chatView .sidebar-rail-bottom .rail-action::first-letter { font-size: 10px !important; }
+}
