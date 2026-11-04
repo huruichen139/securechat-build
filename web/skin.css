@@ -1776,3 +1776,8 @@ body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 
 
 /* 单聊不显示对方昵称，仅群聊显示 */
 #chatView .messages:not(.group-chat) .bubble-wrap .name { display: none !important; }
+
+/* ---------- 表情 / 收藏面板圆角收敛 ---------- */
+.sticker-tab, .sticker-item, .emoji-item, .emoji-panel button,
+.emoji-panel .emoji-cell { border-radius: 4px !important; }
+.sc-fav-panel { border-radius: 6px !important; }
