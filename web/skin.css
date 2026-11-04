@@ -1871,3 +1871,73 @@ html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !import
 #chatView .contact-list, #chatView .messages, #chatView .wechat-page .page-body {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ---------- 登录页第三方入口：微信式一排圆图标 ---------- */
+.auth-card .oauth-btns {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  margin-top: 14px !important;
+}
+.auth-card .oauth-btn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #999 !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+}
+.auth-card .oauth-btn .oauth-ico {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: #f7f7f7 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+}
+.auth-card .oauth-btn .oauth-ico img { width: 20px !important; height: 20px !important; }
+.auth-card .oauth-btn span { font-size: 11px !important; color: #999 !important; }
+
+/* ---------- 群公告 / 邀请条 / 文件条 ---------- */
+#chatView #groupAnnounceBanner,
+#chatView .announce-banner {
+  background: #f7f7f7 !important;
+  color: #888 !important;
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+#chatView #inviteBar { padding: 8px 16px !important; background: #f7f7f7 !important; border-bottom: 1px solid #e5e5e5 !important; }
+#chatView #inviteBar .add-btn {
+  height: 28px !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: #07c160 !important;
+  color: #fff !important;
+  font-size: 13px !important;
+}
+
+/* ---------- 登录页紧凑化（小屏可滚动） ---------- */
+.auth-wrap {
+  overflow-y: auto !important;
+  padding: 24px 16px !important;
+  align-items: center !important;
+}
+.auth-logo { width: 48px !important; height: 48px !important; margin-bottom: 16px !important; border-radius: 8px !important; }
+.auth-logo::after { font-size: 24px !important; }
+.auth-card .tabs { margin-bottom: 14px !important; }
+.auth-card .input { height: 44px !important; margin-bottom: 8px !important; }
+.auth-card .btn { height: 44px !important; margin-top: 4px !important; }
+.auth-card .oauth-btns { margin-top: 10px !important; gap: 12px !important; }
