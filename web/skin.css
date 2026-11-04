@@ -1554,3 +1554,138 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
 @media (max-width: 760px) {
   #chatView #chatMobileComposer textarea { height: 36px !important; min-height: 36px !important; }
 }
+
+/* ---------- 欢迎页：微信式极简空状态 ---------- */
+.welcome-panel {
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 0 24px !important;
+  text-align: center !important;
+}
+.welcome-actions, .welcome-features, .welcome-tip { display: none !important; }
+.welcome-panel h1 { font-size: 17px !important; font-weight: 400 !important; color: #b2b2b2 !important; }
+.welcome-sub { font-size: 13px !important; color: #c0c0c0 !important; margin-top: 6px !important; }
+
+/* ---------- 深色模式（微信夜间配色） ---------- */
+body.dark-mode { background: #111 !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView > .sidebar { background: #191919 !important; border-right-color: #2a2a2a !important; }
+body.dark-mode #chatView > .sidebar > .sidebar-rail { background: #191919 !important; }
+body.dark-mode #chatView .sidebar-rail-group button,
+body.dark-mode #chatView .sidebar-rail button.rail-btn { color: #7f7f7f !important; }
+body.dark-mode #chatView .sidebar-rail-group button.on,
+body.dark-mode #chatView .sidebar-rail-group button.active { background: #2a2a2a !important; color: #07c160 !important; }
+body.dark-mode #chatView .sidebar-rail-bottom .rail-action { color: #6b6b6b !important; }
+body.dark-mode #chatView .sidebar-content,
+body.dark-mode #chatView .sidebar-tools,
+body.dark-mode #chatView .contact-list { background: #191919 !important; }
+body.dark-mode #chatView .sidebar-tools input,
+body.dark-mode #chatView .sidebar-tools .search { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .sidebar-tools .add-btn { background: #2c2c2c !important; color: #b2b2b2 !important; }
+body.dark-mode #chatView .sidebar-tools .add-friend .add-btn { background: #07c160 !important; color: #fff !important; }
+body.dark-mode #chatView .contact-list .contact::after { background: #2a2a2a !important; }
+body.dark-mode #chatView .contact-list .contact:hover { background: #232323 !important; }
+body.dark-mode #chatView .contact-list .contact.on,
+body.dark-mode #chatView .contact-list .contact.active,
+body.dark-mode #chatView .contact-list .contact.selected { background: #2a2a2a !important; }
+body.dark-mode #chatView .contact-list .contact .name { color: #d6d6d6 !important; }
+body.dark-mode #chatView .contact-list .contact .last { color: #7f7f7f !important; }
+body.dark-mode #chatView .contact-list .contact .chat-time { color: #6b6b6b !important; }
+body.dark-mode #chatView .sidebar .my-info { background: #191919 !important; border-top-color: #2a2a2a !important; }
+body.dark-mode #chatView .sidebar .my-info .my-name { color: #d6d6d6 !important; }
+body.dark-mode #chatView .sidebar .my-info .my-id { color: #7f7f7f !important; }
+body.dark-mode #chatView .main .header {
+  background: #191919 !important;
+  border-bottom-color: #2a2a2a !important;
+}
+body.dark-mode #chatView .main .header #chatHeader { color: #d6d6d6 !important; }
+body.dark-mode #chatView .chat-head-actions button,
+body.dark-mode #chatView .head-tool { color: #b2b2b2 !important; }
+body.dark-mode #chatView .chat-head-actions button:hover { background: #2a2a2a !important; }
+body.dark-mode #chatView .main .messages { background-color: #111 !important; }
+body.dark-mode #chatView .messages .msg-row.other .bubble { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .messages .msg-row.other .bubble::before { border-right-color: #2c2c2c !important; }
+body.dark-mode #chatView .messages .msg-row.me .bubble { background: #3eb575 !important; color: #0d0d0d !important; }
+body.dark-mode #chatView .messages .msg-row.me .bubble::after { border-left-color: #3eb575 !important; }
+body.dark-mode #chatView .messages .bubble-wrap .name { color: #8a8a8a !important; }
+body.dark-mode #chatView .messages .msg-row .time { color: #6b6b6b !important; }
+body.dark-mode #chatView .main .composer { background: #191919 !important; border-top-color: #2a2a2a !important; }
+body.dark-mode #chatView .main .composer-input-wrap textarea {
+  background: #2c2c2c !important;
+  color: #d6d6d6 !important;
+  border-color: #2c2c2c !important;
+}
+body.dark-mode #chatView .main .composer-tools button { color: #b2b2b2 !important; }
+body.dark-mode #chatView .wechat-page { background: #111 !important; }
+body.dark-mode #chatView .wechat-page .page-header {
+  background: #191919 !important;
+  border-bottom-color: #2a2a2a !important;
+}
+body.dark-mode #chatView .wechat-page .page-header h2,
+body.dark-mode #chatView .wechat-page .page-header .back-btn { color: #d6d6d6 !important; }
+body.dark-mode #chatView .wx-group,
+body.dark-mode #chatView .wx-me-group,
+body.dark-mode #chatView .ai-banner { background: #191919 !important; border-color: #2a2a2a !important; }
+body.dark-mode #chatView .wx-discover-item,
+body.dark-mode #chatView .wx-me-item { background: #191919 !important; }
+body.dark-mode #chatView .wx-discover-item:hover,
+body.dark-mode #chatView .wx-me-item:hover { background: #232323 !important; }
+body.dark-mode #chatView .wx-discover-item::before,
+body.dark-mode #chatView .wx-me-item::before { background: #2a2a2a !important; }
+body.dark-mode #chatView .wx-discover-name,
+body.dark-mode #chatView .wx-me-name,
+body.dark-mode #chatView .ai-banner-name { color: #d6d6d6 !important; }
+body.dark-mode #chatView .me-header { background: #191919 !important; border-color: #2a2a2a !important; }
+body.dark-mode #chatView .me-name { color: #d6d6d6 !important; }
+body.dark-mode #chatView .me-id { color: #7f7f7f !important; }
+body.dark-mode #chatView .page-body .contact-section,
+body.dark-mode #chatView .page-body .contact-section .contact { background: #191919 !important; }
+body.dark-mode #chatView .page-body .contact-section .contact + .contact::before { background: #2a2a2a !important; }
+body.dark-mode #chatView .page-body .contact-section .contact .name { color: #d6d6d6 !important; }
+body.dark-mode #chatView .feature-grid { background: #191919 !important; }
+body.dark-mode #chatView .feature-item .feature-icon { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .feature-item .feature-label { color: #b2b2b2 !important; }
+body.dark-mode .modal-box, body.dark-mode .profile-card, body.dark-mode .update-dialog,
+body.dark-mode .conv-context-menu, body.dark-mode .locale-menu, body.dark-mode .plus-panel,
+body.dark-mode .emoji-panel { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode .conv-menu-item { color: #d6d6d6 !important; }
+body.dark-mode .conv-menu-item:hover { background: #3a3a3a !important; }
+body.dark-mode .input, body.dark-mode input.input, body.dark-mode textarea.input {
+  background: #2c2c2c !important;
+  color: #d6d6d6 !important;
+}
+body.dark-mode .auth-wrap, body.dark-mode .auth-card { background: #111 !important; }
+body.dark-mode .auth-card .input { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode .auth-card .tab { color: #7f7f7f !important; }
+body.dark-mode .auth-card .tab.on { color: #d6d6d6 !important; }
+body.dark-mode .oauth-btn { background: #2c2c2c !important; color: #b2b2b2 !important; }
+body.dark-mode .welcome-panel h1 { color: #6b6b6b !important; }
+body.dark-mode .welcome-sub { color: #5a5a5a !important; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .18) !important; }
+body.dark-mode .mobile-bottom-nav { background: #191919 !important; border-top-color: #2a2a2a !important; }
+body.dark-mode .mobile-bottom-nav .side-tab { color: #7f7f7f !important; }
+body.dark-mode .mobile-bottom-nav .side-tab.on { color: #07c160 !important; }
+body.dark-mode #chatMobileHeader, body.dark-mode .chat-header { background: #191919 !important; border-bottom-color: #2a2a2a !important; }
+body.dark-mode #chatMobileComposer { background: #191919 !important; border-top-color: #2a2a2a !important; }
+body.dark-mode #chatMobileComposer .composer-input-wrap { background: #2c2c2c !important; }
+body.dark-mode #chatMobileComposer textarea { color: #d6d6d6 !important; }
+
+/* ---------- 关闭颜色过渡 / 触屏反馈 ---------- */
+.sidebar, .sidebar-rail, .sidebar-content, .sidebar-tools, .contact-list,
+.main, .main .header, .messages, .composer, .contact, .wx-group, .wx-me-group,
+.me-header, .feature-item, .feature-icon, .msg-row .bubble, .account-card {
+  transition: none !important;
+}
+html, body, button, a, .contact, .wx-discover-item, .wx-me-item {
+  -webkit-tap-highlight-color: transparent !important;
+}
+#chatView .contact-list .contact:active { background: #e9e9e9 !important; }
+@media (max-width: 760px) {
+  #chatView .contact-list .contact:active { background: #e9e9e9 !important; }
+  #chatView .wechat-page { transition: transform .28s cubic-bezier(.25, .1, .25, 1) !important; }
+}
+
+/* ---------- 连续消息合并（微信式） ---------- */
+#chatView .messages .msg-row.continue { margin-top: -8px !important; }
+#chatView .messages .msg-row.continue .avatar,
+#chatView .messages .msg-row.continue .row-avatar { visibility: hidden !important; }
+#chatView .messages .msg-row.continue .bubble-wrap .name { display: none !important; }
