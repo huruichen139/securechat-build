@@ -729,11 +729,10 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
   place-items: center !important;
   font-size: 12px !important;
   color: #fff !important;
-  background: var(--sk-accent) !important;
+  background-color: var(--sk-accent);
   box-shadow: none !important;
   overflow: hidden !important;
 }
-.wx-group .wx-discover-item:nth-child(2) .wx-discover-icon { background: #576b95 !important; }
 .wx-me-group:nth-of-type(2) .wx-me-item .wx-me-icon { background: #f0a020 !important; }
 .wx-me-group:nth-of-type(3) .wx-me-item .wx-me-icon { background: #576b95 !important; }
 .wx-discover-name, .wx-me-name {
@@ -1792,3 +1791,15 @@ body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 
   #chatView .me-page .page-body { padding-top: 0 !important; }
   #chatView .me-header { margin-top: 0 !important; }
 }
+
+/* ---------- 发现/我 图标：使用自带主色（覆盖主题的浅色块） ---------- */
+#chatView .wx-discover-item .wx-discover-icon {
+  background: var(--ic, #07c160) !important;
+  color: #fff !important;
+}
+#chatView .wx-me-item .wx-me-icon {
+  background: #07c160 !important;
+  color: #fff !important;
+}
+#chatView .wx-me-group:nth-of-type(2) .wx-me-item .wx-me-icon { background: #f0a020 !important; }
+#chatView .wx-me-group:nth-of-type(3) .wx-me-item .wx-me-icon { background: #576b95 !important; }

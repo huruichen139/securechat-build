@@ -5119,37 +5119,53 @@ function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
   const openAiView = () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
-  const items = [
-    { name: '朋友圈', icon: '朋友圈', action: () => { if (window.SecureChatMoments) window.SecureChatMoments.open(); else { const f = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('moment-ext'); if (f) openContainerFeature(f, '朋友圈管理'); else toast('朋友圈功能开发中', 'info'); } } },
-    { name: '小程序', icon: '小', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else toast('小程序功能开发中', 'info'); } },
+  const openFeat = (name, title) => {
+    const gmap = {
+      videos: 'SecureChatVideos', live: 'SecureChatLive', shop: 'SecureChatShop',
+      games: 'SecureChatGames', read: 'SecureChatRead', search: 'SecureChatSearch',
+      scan: 'SecureChatScan', shake: 'SecureChatShake', miniapp: 'SecureChatMiniApp',
+      moments: 'SecureChatMoments', status: 'SecureChatStatus'
+    };
+    const f = (window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature(name)) || (gmap[name] ? window[gmap[name]] : null);
+    if (!f) { toast(title + '暂不可用', 'info'); return; }
+    if (typeof f.open === 'function') { try { f.open(); return; } catch (e) {} }
+    if (typeof f.start === 'function') { try { f.start(); return; } catch (e) {} }
+    openContainerFeature(f, title);
+  };
+  const groups = [
+    [
+      { name: '朋友圈', icon: '圈', c: '#07c160', action: () => { if (window.SecureChatMoments) window.SecureChatMoments.open(); else openFeat('moment-ext', '朋友圈'); } },
+      { name: '视频号', icon: '视', c: '#fa9d3b', action: () => openFeat('videos', '视频号') },
+      { name: '直播', icon: '播', c: '#fa5151', action: () => openFeat('live', '直播') },
+    ],
+    [
+      { name: '扫一扫', icon: '扫', c: '#576b95', action: () => openFeat('scan', '扫一扫') },
+      { name: '摇一摇', icon: '摇', c: '#10aeff', action: () => openFeat('shake', '摇一摇') },
+    ],
+    [
+      { name: '看一看', icon: '看', c: '#f0a020', action: () => openFeat('read', '看一看') },
+      { name: '搜一搜', icon: '搜', c: '#6a6a6a', action: () => openFeat('search', '搜一搜') },
+    ],
+    [
+      { name: '购物', icon: '购', c: '#fa5151', action: () => openFeat('shop', '购物') },
+      { name: '游戏', icon: '游', c: '#576b95', action: () => openFeat('games', '游戏') },
+      { name: '小程序', icon: '程', c: '#07c160', action: () => { if (window.loadMiniPrograms) loadMiniPrograms(); if (window.openMiniAppCenter) window.openMiniAppCenter(); else openFeat('miniapp', '小程序'); } },
+      { name: 'AI 助手', icon: 'AI', c: '#576b95', action: openAiView },
+    ],
   ];
-  // 分组：顶部常用，中间小程序区
-  const group1 = items.slice(0, 2);
-  const group2 = items.slice(2);
-  const itemHtml = (it, i) => `
-    <div class="wx-discover-item" data-idx="${i}">
-      <div class="wx-discover-icon">${it.icon}</div>
+  const flat = [];
+  const itemHtml = (it) => {
+    flat.push(it);
+    return `
+    <div class="wx-discover-item">
+      <div class="wx-discover-icon" style="--ic:${it.c}">${it.icon}</div>
       <div class="wx-discover-name">${it.name}</div>
       <span class="wx-discover-arrow">›</span>
     </div>`;
-  const aiSvg = '<svg class="ai-banner-bg" viewBox="0 0 132 132" fill="none"><circle cx="30" cy="30" r="26" fill="#fff"/><circle cx="104" cy="48" r="40" fill="#fff"/><circle cx="66" cy="110" r="22" fill="#fff"/></svg>';
-  const aiBanner = `
-    <div class="ai-banner" id="discoverAiBanner">
-      <div class="ai-banner-ico">AI</div>
-      <div style="position:relative;z-index:1">
-        <div class="ai-banner-name">AI 助手</div>
-        <div class="ai-banner-sub">快速问答、智能创作、会议听记</div>
-      </div>
-      <span class="ai-banner-arrow">›</span>
-      ${aiSvg}
-    </div>`;
-  list.innerHTML = aiBanner + `
-    <div class="wx-group">${group1.map((it, i) => itemHtml(it, i)).join('')}</div>
-    <div class="wx-group">${group2.map((it, i) => itemHtml(it, i + group1.length)).join('')}</div>`;
-  const aiBannerEl = document.getElementById('discoverAiBanner');
-  if (aiBannerEl) aiBannerEl.onclick = openAiView;
+  };
+  list.innerHTML = groups.map((g) => '<div class="wx-group">' + g.map(itemHtml).join('') + '</div>').join('');
   list.querySelectorAll('.wx-discover-item').forEach((el, i) => {
-    el.onclick = () => items[i].action();
+    el.onclick = () => flat[i].action();
   });
 }
 
