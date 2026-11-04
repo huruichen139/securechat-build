@@ -1,4 +1,4 @@
-﻿/* module: pay (worker batch6) */
+/* module: pay (worker batch6) */
 /* SecureChat 支付与生活 Web 模块（独立，不依赖 web/app.js 巨石文件）
    提供：收付款码、付款码收款/付款码付款、转账、群收款+接龙、生活缴费/手机充值演示、钱包账单。
    复用全局工具：window.SecureChatExt._util.api / getToken / getMyId（registry.js），
@@ -552,7 +552,7 @@
         mid.appendChild(t1); mid.appendChild(t2);
         const amt = document.createElement('div');
         amt.textContent = (ined ? '+' : '-') + Number(b.amount).toFixed(2);
-        amt.style.cssText = 'font-size:16px;font-weight:700;color:' + (ined ? '#2563eb' : '#333');
+        amt.style.cssText = 'font-size:15px;font-weight:400;color:' + (ined ? '#07c160' : '#191919');
         row.appendChild(icon); row.appendChild(mid); row.appendChild(amt);
         inner.appendChild(row);
       });
@@ -567,20 +567,20 @@
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px';
     const title = document.createElement('h3');
-    title.textContent = '钱包与生活服务'; title.style.cssText = 'margin:0;color:#2563eb';
+    title.textContent = '钱包与生活服务'; title.style.cssText = 'margin:0;font-size:17px;font-weight:500;color:#191919';
     head.appendChild(title);
     wrap.appendChild(head);
 
     // 余额卡
     const balCard = document.createElement('div');
-    balCard.style.cssText = 'background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px';
-    balCard.innerHTML = `<div style="font-size:13px;opacity:.85">我的余额（元）</div>
-      <div id="pay-bal" style="font-size:34px;font-weight:800;margin:6px 0">0.00</div>
-      <div id="pay-recv" style="font-size:13px;opacity:.85">累计收款 ¥0.00</div>`;
+    balCard.style.cssText = 'background:#fff;border-radius:0;padding:18px 0;color:#191919;margin-bottom:8px';
+    balCard.innerHTML = `<div style="font-size:13px;color:#888">我的余额（元）</div>
+      <div id="pay-bal" style="font-size:32px;font-weight:500;margin:8px 0 6px">0.00</div>
+      <div id="pay-recv" style="font-size:13px;color:#888">累计收款 ¥0.00</div>`;
     wrap.appendChild(balCard);
 
     const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px';
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:12px';
     const items = [
       { label: '转账', icon: '→', fn: openTransfer },
       { label: '收款码', icon: '￥', fn: () => showReceiveCodeFlow() },
@@ -593,11 +593,11 @@
     ];
     items.forEach((it) => {
       const cell = document.createElement('button');
-      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 4px;border:1px solid #f0f0f0;border-radius:12px;background:#fff;cursor:pointer';
+      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border:0;border-radius:0;background:#fff;cursor:pointer';
       const ic = document.createElement('div');
-      ic.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700';
+      ic.style.cssText = 'width:36px;height:36px;border-radius:8px;background:#f2f2f2;color:#333;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500';
       ic.textContent = it.icon;
-      const lb = document.createElement('div'); lb.textContent = it.label; lb.style.cssText = 'font-size:12px;color:#333';
+      const lb = document.createElement('div'); lb.textContent = it.label; lb.style.cssText = 'font-size:12px;color:#555';
       cell.appendChild(ic); cell.appendChild(lb);
       cell.onclick = it.fn;
       grid.appendChild(cell);
@@ -605,7 +605,7 @@
     wrap.appendChild(grid);
 
     const sec = document.createElement('div');
-    sec.style.cssText = 'font-size:14px;font-weight:600;color:#333;margin:14px 0 8px';
+    sec.style.cssText = 'font-size:14px;color:#888;margin:16px 0 8px';
     sec.textContent = '最近账单';
     wrap.appendChild(sec);
     const billsBox = document.createElement('div');
