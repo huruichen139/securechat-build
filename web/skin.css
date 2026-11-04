@@ -1854,3 +1854,20 @@ html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !import
   #chatView .sidebar-rail-bottom .rail-action { font-size: 0 !important; }
   #chatView .sidebar-rail-bottom .rail-action::first-letter { font-size: 10px !important; }
 }
+
+#chatView .sidebar-rail-group button {
+  min-height: 0 !important;
+  height: 44px !important;
+}
+#chatView .sidebar-tools { padding: 10px 12px 6px !important; }
+
+/* ---------- 触感：禁止界面文字被选中，列表惯性滚动 ---------- */
+#chatView .sidebar, #chatView .main .header, #chatView .composer,
+#chatView .chat-header, #chatView .chat-composer, #chatView .mobile-bottom-nav,
+#chatView .wechat-page .page-header {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+#chatView .contact-list, #chatView .messages, #chatView .wechat-page .page-body {
+  -webkit-overflow-scrolling: touch;
+}
