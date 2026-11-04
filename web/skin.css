@@ -1781,3 +1781,14 @@ body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 
 .sticker-tab, .sticker-item, .emoji-item, .emoji-panel button,
 .emoji-panel .emoji-cell { border-radius: 4px !important; }
 .sc-fav-panel { border-radius: 6px !important; }
+
+/* ---------- 去掉「已读」标注（微信不在气泡下显示） ---------- */
+#chatView .messages .msg-row .read-state { display: none !important; }
+
+/* ---------- 移动端：发现/我/通讯录不显示标题栏（微信无导航栏） ---------- */
+@media (max-width: 760px) {
+  #chatView .wechat-page .page-header { display: none !important; }
+  #chatView .wechat-page .page-body { padding: 8px 0 16px !important; }
+  #chatView .me-page .page-body { padding-top: 0 !important; }
+  #chatView .me-header { margin-top: 0 !important; }
+}
