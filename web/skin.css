@@ -1941,3 +1941,12 @@ html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !import
 .auth-card .input { height: 44px !important; margin-bottom: 8px !important; }
 .auth-card .btn { height: 44px !important; margin-top: 4px !important; }
 .auth-card .oauth-btns { margin-top: 10px !important; gap: 12px !important; }
+
+/* ---------- 功能宫格更紧凑 ---------- */
+#chatView .feature-grid, .feature-grid { gap: 14px 4px !important; padding: 14px 10px 16px !important; }
+.feature-item .feature-label {
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
