@@ -2153,3 +2153,44 @@ body.dark-mode .modal-box .modal-actions button.ok { color: #07c160 !important; 
   color: #fff !important;
   font-size: 14px !important;
 }
+
+/* ---------- 文件 / 图片 / 合并消息 ---------- */
+#chatView .messages .file-msg { gap: 10px !important; padding: 2px 0 !important; }
+#chatView .messages .file-msg .ficon {
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px !important;
+  border-radius: 4px !important;
+  background: #f2f2f2 !important;
+  color: #555 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+#chatView .messages .file-msg .fname {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #191919 !important;
+  max-width: 220px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+#chatView .messages .file-msg .fsize { font-size: 12px !important; color: #999 !important; }
+#chatView .messages .file-download {
+  border: 0 !important;
+  background: transparent !important;
+  color: #576b95 !important;
+  font-size: 12px !important;
+  padding: 0 2px !important;
+}
+#chatView .messages .file-image-wrap img,
+#chatView .messages .file-image { border-radius: 4px !important; max-width: 240px !important; }
+#chatView .messages .bubble.merged-card {
+  padding: 10px 12px !important;
+  max-width: 300px !important;
+  background: #fff !important;
+  color: #191919 !important;
+}
+body.dark-mode #chatView .messages .file-msg .fname { color: #d6d6d6 !important; }
+body.dark-mode #chatView .messages .file-msg .ficon { background: #3a3a3a !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .messages .bubble.merged-card { background: #2c2c2c !important; color: #d6d6d6 !important; }
