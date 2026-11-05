@@ -2661,6 +2661,9 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     b.className = 'side-tab' + (src.classList.contains('on') ? ' on' : '');
     b.dataset.side = src.dataset.side;
     b.innerHTML = src.innerHTML;
+    const NAV_LABEL = { friends: '微信', contacts: '通讯录', ai: '发现', downloads: '我' };
+    const navLbl = b.querySelector('span:last-child');
+    if (navLbl && NAV_LABEL[src.dataset.side]) { navLbl.removeAttribute('data-i18n'); navLbl.textContent = NAV_LABEL[src.dataset.side]; }
     b.onclick = () => {
       const real = document.querySelector('.sidebar-rail .side-tab[data-side="' + src.dataset.side + '"]');
       if (real) real.click();
