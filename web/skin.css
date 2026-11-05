@@ -2194,3 +2194,31 @@ body.dark-mode .modal-box .modal-actions button.ok { color: #07c160 !important; 
 body.dark-mode #chatView .messages .file-msg .fname { color: #d6d6d6 !important; }
 body.dark-mode #chatView .messages .file-msg .ficon { background: #3a3a3a !important; color: #d6d6d6 !important; }
 body.dark-mode #chatView .messages .bubble.merged-card { background: #2c2c2c !important; color: #d6d6d6 !important; }
+
+/* ---------- 聊天红包气泡（微信橙） ---------- */
+#chatView .messages .bubble.rp-bubble {
+  background: #fa9d3b !important;
+  color: #fff !important;
+  min-width: 190px !important;
+  padding: 10px 12px !important;
+}
+#chatView .messages .msg-row.me .bubble.rp-bubble::after { border-left-color: #fa9d3b !important; }
+#chatView .messages .msg-row.other .bubble.rp-bubble::before { border-right-color: #fa9d3b !important; }
+#chatView .messages .rp-bubble-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 4px !important;
+  background: rgba(255, 255, 255, .22) !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+#chatView .messages .rp-bubble-title { font-size: 15px !important; color: #fff !important; }
+#chatView .messages .rp-bubble-sub { font-size: 12px !important; color: rgba(255, 255, 255, .82) !important; }
+.rp-send-box { background: #fff !important; border-radius: 6px !important; box-shadow: 0 2px 12px rgba(0, 0, 0, .14) !important; }
+.rp-send-head { font-size: 17px !important; font-weight: 500 !important; color: #191919 !important; }
+.rp-send-btn { background: #fa5151 !important; color: #fff !important; border-radius: 4px !important; }
+.rp-mode { border-radius: 4px !important; }
+.rp-mode.active { background: #f2f2f2 !important; color: #191919 !important; }
+.rp-send-field input { background: #f7f7f7 !important; border: 0 !important; border-radius: 4px !important; }
