@@ -2364,3 +2364,21 @@ body.dark-mode .contact-alphabet-index span { color: #6b6b6b !important; }
 #discoverPage .wx-group, #mePage .wx-me-group { margin-bottom: 8px !important; }
 #discoverPage .wx-discover-item, #mePage .wx-me-item { margin: 0 !important; }
 #discoverPage .page-header, #mePage .page-header { padding: 0 !important; }
+
+/* ---------- 资料卡：微信式操作区 ---------- */
+.profile-card .profile-avatar { border-radius: 4px !important; }
+.profile-card .profile-name { font-size: 17px !important; font-weight: 500 !important; }
+.profile-card .profile-actions {
+  display: flex !important; padding: 0 !important; gap: 0 !important;
+  border-top: 1px solid #ededed !important; background: #fff !important;
+}
+.profile-card .profile-actions .btn-cn {
+  flex: 1 1 0 !important; height: 48px !important; border-radius: 0 !important;
+  background: transparent !important; color: #576b95 !important; font-size: 15px !important;
+  border: 0 !important; box-shadow: none !important;
+}
+.profile-card .profile-actions .btn-cn + .btn-cn { border-left: 1px solid #ededed !important; }
+.profile-card .profile-actions .btn-cn.gray { color: #fa5151 !important; }
+.profile-card .profile-actions .btn-cn:active { background: #f2f2f2 !important; }
+body.dark-mode .profile-card .profile-actions { background: #2c2c2c !important; border-top-color: #3a3a3a !important; }
+body.dark-mode .profile-card .profile-actions .btn-cn + .btn-cn { border-left-color: #3a3a3a !important; }

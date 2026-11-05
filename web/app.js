@@ -3649,6 +3649,21 @@ function appendMessage(m, prepend) {
       : avatarChar(fName);
     rowAvatar = '<div class="row-avatar">' + fAv + '</div>';
     rowName = '<div class="name">' + escapeHtml(fName) + '</div>';
+  } else if (mine) {
+    const me = state.me || {};
+    const meName = me.nickname || me.username || '';
+    const meAv = me.avatar
+      ? '<img src="' + escapeHtml(me.avatar) + '">'
+      : avatarChar(meName);
+    rowAvatar = '<div class="row-avatar">' + meAv + '</div>';
+  } else {
+    const peer = state.activePeer ? state.friends.find(u => u.id === state.activePeer) : null;
+    const pu = m.fromUser || peer || {};
+    const pName = pu.nickname || pu.username || ('用户' + m.from);
+    const pAv = pu.avatar
+      ? '<img src="' + escapeHtml(pu.avatar) + '">'
+      : avatarChar(pName);
+    rowAvatar = '<div class="row-avatar">' + pAv + '</div>';
   }
   if (m.from != null) row.setAttribute('data-from', String(m.from));
   const mergedHtml = mergedCardHtml(m);
