@@ -519,7 +519,7 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
 
 /* ---------- 输入区（微信桌面端：输入在上，工具栏在下） ---------- */
 .composer {
-  display: grid !important;
+  display: grid;
   grid-template-columns: 1fr 76px !important;
   grid-template-areas: "input send" "tools send" !important;
   gap: 6px 10px !important;
@@ -1386,7 +1386,7 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
   padding: 10px 14px 12px !important;
   background: #f7f7f7 !important;
   border-top: 1px solid #e5e5e5 !important;
-  display: grid !important;
+  display: grid;
   grid-template-columns: 1fr 76px !important;
   grid-template-areas: "input send" "tools send" !important;
   gap: 6px 10px !important;
@@ -2222,3 +2222,10 @@ body.dark-mode #chatView .messages .bubble.merged-card { background: #2c2c2c !im
 .rp-mode { border-radius: 4px !important; }
 .rp-mode.active { background: #f2f2f2 !important; color: #191919 !important; }
 .rp-send-field input { background: #f7f7f7 !important; border: 0 !important; border-radius: 4px !important; }
+
+/* 移动端进入聊天后隐藏底部标签栏（微信行为） */
+@media (max-width: 760px) {
+  html.is-mobile #chatView.mobile-chat-active ~ .mobile-bottom-nav,
+  #chatView.mobile-chat-active ~ .mobile-bottom-nav { display: none !important; }
+  html.is-mobile #chatView.mobile-chat-active { height: 100% !important; }
+}
