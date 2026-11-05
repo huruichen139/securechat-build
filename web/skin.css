@@ -2232,3 +2232,56 @@ body.dark-mode #chatView .messages .bubble.merged-card { background: #2c2c2c !im
   #chatView.mobile-chat-active ~ .mobile-bottom-nav { display: none !important; }
   html.is-mobile #chatView.mobile-chat-active { height: 100% !important; }
 }
+
+/* ---------- 朋友圈 / 状态 / 回复提示：微信式收口 ---------- */
+.moments-page, .moments-page .page-body { background: #ededed !important; }
+.moments-page .page-body { padding: 0 !important; }
+.moments-page .moments-header { background: #ededed !important; border-bottom: 0 !important; }
+.moments-feed { padding: 8px 0 24px !important; }
+.moment-card {
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 16px !important;
+  margin: 0 0 8px !important;
+  display: flex !important;
+  gap: 10px !important;
+}
+.moment-avatar { width: 40px !important; height: 40px !important; border-radius: 4px !important; }
+.moment-main { flex: 1 1 auto !important; min-width: 0 !important; }
+.moment-name { font-size: 15px !important; font-weight: 500 !important; color: #576b95 !important; }
+.moment-content { font-size: 15px !important; line-height: 1.45 !important; color: #191919 !important; margin: 5px 0 0 !important; }
+.moment-time { font-size: 12px !important; color: #b2b2b2 !important; margin-top: 8px !important; }
+.moments-images { margin-top: 8px !important; gap: 4px !important; }
+.moments-img { border-radius: 3px !important; }
+.moment-foot { margin-top: 10px !important; }
+.moment-like, .moment-comment-btn {
+  border: 0 !important; background: #f7f7f7 !important; color: #576b95 !important;
+  font-size: 13px !important; padding: 5px 12px !important; border-radius: 4px !important;
+}
+.moment-like.on { color: #fa5151 !important; }
+.moment-social { background: #f7f7f7 !important; border-radius: 4px !important; padding: 8px 10px !important; margin-top: 8px !important; }
+.moment-likes, .moment-comments { font-size: 13.5px !important; color: #576b95 !important; line-height: 1.5 !important; }
+.moment-comment { color: #191919 !important; }
+.moments-compose-bar { background: #f7f7f7 !important; border-top: 1px solid #e5e5e5 !important; padding: 8px 12px !important; }
+.moments-textarea { background: #fff !important; border: 0 !important; border-radius: 4px !important; font-size: 15px !important; }
+.moments-publish-btn { background: #07c160 !important; color: #fff !important; border-radius: 4px !important; font-size: 14px !important; }
+.moments-hint, .moments-empty, .moments-loading, .moments-error { color: #b2b2b2 !important; font-size: 13px !important; text-align: center !important; padding: 32px 16px !important; }
+.moments-more { background: #fff !important; border: 0 !important; color: #576b95 !important; font-size: 14px !important; padding: 12px !important; }
+.moments-addimg { border-radius: 4px !important; background: #f7f7f7 !important; border: 1px dashed #d9d9d9 !important; }
+.reply-hint {
+  background: #f7f7f7 !important; border: 0 !important; border-radius: 4px !important;
+  padding: 7px 10px !important; font-size: 12.5px !important; color: #7f7f7f !important;
+}
+.reply-hint-text { color: #7f7f7f !important; }
+.profile-head { background: #fff !important; padding: 22px 16px 16px !important; }
+.sc-status-card { border-radius: 6px !important; }
+body.dark-mode .moments-page, body.dark-mode .moments-page .page-body, body.dark-mode .moments-page .moments-header { background: #111 !important; }
+body.dark-mode .moment-card, body.dark-mode .moments-more { background: #191919 !important; }
+body.dark-mode .moment-content, body.dark-mode .moment-comment { color: #d6d6d6 !important; }
+body.dark-mode .moment-name, body.dark-mode .moment-likes, body.dark-mode .moment-comments { color: #7d90a9 !important; }
+body.dark-mode .moment-social, body.dark-mode .moment-like, body.dark-mode .moment-comment-btn, body.dark-mode .reply-hint { background: #2c2c2c !important; }
+body.dark-mode .moments-compose-bar { background: #191919 !important; border-top-color: #2a2a2a !important; }
+body.dark-mode .moments-textarea { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode .profile-head { background: #191919 !important; }
