@@ -2771,10 +2771,10 @@ function renderChatHeader() {
   if (state.activeGroup) {
     const g = state.groups.find(x => x.id === state.activeGroup);
     const name = g ? g.name : ('群 #' + state.activeGroup);
-    $('chatHeader').textContent = '群聊：' + name;
+    $('chatHeader').textContent = name;
     $('chatHeader').onclick = () => openGroupProfile(state.activeGroup);
     const mt = document.getElementById('chatMobileTitle');
-    if (mt) { mt.textContent = '群聊：' + name; mt.onclick = () => openGroupProfile(state.activeGroup); }
+    if (mt) { mt.textContent = name; mt.onclick = () => openGroupProfile(state.activeGroup); }
     $('inviteBar').style.display = '';
     return;
   }

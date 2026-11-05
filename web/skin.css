@@ -1981,3 +1981,72 @@ html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !import
 #chatView .sidebar-tools.show-add .unified-group-actions { display: flex !important; }
 body.dark-mode #chatView .sidebar-tools .side-plus { color: #9a9a9a !important; }
 body.dark-mode #chatView .sidebar-tools .side-plus:hover { background: #2a2a2a !important; }
+
+/* 顶栏不显示在线状态小字（微信不显示） */
+#chatView .main .header .chat-status { display: none !important; }
+
+/* 对话框按钮：微信式文字按钮 + 分隔线 */
+.modal .modal-actions {
+  border-top: 1px solid #ededed !important;
+  padding: 0 !important;
+  display: flex !important;
+  gap: 0 !important;
+}
+.modal .modal-actions .btn {
+  flex: 1 1 0 !important;
+  height: 48px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #191919 !important;
+  font-size: 16px !important;
+}
+.modal .modal-actions .btn + .btn { border-left: 1px solid #ededed !important; }
+.modal .modal-actions .btn.primary,
+.modal .modal-actions .btn.mica-primary,
+.modal .modal-actions .btn.ok { color: #07c160 !important; }
+.modal .modal-actions .btn:hover { background: #f7f7f7 !important; }
+body.dark-mode .modal .modal-actions { border-top-color: #3a3a3a !important; }
+body.dark-mode .modal .modal-actions .btn { color: #d6d6d6 !important; }
+body.dark-mode .modal .modal-actions .btn + .btn { border-left-color: #3a3a3a !important; }
+body.dark-mode .modal .modal-actions .btn.primary { color: #07c160 !important; }
+
+/* ---------- 通用对话框 ---------- */
+.modal, .modal-box {
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+.modal .modal-head, .modal-box .modal-head {
+  height: 50px !important;
+  min-height: 50px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  padding: 0 44px !important;
+  border-bottom: 1px solid #ededed !important;
+  background: #fff !important;
+}
+.modal .modal-head h3, .modal-box .modal-head h3 {
+  font-size: 17px !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  color: #191919 !important;
+}
+.modal .modal-x, .modal-box .modal-x {
+  position: absolute !important;
+  right: 4px !important;
+  top: 0 !important;
+  width: 40px !important;
+  height: 50px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #b2b2b2 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+}
+body.dark-mode .modal .modal-head, body.dark-mode .modal-box .modal-head {
+  background: #2c2c2c !important;
+  border-bottom-color: #3a3a3a !important;
+}
+body.dark-mode .modal .modal-head h3 { color: #d6d6d6 !important; }
