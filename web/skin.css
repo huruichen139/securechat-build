@@ -2050,3 +2050,106 @@ body.dark-mode .modal .modal-head, body.dark-mode .modal-box .modal-head {
   border-bottom-color: #3a3a3a !important;
 }
 body.dark-mode .modal .modal-head h3 { color: #d6d6d6 !important; }
+
+/* 对话框按钮（.ok/.cancel 与 .btn 通用） */
+.modal .modal-actions button, .modal-box .modal-actions button {
+  flex: 1 1 0 !important;
+  height: 48px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #191919 !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+}
+.modal .modal-actions button + button,
+.modal-box .modal-actions button + button { border-left: 1px solid #ededed !important; }
+.modal .modal-actions button.ok,
+.modal .modal-actions button.primary,
+.modal-box .modal-actions button.ok,
+.modal-box .modal-actions button.primary { color: #07c160 !important; }
+.modal .modal-actions button:hover,
+.modal-box .modal-actions button:hover { background: #f7f7f7 !important; }
+body.dark-mode .modal .modal-actions button,
+body.dark-mode .modal-box .modal-actions button { color: #d6d6d6 !important; }
+body.dark-mode .modal .modal-actions button + button,
+body.dark-mode .modal-box .modal-actions button + button { border-left-color: #3a3a3a !important; }
+body.dark-mode .modal .modal-actions button.ok,
+body.dark-mode .modal-box .modal-actions button.ok { color: #07c160 !important; }
+
+/* ---------- 会话内搜索条 ---------- */
+#chatView #messageSearchBar {
+  height: 48px !important;
+  min-height: 48px !important;
+  padding: 0 10px !important;
+  gap: 6px !important;
+  background: #f7f7f7 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+#chatView #messageSearchBar input {
+  height: 30px !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  font-size: 13px !important;
+  padding: 0 8px !important;
+}
+#chatView #messageSearchBar .search-nav {
+  width: 26px !important;
+  height: 26px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: #666 !important;
+  font-size: 13px !important;
+}
+#chatView #messageSearchBar > button:last-child {
+  height: 26px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: #576b95 !important;
+  font-size: 13px !important;
+  padding: 0 6px !important;
+}
+
+/* ---------- AI 助手视图 ---------- */
+#chatView #aiView { background: #ededed !important; }
+#chatView .ai-header {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 16px !important;
+  background: #f7f7f7 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+}
+#chatView .ai-header .ai-btn-sm {
+  height: 28px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: #576b95 !important;
+  font-size: 13px !important;
+}
+#chatView .mini-programs { background: #fff !important; border-bottom: 1px solid #e5e5e5 !important; }
+#chatView .mini-programs-title { font-size: 13px !important; color: #888 !important; }
+#chatView .ai-composer {
+  background: #f7f7f7 !important;
+  border-top: 1px solid #e5e5e5 !important;
+  padding: 8px 10px !important;
+}
+#chatView .ai-composer input {
+  height: 34px !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  font-size: 14px !important;
+}
+#chatView .ai-composer .btn.send {
+  height: 34px !important;
+  border-radius: 4px !important;
+  background: #07c160 !important;
+  color: #fff !important;
+  font-size: 14px !important;
+}
