@@ -1566,7 +1566,7 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
 .welcome-sub { font-size: 13px !important; color: #c0c0c0 !important; margin-top: 6px !important; }
 
 /* ---------- 深色模式（微信夜间配色） ---------- */
-body.dark-mode { background: #111 !important; color: #d6d6d6 !important; }
+body.dark-mode { background: #111 !important; color: #d6d6d6 !important; --sk-bg: #111; --sk-surface: #191919; --sk-surface-2: #2c2c2c; --sk-line: #2a2a2a; --sk-line-2: #3a3a3a; --sk-text: #d6d6d6; --sk-text-2: #b2b2b2; --sk-muted: #7f7f7f; --sk-other: #2c2c2c; }
 body.dark-mode #chatView > .sidebar { background: #191919 !important; border-right-color: #2a2a2a !important; }
 body.dark-mode #chatView > .sidebar > .sidebar-rail { background: #191919 !important; }
 body.dark-mode #chatView .sidebar-rail-group button,
@@ -1664,9 +1664,12 @@ body.dark-mode .mobile-bottom-nav { background: #191919 !important; border-top-c
 body.dark-mode .mobile-bottom-nav .side-tab { color: #7f7f7f !important; }
 body.dark-mode .mobile-bottom-nav .side-tab.on { color: #07c160 !important; }
 body.dark-mode #chatMobileHeader, body.dark-mode .chat-header { background: #191919 !important; border-bottom-color: #2a2a2a !important; }
-body.dark-mode #chatMobileComposer { background: #191919 !important; border-top-color: #2a2a2a !important; }
-body.dark-mode #chatMobileComposer .composer-input-wrap { background: #2c2c2c !important; }
-body.dark-mode #chatMobileComposer textarea { color: #d6d6d6 !important; }
+body.dark-mode #chatView #chatMobileComposer { background: #191919 !important; border-top-color: #2a2a2a !important; }
+body.dark-mode #chatView #chatMobileComposer .composer-input-wrap { background: #2c2c2c !important; }
+body.dark-mode #chatView #chatMobileComposer textarea { color: #d6d6d6 !important; }
+body.dark-mode #chatView .sidebar-tools #search { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .sidebar-tools #search::placeholder { color: #6b6b6b !important; }
+body.dark-mode #chatView .mobile-bottom-nav { background: #191919 !important; border-top-color: #2a2a2a !important; }
 
 /* ---------- 关闭颜色过渡 / 触屏反馈 ---------- */
 .sidebar, .sidebar-rail, .sidebar-content, .sidebar-tools, .contact-list,
