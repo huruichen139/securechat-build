@@ -1950,3 +1950,34 @@ html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page { left: 0 !import
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
+
+/* ---------- 侧栏顶部：搜索 + 「+」展开（微信 PC） ---------- */
+#chatView .sidebar-tools { position: relative !important; }
+#chatView .sidebar-tools #search {
+  width: calc(100% - 40px) !important;
+  margin-right: 40px !important;
+}
+#chatView .sidebar-tools .side-plus {
+  display: grid !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  bottom: auto !important;
+  width: 32px !important;
+  height: 32px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: #8a8a8a !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  place-items: center !important;
+  padding: 0 !important;
+}
+#chatView .sidebar-tools .side-plus:hover { background: #f2f2f2 !important; color: #444 !important; }
+#chatView .sidebar-tools .add-friend { display: none !important; }
+#chatView .sidebar-tools .unified-group-actions { display: none !important; }
+#chatView .sidebar-tools.show-add .add-friend { display: flex !important; }
+#chatView .sidebar-tools.show-add .unified-group-actions { display: flex !important; }
+body.dark-mode #chatView .sidebar-tools .side-plus { color: #9a9a9a !important; }
+body.dark-mode #chatView .sidebar-tools .side-plus:hover { background: #2a2a2a !important; }
