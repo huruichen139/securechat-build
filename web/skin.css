@@ -2358,3 +2358,9 @@ body.dark-mode .contact-alphabet-index span { color: #6b6b6b !important; }
   height: 22px !important; font-size: 11px !important; padding: 0 6px !important; color: #7f7f7f !important;
   background: rgba(255,255,255,.9) !important; border: 1px solid #e5e5e5 !important; border-radius: 3px !important;
 }
+
+/* ---------- 发现/我：全宽分组与间距 ---------- */
+#discoverPage .page-body > *, #mePage .page-body > *, #contactsPage .page-body > * { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+#discoverPage .wx-group, #mePage .wx-me-group { margin-bottom: 8px !important; }
+#discoverPage .wx-discover-item, #mePage .wx-me-item { margin: 0 !important; }
+#discoverPage .page-header, #mePage .page-header { padding: 0 !important; }
