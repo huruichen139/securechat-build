@@ -2336,3 +2336,25 @@ body.dark-mode .contact-alphabet-index span { color: #6b6b6b !important; }
   .contact-alphabet-index { top: auto !important; bottom: 64px !important; transform: none !important; right: 2px !important; }
   #contactsPage .contact-section .contact { height: 56px !important; }
 }
+
+/* ---------- 消息行节奏：贴近微信 ---------- */
+#chatView .messages .msg-row { margin-bottom: 10px !important; }
+#chatView .messages .msg-row .time {
+  font-size: 10.5px !important; line-height: 1.2 !important; color: #b2b2b2 !important;
+  margin-top: 3px !important; display: inline-block !important;
+}
+#chatView .messages .msg-row .bubble-wrap .name { font-size: 12px !important; color: #999 !important; margin-bottom: 3px !important; }
+
+/* ---------- 消息操作条：悬停显示，不占布局 ---------- */
+#chatView .messages .msg-row .bubble-wrap { position: relative !important; }
+#chatView .messages .msg-row .message-actions {
+  position: absolute !important; top: 100% !important; left: 0 !important; right: auto !important;
+  height: 24px !important; margin-top: 1px !important; padding: 0 !important;
+  opacity: 0 !important; pointer-events: none !important; background: transparent !important;
+  border: 0 !important; box-shadow: none !important; z-index: 3 !important;
+}
+#chatView .messages .msg-row:hover .message-actions { opacity: 1 !important; pointer-events: auto !important; }
+#chatView .messages .msg-row .message-actions button, #chatView .messages .msg-row .message-actions .act {
+  height: 22px !important; font-size: 11px !important; padding: 0 6px !important; color: #7f7f7f !important;
+  background: rgba(255,255,255,.9) !important; border: 1px solid #e5e5e5 !important; border-radius: 3px !important;
+}
