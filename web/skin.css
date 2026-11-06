@@ -2793,3 +2793,11 @@ body.dark-mode #chatView #contactsPage .page-body > #contactsSearch{background:#
 @media (max-width: 760px) {
   #chatView .contact-list .contact::after { left: 76px !important; }
 }
+/* mobile list separators for discover/me rows */
+html.is-mobile .wx-discover-item, html.is-mobile .wx-me-item { position: relative; }
+html.is-mobile .wx-discover-item + .wx-discover-item::before,
+html.is-mobile .wx-me-item + .wx-me-item::before {
+  content: ''; position: absolute; left: 56px; right: 0; top: 0; height: 1px; background: #ededed;
+}
+body.dark-mode .wx-discover-item + .wx-discover-item::before,
+body.dark-mode .wx-me-item + .wx-me-item::before { background: #2a2a2a; }
