@@ -2774,3 +2774,7 @@ body.dark-mode .moments-page .moments-header .back-btn::before{color:#d6d6d6}
 /* settings: hide scrollbar, full-bleed rows */
 #settingsPanel{scrollbar-width:none}
 #settingsPanel::-webkit-scrollbar{width:0;height:0}
+/* page header add button */
+.page-add{position:absolute;right:6px;top:0;height:44px;width:36px;border:0;background:transparent;font-size:26px;line-height:1;color:#191919;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.page-add:hover{background:transparent}
+body.dark-mode .page-add{color:#d6d6d6}

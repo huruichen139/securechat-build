@@ -2707,6 +2707,13 @@ document.querySelectorAll('.side-tab').forEach(tt => {
   syncMobileNav(state.tabContact || 'friends');
 })();
 
+const contactsAddBtn = $('contactsAddBtn');
+if (contactsAddBtn) contactsAddBtn.onclick = () => {
+  const tab = document.querySelector('#mobileBottomNav .side-tab[data-side="friends"]') || document.querySelector('.sidebar-rail .side-tab[data-side="friends"]');
+  if (tab) tab.click();
+  setTimeout(() => { const p = document.getElementById('sidePlusBtn'); if (p) p.click(); }, 120);
+};
+
 const downloadBackBtn = $('downloadBackBtn');
 if (downloadBackBtn) downloadBackBtn.onclick = () => {
   const tab = document.querySelector('.side-tab[data-side="' + (state.tabContact || 'friends') + '"]');
