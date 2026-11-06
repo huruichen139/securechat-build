@@ -2690,3 +2690,13 @@ body.dark-mode .group-invite-user{border-bottom-color:#333!important}
 body.dark-mode .group-invite-user:hover{background:#333!important}
 /* chat more menu radius */
 .chat-more-menu{border-radius:4px!important}
+/* announcement dialog wechat */
+.announcement-box{border-radius:4px!important;padding:22px 20px!important;box-shadow:0 8px 30px rgba(0,0,0,.18)!important;border-top:0!important;text-align:left!important}
+.announcement-title{font-size:17px!important;font-weight:500!important;text-align:center!important;color:#191919!important}
+.announcement-content{color:#666!important;font-size:14px!important;text-align:center!important}
+.announcement-badge{border-radius:4px!important}
+.announcement-box.info .announcement-badge{background:#07c160!important}
+.announcement-actions .announcement-ok{background:#07c160!important;border-radius:4px!important}
+body.dark-mode .announcement-box{background:#2c2c2c!important}
+body.dark-mode .announcement-title{color:#d6d6d6!important}
+body.dark-mode .announcement-content{color:#a0a0a0!important}
