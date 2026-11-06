@@ -2634,3 +2634,18 @@ body.dark-mode #welcomePanel h1::after{color:rgba(255,255,255,.05)!important}
 .chat-bg-item{border-radius:4px!important;transform:none!important}
 .chat-bg-item:hover{border-color:#07c160!important;transform:none!important}
 .chat-bg-item:active{transform:none!important}
+/* flatten remaining gradients */
+#acceptCallBtn{background:#07c160!important;background-image:none!important;border-radius:4px!important}
+#rejectCallBtn,#hangupBtn{background:#fa5151!important;background-image:none!important;border-radius:4px!important}
+.reply-hint{background:#f7f7f7!important;background-image:none!important;border:0!important;border-radius:4px!important;color:#999!important}
+body.dark-mode .reply-hint{background:#2c2c2c!important;border:0!important;color:#8f8f8f!important}
+.profile-head{background:#fff!important;background-image:none!important}
+body.dark-mode .profile-head{background:#2c2c2c!important;background-image:none!important}
+.rp-send-head,.rp-grab-top{background:#fa5151!important;background-image:none!important}
+.rp-send-btn,.rp-send-box button,.rp-grab-box button{background:#fa5151!important;background-image:none!important;border-radius:4px!important}
+.msg-row.me .rp-bubble{background:#fa9d3b!important;background-image:none!important}
+.unified-group-actions .add-btn{background:#07c160!important;background-image:none!important;box-shadow:none!important;border-radius:4px!important}
+.modal-actions .ok,.update-dialog .actions .ok{background:#07c160!important;background-image:none!important;border-radius:4px!important;box-shadow:none!important}
+.feature-item-community,.feature-item-content,.feature-item-life,.feature-item-tools,.feature-item-videos,.feature-item-oa,.feature-item-live,.feature-item-miniapp,.feature-item-read,.feature-item-search,.feature-item-album,.feature-item-cards,.feature-item-stickers,.feature-item-shop,.feature-item-games,.feature-item-redpacket,.feature-item-nearby,.feature-item-shake,.feature-item-scan,.feature-item-pay,.feature-item-payment,.feature-item-status,.feature-item-favorites,.feature-item-groups,.feature-item-polls,.feature-item-todos,.feature-item-remind,.feature-item-translate,.feature-item-moments,.feature-item-redeem{background:#fff!important;background-image:none!important;color:#191919!important}
+body.dark-mode .feature-item{background:#2c2c2c!important;color:#d6d6d6!important}
+.oa-panel button,.oa-view button,.video-panel button,.videos-panel button,.live-panel button,.live-view button,.album-panel button,.album-view button,.shop-panel button,.shop-view button,.games-panel button,.games-view button,.shake-panel button,.shake-view button,.pay-panel button,.pay-view button,.read-panel button,.search-panel button,.vid-panel button,.vid-container button,.live-container button{background:#07c160!important;background-image:none!important;border:0!important;border-radius:4px!important;color:#fff!important;box-shadow:none!important;transform:none!important}
