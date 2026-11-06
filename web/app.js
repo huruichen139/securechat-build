@@ -6667,6 +6667,7 @@ document.addEventListener('click', function(e){
       menu.className = 'side-plus-menu';
       menu.innerHTML = '<button type="button" data-act="group">发起群聊</button><button type="button" data-act="friend">添加朋友</button><button type="button" data-act="scan">扫一扫</button>';
       menu.addEventListener('click', function (ev) {
+        ev.stopPropagation();
         var act = ev.target && ev.target.dataset && ev.target.dataset.act;
         if (!act) return;
         menu.remove();
