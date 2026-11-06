@@ -2733,3 +2733,10 @@ body.dark-mode .side-plus-menu button:hover{background:#333}
 /* mobile page overlay fix: body-appended .wechat-page has no positioning at mobile */
 html.is-mobile .wechat-page.active{position:fixed!important;inset:0!important;z-index:60!important;height:auto!important;display:flex!important}
 html.is-mobile .wechat-page .page-body{flex:1!important;min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+/* composer + toast flatten */
+.composer-icon-btn{border-radius:4px!important;background:transparent!important;box-shadow:none!important;transform:none!important}
+.composer-icon-btn:hover{background:#ececec!important;transform:none!important}
+.composer-send-btn{border-radius:4px!important;background:#07c160!important;box-shadow:none!important;transform:none!important;font-weight:500!important}
+.composer-send-btn:hover{background:#06ad56!important;box-shadow:none!important;transform:none!important}
+.composer-send-btn:active{transform:none!important}
+.message-notice{border-radius:8px!important;border:0!important;box-shadow:none!important}
