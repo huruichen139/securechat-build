@@ -1555,6 +1555,7 @@ document.addEventListener('keydown', onKey);
         av.style.cssText = 'width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0';
         av.textContent = (g.displayName || g.name || '?').charAt(0);
         const info = document.createElement('div');
+  info.className = 'settings-info';
         info.style.cssText = 'flex:1;overflow:hidden';
         const n1 = document.createElement('div');
         n1.textContent = g.displayName || g.name || ('群 #' + g.id);
@@ -5413,8 +5414,10 @@ function openSettingsPage() {
 
   // Header
   const hdr = document.createElement('div');
+  hdr.className = 'settings-hdr';
   hdr.style.cssText = 'display:flex;align-items:center;padding:12px 16px;background:var(--surface,#f5f5f5);border-bottom:1px solid var(--border,#e5e5e5);position:sticky;top:0;z-index:1';
   const backBtn = document.createElement('button');
+  backBtn.className = 'settings-back';
   backBtn.textContent = '\u2190';
   backBtn.style.cssText = 'background:none;border:none;font-size:20px;color:var(--text,#191919);cursor:pointer;padding:4px 8px';
   backBtn.onclick = () => { panel.style.display = 'none'; if (main) main.style.display = ''; };
@@ -5426,11 +5429,13 @@ function openSettingsPage() {
   panel.appendChild(hdr);
 
   const content = document.createElement('div');
+  content.className = 'settings-content';
   content.style.cssText = 'padding:16px';
   panel.appendChild(content);
 
   // 个人信息卡片
   const profileCard = document.createElement('div');
+  profileCard.className = 'settings-profile';
   profileCard.style.cssText = 'background:var(--surface,#fff);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;cursor:pointer;border:1px solid var(--border,#e5e5e5)';
   const av = (me && me.avatar) ? '<img src="' + escapeHtml(me.avatar) + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary,#2563eb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700">' + escapeHtml(me ? (me.nickname || '').charAt(0) : 'U') + '</div>';
   profileCard.innerHTML = av + '<div style="flex:1"><div style="font-size:17px;font-weight:600;color:var(--text,#191919)">' + (me ? escapeHtml(me.nickname) : '') + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">微信号：' + (me ? escapeHtml(me.uid || '') : '') + '</div></div><span style="color:#ccc;font-size:16px">\u203a</span>';
@@ -5639,8 +5644,10 @@ const panel = document.getElementById('settingsPanel');
 
   groups.forEach(grp => {
     const section = document.createElement('div');
+  section.className = 'settings-section';
     section.style.cssText = 'margin-bottom:20px';
     const title = document.createElement('div');
+  title.className = 'settings-section-title';
     title.textContent = grp.title;
     title.style.cssText = 'font-size:13px;color:var(--muted,#999);margin-bottom:8px;padding-left:4px';
     section.appendChild(title);
@@ -5659,19 +5666,23 @@ const panel = document.getElementById('settingsPanel');
       return;
     }
     const card = document.createElement('div');
+  card.className = 'settings-card';
     card.style.cssText = 'background:var(--surface,#fff);border-radius:12px;overflow:hidden;border:1px solid var(--border,#e5e5e5)';
     grp.items.forEach((item, idx) => {
       const row = document.createElement('div');
+  row.className = 'settings-row';
       row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border,#f0f0f0);' + (idx === grp.items.length - 1 ? 'border-bottom:none' : '');
       row.onmouseover = () => row.style.background = 'var(--surface2,#f9f9f9)';
       row.onmouseout = () => row.style.background = '';
       const ic = document.createElement('div');
+  ic.className = 'settings-ic';
       ic.style.cssText = 'width:32px;height:32px;border-radius:6px;background:var(--primary,#2563eb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-right:12px;flex-shrink:0';
       ic.textContent = item.icon;
       const info = document.createElement('div');
       info.style.cssText = 'flex:1;min-width:0';
       info.innerHTML = '<div style="font-size:15px;color:var(--text,#191919)">' + item.label + '</div>' + (item.desc ? '<div style="font-size:12px;color:var(--muted,#999);margin-top:2px">' + item.desc + '</div>' : '');
       const arrow = document.createElement('span');
+  arrow.className = 'settings-arrow';
       arrow.style.cssText = 'color:#ccc;font-size:14px;margin-left:8px';
       arrow.textContent = '\u203a';
       row.appendChild(ic);
@@ -5686,6 +5697,7 @@ const panel = document.getElementById('settingsPanel');
 
   // 退出登录按钮
   const logoutBtn = document.createElement('button');
+  logoutBtn.className = 'settings-logout';
   logoutBtn.textContent = '退出登录';
   logoutBtn.style.cssText = 'width:100%;padding:12px;border:none;border-radius:12px;background:var(--surface,#fff);color:var(--danger,#fa5151);font-size:16px;font-weight:500;cursor:pointer;margin-top:8px;border:1px solid var(--border,#e5e5e5)';
   logoutBtn.onclick = () => { if (confirm('确定退出登录？')) logout(); };
