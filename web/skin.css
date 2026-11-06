@@ -2747,3 +2747,9 @@ html.is-mobile .wechat-page .page-body{flex:1!important;min-height:0!important;o
 .mobile-list-title{display:none}
 html.is-mobile .mobile-list-title{display:block;order:-2;height:44px;line-height:44px;padding:0 16px;font-size:17px;font-weight:600;color:#191919}
 html.is-mobile body.dark-mode .mobile-list-title{color:#d6d6d6}
+/* mobile chat header + composer refinements */
+#chatMobileBackBtn{font-size:0!important;width:36px!important;padding:0!important;display:flex!important;align-items:center;justify-content:center}
+#chatMobileBackBtn::before{content:'\2039';font-size:30px;line-height:1;font-weight:300;color:#191919}
+body.dark-mode #chatMobileBackBtn::before{color:#d6d6d6}
+#chatMobileComposer .composer-send-btn{width:auto!important;min-width:56px!important;padding:0 12px!important;height:32px!important;font-size:14px!important}
+#chatMobileComposer:has(#input:placeholder-shown) #sendBtn{display:none!important}
