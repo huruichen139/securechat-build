@@ -5470,7 +5470,7 @@ app.get('/api/conversations/preview', (req, res) => {
     );
     const rows = dp.all(me, me, me, me, me, me);
     for (const r of rows) {
-      previews['f' + (r.mine ? r.to : r.from)] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.created_at, seq: r.seq };
+      previews['f' + (r.mine ? r.to : r.from)] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.createdAt, seq: r.seq };
     }
     // 群聊：每个所在群最新一条
     const gp = prepare(
@@ -5485,7 +5485,7 @@ app.get('/api/conversations/preview', (req, res) => {
     );
     const grows = gp.all(me, me);
     for (const r of grows) {
-      previews['g' + r.groupId] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.created_at, seq: r.seq };
+      previews['g' + r.groupId] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.createdAt, seq: r.seq };
     }
     // 私聊未读：每个好友发给我的未读消息数（重启后恢复角标）
     try {

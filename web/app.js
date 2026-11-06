@@ -2313,6 +2313,7 @@ async function loadFriends() {
     const data = await res.json();
     state.friends = data.friends || [];
     renderContacts();
+    loadConversationPreviews();
     // 通讯录页若正显示，同步刷新（避免打开时好友尚未加载导致列表为空）
     const cp = document.getElementById('contactsPage');
     if (cp && cp.classList.contains('active')) renderContactsPage();
@@ -2324,6 +2325,34 @@ async function loadFriends() {
     }
   } catch (e) {}
 }
+
+async function loadConversationPreviews() {
+  try {
+    const res = await fetch(state.serverHost + '/api/conversations/preview', {
+      headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const pv = data.previews || {};
+    Object.keys(pv).forEach((k) => {
+      const p = pv[k];
+      if (!p) return;
+      const isGroup = k.charAt(0) === 'g';
+      const id = Number(k.slice(1));
+      if (!id) return;
+      if (isGroup) {
+        if (p.text != null) state.groupLastMsg[id] = p.text;
+        if (p.ts) state.groupLastMsgTime[id] = p.ts;
+      } else {
+        if (p.text != null) state.lastFrom[id] = p.text;
+        if (p.ts) state.lastMsgTime[id] = p.ts;
+        if (p.unread) state.unread[id] = Math.max(state.unread[id] || 0, Number(p.unread) || 0);
+      }
+    });
+    renderContacts();
+  } catch (e) { /* ignore */ }
+}
+window.loadConversationPreviews = loadConversationPreviews;
 
 function renderContacts() {
   updateUnreadBadge();
