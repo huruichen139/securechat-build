@@ -4735,7 +4735,8 @@ function sendAttachmentFile(f) {
           return;
         }
         if (el.dataset.kind === 'fav') {
-          if (window.SecureChatFavorites && window.SecureChatFavorites.openPanel) window.SecureChatFavorites.openPanel();
+          const f = (window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('favorites')) || window.SecureChatFavorites;
+          if (f) openContainerFeature(f, '我的收藏');
           else toast('收藏功能未就绪', 'info');
           return;
         }

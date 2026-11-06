@@ -35,6 +35,33 @@
     if (window.toast && typeof window.toast === 'function') { window.toast(msg, kind, ms); return; }
     try { window.alert(msg); } catch (e) {}
   }
+  function ask(title, defVal) {
+    return new Promise((resolve) => {
+      const mask = document.createElement('div');
+      mask.className = 'sc-fav-ask-mask';
+      mask.innerHTML = '<div class="sc-fav-ask" role="dialog">' +
+        '<div class="sc-fav-ask-title"></div>' +
+        '<input class="sc-fav-ask-input" type="text" />' +
+        '<div class="sc-fav-ask-actions"><button type="button" data-act="cancel">取消</button><button type="button" class="ok" data-act="ok">确定</button></div>' +
+        '</div>';
+      mask.querySelector('.sc-fav-ask-title').textContent = title || '';
+      const input = mask.querySelector('.sc-fav-ask-input');
+      input.value = defVal == null ? '' : String(defVal);
+      const done = (v) => { try { mask.remove(); } catch (e) {} resolve(v); };
+      mask.addEventListener('click', (e) => {
+        if (e.target === mask) return done(null);
+        const act = e.target && e.target.dataset && e.target.dataset.act;
+        if (act === 'ok') done(input.value);
+        else if (act === 'cancel') done(null);
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); done(input.value); }
+        else if (e.key === 'Escape') { e.preventDefault(); done(null); }
+      });
+      document.body.appendChild(mask);
+      setTimeout(() => { try { input.focus(); input.select(); } catch (e) {} }, 30);
+    });
+  }
 
   const KindLabel = { text: '文字', image: '图片', file: '文件', message: '聊天记录', link: '链接', moment: '朋友圈' };
 
@@ -168,7 +195,7 @@
       const list = friends.friends || [];
       if (!list.length) return toast('暂无可转发的好友', 'error');
       const names = list.map(u => u.nickname || u.username);
-      const choice = window.prompt('选择转发给（请输入好友昵称，从：' + names.join('，') + '）', list[0] && (list[0].nickname || list[0].username));
+      const choice = await ask('转发给（可输入昵称或 ID，好友：' + names.join('、') + '）', list[0] && (list[0].nickname || list[0].username));
       if (!choice) return;
       const target = list.find(u => (u.nickname || u.username) === choice) || list.find(u => String(u.id) === String(choice));
       if (!target) return toast('未找到该好友', 'error');
@@ -177,50 +204,51 @@
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  function _editItem(container, state, card) {
+  async function _editItem(container, state, card) {
     const id = Number(card.getAttribute('data-id'));
-    api('GET', '/api/favorites/classifiers').then((cd) => {
-      const tagNames = card.querySelectorAll('.sc-fav-tag-mini');
-      const curTags = Array.from(tagNames).map(t => t.textContent.replace(/^#/, ''));
+    const tagNames = card.querySelectorAll('.sc-fav-tag-mini');
+    const curTags = Array.from(tagNames).map(t => t.textContent.replace(/^#/, ''));
+    const name = String(curTags.join(',')).trim();
+    const tagsInput = await ask('编辑标签（逗号分隔）', name);
+    if (tagsInput === null) return;
+    const tags = tagsInput.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+    let clsId = null;
+    let hasCls = false;
+    try {
+      const cd = await api('GET', '/api/favorites/classifiers');
       const clist = cd.classifiers || [];
-      const name = String(curTags.join(',')).trim();
-      const tagsInput = window.prompt('编辑标签（逗号分隔）', name);
-      if (tagsInput === null) return;
-      const tags = tagsInput.split(/[,，]/).map(t => t.trim()).filter(Boolean);
-      let clsId = null;
+      hasCls = true;
       if (clist.length) {
-        const options = clist.map(c => c.name).join('，');
-        const varCls = window.prompt('选择收藏夹（逗号隔开多个人间序号不适用，直接键入收藏夹名称或留空）', '');
+        const options = clist.map(c => c.name).join('、');
+        const varCls = await ask('选择收藏夹（留空则不归类，可选：' + options + '）', '');
         if (varCls === null) return;
         if (varCls.trim()) {
           const found = clist.find(c => c.name === varCls.trim());
           if (found) clsId = found.id;
         }
       }
-      _patch('/api/favorites/items/' + id, { tags, classifierId: clsId }).then(() => {
-        _loadItems(container, state); _loadTags(container);
-      }).catch((e) => toast(e.message, 'error'));
-    }).catch(() => {
-      // 无收藏夹也可改标签
-      const name = Array.from(card.querySelectorAll('.sc-fav-tag-mini')).map(t => t.textContent.replace(/^#/, '')).join(',');
-      const tagsInput = window.prompt('编辑标签（逗号分隔）', name);
-      if (tagsInput === null) return;
-      const tags = tagsInput.split(/[,，]/).map(t => t.trim()).filter(Boolean);
-      api('PATCH', '/api/favorites/items/' + id, { tags }).then(() => { _loadItems(container, state); _loadTags(container); }).catch((e) => toast(e.message, 'error'));
-    });
+    } catch (e) {}
+    const payload = { tags };
+    if (hasCls) payload.classifierId = clsId;
+    try {
+      await _patch('/api/favorites/items/' + id, payload);
+      _loadItems(container, state); _loadTags(container);
+    } catch (e) { toast(e.message, 'error'); }
   }
 
-  function _newClassifier(container, state) {
-    const name = window.prompt('新收藏夹名称');
+  async function _newClassifier(container, state) {
+    const name = await ask('新收藏夹名称');
     if (!name || !name.trim()) return;
-    api('POST', '/api/favorites/classifiers', { name: name.trim() }).then(() => {
+    try {
+      await api('POST', '/api/favorites/classifiers', { name: name.trim() });
       _loadClassifiers(container, state); toast('已创建', 'success');
-    }).catch((e) => toast(e.message, 'error'));
+    } catch (e) { toast(e.message, 'error'); }
   }
 
-  function _newItem(container, state) {
-    api('GET', '/api/favorites/classifiers').then((cd) => {
-      const kindChoice = window.prompt('收藏内容类型？(text=文字 image=图片 file=文件 link=链接 message=聊天记录 moment=朋友圈)', 'text');
+  async function _newItem(container, state) {
+    try {
+      const cd = await api('GET', '/api/favorites/classifiers');
+      const kindChoice = await ask('收藏类型（文字/图片/文件/链接/聊天记录/朋友圈）', '文字');
       if (!kindChoice) return;
       const kindMap = { '文字': 'text', '图片': 'image', '文件': 'file', '链接': 'link', '聊天记录': 'message', '朋友圈': 'moment' };
       const kind = kindMap[kindChoice.trim()] || kindChoice.trim();
@@ -229,21 +257,20 @@
       const cls = (cd.classifiers || [])[0];
       const classifierId = cls ? cls.id : null;
       if (kind === 'text' || kind === 'message' || kind === 'moment') {
-        const c = window.prompt('内容'); if (c == null) return; data = { text: c, content: c };
+        const c = await ask('内容'); if (c == null) return; data = { text: c, content: c };
       } else if (kind === 'link') {
-        const u = window.prompt('链接 URL'); if (u == null) return;
-        const t = window.prompt('标题', u); data = { url: u, title: t || u };
+        const u = await ask('链接 URL'); if (u == null) return;
+        const t = await ask('标题', u); data = { url: u, title: t || u };
       } else if (kind === 'image') {
-        const u = window.prompt('图片地址'); if (u == null) return; data = { url: u };
+        const u = await ask('图片地址'); if (u == null) return; data = { url: u };
       } else if (kind === 'file') {
-        const n = window.prompt('文件名称'); if (n == null) return; data = { name: n, url: '' };
+        const n = await ask('文件名称'); if (n == null) return; data = { name: n, url: '' };
       }
-      const tagsStr = window.prompt('标签(逗号分隔)', '');
+      const tagsStr = await ask('标签（逗号分隔）', '');
       const tags = (tagsStr || '').split(/[,，]/).map(t => t.trim()).filter(Boolean);
-      api('POST', '/api/favorites/items', { kind, data, classifierId, tags }).then(() => {
-        _loadItems(container, state); _loadTags(container); toast('已收藏', 'success');
-      }).catch((e) => toast(e.message, 'error'));
-    }).catch((e) => toast(e.message, 'error'));
+      await api('POST', '/api/favorites/items', { kind, data, classifierId, tags });
+      _loadItems(container, state); _loadTags(container); toast('已收藏', 'success');
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   // 注册特性
