@@ -2382,3 +2382,6 @@ body.dark-mode .contact-alphabet-index span { color: #6b6b6b !important; }
 .profile-card .profile-actions .btn-cn:active { background: #f2f2f2 !important; }
 body.dark-mode .profile-card .profile-actions { background: #2c2c2c !important; border-top-color: #3a3a3a !important; }
 body.dark-mode .profile-card .profile-actions .btn-cn + .btn-cn { border-left-color: #3a3a3a !important; }
+
+/* ---------- 我页面图标配色 ---------- */
+#mePage .wx-me-item .wx-me-icon { background: var(--ic, #07c160) !important; color: #fff !important; }

@@ -5716,7 +5716,7 @@ function renderMePage() {
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
 const services = [
-    { name: '支付', icon: '支付', action: () => {
+    { name: '支付', icon: '付', action: () => {
       const pay = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
       else toast('支付功能开发中', 'info');
@@ -5739,7 +5739,8 @@ const services = [
   svc.querySelectorAll('.wx-me-item').forEach((el, i) => { el.onclick = services[Number(el.dataset.si)].action; });
 }
 function meItemHtml(s, i) {
-  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">›</span></div>`;
+  const COLORS = ['#07c160', '#fa9d3b', '#2782d7', '#8a6ad6', '#fa5151', '#7f7f7f', '#576b95', '#2782d7', '#fa9d3b', '#7f7f7f'];
+  return `<div class="wx-me-item" data-si="${i}"><div class="wx-me-icon" style="--ic:${COLORS[i % COLORS.length]}">${s.icon}</div><span class="wx-me-name">${s.name}</span><span class="wx-discover-arrow">›</span></div>`;
 }
 
 // 通讯录页渲染
