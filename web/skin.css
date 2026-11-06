@@ -2708,3 +2708,7 @@ body.dark-mode .announcement-content{color:#a0a0a0!important}
 /* auth copy cleanup */
 .auth-sub{display:none!important}
 .auth-logo{font-size:26px!important;font-weight:500!important;letter-spacing:0!important;text-align:center!important}
+/* me card flat */
+.me-card{box-shadow:none!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;padding:0!important}
+.me-card-item{border-radius:0!important;box-shadow:none!important;background:#fff!important}
+body.dark-mode .me-card-item{background:#191919!important}
