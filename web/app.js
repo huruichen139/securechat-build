@@ -5181,6 +5181,9 @@ function hideMobilePages() {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
+  const nav = document.getElementById('mobileBottomNav');
+  if (nav) nav.classList.remove('nav-hidden');
+  document.documentElement.classList.remove('subpage-active');
 }
 function showMobilePage(pageId) {
   hideMobilePages();
@@ -5196,6 +5199,10 @@ function showMobilePage(pageId) {
   if (chatHeader) chatHeader.style.display = 'none';
   const chatComposer = document.getElementById('chatMobileComposer');
   if (chatComposer) chatComposer.style.display = 'none';
+  const nav = document.getElementById('mobileBottomNav');
+  const subpage = !['discoverPage', 'mePage', 'contactsPage'].includes(pageId);
+  if (nav) nav.classList.toggle('nav-hidden', subpage);
+  document.documentElement.classList.toggle('subpage-active', subpage);
 }
 
 // 发现页渲染（微信式列表）
