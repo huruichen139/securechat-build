@@ -3818,7 +3818,11 @@ const EMOJI_SET = ['😀','😁','😂','🤣','😊','😍','😘','😜','🤔
 function toggleEmojiPanel() {
   const existing = document.getElementById('emojiPanel');
   if (existing) { existing.remove(); return; }
-  const host = document.getElementById('chatMobileComposer') || document.getElementById('chatDesktopComposer');
+  const cvEl = document.getElementById('chatView');
+  const isMobileChatNow = !!(cvEl && cvEl.classList.contains('mobile-chat-active'));
+  const host = isMobileChatNow
+    ? (document.getElementById('chatMobileComposer') || document.getElementById('chatDesktopComposer'))
+    : (document.getElementById('chatDesktopComposer') || document.getElementById('chatMobileComposer'));
   if (!host) return;
   const panel = document.createElement('div');
   panel.id = 'emojiPanel';
@@ -3840,6 +3844,10 @@ function toggleEmojiPanel() {
 (function () {
   const emojiBtn = document.getElementById('emojiIconBtn');
   if (emojiBtn) emojiBtn.onclick = toggleEmojiPanel;
+})();
+(function () {
+  const de = document.getElementById('desktopEmojiBtn');
+  if (de) de.onclick = toggleEmojiPanel;
 })();
 
 // ============ 表情选择器 END ============

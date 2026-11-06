@@ -2436,3 +2436,16 @@ body.dark-mode #settingsPanel .settings-profile, body.dark-mode #settingsPanel .
 body.dark-mode #settingsPanel .settings-row { border-bottom-color: #2a2a2a !important; }
 body.dark-mode #settingsPanel .settings-info > div:first-child { color: #d6d6d6 !important; }
 body.dark-mode #settingsPanel .settings-ic { background: #2c2c2c !important; color: #d6d6d6 !important; }
+
+/* ---------- 表情面板：微信式浮层 ---------- */
+#chatView .main .composer, #chatView #chatMobileComposer { position: relative !important; }
+#chatView .emoji-panel, #chatView #emojiPanel {
+  position: absolute !important; bottom: calc(100% + 6px) !important; left: 8px !important; right: 8px !important;
+  background: #fff !important; border: 0 !important; border-radius: 4px !important;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, .12) !important; padding: 8px !important; gap: 0 !important;
+  display: grid !important; grid-template-columns: repeat(8, 1fr) !important; max-height: 260px !important; overflow-y: auto !important;
+}
+#chatView #emojiPanel .emoji-item { font-size: 22px !important; padding: 4px 0 !important; border-radius: 4px !important; text-align: center !important; }
+#chatView #emojiPanel .emoji-item:hover { background: #f2f2f2 !important; }
+body.dark-mode #chatView #emojiPanel { background: #2c2c2c !important; }
+body.dark-mode #chatView #emojiPanel .emoji-item:hover { background: #3a3a3a !important; }
