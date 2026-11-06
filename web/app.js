@@ -3378,8 +3378,7 @@ async function selectPeer(peerId) {
     try { await window.SCE2EE.primeReceiver(peerId); } catch (e) { console.warn('[E2EE] primeReceiver failed', e); }
   }
   const peer = state.friends.find(u => u.id === peerId);
-  $('chatHeader').textContent = peer ? peer.nickname : '聊天';
-  $('inviteBar').style.display = 'none';
+  renderChatHeader();
   renderContacts();
   refreshConversationButtons();
   restoreCurrentDraft();

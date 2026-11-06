@@ -2449,3 +2449,7 @@ body.dark-mode #settingsPanel .settings-ic { background: #2c2c2c !important; col
 #chatView #emojiPanel .emoji-item:hover { background: #f2f2f2 !important; }
 body.dark-mode #chatView #emojiPanel { background: #2c2c2c !important; }
 body.dark-mode #chatView #emojiPanel .emoji-item:hover { background: #3a3a3a !important; }
+
+/* ---------- 会话标题：只显示名称 ---------- */
+#chatView .main .header .chat-status { display: none !important; }
+#chatView .main .header #chatHeader { font-size: 17px !important; font-weight: 500 !important; }
