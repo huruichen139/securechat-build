@@ -2491,3 +2491,8 @@ body.dark-mode #chatView #emojiPanel .emoji-item:hover { background: #3a3a3a !im
 #chatView .sidebar .my-info .my-name { font-size: 14px !important; font-weight: 400 !important; color: #191919 !important; }
 #chatView .sidebar .my-info .account-copy { display: flex !important; align-items: center !important; }
 body.dark-mode #chatView .sidebar .my-info .my-name { color: #d6d6d6 !important; }
+
+/* ---------- 移动端长按显示消息操作 ---------- */
+#chatView .messages .msg-row.show-actions .message-actions {
+  opacity: 1 !important; pointer-events: auto !important;
+}
