@@ -2839,3 +2839,12 @@ html.is-mobile #chatView > #downloadView.dl-hidden{display:none!important}
   #downloadView{scrollbar-width:none}
   #downloadView::-webkit-scrollbar{width:0;height:0}
 }
+/* AI view mobile back */
+#aiBackBtn{display:none!important}
+@media (max-width: 760px) {
+  #chatView .ai-header{position:relative!important;justify-content:flex-end!important;padding:0 12px!important}
+  #chatView .ai-header > span[data-i18n="ai"]{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:17px!important;font-weight:500!important;color:#191919!important}
+  #chatView .ai-header #aiBackBtn{display:inline-flex!important;position:absolute;left:4px;top:50%;transform:translateY(-50%);align-items:center;justify-content:center;width:36px!important;height:44px!important;padding:0!important;font-size:30px!important;line-height:1;font-weight:300!important;color:#191919!important;background:transparent!important}
+  body.dark-mode #chatView .ai-header > span[data-i18n="ai"]{color:#d6d6d6!important}
+  body.dark-mode #chatView .ai-header #aiBackBtn{color:#d6d6d6!important}
+}

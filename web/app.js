@@ -3703,6 +3703,7 @@ const welcomeAiBtn = $('welcomeAiBtn');
 if (welcomeAddBtn) welcomeAddBtn.onclick = () => { const input = $('addFriendInput'); if (input) input.focus(); };
 if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const btn = $('createGroupBtn'); if (btn) btn.click(); };
 if (welcomeAiBtn) welcomeAiBtn.onclick = () => {
+  window.__aiReturn = 'chat';
   hideMobilePages();
   const main = document.querySelector('.main'); if (main) main.style.display = 'none';
   const dv = $('downloadView'); if (dv) dv.style.display = 'none';
@@ -3710,6 +3711,17 @@ if (welcomeAiBtn) welcomeAiBtn.onclick = () => {
   const fs = $('friendsSide'); if (fs) fs.style.display = 'none';
   if (window.IS_MOBILE) { const cv = document.getElementById('chatView'); if (cv) { cv.classList.add('mobile-chat-active'); cv.scrollLeft = 0; } }
   if (window.switchToAi) window.switchToAi();
+};
+
+const aiBackBtn = $('aiBackBtn');
+if (aiBackBtn) aiBackBtn.onclick = () => {
+  const av = $('aiView'); if (av) av.style.display = 'none';
+  const cv = document.getElementById('chatView'); if (cv) cv.classList.remove('mobile-chat-active');
+  const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
+  const target = window.__aiReturn === 'discover' ? 'ai' : 'friends';
+  window.__aiReturn = null;
+  const tab = document.querySelector('.sidebar-rail .side-tab[data-side="' + target + '"]');
+  if (tab) tab.click();
 };
 
 function appendMessage(m, prepend) {
@@ -5323,7 +5335,7 @@ function showMobilePage(pageId) {
 function renderDiscoverPage() {
   const list = document.getElementById('discoverList');
   if (!list) return;
-  const openAiView = () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.IS_MOBILE) { const cv = document.getElementById('chatView'); if (cv) { cv.classList.add('mobile-chat-active'); cv.scrollLeft = 0; } } if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
+  const openAiView = () => { window.__aiReturn = 'discover'; const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const aiView = $('aiView'); if (aiView) aiView.style.display = 'flex'; if (window.IS_MOBILE) { const cv = document.getElementById('chatView'); if (cv) { cv.classList.add('mobile-chat-active'); cv.scrollLeft = 0; } } if (window.switchToAi) window.switchToAi(); loadMiniPrograms(); };
   const openFeat = (name, title) => {
     const gmap = {
       videos: 'SecureChatVideos', live: 'SecureChatLive', shop: 'SecureChatShop',
