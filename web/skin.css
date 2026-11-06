@@ -2664,3 +2664,6 @@ body.dark-mode .auth-card .tab.on{background:#07c160!important;color:#fff!import
 #chatView .sidebar-content .contact-list{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
 #chatView .sidebar-tools #search{border-radius:4px!important;background:#f2f2f2!important}
 #chatView .sidebar-tools #sidePlusBtn{width:30px!important;height:30px!important;border-radius:4px!important;color:#7f7f7f!important;font-size:20px!important;background:transparent!important}
+/* settings rows plain like wechat */
+#settingsPanel .settings-ic,.settings-ic{display:none!important}
+#settingsPanel .settings-row,.settings-row{padding-left:16px!important;padding-right:16px!important}
