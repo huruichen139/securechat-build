@@ -2788,3 +2788,5 @@ body.dark-mode .page-add{color:#d6d6d6}
 #chatView #contactsPage .contact-section .contact .avatar{width:40px!important;height:40px!important;flex:0 0 40px!important}
 #chatView #contactsPage .contact-section .contact .last{display:none!important}
 #chatView #contactsPage .contact-section .contact .name{font-size:16px!important}
+#chatView #contactsPage .page-body > #contactsSearch{margin:8px 12px!important;width:calc(100% - 24px)!important;height:36px!important;background:#f2f2f2!important;border:0!important;border-radius:4px!important;font-size:14px!important;padding:0 12px!important}
+body.dark-mode #chatView #contactsPage .page-body > #contactsSearch{background:#2c2c2c!important;color:#d6d6d6!important}
