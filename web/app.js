@@ -2603,6 +2603,8 @@ function syncMobileNav(active) {
   document.querySelectorAll('#mobileBottomNav .side-tab').forEach(b => {
     b.classList.toggle('on', b.dataset.side === active);
   });
+  const cv = document.getElementById('chatView');
+  if (cv) cv.scrollLeft = 0;
 }
 document.querySelectorAll('.side-tab').forEach(tt => {
   tt.onclick = () => {
