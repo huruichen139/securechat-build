@@ -246,8 +246,8 @@
   }
 
   // 创建接龙弹层
-  function openCreateSolang(groupId) {
-    const title = window.prompt('接龙主题：', '');
+  async function openCreateSolang(groupId) {
+    const title = window.scAsk ? await window.scAsk({ title: '接龙主题', placeholder: '请输入接龙主题' }) : window.prompt('接龙主题：', '');
     if (title == null) return;
     if (!title.trim()) { toast('主题不能为空', 'warn'); return; }
     createSolang(groupId, title.trim()).then(() => emit('solang-created', {})).catch((e) => toast('发起失败：' + (e.message || e), 'error'));

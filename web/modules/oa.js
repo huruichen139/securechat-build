@@ -231,8 +231,8 @@
       .then(function (d) { rerenderComments(aid, body, d.comments); })
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
-  function replyTo(aid, cid, body) {
-    const c = window.prompt('作者回复：');
+  async function replyTo(aid, cid, body) {
+    const c = window.scAsk ? await window.scAsk({ title: '作者回复', placeholder: '请输入回复内容' }) : window.prompt('作者回复：');
     if (!c || !c.trim()) return;
     apiFetch('/api/articles/' + aid + '/reply', { method: 'POST', json: { commentId: cid, content: c.trim() } })
       .then(function (d) { rerenderComments(aid, body, d.comments); toastMsg('已回复'); })

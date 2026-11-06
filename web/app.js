@@ -311,6 +311,59 @@ function toast(msg, kind /* info|success|error|warn */, ms) {
   }, ms);
 }
 
+function scAsk(opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const mask = document.createElement('div');
+    mask.className = 'sc-fav-ask-mask';
+    const box = document.createElement('div');
+    box.className = 'sc-fav-ask';
+    const title = document.createElement('div');
+    title.className = 'sc-fav-ask-title';
+    title.textContent = opts.title || '';
+    const input = document.createElement('input');
+    input.className = 'sc-fav-ask-input';
+    input.type = 'text';
+    input.placeholder = opts.placeholder || '';
+    input.value = opts.value || '';
+    const actions = document.createElement('div');
+    actions.className = 'sc-fav-ask-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = opts.cancelText || '取消';
+    const ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'ok';
+    ok.textContent = opts.okText || '确定';
+    actions.appendChild(cancel);
+    actions.appendChild(ok);
+    box.appendChild(title);
+    box.appendChild(input);
+    box.appendChild(actions);
+    mask.appendChild(box);
+    document.body.appendChild(mask);
+    let done = false;
+    const finish = (v) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey, true);
+      mask.remove();
+      resolve(v);
+    };
+    const submit = () => finish(input.value);
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+      else if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    };
+    cancel.onclick = () => finish(null);
+    ok.onclick = submit;
+    mask.onclick = (e) => { if (e.target === mask) finish(null); };
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(() => { input.focus(); input.select(); }, 30);
+  });
+}
+window.scAsk = scAsk;
+
 // 剪贴板复制：navigator.clipboard 在非安全上下文/未聚焦时会 reject，
 // 统一降级到 execCommand 兜底，避免用户只看到「复制失败」。
 function copyText(text) {
