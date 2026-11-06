@@ -2496,3 +2496,10 @@ body.dark-mode #chatView .sidebar .my-info .my-name { color: #d6d6d6 !important;
 #chatView .messages .msg-row.show-actions .message-actions {
   opacity: 1 !important; pointer-events: auto !important;
 }
+
+/* ---------- 置顶/静音标记：改为底色，去掉文字角标 ---------- */
+#chatView .contact-list .contact .contact-mark { display: none !important; }
+#chatView .contact-list .contact:has(.contact-mark) { background: #ededed !important; }
+#chatView .contact-list .contact:has(.contact-mark):hover { background: #e5e5e5 !important; }
+body.dark-mode #chatView .contact-list .contact:has(.contact-mark) { background: #232323 !important; }
+body.dark-mode #chatView .contact-list .contact:has(.contact-mark):hover { background: #2a2a2a !important; }
