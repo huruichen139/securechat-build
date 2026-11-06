@@ -4710,7 +4710,7 @@ function sendAttachmentFile(f) {
     const p = document.createElement('div');
     p.id = 'plusPanel';
     p.className = 'plus-panel';
-    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">相</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">拍</div><span>拍摄</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">文</div><span>文件</span></div><div class="plus-item" data-kind="rp"><div class="plus-ico">红</div><span>红包</span></div><div class="plus-item" data-kind="transfer"><div class="plus-ico">转</div><span>转账</span></div>';
+    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">▦</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">◉</div><span>拍摄</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">▤</div><span>文件</span></div><div class="plus-item" data-kind="rp"><div class="plus-ico">¥</div><span>红包</span></div><div class="plus-item" data-kind="transfer"><div class="plus-ico">⇄</div><span>转账</span></div><div class="plus-item" data-kind="fav"><div class="plus-ico">★</div><span>收藏</span></div><div class="plus-item" data-kind="audio"><div class="plus-ico">☎</div><span>语音通话</span></div><div class="plus-item" data-kind="video"><div class="plus-ico">▷</div><span>视频通话</span></div>';
     host.appendChild(p);
     p.querySelectorAll('.plus-item').forEach(el => {
       el.onclick = () => {
@@ -4724,6 +4724,15 @@ function sendAttachmentFile(f) {
           const payFeat = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
           if (payFeat && payFeat.openTransfer) payFeat.openTransfer();
           else toast('转账功能未就绪', 'info');
+          return;
+        }
+        if (el.dataset.kind === 'fav') {
+          if (window.SecureChatFavorites && window.SecureChatFavorites.openPanel) window.SecureChatFavorites.openPanel();
+          else toast('收藏功能未就绪', 'info');
+          return;
+        }
+        if (el.dataset.kind === 'audio' || el.dataset.kind === 'video') {
+          if (typeof startOutgoingCall === 'function') startOutgoingCall(el.dataset.kind);
           return;
         }
         const inp = document.createElement('input');
