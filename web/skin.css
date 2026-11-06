@@ -2522,3 +2522,22 @@ body.dark-mode #chatView .plus-item { color: #b2b2b2 !important; }
 
 /* ---------- 隐藏逐条消息时间，保留日期分隔 ---------- */
 #chatView .messages .msg-row .time { display: none !important; }
+
+/* ---------- 收藏面板：微信式扁平 ---------- */
+.sc-fav-btn { border-radius: 4px !important; background: #f2f2f2 !important; color: #191919 !important; border: 0 !important; box-shadow: none !important; transform: none !important; }
+.sc-fav-btn:hover { background: #e9e9e9 !important; color: #191919 !important; }
+.sc-fav-btn-primary { background: #07c160 !important; color: #fff !important; }
+.sc-fav-btn-primary:hover { background: #06ad56 !important; color: #fff !important; }
+.sc-fav-search { border-radius: 4px !important; background: #f7f7f7 !important; border: 0 !important; box-shadow: none !important; }
+.sc-fav-tag, .sc-fav-cfg { border-radius: 4px !important; border: 0 !important; background: #f7f7f7 !important; color: #555 !important; }
+.sc-fav-tag:hover, .sc-fav-cfg:hover { background: #ededed !important; color: #191919 !important; }
+.sc-fav-tag-active, .sc-fav-cfg-active { background: #07c160 !important; color: #fff !important; }
+.sc-fav-item { border-radius: 0 !important; border: 0 !important; border-bottom: 1px solid #ededed !important; background: #fff !important; box-shadow: none !important; padding: 12px 0 !important; }
+.sc-fav-item:hover { border-color: #ededed !important; box-shadow: none !important; }
+.sc-fav-items { padding: 0 14px !important; }
+.sc-fav-image-wrap img { border-radius: 4px !important; }
+.sc-fav-item-tag { color: #576b95 !important; }
+body.dark-mode .sc-fav-btn { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode .sc-fav-search { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode .sc-fav-item { background: #191919 !important; border-bottom-color: #2a2a2a !important; }
+body.dark-mode .sc-fav-tag, body.dark-mode .sc-fav-cfg { background: #2c2c2c !important; color: #b2b2b2 !important; }
