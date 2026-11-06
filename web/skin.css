@@ -2453,3 +2453,8 @@ body.dark-mode #chatView #emojiPanel .emoji-item:hover { background: #3a3a3a !im
 /* ---------- 会话标题：只显示名称 ---------- */
 #chatView .main .header .chat-status { display: none !important; }
 #chatView .main .header #chatHeader { font-size: 17px !important; font-weight: 500 !important; }
+
+/* ---------- 气泡宽度上限：贴近微信 ---------- */
+#chatView .messages .msg-row .bubble-wrap { max-width: min(68%, 620px) !important; }
+#chatView .messages .msg-row .bubble-wrap .bubble { max-width: 100% !important; }
+#chatView .messages .msg-row .bubble-wrap img, #chatView .messages .msg-row .bubble-wrap video { max-width: 100% !important; height: auto !important; }
