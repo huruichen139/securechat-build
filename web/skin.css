@@ -2778,3 +2778,13 @@ body.dark-mode .moments-page .moments-header .back-btn::before{color:#d6d6d6}
 .page-add{position:absolute;right:6px;top:0;height:44px;width:36px;border:0;background:transparent;font-size:26px;line-height:1;color:#191919;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .page-add:hover{background:transparent}
 body.dark-mode .page-add{color:#d6d6d6}
+/* contacts page: WeChat-style name-only rows */
+#contactsPage .contact{height:56px!important;min-height:56px!important;max-height:56px!important}
+#contactsPage .contact .avatar{width:40px!important;height:40px!important;flex:0 0 40px!important}
+#contactsPage .contact .last{display:none!important}
+#contactsPage .contact > div:nth-child(2){display:flex!important;align-items:center!important;height:56px!important}
+#contactsPage .contact .name{font-size:16px!important}
+#chatView #contactsPage .contact-section .contact{height:56px!important;min-height:56px!important}
+#chatView #contactsPage .contact-section .contact .avatar{width:40px!important;height:40px!important;flex:0 0 40px!important}
+#chatView #contactsPage .contact-section .contact .last{display:none!important}
+#chatView #contactsPage .contact-section .contact .name{font-size:16px!important}
