@@ -4713,11 +4713,22 @@ function sendAttachmentFile(f) {
     const p = document.createElement('div');
     p.id = 'plusPanel';
     p.className = 'plus-panel';
-    p.innerHTML = '<div class="plus-item" data-kind="album"><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">拍</div><span>拍照</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">文</div><span>文件</span></div>';
+    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">相</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">拍</div><span>拍摄</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">文</div><span>文件</span></div><div class="plus-item" data-kind="rp"><div class="plus-ico">红</div><span>红包</span></div><div class="plus-item" data-kind="transfer"><div class="plus-ico">转</div><span>转账</span></div>';
     host.appendChild(p);
     p.querySelectorAll('.plus-item').forEach(el => {
       el.onclick = () => {
         p.remove();
+        if (el.dataset.kind === 'rp') {
+          if (window.SecureChatRedpacket && window.SecureChatRedpacket.sendDialog) window.SecureChatRedpacket.sendDialog();
+          else toast('红包功能未就绪', 'info');
+          return;
+        }
+        if (el.dataset.kind === 'transfer') {
+          const payFeat = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
+          if (payFeat && payFeat.openTransfer) payFeat.openTransfer();
+          else toast('转账功能未就绪', 'info');
+          return;
+        }
         const inp = document.createElement('input');
         inp.type = 'file';
         if (el.dataset.kind === 'album') inp.accept = 'image/*';

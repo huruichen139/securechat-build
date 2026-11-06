@@ -2503,3 +2503,22 @@ body.dark-mode #chatView .sidebar .my-info .my-name { color: #d6d6d6 !important;
 #chatView .contact-list .contact:has(.contact-mark):hover { background: #e5e5e5 !important; }
 body.dark-mode #chatView .contact-list .contact:has(.contact-mark) { background: #232323 !important; }
 body.dark-mode #chatView .contact-list .contact:has(.contact-mark):hover { background: #2a2a2a !important; }
+
+/* ---------- 加号面板：微信式四列 ---------- */
+#chatView .plus-panel {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 6px !important; padding: 12px 8px !important;
+  border-radius: 4px !important; box-shadow: 0 1px 8px rgba(0, 0, 0, .12) !important; border: 0 !important;
+}
+#chatView .plus-item { padding: 6px 2px !important; gap: 6px !important; font-size: 12px !important; color: #555 !important; border-radius: 4px !important; }
+#chatView .plus-ico {
+  width: 56px !important; height: 56px !important; border-radius: 12px !important;
+  background: #f7f7f7 !important; color: #555 !important; font-size: 20px !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+}
+#chatView .plus-item:active .plus-ico { background: #e9e9e9 !important; }
+body.dark-mode #chatView .plus-ico { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .plus-item { color: #b2b2b2 !important; }
+
+/* ---------- 隐藏逐条消息时间，保留日期分隔 ---------- */
+#chatView .messages .msg-row .time { display: none !important; }
