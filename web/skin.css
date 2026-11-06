@@ -2815,3 +2815,4 @@ body.dark-mode .sc-fav-ask{background:#2c2c2c}
 body.dark-mode .sc-fav-ask-title{color:#d6d6d6}
 body.dark-mode .sc-fav-ask-input{background:#1f1f1f;color:#d6d6d6}
 body.dark-mode .sc-fav-ask-actions button{background:#3a3a3a;color:#d6d6d6}
+html.is-mobile #chatView .sidebar-tools > #search{width:100%!important;height:36px!important;margin-left:0!important;margin-right:0!important;margin-top:0!important;margin-bottom:8px!important}
