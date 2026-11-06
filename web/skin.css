@@ -2618,3 +2618,9 @@ body.dark-mode .ai-banner-sm .ai-banner-ico{color:#fff!important}
 .modal-x{border-radius:4px!important}
 /* conv row wechat mobile */
 @media (max-width:720px){#chatView .contact-list .contact{padding:0 16px!important;height:64px!important}#chatView .contact-list .contact .avatar{width:48px!important;height:48px!important;flex:0 0 48px!important;border-radius:4px!important}#chatView .contact-list .contact .name{font-size:16px!important}#chatView .contact-list .contact .last{font-size:13px!important;color:#b2b2b2!important}}
+/* quote inside bubble */
+#chatView .messages .quote-block{display:block!important;background:rgba(0,0,0,.04)!important;border-radius:4px!important;padding:5px 8px!important;margin:0 0 6px!important;font-size:12.5px!important;line-height:1.45!important;color:#999!important;white-space:normal!important;overflow:hidden;text-overflow:ellipsis;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#chatView .messages .msg-row.me .quote-block{background:rgba(0,0,0,.07)!important;color:#6b7a63!important}
+body.dark-mode #chatView .messages .quote-block{background:rgba(255,255,255,.07)!important;color:#8f8f8f!important}
+body.dark-mode #chatView .messages .msg-row.me .quote-block{background:rgba(0,0,0,.14)!important;color:#9fb59a!important}
+#chatView .messages .fwd-tag{display:none!important}

@@ -3182,9 +3182,7 @@ function appendGroupMessage(m, prepend) {
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
-      ${quoteBlockHtml(m)}
-      ${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}
-      ${mergedHtmlG || '<div class="bubble">' + escapeHtml(m.content) + '</div>'}
+      ${mergedHtmlG || '<div class="bubble">' + quoteBlockHtml(m) + escapeHtml(m.content) + '</div>'}
       <span class="time">${fmtTime(m.createdAt)}</span>
       ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
@@ -3699,7 +3697,7 @@ function appendMessage(m, prepend) {
   }
   if (m.from != null) row.setAttribute('data-from', String(m.from));
   const mergedHtml = mergedCardHtml(m);
-  row.innerHTML = `${quoteBlockHtml(m)}${m.forwardedFrom ? '<div class="fwd-tag">转发的消息</div>' : ''}${rowAvatar}<div class="bubble-wrap">${rowName}${mergedHtml || '<div class="bubble">' + escapeHtml(m.content) + '</div>'}<span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel || ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
+  row.innerHTML = `${rowAvatar}<div class="bubble-wrap">${rowName}${mergedHtml || '<div class="bubble">' + quoteBlockHtml(m) + escapeHtml(m.content) + '</div>'}<span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel || ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
   bindMergedCard(row, m);
   bindQuoteClicks(row);
   if (canRecall) {
