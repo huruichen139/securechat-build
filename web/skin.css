@@ -2743,3 +2743,7 @@ html.is-mobile .wechat-page .page-body{flex:1!important;min-height:0!important;o
 /* module panels flat leftovers */
 .oa-container>.oa-body{box-shadow:none!important}
 .card-item.card-member{background-image:none!important;background-color:#07c160!important}
+/* mobile chat list title (WeChat home) */
+.mobile-list-title{display:none}
+html.is-mobile .mobile-list-title{display:block;order:-2;height:44px;line-height:44px;padding:0 16px;font-size:17px;font-weight:600;color:#191919}
+html.is-mobile body.dark-mode .mobile-list-title{color:#d6d6d6}
