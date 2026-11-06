@@ -2712,3 +2712,11 @@ body.dark-mode .announcement-content{color:#a0a0a0!important}
 .me-card{box-shadow:none!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;padding:0!important}
 .me-card-item{border-radius:0!important;box-shadow:none!important;background:#fff!important}
 body.dark-mode .me-card-item{background:#191919!important}
+/* sidebar plus menu wechat */
+#chatView .sidebar-tools{position:relative!important}
+.side-plus-menu{position:absolute;right:8px;top:46px;z-index:60;background:#fff;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.14);padding:4px 0;min-width:132px}
+.side-plus-menu button{display:block;width:100%;border:0;background:transparent;text-align:left;padding:0 16px;height:40px;font-size:14px;color:#191919;cursor:pointer}
+.side-plus-menu button:hover{background:#f5f5f5}
+body.dark-mode .side-plus-menu{background:#2c2c2c}
+body.dark-mode .side-plus-menu button{color:#d6d6d6}
+body.dark-mode .side-plus-menu button:hover{background:#333}

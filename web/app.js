@@ -6610,15 +6610,25 @@ document.addEventListener('click', function(e){
     b.textContent = '+';
     b.addEventListener('click', function (e) {
       e.stopPropagation();
-      tools.classList.toggle('show-add');
-      if (tools.classList.contains('show-add')) {
-        var inp = document.getElementById('addFriendInput');
-        if (inp) setTimeout(function () { inp.focus(); }, 30);
-      }
+      var old = document.getElementById('sidePlusMenu');
+      if (old) { old.remove(); return; }
+      var menu = document.createElement('div');
+      menu.id = 'sidePlusMenu';
+      menu.className = 'side-plus-menu';
+      menu.innerHTML = '<button type="button" data-act="group">发起群聊</button><button type="button" data-act="friend">添加朋友</button><button type="button" data-act="scan">扫一扫</button>';
+      menu.addEventListener('click', function (ev) {
+        var act = ev.target && ev.target.dataset && ev.target.dataset.act;
+        if (!act) return;
+        menu.remove();
+        if (act === 'group') { var g = document.getElementById('createGroupBtn'); if (g) g.click(); }
+        else if (act === 'scan') { if (typeof openQrScanner === 'function') openQrScanner(); }
+        else { tools.classList.add('show-add'); var inp = document.getElementById('addFriendInput'); if (inp) setTimeout(function () { inp.focus(); }, 30); }
+      });
+      tools.appendChild(menu);
     });
     tools.appendChild(b);
     document.addEventListener('click', function (e) {
-      if (!tools.contains(e.target)) tools.classList.remove('show-add');
+      if (!tools.contains(e.target)) { tools.classList.remove('show-add'); var m = document.getElementById('sidePlusMenu'); if (m) m.remove(); }
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSidePlus);
