@@ -193,3 +193,6 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - 通讯录搜索无结果新增「没有匹配的联系人」空态；从通讯录打开聊天后返回回到通讯录而非微信列表。
 - 修复 scAsk 编辑过程中误删 appendMessage 声明（已恢复）；版本 app.js 1830h、skin.css v119、translate.js 1829c。
 - 回归：smoke2/func/audit3/msw320/ov1440 全通过；功能中心 26 项巡检 0 JS 异常（翻译/红包为 toast 属预期）。
+### 追加（同日 2）
+- scAsk 支持 readonly（复制失败兜底展示文本）；translate 复制兜底与 merchant 密钥重置改用主题弹窗。
+- 复测：发现页 9 个功能弹窗关闭键均在视口内；我页 10 个服务、设置页、黑名单、朋友圈发布器、聊天更多菜单、加号面板（红包/转账/收藏）均正常；登录页 390 无溢出。
