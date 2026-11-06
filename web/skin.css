@@ -2406,9 +2406,11 @@ body.dark-mode .profile-card .profile-actions .btn-cn + .btn-cn { border-left-co
   position: sticky !important; top: 0 !important; z-index: 2 !important;
 }
 #settingsPanel .settings-hdr > span { font-size: 17px !important; font-weight: 500 !important; color: #191919 !important; margin: 0 !important; }
+#settingsPanel .settings-back { font-size: 0 !important; }
+#settingsPanel .settings-back::before { content: '\2039'; font-size: 30px; line-height: 1; font-weight: 300; }
 #settingsPanel .settings-back {
   position: absolute !important; left: 4px !important; top: 0 !important; height: 44px !important;
-  width: 40px !important; padding: 0 !important; font-size: 20px !important; color: #191919 !important;
+  width: 40px !important; padding: 0 !important; font-size: 0 !important; color: #191919 !important;
   background: transparent !important; border: 0 !important;
 }
 #settingsPanel .settings-content { padding: 0 !important; }
@@ -2444,6 +2446,7 @@ body.dark-mode .profile-card .profile-actions .btn-cn + .btn-cn { border-left-co
 }
 body.dark-mode #settingsPanel { background: #111 !important; }
 body.dark-mode #settingsPanel .settings-hdr, body.dark-mode #settingsPanel .settings-hdr > span, body.dark-mode #settingsPanel .settings-back { background: #191919 !important; color: #d6d6d6 !important; }
+body.dark-mode #settingsPanel .settings-back { background: transparent !important; font-size: 0 !important; }
 body.dark-mode #settingsPanel .settings-profile, body.dark-mode #settingsPanel .settings-card, body.dark-mode #settingsPanel .settings-row, body.dark-mode #settingsPanel .settings-logout { background: #191919 !important; color: #d6d6d6 !important; }
 body.dark-mode #settingsPanel .settings-row { border-bottom-color: #2a2a2a !important; }
 body.dark-mode #settingsPanel .settings-info > div:first-child { color: #d6d6d6 !important; }
@@ -2768,3 +2771,6 @@ html.is-mobile.subpage-active .wechat-page.active{inset:0!important}
 .moments-page .moments-header .back-btn{font-size:0!important;width:36px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
 .moments-page .moments-header .back-btn::before{content:'\2039';font-size:30px;line-height:1;font-weight:300;color:#191919}
 body.dark-mode .moments-page .moments-header .back-btn::before{color:#d6d6d6}
+/* settings: hide scrollbar, full-bleed rows */
+#settingsPanel{scrollbar-width:none}
+#settingsPanel::-webkit-scrollbar{width:0;height:0}
