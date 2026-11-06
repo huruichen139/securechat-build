@@ -3107,6 +3107,7 @@ async function openGroupProfile(groupId) {
 
 // 选择群 + 加载群历史
 async function selectGroup(groupId) {
+  if (state._chatFrom !== 'contacts') state._chatFrom = 'chat';
   saveCurrentDraft();
   state.activeGroup = groupId;
   state.activePeer = null;
@@ -3528,6 +3529,7 @@ $('rejectFriendBtn').onclick = async () => {
 
 // ============ 选择联系人 + 历史 ============
 async function selectPeer(peerId) {
+  if (state._chatFrom !== 'contacts') state._chatFrom = 'chat';
   saveCurrentDraft();
   state.activePeer = peerId;
   state.activeGroup = null;
@@ -6052,7 +6054,7 @@ function renderContactsPage() {
       </div>
     </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无朋友群</div>';
   grpEl.querySelectorAll('[data-gid]').forEach(btn => {
-    btn.onclick = () => { const gid = parseInt(btn.dataset.gid); if (gid) selectGroup(gid); };
+    btn.onclick = () => { const gid = parseInt(btn.dataset.gid); if (gid) { state._chatFrom = 'contacts'; selectGroup(gid); } };
   });
 
   // 字母索引好友
@@ -6069,7 +6071,7 @@ function renderContactsPage() {
     (groups[key] || (groups[key] = [])).push(u);
   });
   const sortedKeys = Object.keys(groups).sort();
-  alpEl.innerHTML = sortedKeys.map(k => `
+  alpEl.innerHTML = sortedKeys.length ? sortedKeys.map(k => `
     <div class="contact-group-label" id="contact-letter-${k === '#' ? 'hash' : k}">${k}</div>
     <div class="contact-section">
       ${groups[k].map(u => `
@@ -6080,9 +6082,9 @@ function renderContactsPage() {
             <div class="last">${u.online ? '<span class="dot online"></span> 在线' : '离线'}</div>
           </div>
         </div>`).join('')}
-    </div>`).join('');
+    </div>`).join('') : (kw ? '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">没有匹配的联系人</div>' : '');
   alpEl.querySelectorAll('[data-uid]').forEach(el => {
-    el.onclick = () => selectPeer(parseInt(el.dataset.uid));
+    el.onclick = () => { state._chatFrom = 'contacts'; selectPeer(parseInt(el.dataset.uid)); };
   });
 
   const page = document.getElementById('contactsPage');
@@ -6245,6 +6247,11 @@ function setChatListVisible(show) {
       $('inviteBar').style.display = 'none';
       const welcome = $('welcomePanel'); if (welcome) welcome.style.display = '';
       renderContacts();
+      if (state._chatFrom === 'contacts') {
+        state._chatFrom = null;
+        const tab = document.querySelector('.sidebar-rail .side-tab[data-side="contacts"]');
+        if (tab) tab.click();
+      }
     };
   }
   // 更多按钮（聊天头部）→ 弹出菜单：拉黑 / 黑名单 / 更多功能
