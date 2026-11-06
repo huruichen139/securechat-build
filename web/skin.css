@@ -2816,3 +2816,15 @@ body.dark-mode .sc-fav-ask-title{color:#d6d6d6}
 body.dark-mode .sc-fav-ask-input{background:#1f1f1f;color:#d6d6d6}
 body.dark-mode .sc-fav-ask-actions button{background:#3a3a3a;color:#d6d6d6}
 html.is-mobile #chatView .sidebar-tools > #search{width:100%!important;height:36px!important;margin-left:0!important;margin-right:0!important;margin-top:0!important;margin-bottom:8px!important}
+/* mobile moments composer: full-screen editor */
+@media (max-width: 760px) {
+  .modal-mask:has(> .moments-composer){background:#fff!important;padding:0!important;align-items:stretch!important;justify-content:stretch!important}
+  .moments-composer{width:100%!important;max-width:100%!important;height:100%!important;max-height:100%!important;margin:0!important;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;background:#fff!important}
+  .moments-composer .modal-head{height:44px!important;min-height:44px!important;padding:0 12px!important;border-bottom:1px solid #ededed!important;display:flex!important;align-items:center!important}
+  .moments-composer .modal-head h3{font-size:17px!important;font-weight:500!important}
+  .moments-composer .moments-textarea{flex:1 1 auto!important;min-height:120px!important;border:0!important;border-radius:0!important;padding:16px!important;font-size:16px!important;line-height:1.5!important;background:#fff!important;resize:none!important}
+  .moments-composer .moments-picked{padding:0 16px!important}
+  .moments-composer .moments-compose-bar{margin-top:auto!important;padding:10px 16px calc(10px + env(safe-area-inset-bottom))!important;border-top:1px solid #ededed!important;display:flex!important;align-items:center!important;gap:12px!important;background:#fff!important}
+  body.dark-mode .modal-mask:has(> .moments-composer){background:#111!important}
+  body.dark-mode .moments-composer, body.dark-mode .moments-composer .moments-textarea, body.dark-mode .moments-composer .moments-compose-bar{background:#191919!important;color:#d6d6d6!important;border-color:#2a2a2a!important}
+}
