@@ -3072,7 +3072,7 @@ async function openGroupProfile(groupId) {
     mask.querySelector('#groupInviteBtn').onclick = () => { mask.remove(); const btn = $('inviteGroupBtn'); if (btn) btn.click(); };
   const leaveBtn = mask.querySelector('#groupLeaveBtn');
   if (leaveBtn) leaveBtn.onclick = async () => {
-    if (!confirm('确定退出该群聊？')) return;
+    if (!await scConfirm({ title: '确定退出该群聊？', okText: '退出' })) return;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/leave', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
@@ -3088,7 +3088,7 @@ async function openGroupProfile(groupId) {
   };
   const dissolveBtn = mask.querySelector('#groupDissolveBtn');
   if (dissolveBtn) dissolveBtn.onclick = async () => {
-    if (!confirm('确定解散该群？所有成员将被移出，不可恢复。')) return;
+    if (!await scConfirm({ title: '确定解散该群？所有成员将被移出，不可恢复。', okText: '解散' })) return;
     try {
       const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/dissolve', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token } });
       const data = await res.json();
@@ -3341,7 +3341,7 @@ function appendGroupMessage(m, prepend) {
   const fwdBtnG = row.querySelector('[data-action="forward"]');
   if (fwdBtnG) fwdBtnG.onclick = () => { if (m.id == null) { toast('无法转发该消息', 'warn', 1200); return; } openForwardPicker(m); };
   const delBtnG = row.querySelector('[data-action="del"]');
-  if (delBtnG) delBtnG.onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在自己手机上消失，确定删除吗？')) deleteMsgLocal(m.id); };
+  if (delBtnG) delBtnG.onclick = async () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (await scConfirm({ title: '删除后仅在自己手机上消失，确定删除吗？', okText: '删除' })) deleteMsgLocal(m.id); };
   bindMergedCard(row, m);
   bindQuoteClicks(row);
   bindMobileLongPress(row);
@@ -3354,7 +3354,7 @@ function appendGroupMessage(m, prepend) {
 }
 
 async function recallGroupMessage(id) {
-  if (!state.activeGroup || !confirm('确定撤回这条消息吗？')) return;
+  if (!state.activeGroup || !await scConfirm({ title: '确定撤回这条消息吗？', okText: '撤回' })) return;
   try {
     const res = await fetch(state.serverHost + '/api/groups/' + state.activeGroup + '/messages/' + id + '/recall', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }
@@ -3637,7 +3637,7 @@ function refreshConversationButtons() {
 // 清空当前单聊聊天记录（桌面端「清空」按钮与移动端聊天更多菜单共用）
 async function clearActiveChatLog(btn) {
   if (!state.activePeer) return toast('请先选择联系人', 'warn', 1200);
-  if (!confirm('确定清空当前聊天记录吗？此操作不可恢复。')) return;
+  if (!await scConfirm({ title: '确定清空当前聊天记录吗？此操作不可恢复。', okText: '清空' })) return;
   if (btn) btn.disabled = true;
   try {
     const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(state.activePeer)), {
@@ -3855,7 +3855,7 @@ function appendMessage(m, prepend) {
   if (canRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallMessage(m.id);
   }
-  row.querySelector('[data-action="del"]').onclick = () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (confirm('删除后仅在本端消失，确定删除吗？')) deleteMsgLocal(m.id); };
+  row.querySelector('[data-action="del"]').onclick = async () => { if (m.id == null) { toast('无法删除该消息', 'warn', 1200); return; } if (await scConfirm({ title: '删除后仅在本端消失，确定删除吗？', okText: '删除' })) deleteMsgLocal(m.id); };
   row.querySelector('[data-action="copy"]').onclick = async () => {
     const ok = await copyText(m.content || '');
     if (ok) toast('已复制', 'success', 1200);
@@ -5930,7 +5930,7 @@ const panel = document.getElementById('settingsPanel');
   logoutBtn.className = 'settings-logout';
   logoutBtn.textContent = '退出登录';
   logoutBtn.style.cssText = 'width:100%;padding:12px;border:none;border-radius:12px;background:var(--surface,#fff);color:var(--danger,#fa5151);font-size:16px;font-weight:500;cursor:pointer;margin-top:8px;border:1px solid var(--border,#e5e5e5)';
-  logoutBtn.onclick = () => { if (confirm('确定退出登录？')) logout(); };
+  logoutBtn.onclick = async () => { if (await scConfirm({ title: '确定退出登录？', okText: '退出' })) logout(); };
   content.appendChild(logoutBtn);
 }
 
