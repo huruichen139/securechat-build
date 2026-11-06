@@ -178,3 +178,10 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - 收藏模块 13 处原生 prompt 全部替换为微信风格自定义输入弹窗（.sc-fav-ask，8px 圆角、绿色确定），含暗色适配。
 - 移动端首页搜索框改为全宽 366x36、标题行「微信」+「+」。
 - 版本：skin.css v114、app.js 1829s、favorites.js 1829b、i18n.js 1829c、theme-white.css v27。
+### 追加 2（移动端流程 bug）
+- 修复从「发现 → AI 助手」进入后 AI 视图只显示一部分且返回后列表横向错位：AI 视图加 mobile-chat-active 全屏显示，切换 tab 重置 chatView.scrollLeft。
+- 修复「我 → 下载」在移动端页面停在屏幕右侧不可见、返回后仍遮挡我页：下载视图加 mobile-chat-active + dl-hidden 类控制显隐，返回固定回「我」页。
+- 修复侧栏「+ → 添加朋友」输入行不显示：菜单点击 stopPropagation，避免被外部点击监听立即收起。
+- 移动端下载页改为 44px 标题栏、‹ 返回、全宽内容、隐藏滚动条。
+- 回归：smoke2/func/audit3/msw320/ov1440 全通过，0 JS 异常。
+- 版本：skin.css v118、app.js 1829x。
