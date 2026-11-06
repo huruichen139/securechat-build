@@ -2801,3 +2801,5 @@ html.is-mobile .wx-me-item + .wx-me-item::before {
 }
 body.dark-mode .wx-discover-item + .wx-discover-item::before,
 body.dark-mode .wx-me-item + .wx-me-item::before { background: #2a2a2a; }
+/* center mobile chat title */
+#chatView #chatMobileHeader .chat-title{position:absolute!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;max-width:60%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
