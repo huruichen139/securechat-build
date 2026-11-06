@@ -2574,3 +2574,10 @@ body.dark-mode #chatView .at-panel .at-item, body.dark-mode #chatView .at-panel 
 body.dark-mode #chatView .message-search-bar { background: #2c2c2c !important; }
 body.dark-mode #chatView .message-search-bar input { background: #3a3a3a !important; color: #d6d6d6 !important; }
 body.dark-mode #chatView .message-search-bar button { background: #3a3a3a !important; color: #b2b2b2 !important; }
+
+/* image message wechat style */
+#chatView .messages .msg-row .bubble.bubble-image{padding:0!important;background:transparent!important;box-shadow:none!important;border:0!important;border-radius:4px!important;overflow:hidden;max-width:calc(100% - 40px)}
+.bubble-image .file-image-wrap{margin:0;border-radius:4px;overflow:hidden;min-width:90px;min-height:70px;background:#f2f2f2}
+.bubble-image .file-image{display:block;width:auto;height:auto;max-width:200px;max-height:260px;border-radius:4px}
+body.dark-mode .bubble-image .file-image-wrap{background:#2c2c2c}
+@media (max-width:720px){.bubble-image .file-image{max-width:170px;max-height:220px}}

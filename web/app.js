@@ -4816,7 +4816,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
   const isImage = mime && String(mime).startsWith('image/');
   if (isImage) {
-    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">图</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div></div><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML='<div class="bubble bubble-image"><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
     const img = row.querySelector('.file-image');
     fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
       .then(r => { if (!r.ok) throw new Error('加载失败'); return r.blob(); })
