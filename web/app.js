@@ -2539,24 +2539,24 @@ function renderContacts() {
 let convMenuEl = null;
 function hideConvMenu() { if (convMenuEl) { convMenuEl.remove(); convMenuEl = null; } }
 function bindConvContextMenu(el, key, name, openFn) {
-  el.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
+  const showMenu = (cx, cy) => {
     hideConvMenu();
     const prefs = chatPrefs();
     const isPinned = !!prefs.pinned[key];
     const isMuted = !!prefs.muted[key];
     convMenuEl = document.createElement('div');
     convMenuEl.className = 'conv-context-menu';
+    convMenuEl._ts = Date.now();
     const items = [
       { label: isPinned ? '取消置顶' : '置顶聊天', fn: () => { togglePin(key); } },
       { label: isMuted ? '开启消息提醒' : '消息免打扰', fn: () => { toggleMute(key); } },
       { label: '标为未读', fn: () => { markConvUnread(key); } },
-      { label: '删除会话', danger: true, fn: () => { if (confirm('删除会话「' + name + '」？仅从列表移除，不删除聊天记录。')) { removeConvLocal(key); } } }
+      { label: '删除会话', danger: true, fn: async () => { const ok = window.scConfirm ? await window.scConfirm({ title: '删除会话「' + name + '」？仅从列表移除，不删除聊天记录。', okText: '删除' }) : confirm('删除会话「' + name + '」？仅从列表移除，不删除聊天记录。'); if (ok) removeConvLocal(key); } }
     ];
     convMenuEl.innerHTML = items.map((it, i) => '<div class="conv-menu-item' + (it.danger ? ' danger' : '') + '" data-i="' + i + '">' + it.label + '</div>').join('');
     document.body.appendChild(convMenuEl);
     const mw = 168, mh = items.length * 38 + 8;
-    let x = e.clientX, y = e.clientY;
+    let x = cx, y = cy;
     if (x + mw > innerWidth - 8) x = innerWidth - mw - 8;
     if (y + mh > innerHeight - 8) y = innerHeight - mh - 8;
     convMenuEl.style.left = x + 'px';
@@ -2564,9 +2564,33 @@ function bindConvContextMenu(el, key, name, openFn) {
     convMenuEl.querySelectorAll('.conv-menu-item').forEach(node => {
       node.onclick = () => { const it = items[Number(node.dataset.i)]; hideConvMenu(); if (it.fn) it.fn(); };
     });
+  };
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showMenu(e.clientX, e.clientY);
   });
+  if (window.IS_MOBILE) {
+    let timer = null, sx = 0, sy = 0, moved = false;
+    const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const p = e.touches[0];
+      sx = p.clientX; sy = p.clientY; moved = false;
+      clear();
+      timer = setTimeout(() => { if (!moved) showMenu(sx, sy); }, 450);
+    }, { passive: true });
+    el.addEventListener('touchmove', (e) => {
+      const p = e.touches[0];
+      if (Math.abs(p.clientX - sx) > 8 || Math.abs(p.clientY - sy) > 8) { moved = true; clear(); }
+    }, { passive: true });
+    el.addEventListener('touchend', clear, { passive: true });
+    el.addEventListener('touchcancel', clear, { passive: true });
+  }
 }
-document.addEventListener('click', hideConvMenu);
+document.addEventListener('click', () => {
+  if (convMenuEl && Date.now() - (convMenuEl._ts || 0) < 400) return;
+  hideConvMenu();
+});
 window.addEventListener('blur', hideConvMenu);
 
 // ============ 2. 消息气泡双击点赞动画 ============
