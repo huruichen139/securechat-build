@@ -3118,7 +3118,7 @@ function appendGroupMessage(m, prepend) {
     row.innerHTML = `<div class="row-avatar">${avHtml}</div>
       <div class="bubble-wrap">
         ${nameLine}
-        <div class="bubble"><div class="voice-bubble">\u25B6${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
+        <div class="bubble"><div class="voice-bubble"><span class="play">\u25B6</span>${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
         <span class="time">${fmtTime(m.createdAt)}</span>
         ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       </div>`;
@@ -3129,10 +3129,11 @@ function appendGroupMessage(m, prepend) {
       vb.onclick = function () {
         const audio = new Audio('data:audio/webm;base64,' + this._b64);
         audio.play();
-        const btn = this.querySelector('.play') || this;
-        btn.textContent = '\u23F8';
-        audio.onended = () => { btn.textContent = '\u25B6'; };
-        audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = '\u25B6'; };
+        const btn = this.querySelector('.play');
+        if (btn) btn.textContent = '\u23F8';
+        this.classList.add('playing');
+        audio.onended = () => { if (btn) btn.textContent = '\u25B6'; this.classList.remove('playing'); };
+        audio.onerror = () => { toast('播放失败', 'error'); if (btn) btn.textContent = '\u25B6'; this.classList.remove('playing'); };
       };
     }
     // 群聊连续消息合并（语音）
@@ -5072,17 +5073,22 @@ async function attachTranscribe(row, b64) {
   vb.appendChild(ts);
 }
 
-function appendVoiceMsg(mine, durationSec, b64) {
+function appendVoiceMsg(mine, durationSec, b64, fromUser, fromName) {
   const box = $('messages');
   const row = document.createElement('div');
   row.className = 'msg-row ' + (mine ? 'me' : 'other');
+  const who = mine ? (state.me || {}) : (fromUser || (state.activePeer && state.friends ? state.friends.find(u => u.id === state.activePeer) : null) || {});
+  const wname = who.nickname || who.username || fromName || ('用户' + ((who && who.id) || ''));
+  const wav = who.avatar ? '<img src="' + escapeHtml(who.avatar) + '">' : avatarChar(wname);
+  const avHtml = '<div class="row-avatar">' + wav + '</div>';
+  const nameHtml = (!mine && state.activeGroup) ? '<div class="name">' + escapeHtml(wname) + '</div>' : '';
   const bars = '<span class="voice-bars">' + Array.from({length: 5}, (_, i) => '<span style="height:'+(6+i*2)+'px"></span>').join('') + '</span>';
   const dur = durationSec.toFixed(1) + '" ';
-  row.innerHTML = '<div class="bubble"><div class="voice-bubble ' + (mine ? 'me' : '') + '">'
+  row.innerHTML = avHtml + '<div class="bubble-wrap">' + nameHtml + '<div class="bubble"><div class="voice-bubble ' + (mine ? 'me' : '') + '">'
     + '<span class="play">\u25B6</span>'
     + bars
     + '<span class="vdur">' + dur + '</span>'
-    + '</div></div><span class="time">' + fmtTime(Date.now()) + '</span>';
+    + '</div></div><span class="time">' + fmtTime(Date.now()) + '</span></div>';
   box.appendChild(row);
   __msgScrollToBottom();
   attachTranscribe(row, b64);
@@ -5094,10 +5100,11 @@ function appendVoiceMsg(mine, durationSec, b64) {
       const audio = new Audio('data:audio/webm;base64,' + this._b64);
       audio.play();
       const btn = this.querySelector('.play');
-      const orig = btn.textContent;
-      btn.textContent = '\u23F8';
-      audio.onended = () => { btn.textContent = orig; };
-      audio.onerror = () => { toast('播放失败', 'error'); btn.textContent = orig; };
+      const orig = btn ? btn.textContent : '\u25B6';
+      if (btn) btn.textContent = '\u23F8';
+      this.classList.add('playing');
+      audio.onended = () => { if (btn) btn.textContent = orig; this.classList.remove('playing'); };
+      audio.onerror = () => { toast('播放失败', 'error'); if (btn) btn.textContent = orig; this.classList.remove('playing'); };
     };
   }
 }
@@ -5111,7 +5118,7 @@ onIncomingMsg = function (m) {
     const dur = parseFloat(rest.slice(0, sep));
     const b64 = rest.slice(sep + 1);
     if (state.activePeer === m.from) {
-      appendVoiceMsg(false, dur, b64);
+      appendVoiceMsg(false, dur, b64, m.fromUser);
       send(P.C_READ, { from: m.from });
     } else {
       state.unread[m.from] = (state.unread[m.from] || 0) + 1;
@@ -5133,7 +5140,7 @@ appendMessage = function (m, prepend) {
     const sep = rest.indexOf('|');
     const dur = parseFloat(rest.slice(0, sep)) || 0;
     const b64 = rest.slice(sep + 1);
-    appendVoiceMsg(m.from === state.me.id, dur, b64);
+    appendVoiceMsg(m.from === state.me.id, dur, b64, m.fromUser);
     return;
   }
   _orig_appendMessage(m, prepend);
