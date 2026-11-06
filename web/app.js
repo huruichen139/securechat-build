@@ -1709,7 +1709,7 @@ function openFeatureCenter() {
           if (!feature || typeof feature.openCreate !== 'function') { toast('该功能组件未加载', 'warn'); return; }
           feature.openCreate({ targetType: 'group', targetId: g.id, defaultContent: '' });
         }) },
-      { label: '翻译', short: '翻译', grad: 4, open: () => toast('请在聊天消息上右键（或长按）使用翻译', 'info') },
+      { label: '翻译', short: '翻译', grad: 4, open: () => { const t = get('translate'); if (t && t.openPanel) t.openPanel(); else toast('请在聊天消息上右键（或长按）使用翻译', 'info'); } },
       { label: '朋友圈增强', short: '朋友圈', grad: 5, open: () => openContainerFeature(get('moment-ext'), '朋友圈管理') },
     ]},
     { id: 'content', label: '内容', items: [

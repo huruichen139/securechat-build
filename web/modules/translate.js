@@ -119,11 +119,22 @@
     setTimeout(() => d.remove(), 15000);
   }
 
+  async function openPanel() {
+    const text = window.scAsk ? await window.scAsk({ title: '翻译', placeholder: '输入要翻译的文字', okText: '翻译' }) : window.prompt('输入要翻译的文字', '');
+    if (text === null) return;
+    if (!text.trim()) { toast('请输入要翻译的文字', 'warn'); return; }
+    const target = looksChinese(text) ? 'en' : 'zh';
+    try {
+      const res = await translateText(text.trim(), target);
+      if (res) showResult(text.trim(), res, target);
+    } catch (e) { toast('翻译失败：' + (e.message || e), 'error'); }
+  }
+
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
   const feature = {
     name: 'translate',
-    translateText, attachContextMenu, looksChinese,
+    translateText, attachContextMenu, looksChinese, openPanel,
   };
 
   if (window.SecureChatExt && window.SecureChatExt.registerFeature) {
