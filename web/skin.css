@@ -1797,10 +1797,14 @@ body.dark-mode .message-notice { background: #2c2c2c !important; color: #d6d6d6 
 
 /* ---------- 移动端：发现/我/通讯录不显示标题栏（微信无导航栏） ---------- */
 @media (max-width: 760px) {
-  #chatView .wechat-page .page-header { display: none !important; }
+  #chatView .me-page .page-header { display: none !important; }
   #chatView .wechat-page .page-body { padding: 8px 0 16px !important; }
   #chatView .me-page .page-body { padding-top: 0 !important; }
   #chatView .me-header { margin-top: 0 !important; }
+  #discoverPage .page-header .back-btn, #contactsPage .page-header .back-btn { display: none !important; }
+  #discoverPage .page-body, #contactsPage .page-body { padding-left: 0 !important; padding-right: 0 !important; }
+  #discoverPage .wx-group, #contactsPage .wx-group { margin-left: 0 !important; margin-right: 0 !important; border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; }
+  #discoverList { padding: 0 !important; border: 0 !important; }
 }
 
 /* ---------- 发现/我 图标：使用自带主色（覆盖主题的浅色块） ---------- */
