@@ -2624,3 +2624,9 @@ body.dark-mode .ai-banner-sm .ai-banner-ico{color:#fff!important}
 body.dark-mode #chatView .messages .quote-block{background:rgba(255,255,255,.07)!important;color:#8f8f8f!important}
 body.dark-mode #chatView .messages .msg-row.me .quote-block{background:rgba(0,0,0,.14)!important;color:#9fb59a!important}
 #chatView .messages .fwd-tag{display:none!important}
+/* welcome empty state wechat watermark */
+#welcomePanel{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;height:100%!important;padding:0!important}
+#welcomePanel h1{font-size:0!important;margin:0!important;line-height:1!important}
+#welcomePanel h1::after{content:'微信';font-size:96px!important;font-weight:500!important;letter-spacing:10px;color:rgba(0,0,0,.045)!important}
+#welcomePanel .welcome-sub,#welcomePanel .welcome-actions,#welcomePanel .welcome-features,#welcomePanel .welcome-tip{display:none!important}
+body.dark-mode #welcomePanel h1::after{color:rgba(255,255,255,.05)!important}
