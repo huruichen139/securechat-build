@@ -172,3 +172,9 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - 扁平化：输入栏图标与发送键、消息提示、oa 弹窗、会员卡；theme-white 蓝色渐变 token 改纯绿。
 - 回归：smoke2/fin/mom/func/audit3/mods/dk10 通过；390/320 无横向溢出；0 JS 异常。
 - 注意：登录限流仍在，测试用 tok.json 注入；AUTOLOG 中文写入用 [IO.File]::AppendAllText UTF8。
+### 追加（同日）
+- 修复设置页关闭后不回到原 tab（移动端我页消失）的问题：关闭时点击当前激活 tab 恢复页面。
+- 修复加号面板「收藏」调 openPanel() 无容器导致面板不显示：改走 openContainerFeature 弹窗。
+- 收藏模块 13 处原生 prompt 全部替换为微信风格自定义输入弹窗（.sc-fav-ask，8px 圆角、绿色确定），含暗色适配。
+- 移动端首页搜索框改为全宽 366x36、标题行「微信」+「+」。
+- 版本：skin.css v114、app.js 1829s、favorites.js 1829b、i18n.js 1829c、theme-white.css v27。
