@@ -2458,3 +2458,26 @@ body.dark-mode #chatView #emojiPanel .emoji-item:hover { background: #3a3a3a !im
 #chatView .messages .msg-row .bubble-wrap { max-width: min(68%, 620px) !important; }
 #chatView .messages .msg-row .bubble-wrap .bubble { max-width: 100% !important; }
 #chatView .messages .msg-row .bubble-wrap img, #chatView .messages .msg-row .bubble-wrap video { max-width: 100% !important; height: auto !important; }
+
+/* ---------- 模块内旧样式收口：去渐变/去大圆角/去重阴影 ---------- */
+.cards-panel button { background: #f2f2f2 !important; color: #191919 !important; border-radius: 4px !important; box-shadow: none !important; }
+.card-coupon-use, .card-ticket-use { border-radius: 4px !important; border-color: #ededed !important; color: #576b95 !important; background: #fff !important; }
+.sc-status-btn-link { background: #07c160 !important; border-radius: 4px !important; color: #fff !important; }
+.rp-head, .rp-btn, .rp-top, .rp-bubble, .rp-send-btn { background-image: none !important; background-color: #fa5151 !important; box-shadow: none !important; }
+.rp-bubble { background-color: #fa9d3b !important; }
+.rp-grab-close { border-radius: 4px !important; background: #fa5151 !important; }
+.scan-btn, .scan-head button { border-radius: 4px !important; box-shadow: none !important; }
+.sticker-panel button { border-radius: 4px !important; background: #f7f7f7 !important; color: #191919 !important; }
+.sticker-tab { border-radius: 4px !important; }
+.sticker-tab.active { background: #07c160 !important; color: #fff !important; }
+.games-panel button { background-image: none !important; background: #f2f2f2 !important; color: #191919 !important; border-radius: 4px !important; box-shadow: none !important; transform: none !important; }
+.read-tab { border-radius: 4px !important; }
+.read-tab.active { background: #07c160 !important; color: #fff !important; }
+.sc-fav-tag { border-radius: 4px !important; }
+.sc-fav-tag-active { background: #07c160 !important; color: #fff !important; }
+.shop-cat { border-radius: 4px !important; }
+.shop-add-cart { border-radius: 4px !important; box-shadow: none !important; }
+.search-btn { background: #07c160 !important; border-radius: 4px !important; }
+.shake-stage { border-radius: 6px !important; box-shadow: none !important; }
+.moments-viewer img { border-radius: 4px !important; box-shadow: none !important; }
+.vid-panel button { background-image: none !important; background: #f2f2f2 !important; color: #191919 !important; box-shadow: none !important; }
