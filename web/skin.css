@@ -2740,3 +2740,6 @@ html.is-mobile .wechat-page .page-body{flex:1!important;min-height:0!important;o
 .composer-send-btn:hover{background:#06ad56!important;box-shadow:none!important;transform:none!important}
 .composer-send-btn:active{transform:none!important}
 .message-notice{border-radius:8px!important;border:0!important;box-shadow:none!important}
+/* module panels flat leftovers */
+.oa-container>.oa-body{box-shadow:none!important}
+.card-item.card-member{background-image:none!important;background-color:#07c160!important}
