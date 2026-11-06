@@ -50,14 +50,14 @@
       '<div style="font-size:16px;font-weight:600;margin-bottom:10px">' + esc(todo.title) + '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
       '<div class="todo-bar" style="position:relative;flex:1;height:8px;background:#eee;border-radius:4px;overflow:hidden">' +
-      '<div style="position:absolute;left:0;top:0;bottom:0;width:' + todo.progress + '%;background:#2563eb;transition:width .3s"></div></div>' +
+      '<div style="position:absolute;left:0;top:0;bottom:0;width:' + todo.progress + '%;background:#07c160;transition:width .3s"></div></div>' +
       '<span style="font-size:12px;color:#888">' + todo.progress + '%</span></div>' +
       '<div style="display:flex;flex-direction:column;gap:6px">' + todo.items.map((it) => {
         const checked = it.myDone ? 'checked' : '';
         return '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">' +
           '<input class="todo-ck" data-todo="' + todo.id + '" data-item="' + it.id + '" type="checkbox" ' + checked + ' style="width:18px;height:18px">' +
           '<span style="' + (it.done ? 'text-decoration:line-through;color:#aaa;' : '') + '">' + esc(it.content) + '</span>' +
-          (it.done ? '<span style="font-size:11px;color:#2563eb;margin-left:auto">已完成</span>' : '') +
+          (it.done ? '<span style="font-size:11px;color:#07c160;margin-left:auto">已完成</span>' : '') +
           '</label>';
       }).join('') + '</div></div>';
     container.querySelectorAll('.todo-ck').forEach((cb) => {
@@ -83,7 +83,7 @@
       '<button class="td-add" style="padding:6px 12px;background:#f2f2f2;border:none;border-radius:16px;cursor:pointer;margin-bottom:10px">+ 添加待办项</button>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="td-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +
-      '<button class="td-confirm" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +
+      '<button class="td-confirm" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +
       '</div></div>';
     document.body.appendChild(wrap);
     const box = wrap.querySelector('#td-items');

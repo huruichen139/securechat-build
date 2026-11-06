@@ -75,7 +75,7 @@
     const mkItem = (label, act) => {
       const b = document.createElement('button');
       b.textContent = label;
-      b.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 16px;background:none;border:none;font-size:14px;cursor:pointer;color:#2563eb';
+      b.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 16px;background:none;border:none;font-size:14px;cursor:pointer;color:#07c160';
       b.onmouseenter = () => { b.style.background = '#f6f6f6'; };
       b.onmouseleave = () => { b.style.background = 'none'; };
       b.onclick = async () => {
@@ -110,7 +110,7 @@
       '<div style="font-size:15px;color:#333;margin-bottom:8px">' + esc(res.translated) + '</div>' +
       '<div style="display:flex;gap:8px">' +
       '<button class="tr-copy" style="padding:5px 12px;background:#eee;border:none;border-radius:16px;cursor:pointer;font-size:12px">复制</button>' +
-      '<button class="tr-close" style="padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:16px;cursor:pointer;font-size:12px">关闭</button>' +
+      '<button class="tr-close" style="padding:5px 12px;background:#07c160;color:#fff;border:none;border-radius:16px;cursor:pointer;font-size:12px">关闭</button>' +
       (res.source === 'mymemory' ? '<span style="font-size:11px;color:#aaa;align-self:center">· 在线翻译</span>' : '<span style="font-size:11px;color:#aaa;align-self:center">· 本地词典</span>') +
       '</div>';
     document.body.appendChild(d);

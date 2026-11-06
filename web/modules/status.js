@@ -44,7 +44,7 @@
     span.setAttribute('data-status', status.text);
     span.textContent = iconLabel(status.icon);
     if (size) { span.style.width = size + 'px'; span.style.height = size + 'px'; }
-    span.style.cssText += ';position:absolute;right:-2px;bottom:-2px;background:' + (status.bgColor || '#2563eb') +
+    span.style.cssText += ';position:absolute;right:-2px;bottom:-2px;background:' + (status.bgColor || '#07c160') +
       ';border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:' + (size ? (size / 2) : 10) + 'px;width:' + (size || 16) + 'px;height:' + (size || 16) + 'px;';
     return span;
   }

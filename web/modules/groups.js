@@ -96,7 +96,7 @@
       chip.type = 'button';
       chip.dataset.n = nm;
       chip.textContent = '@' + nm;
-      chip.style.cssText = 'padding:4px 10px;border:1px solid #ddd;border-radius:14px;background:#fff;color:#2563eb;font-size:12px;cursor:pointer';
+      chip.style.cssText = 'padding:4px 10px;border:1px solid #ddd;border-radius:14px;background:#fff;color:#07c160;font-size:12px;cursor:pointer';
       chip.onclick = () => {
         if (/@\w*$/.test(ta.value)) ta.value = ta.value.replace(/@\w*$/, '@' + nm + ' ');
         else ta.value += '@' + nm + ' ';
@@ -126,7 +126,7 @@
     const send = document.createElement('button');
     send.type = 'button';
     send.textContent = '发送到群';
-    send.style.cssText = 'padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px';
+    send.style.cssText = 'padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px';
     send.onclick = () => {
       const text = ta.value.trim();
       if (!text) return;
@@ -206,7 +206,7 @@
     const body = m.body;
 
     const nameEl = document.createElement('div');
-    nameEl.style.cssText = 'font-size:16px;font-weight:700;color:#2563eb';
+    nameEl.style.cssText = 'font-size:16px;font-weight:700;color:#07c160';
     nameEl.textContent = (g.displayName || g.name) + '  (ID:' + g.id + ')';
     body.appendChild(nameEl);
     body.appendChild(document.createElement('br'));
@@ -253,7 +253,7 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #eee;border-radius:8px';
       const av = document.createElement('div');
-      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0';
+      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#07c160;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0';
       av.textContent = (mm.myNickname || mm.nickname || mm.username || '?').charAt(0);
       const nm = document.createElement('div');
       nm.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px';
@@ -299,7 +299,7 @@
         const a = document.createElement('a');
         a.href = Groups.fileUrl(f.id); a.target = '_blank';
         a.textContent = '下 ' + f.name + ' (' + Math.round((f.size || 0) / 1024) + 'KB)';
-        a.style.cssText = 'flex:1;color:#2563eb;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        a.style.cssText = 'flex:1;color:#07c160;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         const by = document.createElement('span');
         by.textContent = f.uploader || '';
         by.style.cssText = 'color:#999';
@@ -316,7 +316,7 @@
     uidInp.type = 'text'; uidInp.placeholder = '对方 UID';
     uidInp.style.cssText = 'flex:1;padding:7px 10px;border:1px solid #d9d9d9;border-radius:8px';
     const invBtn = document.createElement('button');
-    invBtn.className = 'btn-cn'; invBtn.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer';
+    invBtn.className = 'btn-cn'; invBtn.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer';
     invBtn.textContent = '邀请';
     invBtn.onclick = async () => {
       const uid = uidInp.value.trim();
@@ -350,7 +350,7 @@
     body.appendChild(nickRow.w);
     body.appendChild(document.createElement('br'));
     const savBtn = document.createElement('button');
-    savBtn.className = 'btn-cn'; savBtn.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
+    savBtn.className = 'btn-cn'; savBtn.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer';
     savBtn.textContent = '保存备注/昵称';
     savBtn.onclick = async () => {
       try {
@@ -424,7 +424,7 @@
       });
       body.appendChild(sel);
     }, (acts, close) => {
-      const ok = document.createElement('button'); ok.className = 'btn-cn'; ok.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer'; ok.textContent = '创建';
+      const ok = document.createElement('button'); ok.className = 'btn-cn'; ok.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer'; ok.textContent = '创建';
       ok.onclick = async () => {
         const name = nameEl && nameEl.value.trim();
         if (!name) { showToast('请填写群名', 'warn'); return; }
@@ -446,9 +446,9 @@
     head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
     const title = document.createElement('h3');
     title.textContent = '我的群聊';
-    title.style.cssText = 'margin:0;color:#2563eb';
+    title.style.cssText = 'margin:0;color:#07c160';
     const btn = document.createElement('button');
-    btn.className = 'btn-cn'; btn.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer';
+    btn.className = 'btn-cn'; btn.style.cssText = 'background:#07c160;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer';
     btn.textContent = '创建群聊';
     btn.onclick = createGroupDialog;
     head.appendChild(title); head.appendChild(btn);
@@ -464,7 +464,7 @@
         row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eee;border-radius:10px;cursor:pointer;background:#fff';
         row.onclick = () => openGroupDetail(g.id);
         const av = document.createElement('div');
-        av.style.cssText = 'width:38px;height:38px;border-radius:10px;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700';
+        av.style.cssText = 'width:38px;height:38px;border-radius:10px;background:#07c160;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700';
         av.textContent = (g.displayName || g.name || '?').charAt(0);
         const info = document.createElement('div');
         info.style.cssText = 'flex:1;overflow:hidden';
