@@ -3173,7 +3173,7 @@ function appendGroupMessage(m, prepend) {
       const file = JSON.parse(m.content.slice(8));
       if (file.id && file.name) {
         row.classList.add('has-file');
-        appendFileMsg(mine, file.name, file.size, file.id, m.createdAt, file.mime, true);
+        appendFileMsg(mine, file.name, file.size, file.id, m.createdAt, file.mime, true, m.fromUser, fromName);
         return;
       }
     } catch {}
@@ -3618,7 +3618,7 @@ function appendMessage(m, prepend) {
     try {
       const file = JSON.parse(m.content.slice(8));
       if (file.id && file.name) {
-        appendFileMsg(m.from === state.me.id, file.name, file.size, file.id, m.createdAt, file.mime);
+        appendFileMsg(m.from === state.me.id, file.name, file.size, file.id, m.createdAt, file.mime, false, m.fromUser);
         return;
       }
     } catch {}
@@ -4817,12 +4817,17 @@ function scrollToLatest() {
   requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
   setTimeout(() => { box.scrollTop = box.scrollHeight; }, 200);
 }
-function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
+function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup, fromUser, fromName) {
   const fUrl = (id) => state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(id);
   const box=$('messages'); const row=document.createElement('div'); row.className='msg-row '+(mine?'me':'other');
+  const who = mine ? (state.me || {}) : (fromUser || (state.activePeer && state.friends ? state.friends.find(u => u.id === state.activePeer) : null) || {});
+  const wname = who.nickname || who.username || fromName || ('用户' + ((who && who.id) || ''));
+  const wav = who.avatar ? '<img src="' + escapeHtml(who.avatar) + '">' : avatarChar(wname);
+  const avHtml = '<div class="row-avatar">' + wav + '</div>';
+  const nameHtml = (!mine && isGroup) ? '<div class="name">' + escapeHtml(wname) + '</div>' : '';
   const isImage = mime && String(mime).startsWith('image/');
   if (isImage) {
-    row.innerHTML='<div class="bubble bubble-image"><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML=avHtml+'<div class="bubble-wrap">'+nameHtml+'<div class="bubble bubble-image"><div class="file-image-wrap"><img class="file-image" data-fid="'+String(fileId)+'" alt="点击预览" loading="lazy"></div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span></div>';
     const img = row.querySelector('.file-image');
     fetch(fUrl(fileId), { headers: { 'Authorization': 'Bearer ' + state.token } })
       .then(r => { if (!r.ok) throw new Error('加载失败'); return r.blob(); })
@@ -4830,7 +4835,7 @@ function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup) {
       .catch(() => { img.alt = '加载失败'; });
     img.onclick = () => openImagePreview(img.src, name, fileId, isGroup);
   } else {
-    row.innerHTML='<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span>';
+    row.innerHTML=avHtml+'<div class="bubble-wrap">'+nameHtml+'<div class="bubble"><div class="file-msg"><div class="ficon">文</div><div><div class="fname">'+escapeHtml(name)+'</div><div class="fsize">'+humanSize(size)+'</div></div>'+(fileId?'<button class="fsize file-download" type="button">下载</button>':'')+'</div></div><span class="time">'+fmtTime(createdAt || Date.now())+'</span></div>';
     const download = row.querySelector('.file-download');
     if (download) download.onclick = async () => {
       download.disabled = true;
