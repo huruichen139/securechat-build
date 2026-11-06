@@ -146,7 +146,7 @@
 
   function _statusCard(s, isSelf) {
     const bgSafe = s.bgUrl && /^\/api\/media\//.test(String(s.bgUrl)) ? String(s.bgUrl).replace(/[^\w\-./]/g, '') : '';
-    const bg = bgSafe ? 'style="background-image:linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.35)),url(' + HOST + bgSafe + ');background-size:cover"' : 'style="background:#2a9d8f;color:#fff"';
+    const bg = bgSafe ? 'style="background-image:linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.35)),url(' + HOST + bgSafe + ');background-size:cover"' : 'style="background:#07c160;color:#fff"';
     let html = '<div class="sc-status-card" ' + bg + '>';
     html += '<div class="sc-status-avatar">' + esc((s.user && (s.user.nickname || s.user.username) || '?').charAt(0)) + '</div>';
     html += '<div class="sc-status-icon-big">' + esc(iconLabel(s.icon)) + '</div>';

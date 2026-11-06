@@ -2630,3 +2630,7 @@ body.dark-mode #chatView .messages .msg-row.me .quote-block{background:rgba(0,0,
 #welcomePanel h1::after{content:'微信';font-size:96px!important;font-weight:500!important;letter-spacing:10px;color:rgba(0,0,0,.045)!important}
 #welcomePanel .welcome-sub,#welcomePanel .welcome-actions,#welcomePanel .welcome-features,#welcomePanel .welcome-tip{display:none!important}
 body.dark-mode #welcomePanel h1::after{color:rgba(255,255,255,.05)!important}
+/* chat bg picker flat */
+.chat-bg-item{border-radius:4px!important;transform:none!important}
+.chat-bg-item:hover{border-color:#07c160!important;transform:none!important}
+.chat-bg-item:active{transform:none!important}
