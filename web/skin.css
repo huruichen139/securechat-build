@@ -2763,3 +2763,8 @@ body.dark-mode #chatMobileBackBtn::before{color:#d6d6d6}
 /* hide tab bar on mobile subpages (moments etc.) */
 html.is-mobile .mobile-bottom-nav.nav-hidden{display:none!important}
 html.is-mobile.subpage-active .wechat-page.active{inset:0!important}
+/* moments header back chevron */
+.moments-page .moments-header h2{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;width:auto!important;pointer-events:none;text-align:center!important}
+.moments-page .moments-header .back-btn{font-size:0!important;width:36px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.moments-page .moments-header .back-btn::before{content:'\2039';font-size:30px;line-height:1;font-weight:300;color:#191919}
+body.dark-mode .moments-page .moments-header .back-btn::before{color:#d6d6d6}
