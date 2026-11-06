@@ -5499,7 +5499,12 @@ function openSettingsPage() {
   backBtn.className = 'settings-back';
   backBtn.textContent = '\u2190';
   backBtn.style.cssText = 'background:none;border:none;font-size:20px;color:var(--text,#191919);cursor:pointer;padding:4px 8px';
-  backBtn.onclick = () => { panel.style.display = 'none'; if (main) main.style.display = ''; };
+  backBtn.onclick = () => {
+    panel.style.display = 'none';
+    if (main) main.style.display = '';
+    const onTab = document.querySelector('#mobileBottomNav .side-tab.on') || document.querySelector('.sidebar-rail .side-tab.on');
+    if (onTab) onTab.click();
+  };
   const hdrTitle = document.createElement('span');
   hdrTitle.textContent = '设置';
   hdrTitle.style.cssText = 'font-size:17px;font-weight:600;margin-left:8px;color:var(--text,#191919)';
