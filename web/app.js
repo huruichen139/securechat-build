@@ -3754,13 +3754,13 @@ function deleteMsgLocal(id) {
 // ============ 消息转发（微信式） ============
 function openForwardPicker(msg) {
   const mask = document.createElement('div');
-  mask.className = 'profile-mask';
+  mask.className = 'profile-mask forward-mask';
   const targets = [];
   state.friends.forEach(u => targets.push({ kind: 'user', id: u.id, name: u.nickname || u.username, avatar: u.avatar }));
   state.groups.forEach(g => targets.push({ kind: 'group', id: g.id, name: g.name, avatar: null }));
   if (!targets.length) { toast('暂无好友或群聊可转发', 'warn', 1500); return; }
   mask.innerHTML = `
-    <div class="profile-card">
+    <div class="profile-card forward-card">
       <div class="profile-head">
         <div class="profile-name" style="font-size:15px">选择转发目标</div>
         <div class="profile-id">${escapeHtml(String(msg.content || '').slice(0, 24))}</div>

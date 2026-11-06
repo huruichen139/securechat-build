@@ -2581,3 +2581,20 @@ body.dark-mode #chatView .message-search-bar button { background: #3a3a3a !impor
 .bubble-image .file-image{display:block;width:auto;height:auto;max-width:200px;max-height:260px;border-radius:4px}
 body.dark-mode .bubble-image .file-image-wrap{background:#2c2c2c}
 @media (max-width:720px){.bubble-image .file-image{max-width:170px;max-height:220px}}
+
+/* forward picker wechat style */
+.forward-card{width:380px!important;max-width:92vw!important;padding:0!important;border-radius:8px!important;background:#fff!important;overflow:hidden!important;box-shadow:0 8px 30px rgba(0,0,0,.18)!important}
+.forward-card .profile-head{padding:16px 16px 10px!important;border-bottom:1px solid #ededed!important;display:block!important;text-align:left!important}
+.forward-card .profile-name{font-size:16px!important;font-weight:500!important;color:#191919!important}
+.forward-card .profile-id{margin-top:4px!important;font-size:12px!important;color:#999!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.forward-card .profile-members{padding:4px 0!important;max-height:56vh!important;overflow:auto!important;display:block!important}
+.forward-card .profile-member{display:flex!important;align-items:center!important;gap:12px!important;height:56px!important;padding:0 16px!important;border:0!important;border-radius:0!important;background:transparent!important;font-size:16px!important;color:#191919!important}
+.forward-card .profile-member:hover{background:#f5f5f5!important}
+.forward-card .profile-member .avatar{width:40px!important;height:40px!important;border-radius:4px!important;flex:0 0 40px!important;overflow:hidden}
+.forward-card .profile-member .avatar img{width:100%;height:100%;object-fit:cover}
+.forward-card .profile-member em{color:#999!important;font-size:11px!important;margin-left:auto!important}
+body.dark-mode .forward-card{background:#2c2c2c!important;box-shadow:0 8px 30px rgba(0,0,0,.5)!important}
+body.dark-mode .forward-card .profile-head{border-bottom-color:#3a3a3a!important}
+body.dark-mode .forward-card .profile-name,body.dark-mode .forward-card .profile-member{color:#d6d6d6!important}
+body.dark-mode .forward-card .profile-member:hover{background:#333!important}
+@media (max-width:720px){.forward-mask{align-items:flex-end!important;padding-bottom:0!important}.forward-card{width:100%!important;max-width:100%!important;border-radius:12px 12px 0 0!important;max-height:72vh!important}}
