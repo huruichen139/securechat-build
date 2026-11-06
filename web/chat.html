@@ -378,7 +378,7 @@
 <script src="features-knowledge-poems.js?v=1827x"></script>
 <script src="features-knowledge-tongue.js?v=1827x"></script>
 <script src="jsqr.js?v=1827x"></script>
-  <script src="app.js?v=1828s"></script>
+  <script src="app.js?v=1828u"></script>
 <script src="modules/registry.js?v=1828f"></script>
 <script src="modules/groups.js?v=1828f"></script>
 <script src="modules/chat-ext.js?v=1828f"></script>
@@ -420,7 +420,7 @@
     });
   }
 </script>
-<script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest(".messages .row-avatar");if(!a)return;var row=a.closest(".msg-row");var uid=row&&row.getAttribute("data-from");if(uid&&window.openPeerProfile)window.openPeerProfile(parseInt(uid,10));},true);</script>
+<script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest(".messages .row-avatar, .messages .msg-row > .avatar");if(!a)return;var row=a.closest(".msg-row");var uid=row&&row.getAttribute("data-from");var meId=window.state&&state.me&&state.me.id;if(uid&&String(uid)!==String(meId)&&window.openPeerProfile)window.openPeerProfile(parseInt(uid,10));},true);</script>
 </body>
 </html>
 

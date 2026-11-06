@@ -6135,11 +6135,11 @@ const CHAT_BGS = [
   { name: '雾紫', color: '#e6e0f0' },
   { name: '樱花粉', color: '#fce4ec' },
   { name: '薄荷绿', color: '#e0f2f1' },
-  { name: '日落', color: 'linear-gradient(135deg, #ffecd2, #fcb69f)' },
-  { name: '极光', color: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)' },
-  { name: '森林', color: 'linear-gradient(135deg, #c9dcff, #a8c6ff)' },
-  { name: '星空', color: 'linear-gradient(135deg, #0c0c1d, #1a1a3e)' },
-  { name: '晚霞', color: 'linear-gradient(135deg, #fa709a, #fee140)' },
+  { name: '日落', color: '#f6d5c0' },
+  { name: '极光', color: '#cfe3f7' },
+  { name: '森林', color: '#d9e8dc' },
+  { name: '星空', color: '#2b2b33' },
+  { name: '晚霞', color: '#f3d6e4' },
 ];
 function applyChatBgLegacy() { /* superseded */ }
 function initChatBg() {
