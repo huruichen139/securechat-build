@@ -5786,20 +5786,20 @@ function renderMePage() {
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;
 const services = [
-    { name: '支付', icon: '付', action: () => {
+    { name: '支付', icon: '¥', action: () => {
       const pay = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
       else toast('支付功能开发中', 'info');
     } },
     { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) openContainerFeature(window.SecureChatFavorites, '我的收藏'); else toast('收藏功能开发中', 'info'); } },
-    { name: '相册', icon: '相', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
-    { name: '卡包', icon: '卡', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
+    { name: '相册', icon: '▦', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
+    { name: '卡包', icon: '▤', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
     { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
-    { name: '黑名单', icon: '黑', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
-    { name: '更多功能', icon: '更', action: () => openFeatureCenter() },
-    { name: '下载', icon: '下', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
-    { name: '意见反馈', icon: '反', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
-    { name: '设置', icon: '设', action: () => openSettingsPage() },
+    { name: '黑名单', icon: '⊘', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
+    { name: '更多功能', icon: '⋯', action: () => openFeatureCenter() },
+    { name: '下载', icon: '↓', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
+    { name: '意见反馈', icon: '✉', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
+    { name: '设置', icon: '⚙', action: () => openSettingsPage() },
   ];
   // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
   svc.innerHTML = `
