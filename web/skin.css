@@ -2655,3 +2655,6 @@ body.dark-mode .feature-item{background:#2c2c2c!important;color:#d6d6d6!importan
 .auth-card .tab.on{box-shadow:none!important;border-radius:3px!important;background:#07c160!important;color:#fff!important}
 body.dark-mode .auth-card .tabs{background:#2c2c2c!important}
 body.dark-mode .auth-card .tab.on{background:#07c160!important;color:#fff!important}
+/* image preview bar */
+.img-preview-bar{border-radius:4px!important}
+.img-preview-dl{background:#07c160!important;border-radius:4px!important;padding:5px 14px!important}
