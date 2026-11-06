@@ -69,7 +69,8 @@
   });
 
   $('regenBtn').addEventListener('click', async () => {
-    if (!confirm('确定重置 API 密钥？旧密钥将立即失效。')) return;
+    const ok = window.scConfirm ? await window.scConfirm({ title: '确定重置 API 密钥？旧密钥将立即失效。', okText: '重置' }) : confirm('确定重置 API 密钥？旧密钥将立即失效。');
+    if (!ok) return;
     try {
       const data = await api('/api/pay/gateway/merchant/update', {
         method: 'POST',

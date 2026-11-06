@@ -326,6 +326,7 @@ function scAsk(opts) {
     input.type = opts.type || 'text';
     input.placeholder = opts.placeholder || '';
     input.value = opts.value || '';
+    input.readOnly = !!opts.readonly;
     const actions = document.createElement('div');
     actions.className = 'sc-fav-ask-actions';
     const cancel = document.createElement('button');

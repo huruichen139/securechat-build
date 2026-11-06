@@ -36,7 +36,7 @@
 
   // 复制
   function copyText(s) {
-    try { navigator.clipboard.writeText(s); toast('已复制', 'success'); } catch (e) { try { window.prompt('复制结果：', s); } catch (e2) {} }
+    try { navigator.clipboard.writeText(s); toast('已复制', 'success'); } catch (e) { try { if (window.scAsk) window.scAsk({ title: '复制结果', value: s, readonly: true }); else window.prompt('复制结果：', s); } catch (e2) {} }
   }
 
   // 长按消息 → 菜单（浏览器兼容：mousedown 计时 600ms，避免与点击冲突）
