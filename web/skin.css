@@ -2598,3 +2598,21 @@ body.dark-mode .forward-card .profile-head{border-bottom-color:#3a3a3a!important
 body.dark-mode .forward-card .profile-name,body.dark-mode .forward-card .profile-member{color:#d6d6d6!important}
 body.dark-mode .forward-card .profile-member:hover{background:#333!important}
 @media (max-width:720px){.forward-mask{align-items:flex-end!important;padding-bottom:0!important}.forward-card{width:100%!important;max-width:100%!important;border-radius:12px 12px 0 0!important;max-height:72vh!important}}
+/* wechat composer radius */
+#chatView .main .composer .composer-input-wrap{border-radius:4px!important}
+body.dark-mode #chatView .main .composer .composer-input-wrap{border-radius:4px!important}
+/* flat fixes: discover banner / search / list */
+.discover-list{box-shadow:none!important;background:#ededed!important}
+#contactsPage .search{border-radius:4px!important}
+.ai-banner-sm{background:#fff!important;background-image:none!important;border-radius:4px!important;box-shadow:none!important}
+.ai-banner-sm .ai-banner-ico{background:#07c160!important;background-image:none!important;color:#fff!important;border-radius:4px!important;width:40px!important;height:40px!important}
+body.dark-mode .discover-list{background:#111!important}
+body.dark-mode .ai-banner-sm{background:#2c2c2c!important}
+body.dark-mode .ai-banner-sm *{color:#d6d6d6!important}
+body.dark-mode .ai-banner-sm .ai-banner-ico{color:#fff!important}
+/* feature icons flat wechat */
+.feature-icon,.feature-item .feature-icon,#chatView .feature-icon{background-image:none!important;border-radius:4px!important;box-shadow:none!important;transform:none!important}
+.feature-item:hover .feature-icon{transform:none!important;border-radius:4px!important}
+.feature-item-community .feature-icon,.feature-item-content .feature-icon,.feature-item-life .feature-icon,.feature-item-tools .feature-icon,.feature-item-videos .feature-icon,.feature-item-oa .feature-icon,.feature-item-live .feature-icon,.feature-item-miniapp .feature-icon,.feature-item-read .feature-icon,.feature-item-search .feature-icon,.feature-item-album .feature-icon,.feature-item-cards .feature-icon,.feature-item-stickers .feature-icon,.feature-item-shop .feature-icon,.feature-item-games .feature-icon,.feature-item-redpacket .feature-icon,.feature-item-nearby .feature-icon,.feature-item-shake .feature-icon,.feature-item-scan .feature-icon,.feature-item-pay .feature-icon,.feature-item-payment .feature-icon,.feature-item-status .feature-icon,.feature-item-favorites .feature-icon,.feature-item-groups .feature-icon{background-image:none!important;border-radius:4px!important;box-shadow:none!important;transform:none!important}
+.feature-item-videos .feature-icon::after{content:none!important}
+.modal-x{border-radius:4px!important}

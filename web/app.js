@@ -1466,12 +1466,12 @@ function showInfoModal(title, html) {
 // openFeatureCenter 对前者调用 open()，对后者新建 modal 并把内容容器传给 feature.open(container)。
 // 每个入口的渐变配色（135deg）：微信「发现」页风格彩色圆角方块。
 const FEATURE_GRADS = [
-  'linear-gradient(135deg,#2563eb,#1d4ed8)',
-  'linear-gradient(135deg,#10aeff,#0a7fe0)',
-  'linear-gradient(135deg,#fa9d3b,#f97316)',
-  'linear-gradient(135deg,#ff5b5b,#ef4444)',
-  'linear-gradient(135deg,#9a6bff,#7c3aed)',
-  'linear-gradient(135deg,#00bcd4,#0097a7)',
+  '#10aeff',
+  '#07c160',
+  '#fa9d3b',
+  '#fa5151',
+  '#7c6bd6',
+  '#0bbfbf',
   'linear-gradient(135deg,#ff9800,#f57c00)',
   'linear-gradient(135deg,#6ea1fa,#4a86f7)',
   'linear-gradient(135deg,#e91e63,#d81b60)',
