@@ -2667,3 +2667,5 @@ body.dark-mode .auth-card .tab.on{background:#07c160!important;color:#fff!import
 /* settings rows plain like wechat */
 #settingsPanel .settings-ic,.settings-ic{display:none!important}
 #settingsPanel .settings-row,.settings-row{padding-left:16px!important;padding-right:16px!important}
+/* hide non-wechat meta labels */
+.draft-state,.read-state{display:none!important}
