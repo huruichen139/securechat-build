@@ -2658,3 +2658,9 @@ body.dark-mode .auth-card .tab.on{background:#07c160!important;color:#fff!import
 /* image preview bar */
 .img-preview-bar{border-radius:4px!important}
 .img-preview-dl{background:#07c160!important;border-radius:4px!important;padding:5px 14px!important}
+/* sidebar wechat: no bottom profile card */
+#myInfo{display:none!important}
+#chatView .sidebar-content{display:flex!important;flex-direction:column!important}
+#chatView .sidebar-content .contact-list{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
+#chatView .sidebar-tools #search{border-radius:4px!important;background:#f2f2f2!important}
+#chatView .sidebar-tools #sidePlusBtn{width:30px!important;height:30px!important;border-radius:4px!important;color:#7f7f7f!important;font-size:20px!important;background:transparent!important}
