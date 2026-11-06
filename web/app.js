@@ -2718,7 +2718,11 @@ if (contactsAddBtn) contactsAddBtn.onclick = () => {
 
 const downloadBackBtn = $('downloadBackBtn');
 if (downloadBackBtn) downloadBackBtn.onclick = () => {
-  const tab = document.querySelector('.side-tab[data-side="' + (state.tabContact || 'friends') + '"]');
+  const dv = document.getElementById('downloadView');
+  if (dv) { dv.style.display = 'none'; dv.classList.add('dl-hidden'); }
+  const tab = window.IS_MOBILE
+    ? document.querySelector('#mobileBottomNav .side-tab[data-side="downloads"]')
+    : document.querySelector('.side-tab[data-side="' + (state.tabContact || 'friends') + '"]');
   if (tab) tab.click();
 };
 
@@ -5827,7 +5831,7 @@ const services = [
     { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
     { name: '黑名单', icon: '⊘', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
     { name: '更多功能', icon: '⋯', action: () => openFeatureCenter() },
-    { name: '下载', icon: '↓', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) dv.style.display = 'flex'; if (window.initDownloadView) window.initDownloadView(dv); } },
+    { name: '下载', icon: '↓', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) { dv.style.display = 'flex'; dv.classList.remove('dl-hidden'); } if (window.IS_MOBILE) { const cv = document.getElementById('chatView'); if (cv) { cv.classList.add('mobile-chat-active'); cv.scrollLeft = 0; } } if (window.initDownloadView) window.initDownloadView(dv); } },
     { name: '意见反馈', icon: '✉', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
     { name: '设置', icon: '⚙', action: () => openSettingsPage() },
   ];
