@@ -2481,3 +2481,13 @@ body.dark-mode #chatView #emojiPanel .emoji-item:hover { background: #3a3a3a !im
 .shake-stage { border-radius: 6px !important; box-shadow: none !important; }
 .moments-viewer img { border-radius: 4px !important; box-shadow: none !important; }
 .vid-panel button { background-image: none !important; background: #f2f2f2 !important; color: #191919 !important; box-shadow: none !important; }
+
+/* ---------- 侧栏底部账号条：微信 PC 简化 ---------- */
+#chatView .sidebar .my-info .my-id,
+#chatView .sidebar .my-info .account-exit { display: none !important; }
+#chatView .sidebar .my-info .account-card { padding: 0 8px !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; }
+#chatView .sidebar .my-info .account-main { gap: 8px !important; }
+#chatView .sidebar .my-info .avatar.my-avatar { width: 32px !important; height: 32px !important; flex: 0 0 32px !important; border-radius: 4px !important; }
+#chatView .sidebar .my-info .my-name { font-size: 14px !important; font-weight: 400 !important; color: #191919 !important; }
+#chatView .sidebar .my-info .account-copy { display: flex !important; align-items: center !important; }
+body.dark-mode #chatView .sidebar .my-info .my-name { color: #d6d6d6 !important; }
