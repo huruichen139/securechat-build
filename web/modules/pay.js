@@ -586,16 +586,16 @@
       { label: '收款码', icon: '￥', fn: () => showReceiveCodeFlow() },
       { label: '付款码', icon: '◈', fn: () => Pay.createPayCode().then(r => showCodePanel(r, "pay", () => Pay.createPayCode())).catch(e => showToast('生成失败：' + e.message, 'error')) },
       { label: '扫一扫', icon: '▦', fn: () => scanFlow('receive') },
-      { label: '群收款', icon: '群', fn: () => openGroupCollect() },
-      { label: '群接龙', icon: '接', fn: () => openGroupSolection() },
-      { label: '充值', icon: '充', fn: () => rechargeEntry() },
-      { label: '缴费', icon: '缴', fn: () => openLifePay() },
+      { label: '群收款', icon: '⊞', fn: () => openGroupCollect() },
+      { label: '群接龙', icon: '≡', fn: () => openGroupSolection() },
+      { label: '充值', icon: '¥', fn: () => rechargeEntry() },
+      { label: '缴费', icon: '▤', fn: () => openLifePay() },
     ];
     items.forEach((it) => {
       const cell = document.createElement('button');
       cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border:0;border-radius:0;background:#fff;cursor:pointer';
       const ic = document.createElement('div');
-      ic.style.cssText = 'width:36px;height:36px;border-radius:8px;background:#f2f2f2;color:#333;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500';
+      ic.style.cssText = 'width:36px;height:36px;border-radius:4px;background:#f2f2f2;color:#333;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500';
       ic.textContent = it.icon;
       const lb = document.createElement('div'); lb.textContent = it.label; lb.style.cssText = 'font-size:12px;color:#555';
       cell.appendChild(ic); cell.appendChild(lb);
