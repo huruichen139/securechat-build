@@ -2705,3 +2705,6 @@ body.dark-mode .announcement-content{color:#a0a0a0!important}
   #chatMobileComposer{padding-bottom:calc(6px + env(safe-area-inset-bottom))!important}
   #chatView .mobile-bottom-nav{height:calc(52px + env(safe-area-inset-bottom))!important;padding-bottom:env(safe-area-inset-bottom)!important}
 }
+/* auth copy cleanup */
+.auth-sub{display:none!important}
+.auth-logo{font-size:26px!important;font-weight:500!important;letter-spacing:0!important;text-align:center!important}
