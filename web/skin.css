@@ -2700,3 +2700,8 @@ body.dark-mode .group-invite-user:hover{background:#333!important}
 body.dark-mode .announcement-box{background:#2c2c2c!important}
 body.dark-mode .announcement-title{color:#d6d6d6!important}
 body.dark-mode .announcement-content{color:#a0a0a0!important}
+/* ios safe area */
+@supports (padding: env(safe-area-inset-bottom)){
+  #chatMobileComposer{padding-bottom:calc(6px + env(safe-area-inset-bottom))!important}
+  #chatView .mobile-bottom-nav{height:calc(52px + env(safe-area-inset-bottom))!important;padding-bottom:env(safe-area-inset-bottom)!important}
+}
