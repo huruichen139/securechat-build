@@ -2729,3 +2729,7 @@ body.dark-mode .side-plus-menu button:hover{background:#333}
 #chatView .messages .voice-bubble .play{width:20px!important;height:20px!important;font-size:12px!important;background:transparent!important;display:inline-flex;align-items:center;justify-content:center}
 #chatView .messages .voice-bubble .vdur{font-size:12px!important;color:#7f7f7f!important}
 #chatView .messages .msg-row.me .voice-bubble .vdur{color:#4a7a3a!important}
+
+/* mobile page overlay fix: body-appended .wechat-page has no positioning at mobile */
+html.is-mobile .wechat-page.active{position:fixed!important;inset:0!important;z-index:60!important;height:auto!important;display:flex!important}
+html.is-mobile .wechat-page .page-body{flex:1!important;min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
