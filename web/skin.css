@@ -2757,3 +2757,6 @@ html.is-mobile body.dark-mode .mobile-list-title{color:#d6d6d6}
 body.dark-mode #chatMobileBackBtn::before{color:#d6d6d6}
 #chatMobileComposer .composer-send-btn{width:auto!important;min-width:56px!important;padding:0 12px!important;height:32px!important;font-size:14px!important}
 #chatMobileComposer:has(#input:placeholder-shown) #sendBtn{display:none!important}
+/* me page header type scale */
+#mePage .me-name{font-size:17px!important;font-weight:500!important}
+#mePage .me-id{font-size:13px!important;color:#999!important}
