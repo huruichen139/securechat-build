@@ -3826,8 +3826,7 @@ function renderReplyHint() {
       hint.className = 'reply-hint';
       hint.innerHTML = '<span class="reply-hint-text">正在引用一条消息</span><button type="button" class="reply-hint-cancel">取消</button>';
       hint.querySelector('.reply-hint-cancel').onclick = () => clearPendingReply();
-      const wrap = c.querySelector('.composer-input-wrap') || c;
-      wrap.insertBefore(hint, wrap.firstChild);
+      c.insertBefore(hint, c.firstChild);
     }
   });
 }

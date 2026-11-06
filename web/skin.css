@@ -2637,7 +2637,7 @@ body.dark-mode #welcomePanel h1::after{color:rgba(255,255,255,.05)!important}
 /* flatten remaining gradients */
 #acceptCallBtn{background:#07c160!important;background-image:none!important;border-radius:4px!important}
 #rejectCallBtn,#hangupBtn{background:#fa5151!important;background-image:none!important;border-radius:4px!important}
-.reply-hint{background:#f7f7f7!important;background-image:none!important;border:0!important;border-radius:4px!important;color:#999!important}
+.reply-hint{position:absolute!important;left:0!important;right:0!important;bottom:100%!important;margin:0!important;height:36px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:0 12px!important;background:#f7f7f7!important;background-image:none!important;border:0!important;border-top:1px solid #e5e5e5!important;border-radius:0!important;color:#999!important;font-size:13px!important;z-index:5!important}
 body.dark-mode .reply-hint{background:#2c2c2c!important;border:0!important;color:#8f8f8f!important}
 .profile-head{background:#fff!important;background-image:none!important}
 body.dark-mode .profile-head{background:#2c2c2c!important;background-image:none!important}
