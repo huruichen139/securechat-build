@@ -323,7 +323,7 @@ function scAsk(opts) {
     title.textContent = opts.title || '';
     const input = document.createElement('input');
     input.className = 'sc-fav-ask-input';
-    input.type = 'text';
+    input.type = opts.type || 'text';
     input.placeholder = opts.placeholder || '';
     input.value = opts.value || '';
     const actions = document.createElement('div');
@@ -363,6 +363,52 @@ function scAsk(opts) {
   });
 }
 window.scAsk = scAsk;
+
+function scConfirm(opts) {
+  opts = typeof opts === 'string' ? { title: opts } : (opts || {});
+  return new Promise((resolve) => {
+    const mask = document.createElement('div');
+    mask.className = 'sc-fav-ask-mask';
+    const box = document.createElement('div');
+    box.className = 'sc-fav-ask';
+    const title = document.createElement('div');
+    title.className = 'sc-fav-ask-title';
+    title.textContent = opts.title || '';
+    const actions = document.createElement('div');
+    actions.className = 'sc-fav-ask-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = opts.cancelText || '取消';
+    const ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'ok';
+    ok.textContent = opts.okText || '确定';
+    actions.appendChild(cancel);
+    actions.appendChild(ok);
+    box.appendChild(title);
+    box.appendChild(actions);
+    mask.appendChild(box);
+    document.body.appendChild(mask);
+    let done = false;
+    const finish = (v) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey, true);
+      mask.remove();
+      resolve(v);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      else if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    };
+    cancel.onclick = () => finish(false);
+    ok.onclick = () => finish(true);
+    mask.onclick = (e) => { if (e.target === mask) finish(false); };
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(() => ok.focus(), 30);
+  });
+}
+window.scConfirm = scConfirm;
 
 // 剪贴板复制：navigator.clipboard 在非安全上下文/未聚焦时会 reject，
 // 统一降级到 execCommand 兜底，避免用户只看到「复制失败」。
@@ -5356,9 +5402,10 @@ async function oauthBindAction(type) {
   const list = await fetchOauthBindings();
   const cur = list.find(x => x.provider === type);
   if (cur) {
-    const ok = window.confirm(
-      '你已绑定' + name + '账号' + (cur.nickname ? '（' + cur.nickname + '）' : '') + '。\n是否解绑？解绑后将无法用' + name + '一键登录。'
-    );
+    const ok = await scConfirm({
+      title: '你已绑定' + name + '账号' + (cur.nickname ? '（' + cur.nickname + '）' : '') + '。是否解绑？解绑后将无法用' + name + '一键登录。',
+      okText: '解绑'
+    });
     if (!ok) return;
     try {
       const res = await fetch(state.serverHost + '/api/oauth/unbind', {
@@ -5409,9 +5456,9 @@ async function hmacHex(secretHex, msgHex) {
 
 async function passkeyRegister() {
   if (!passkeyAvailable()) { toast('当前环境不支持 Passkey（需 HTTPS 或 localhost）', 'warn'); return; }
-  const deviceName = window.prompt('给这台设备起个名字（便于识别）', (navigator.platform || '本机设备').slice(0, 30));
+  const deviceName = await scAsk({ title: '给这台设备起个名字（便于识别）', value: (navigator.platform || '本机设备').slice(0, 30), placeholder: '设备名称' });
   if (deviceName === null) return;
-  const password = window.prompt('为安全起见，请输入当前密码以确认创建 Passkey', '') || '';
+  const password = await scAsk({ title: '为安全起见，请输入当前密码以确认创建 Passkey', type: 'password', placeholder: '当前密码' }) || '';
   try {
     const res = await fetch(state.serverHost + '/api/passkey/register', {
       method: 'POST',
@@ -5460,7 +5507,7 @@ async function passkeyLogin() {
 }
 
 async function passkeyRemove(credentialId) {
-  if (!window.confirm('删除该 Passkey 设备？删除后此设备无法通行密钥登录。')) return;
+  if (!await scConfirm('删除该 Passkey 设备？删除后此设备无法通行密钥登录。')) return;
   try {
     await fetch(state.serverHost + '/api/passkey/delete?credentialId=' + encodeURIComponent(credentialId), {
       method: 'DELETE', headers: { Authorization: 'Bearer ' + state.token }
@@ -5644,7 +5691,7 @@ const panel = document.getElementById('settingsPanel');
         }},
         { label: '绑定邮箱', desc: (me && me.email) ? me.email : '未绑定', icon: '邮', fn: async () => {
           if (me && me.email) { toast('已绑定：' + me.email, 'info'); return; }
-          const email = window.prompt('输入要绑定的邮箱地址：', '') || '';
+          const email = await scAsk({ title: '输入要绑定的邮箱地址', type: 'email', placeholder: '邮箱地址' }) || '';
           if (!email.trim()) return;
           try {
             const cr = await fetch(state.serverHost + '/api/email/code', {

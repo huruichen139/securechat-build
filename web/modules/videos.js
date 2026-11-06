@@ -146,8 +146,8 @@
       .then(function (d) { btn.textContent = '↗ ' + (d.shareCount || 0); toastMsg('已转发'); })
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
-  function comment(id, grid, host) {
-    const c = window.prompt('评论：');
+  async function comment(id, grid, host) {
+    const c = window.scAsk ? await window.scAsk({ title: '评论', placeholder: '说点什么' }) : window.prompt('评论：');
     if (!c || !c.trim()) return;
     fetchJson('/api/videos/' + id + '/comment', { method: 'POST', json: { content: c.trim() } })
       .then(function () { toastMsg('评论成功'); reloadCard(grid, host); })

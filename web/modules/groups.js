@@ -265,7 +265,8 @@
         rm.className = 'btn-cn'; rm.textContent = '移除';
         rm.style.cssText = 'padding:2px 8px;font-size:12px;background:#fa5151;color:#fff;border:none;border-radius:6px;cursor:pointer';
         rm.onclick = async () => {
-          if (!window.confirm('确认移除该成员？')) return;
+          const rmOk = window.scConfirm ? await window.scConfirm('确认移除该成员？') : window.confirm('确认移除该成员？');
+          if (!rmOk) return;
           try { await Groups.removeMember(g.id, mm.id); showToast('已移除', 'success'); m.close(); openGroupDetail(g.id); }
           catch (e) { showToast('移除失败:' + e.message, 'error'); }
         };
@@ -370,7 +371,8 @@
     danger.textContent = g.isOwner ? '解散群' : '退出群';
     danger.onclick = async () => {
       const tip = g.isOwner ? '解散后群消息与成员关系将全部删除，确认？' : '确认退出该群？';
-      if (!window.confirm(tip)) return;
+      const dangerOk = window.scConfirm ? await window.scConfirm({ title: tip, okText: g.isOwner ? '解散' : '退出' }) : window.confirm(tip);
+      if (!dangerOk) return;
       try {
         if (g.isOwner) await Groups.dissolve(g.id);
         else await Groups.leave(g.id);

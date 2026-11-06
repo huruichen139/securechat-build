@@ -191,9 +191,9 @@
       .then(function (d) { btn.dataset.on = on ? '1' : '0'; btn.textContent = (on ? '★ ' : '☆ ') + (d.favoriteCount || 0); })
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
-  function endLive(id, box) {
+  async function endLive(id, box) {
     const def = liveRecId ? '/api/call-recordings/' + liveRecId : '';
-    const replay = window.prompt('回放地址（HLS 或 /api/call-recordings/...，可留空）', def);
+    const replay = window.scAsk ? await window.scAsk({ title: '回放地址（HLS 或 /api/call-recordings/...，可留空）', value: def, placeholder: '留空则自动使用录制地址' }) : window.prompt('回放地址（HLS 或 /api/call-recordings/...，可留空）', def);
     if (replay === null) return;
     const custom = (replay || '').trim();
     const done = function () {
