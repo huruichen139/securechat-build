@@ -3750,4 +3750,14 @@ html body .vid-novideo{display:flex!important;flex-direction:column!important;al
 html body .vid-author{display:flex!important;align-items:center!important;gap:8px!important}
 html body .vid-ava{width:26px!important;height:26px!important;border-radius:50%!important;background:#4a7dde!important;color:#fff!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:12px!important}html body .shop-item-img,html body .product-img{display:flex!important;align-items:center!important;justify-content:center!important;color:#07c160!important;background:#e8f8ef!important;border-radius:6px!important}
 html body .shop-item-img svg,html body .product-img svg{width:40px!important;height:40px!important}
-html body .memory-card svg{margin:auto}
+html body .memory-card svg{margin:auto}*{scrollbar-width:thin;scrollbar-color:#c8c8c8 transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#c8c8c8;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#b0b0b0}
+::-webkit-scrollbar-track{background:transparent}
+body.dark-mode *{scrollbar-color:#4a4a4a transparent}
+body.dark-mode ::-webkit-scrollbar-thumb{background:#4a4a4a}
+:focus-visible{outline:2px solid #07c160;outline-offset:2px}
+button{transition:background-color .15s ease,color .15s ease,opacity .15s ease}
+::selection{background:#b8ebc9;color:#111}
+html{-webkit-tap-highlight-color:transparent}
