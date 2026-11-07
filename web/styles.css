@@ -3016,3 +3016,475 @@ body.dark-mode .feature-item-pay .feature-icon,body.dark-mode .feature-item-paym
 body.dark-mode .feature-item{background:#2c2c2c!important;border-color:#3a3a3a!important;color:#d6d6d6!important}
 body.dark-mode .feature-icon{background:#1f3a2c!important;color:#4ade80!important}
 body.dark-mode .feature-icon svg{fill:#4ade80!important;stroke:#4ade80!important}
+
+html body .modal-mask { padding: 12px !important; box-sizing: border-box !important; }
+html body .modal,
+html body .modal-box,
+html body .profile-card,
+html body .update-dialog,
+html body .chat-more-menu,
+html body .conv-context-menu,
+html body .locale-menu,
+html body .plus-panel {
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  max-width: calc(100vw - 24px) !important;
+  box-sizing: border-box !important;
+}
+html body .modal { overflow-x: hidden !important; }
+html body .modal:has(.feature-grid) {
+  width: min(680px, calc(100vw - 24px)) !important;
+  background: #fff !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+html body .modal .modal-head,
+html body .modal-box .modal-head {
+  background: #fff !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+html body .modal h3,
+html body .modal .modal-head h3,
+html body .modal-box h3,
+html body .modal-box .modal-head h3,
+html body .update-dialog h3 {
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #191919 !important;
+}
+html body .modal .modal-x,
+html body .modal-box .modal-x { color: #999 !important; border-radius: 4px !important; }
+html body .modal .field label,
+html body .modal .field-row label,
+html body .modal .field-cat { color: #5b5b5b !important; }
+html body .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+html body .modal textarea,
+html body .modal select,
+html body .modal-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+html body .modal-box textarea,
+html body .modal-box select {
+  background: #f7f7f7 !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  color: #191919 !important;
+  box-shadow: none !important;
+}
+html body .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+html body .modal textarea:focus,
+html body .modal select:focus,
+html body .modal-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+html body .modal-box textarea:focus,
+html body .modal-box select:focus {
+  border-color: #07c160 !important;
+  background: #f7f7f7 !important;
+  box-shadow: none !important;
+}
+html body .modal .modal-actions,
+html body .modal-box .modal-actions,
+html body .update-dialog .actions {
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+  padding: 14px 0 0 !important;
+  border-top: 0 !important;
+}
+html body .modal .modal-actions button,
+html body .modal-box .modal-actions button,
+html body .update-dialog .actions button {
+  flex: 0 0 auto !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 18px !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px !important;
+  background: #f2f2f2 !important;
+  background-image: none !important;
+  color: #191919 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+html body .modal .modal-actions button + button,
+html body .modal-box .modal-actions button + button,
+html body .update-dialog .actions button + button { border-left: 1px solid transparent !important; }
+html body .modal .modal-actions button.ok,
+html body .modal .modal-actions button.primary,
+html body .modal .modal-actions .btn.ok,
+html body .modal .modal-actions .btn.primary,
+html body .modal .modal-actions .btn.mica-primary,
+html body .modal-box .modal-actions button.ok,
+html body .modal-box .modal-actions button.primary,
+html body .update-dialog .actions .ok {
+  background: #07c160 !important;
+  background-image: none !important;
+  border-color: #07c160 !important;
+  color: #fff !important;
+}
+html body .modal .modal-actions button:hover,
+html body .modal-box .modal-actions button:hover,
+html body .update-dialog .actions button:hover { background: #e5e5e5 !important; }
+html body .modal .modal-actions button.ok:hover,
+html body .modal .modal-actions button.primary:hover,
+html body .modal-box .modal-actions button.ok:hover,
+html body .modal-box .modal-actions button.primary:hover,
+html body .update-dialog .actions .ok:hover { background: #06ad56 !important; }
+html body .update-dialog .notes { color: #5b5b5b !important; }
+html body .modal .pay-wallet,
+html body .modal .pay-bill { background: transparent !important; box-shadow: none !important; }
+html body .modal .pay-wallet button,
+html body .modal .pay-bill button { border-radius: 4px !important; box-shadow: none !important; }
+html body .modal .pay-wallet h3,
+html body .modal .pay-bill h3 { font-size: 16px !important; font-weight: 500 !important; }
+html body .feature-tabs {
+  display: flex !important;
+  gap: 6px !important;
+  padding: 0 0 12px !important;
+  margin-bottom: 8px !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+  overflow-x: auto !important;
+  scrollbar-width: none;
+}
+html body .feature-tab,
+html body .feature-tab:hover {
+  height: 30px !important;
+  padding: 0 12px !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  background-image: none !important;
+  color: #191919 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .feature-tab.active {
+  background: #07c160 !important;
+  border-color: #07c160 !important;
+  border-radius: 4px !important;
+  color: #fff !important;
+}
+html body .feature-cat-title {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: #7a7a7a !important;
+  margin: 0 0 8px !important;
+}
+html body .feature-cat-title::before { display: none !important; }
+html body .feature-grid {
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)) !important;
+  gap: 10px 6px !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+html body .feature-grid .feature-item,
+html body .feature-item,
+html body .feature-item:hover {
+  min-height: 0 !important;
+  padding: 10px 4px !important;
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  color: #191919 !important;
+  transform: none !important;
+}
+html body .feature-grid .feature-item:hover,
+html body .feature-item:hover { background: #f7f7f7 !important; border-color: #dcdcdc !important; }
+html body .feature-grid .feature-item .feature-icon,
+html body .feature-item .feature-icon,
+html body .feature-item:hover .feature-icon {
+  width: 46px !important;
+  height: 46px !important;
+  background: #f2f2f2 !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  color: #191919 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .feature-item-videos .feature-icon::after { display: none !important; }
+html body .feature-grid .feature-item .feature-label,
+html body .feature-item .feature-label { color: #191919 !important; font-size: 12px !important; font-weight: 400 !important; margin-top: 6px !important; }
+html body .feature-icon svg { fill: #191919 !important; stroke: #191919 !important; }
+html body .welcome-panel { background: transparent !important; box-shadow: none !important; }
+html body .welcome-panel h1 { font-size: 17px !important; font-weight: 500 !important; color: #191919 !important; }
+html body .welcome-sub { color: #7a7a7a !important; }
+html body .welcome-actions { gap: 10px !important; }
+html body .welcome-action,
+html body .welcome-action:hover {
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html body .welcome-action:hover { background: #f7f7f7 !important; }
+html body .welcome-action .welcome-icon,
+html body .welcome-icon {
+  background: #f2f2f2 !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  color: #191919 !important;
+  box-shadow: none !important;
+}
+html body .welcome-features span { background: #f7f7f7 !important; border-radius: 4px !important; color: #7a7a7a !important; }
+html body .welcome-tip { color: #b2b2b2 !important; }
+html body #settingsPanel {
+  background: #f5f5f5 !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow-x: hidden !important;
+}
+html body #settingsPanel .settings-hdr {
+  background: #f5f5f5 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+html body #settingsPanel .settings-hdr > span { font-size: 16px !important; font-weight: 500 !important; color: #191919 !important; }
+html body #settingsPanel .settings-back { color: #191919 !important; }
+html body #settingsPanel .settings-content { padding: 12px 12px 24px !important; }
+html body #settingsPanel .settings-profile,
+html body #settingsPanel .settings-card,
+html body #settingsPanel .settings-logout {
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+html body #settingsPanel .settings-profile { margin-bottom: 8px !important; }
+html body #settingsPanel .settings-section { margin-bottom: 8px !important; }
+html body #settingsPanel .settings-section-title { font-size: 13px !important; color: #7a7a7a !important; padding: 8px 4px 4px !important; }
+html body #settingsPanel .settings-row {
+  background: #fff !important;
+  border-bottom: 1px solid #ededed !important;
+}
+html body #settingsPanel .settings-row:last-child { border-bottom: 0 !important; }
+html body #settingsPanel .settings-row:active { background: #f7f7f7 !important; }
+html body #settingsPanel .settings-info > div:first-child { color: #191919 !important; }
+html body #settingsPanel .settings-info > div:last-child { color: #999 !important; }
+html body #settingsPanel .settings-arrow { color: #c7c7c7 !important; }
+html body #settingsPanel .settings-logout { color: #fa5151 !important; }
+html body .profile-mask { background: rgba(0,0,0,.45) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html body .profile-card .profile-avatar { border-radius: 4px !important; }
+html body .profile-card .profile-name { font-size: 16px !important; font-weight: 500 !important; color: #191919 !important; }
+html body .profile-head { background: #fff !important; border-bottom: 1px solid #e5e5e5 !important; }
+html body .profile-card .profile-actions .btn-cn { background: #f2f2f2 !important; color: #191919 !important; border-radius: 4px !important; }
+html body .moments-page,
+html body .moments-page .page-body,
+html body .moments-page .moments-header {
+  background: #f5f5f5 !important;
+  background-image: none !important;
+  overflow-x: hidden !important;
+}
+html body .moments-feed {
+  max-width: 760px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  padding: 8px 8px 24px !important;
+  box-sizing: border-box !important;
+}
+html body .moment-card {
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  margin: 0 0 8px !important;
+}
+html body .moment-avatar { border-radius: 4px !important; }
+html body .moment-social { background: #f7f7f7 !important; border-radius: 4px !important; }
+html body .moment-like,
+html body .moment-comment-btn { background: #f7f7f7 !important; border-radius: 4px !important; }
+html body .moments-more { background: #fff !important; border: 1px solid #e5e5e5 !important; border-radius: 4px !important; }
+html body .moments-textarea { background: #f7f7f7 !important; border: 1px solid #e5e5e5 !important; border-radius: 4px !important; }
+html body .moments-addimg { background: #f7f7f7 !important; border: 1px dashed #d9d9d9 !important; border-radius: 4px !important; }
+html body .moments-publish-btn { background: #07c160 !important; border-radius: 4px !important; }
+html body.dark-mode .modal,
+html body.dark-mode .modal-box,
+html body.dark-mode .profile-card,
+html body.dark-mode .update-dialog,
+html body.dark-mode .chat-more-menu,
+html body.dark-mode .conv-context-menu,
+html body.dark-mode .locale-menu,
+html body.dark-mode .plus-panel {
+  background: #191919 !important;
+  background-image: none !important;
+  border-color: #3a3a3a !important;
+  box-shadow: none !important;
+}
+html body.dark-mode .modal .modal-head,
+html body.dark-mode .modal-box .modal-head { background: #191919 !important; border-bottom-color: #3a3a3a !important; }
+html body.dark-mode .modal h3,
+html body.dark-mode .modal .modal-head h3,
+html body.dark-mode .modal-box h3,
+html body.dark-mode .modal-box .modal-head h3,
+html body.dark-mode .update-dialog h3 { color: #d6d6d6 !important; }
+html body.dark-mode .modal .modal-x,
+html body.dark-mode .modal-box .modal-x { color: #b2b2b2 !important; }
+html body.dark-mode .modal .field label,
+html body.dark-mode .modal .field-row label,
+html body.dark-mode .modal .field-cat,
+html body.dark-mode .update-dialog .notes { color: #b2b2b2 !important; }
+html body.dark-mode .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+html body.dark-mode .modal textarea,
+html body.dark-mode .modal select,
+html body.dark-mode .modal-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+html body.dark-mode .modal-box textarea,
+html body.dark-mode .modal-box select {
+  background: #2c2c2c !important;
+  border-color: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+html body.dark-mode .modal textarea:focus,
+html body.dark-mode .modal select:focus,
+html body.dark-mode .modal-box input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+html body.dark-mode .modal-box textarea:focus,
+html body.dark-mode .modal-box select:focus { border-color: #07c160 !important; background: #2c2c2c !important; }
+html body.dark-mode .modal .modal-actions button,
+html body.dark-mode .modal-box .modal-actions button,
+html body.dark-mode .update-dialog .actions button {
+  background: #2c2c2c !important;
+  border-color: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode .modal .modal-actions button.ok,
+html body.dark-mode .modal .modal-actions button.primary,
+html body.dark-mode .modal .modal-actions .btn.ok,
+html body.dark-mode .modal .modal-actions .btn.primary,
+html body.dark-mode .modal .modal-actions .btn.mica-primary,
+html body.dark-mode .modal-box .modal-actions button.ok,
+html body.dark-mode .modal-box .modal-actions button.primary,
+html body.dark-mode .update-dialog .actions .ok {
+  background: #07c160 !important;
+  border-color: #07c160 !important;
+  color: #fff !important;
+}
+html body.dark-mode .modal .modal-actions button:hover,
+html body.dark-mode .modal-box .modal-actions button:hover,
+html body.dark-mode .update-dialog .actions button:hover { background: #3a3a3a !important; }
+html body.dark-mode .modal .modal-actions button.ok:hover,
+html body.dark-mode .modal .modal-actions button.primary:hover,
+html body.dark-mode .modal-box .modal-actions button.ok:hover,
+html body.dark-mode .modal-box .modal-actions button.primary:hover,
+html body.dark-mode .update-dialog .actions .ok:hover { background: #06ad56 !important; }
+html body.dark-mode .feature-tab,
+html body.dark-mode .feature-tab:hover {
+  background: #2c2c2c !important;
+  border-color: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode .feature-tab.active { background: #07c160 !important; border-color: #07c160 !important; color: #fff !important; }
+html body.dark-mode .feature-cat-title { color: #b2b2b2 !important; }
+html body.dark-mode .feature-grid { background: transparent !important; }
+html body.dark-mode .feature-grid .feature-item,
+html body.dark-mode .feature-item,
+html body.dark-mode .feature-item:hover {
+  background: #2c2c2c !important;
+  border-color: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode .feature-grid .feature-item:hover,
+html body.dark-mode .feature-item:hover { background: #3a3a3a !important; }
+html body.dark-mode .feature-grid .feature-item .feature-icon,
+html body.dark-mode .feature-item .feature-icon,
+html body.dark-mode .feature-item:hover .feature-icon {
+  background: #191919 !important;
+  background-image: none !important;
+  border-color: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode .feature-item .feature-label { color: #d6d6d6 !important; }
+html body.dark-mode .feature-icon svg { fill: #d6d6d6 !important; stroke: #d6d6d6 !important; }
+html body.dark-mode .welcome-panel h1 { color: #d6d6d6 !important; }
+html body.dark-mode .welcome-sub { color: #b2b2b2 !important; }
+html body.dark-mode .welcome-action,
+html body.dark-mode .welcome-action:hover { background: #2c2c2c !important; border-color: #3a3a3a !important; }
+html body.dark-mode .welcome-action .welcome-icon,
+html body.dark-mode .welcome-icon { background: #191919 !important; border-color: #3a3a3a !important; color: #d6d6d6 !important; }
+html body.dark-mode .welcome-features span { background: #2c2c2c !important; color: #b2b2b2 !important; }
+html body.dark-mode #settingsPanel { background: #191919 !important; }
+html body.dark-mode #settingsPanel .settings-hdr { background: #191919 !important; border-bottom-color: #3a3a3a !important; }
+html body.dark-mode #settingsPanel .settings-hdr > span,
+html body.dark-mode #settingsPanel .settings-back { color: #d6d6d6 !important; }
+html body.dark-mode #settingsPanel .settings-profile,
+html body.dark-mode #settingsPanel .settings-card,
+html body.dark-mode #settingsPanel .settings-logout {
+  background: #2c2c2c !important;
+  border-color: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode #settingsPanel .settings-row { background: #2c2c2c !important; border-bottom-color: #3a3a3a !important; }
+html body.dark-mode #settingsPanel .settings-row:active { background: #3a3a3a !important; }
+html body.dark-mode #settingsPanel .settings-info > div:first-child { color: #d6d6d6 !important; }
+html body.dark-mode #settingsPanel .settings-info > div:last-child { color: #b2b2b2 !important; }
+html body.dark-mode #settingsPanel .settings-section-title { color: #b2b2b2 !important; }
+html body.dark-mode #settingsPanel .settings-logout { color: #fa5151 !important; }
+html body.dark-mode .profile-mask { background: rgba(0,0,0,.6) !important; }
+html body.dark-mode .profile-head { background: #2c2c2c !important; border-bottom-color: #3a3a3a !important; }
+html body.dark-mode .profile-card .profile-name { color: #d6d6d6 !important; }
+html body.dark-mode .profile-card .profile-actions .btn-cn { background: #191919 !important; color: #d6d6d6 !important; }
+html body.dark-mode .moments-page,
+html body.dark-mode .moments-page .page-body,
+html body.dark-mode .moments-page .moments-header { background: #191919 !important; }
+html body.dark-mode .moment-card { background: #2c2c2c !important; border-color: #3a3a3a !important; }
+html body.dark-mode .moment-content,
+html body.dark-mode .moment-comment { color: #d6d6d6 !important; }
+html body.dark-mode .moment-social,
+html body.dark-mode .moment-like,
+html body.dark-mode .moment-comment-btn { background: #191919 !important; }
+html body.dark-mode .moments-textarea { background: #2c2c2c !important; border-color: #3a3a3a !important; color: #d6d6d6 !important; }
+html body.dark-mode .moments-more { background: #2c2c2c !important; border-color: #3a3a3a !important; color: #d6d6d6 !important; }
+
+html body #momentsPage { background: #f5f5f5 !important; color: #191919 !important; }
+html body #momentsPage .moments-header { background: #f5f5f5 !important; border-bottom: 1px solid #e5e5e5 !important; }
+html body #momentsPage .moments-body,
+html body #momentsPage .page-body { background: #f5f5f5 !important; }
+html body #momentsPage .moments-feed { padding: 8px 8px 24px !important; gap: 8px !important; }
+html body #momentsPage .moment-card {
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+html body #momentsPage .moment-avatar { border-radius: 4px !important; }
+html body #momentsPage .moments-img { border-radius: 4px !important; }
+html body #momentsPage .moment-social { background: #f7f7f7 !important; border-radius: 4px !important; }
+html body #momentsPage .moment-like,
+html body #momentsPage .moment-comment-btn { background: #f7f7f7 !important; border-radius: 4px !important; }
+html body #momentsPage .moments-more button { background: #fff !important; border: 1px solid #e5e5e5 !important; border-radius: 4px !important; }
+html body #momentsPage .moment-comment-form input { background: #f7f7f7 !important; border: 1px solid #e5e5e5 !important; border-radius: 4px !important; }
+html body #momentsPage .moment-comment-form button { background: #07c160 !important; border-radius: 4px !important; }
+html body.dark-mode #momentsPage { background: #191919 !important; color: #d6d6d6 !important; }
+html body.dark-mode #momentsPage .moments-header { background: #191919 !important; border-bottom-color: #3a3a3a !important; }
+html body.dark-mode #momentsPage .moments-body,
+html body.dark-mode #momentsPage .page-body { background: #191919 !important; }
+html body.dark-mode #momentsPage .moment-card { background: #2c2c2c !important; border-color: #3a3a3a !important; }
+html body.dark-mode #momentsPage .moment-content,
+html body.dark-mode #momentsPage .moment-comment { color: #d6d6d6 !important; }
+html body.dark-mode #momentsPage .moment-social { background: #191919 !important; }
+html body.dark-mode #momentsPage .moment-like,
+html body.dark-mode #momentsPage .moment-comment-btn { background: #191919 !important; color: #d6d6d6 !important; }
+html body.dark-mode #momentsPage .moment-comment-form input { background: #2c2c2c !important; border-color: #3a3a3a !important; color: #d6d6d6 !important; }
+html body.dark-mode #momentsPage .moments-more button { background: #2c2c2c !important; border-color: #3a3a3a !important; color: #d6d6d6 !important; }
+
+html body.dark-mode .modal .pay-wallet button > div:first-child { background: #2c2c2c !important; color: #d6d6d6 !important; }
+html body.dark-mode .modal .pay-wallet > div[style*="background:var(--bg"] { background: #191919 !important; }
+html body.dark-mode .modal .pay-bill [style*="background:var(--bg"] { background: #191919 !important; }
+html body.dark-mode .modal .pay-bill [style*="background:#fdecea"] { background: #3a3a3a !important; }
+html body.dark-mode .modal .pay-bill [style*="border:1px solid #eee"] { border-color: #3a3a3a !important; }

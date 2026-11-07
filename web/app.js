@@ -3075,15 +3075,40 @@ function openGroupInvitePicker() {
 }
 $('inviteGroupBtn').onclick = openGroupInvitePicker;
 
+// 聊天标题：单击打开资料，双击滚动到最新消息。
+// 单击延迟 220ms 执行，确保双击时不会先弹出资料页。
+let __chatTitleTapTimer = null;
+function bindChatTitleAction(el, openFn) {
+  if (!el) return;
+  el.__scOpenChat = typeof openFn === 'function' ? openFn : null;
+  if (el.__scTitleBound) return;
+  el.__scTitleBound = true;
+  el.addEventListener('click', (e) => {
+    if (e.detail > 1) return;
+    if (__chatTitleTapTimer) clearTimeout(__chatTitleTapTimer);
+    __chatTitleTapTimer = setTimeout(() => {
+      __chatTitleTapTimer = null;
+      if (typeof el.__scOpenChat === 'function') el.__scOpenChat();
+    }, 220);
+  });
+  el.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (__chatTitleTapTimer) { clearTimeout(__chatTitleTapTimer); __chatTitleTapTimer = null; }
+    scrollToLatest();
+    toast('已滚动到最新消息', 'success', 1000);
+  });
+}
+
 // 统一渲染顶部 header（根据联系人/群而异）
 function renderChatHeader() {
   if (state.activeGroup) {
     const g = state.groups.find(x => x.id === state.activeGroup);
     const name = g ? g.name : ('群 #' + state.activeGroup);
     $('chatHeader').textContent = name;
-    $('chatHeader').onclick = () => openGroupProfile(state.activeGroup);
+    bindChatTitleAction($('chatHeader'), () => openGroupProfile(state.activeGroup));
     const mt = document.getElementById('chatMobileTitle');
-    if (mt) { mt.textContent = name; mt.onclick = () => openGroupProfile(state.activeGroup); }
+    if (mt) { mt.textContent = name; bindChatTitleAction(mt, () => openGroupProfile(state.activeGroup)); }
     $('inviteBar').style.display = '';
     return;
   }
@@ -3091,11 +3116,12 @@ function renderChatHeader() {
     const peer = state.friends.find(u => u.id === state.activePeer);
     const name = peer ? peer.nickname : '聊天';
     $('chatHeader').innerHTML = escapeHtml(name) + (peer ? '<span class="chat-status">' + escapeHtml(peerStatusLabel(peer)) + '</span>' : '');
-    $('chatHeader').onclick = () => openPeerProfile(state.activePeer);
+    bindChatTitleAction($('chatHeader'), () => openPeerProfile(state.activePeer));
     const mt = document.getElementById('chatMobileTitle');
-    if (mt) { mt.textContent = name; mt.onclick = () => openPeerProfile(state.activePeer); }
+    if (mt) { mt.textContent = name; bindChatTitleAction(mt, () => openPeerProfile(state.activePeer)); }
   } else {
     $('chatHeader').textContent = t('noConversation', '请选择联系人');
+    $('chatHeader').__scOpenChat = null;
     $('chatHeader').onclick = null;
   }
   $('inviteBar').style.display = 'none';
@@ -3653,17 +3679,35 @@ $('search').oninput = () => {
 };
 
 // ============ 加好友 ============
+async function sendFriendRequest(fid) {
+  const res = await fetch(state.serverHost + '/api/friend/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+    body: JSON.stringify({ friendUid: fid })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '加好友失败');
+  return data;
+}
+
+function openAddFriendDialog() {
+  openModal('添加好友', [{ key: 'uid', label: '对方 ID', placeholder: '输入对方 ID' }], async (out, close) => {
+    const fid = String(out.uid || '').trim();
+    if (!fid) { toast('请输入对方 ID', 'warn', 1200); return; }
+    try {
+      await sendFriendRequest(fid);
+      close();
+      const input = $('addFriendInput'); if (input) input.value = '';
+      toast('已发送好友请求，等待对方接受', 'success');
+    } catch (e) { toast('请求失败：' + e.message, 'error'); }
+  });
+}
+
 $('addFriendBtn').onclick = async () => {
   const fid = $('addFriendInput').value.trim();
-  if (!fid) return;
+  if (!fid) { toast('请输入对方 ID', 'warn', 1200); return; }
   try {
-    const res = await fetch(state.serverHost + '/api/friend/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
-      body: JSON.stringify({ friendUid: fid })
-    });
-    const data = await res.json();
-    if (!res.ok) { toast(data.error || '加好友失败', 'error'); return; }
+    await sendFriendRequest(fid);
     $('addFriendInput').value = '';
     toast('已发送好友请求，等待对方接受', 'success');
   } catch (e) { toast('请求失败：' + e.message, 'error'); }
@@ -3921,8 +3965,15 @@ function wireConversationTools() {
 const welcomeAddBtn = $('welcomeAddBtn');
 const welcomeGroupBtn = $('welcomeGroupBtn');
 const welcomeAiBtn = $('welcomeAiBtn');
-if (welcomeAddBtn) welcomeAddBtn.onclick = () => { const input = $('addFriendInput'); if (input) input.focus(); };
-if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const btn = $('createGroupBtn'); if (btn) btn.click(); };
+const welcomeSearchBtn = $('welcomeSearchBtn');
+if (welcomeAddBtn) welcomeAddBtn.onclick = () => openAddFriendDialog();
+if (welcomeGroupBtn) welcomeGroupBtn.onclick = () => { const btn = $('createGroupBtn'); if (btn) btn.click(); else toast('创建群入口未就绪', 'warn'); };
+if (welcomeSearchBtn) welcomeSearchBtn.onclick = () => {
+  const input = $('search');
+  if (!input) { toast('搜索框未就绪', 'warn'); return; }
+  input.focus();
+  if (typeof input.select === 'function') input.select();
+};
 if (welcomeAiBtn) welcomeAiBtn.onclick = () => {
   window.__aiReturn = 'chat';
   hideMobilePages();
@@ -6778,7 +6829,8 @@ if (window.SCI18N && typeof SCI18N.apply === 'function') {
     }
   }
   document.addEventListener('securechat.login', warmup, { once: false });
-  if (state && state.me) warmup();
+  // 不在脚本加载时直接预热：此时 token 可能已失效，会先于登录校验触发 /api/keys 401。
+  // 登录成功走 securechat.login 事件，自动恢复登录则由 enterChat() 显式调用 ensureKeyPair()。
 })();
 
 

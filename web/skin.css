@@ -3202,3 +3202,207 @@ body.dark-mode #welcomePanel .welcome-icon{background:#1f3a2c!important;color:#4
 body.dark-mode #welcomePanel .welcome-action b{color:#e5e5e5!important}
 body.dark-mode #welcomePanel .welcome-action small{color:#b2b2b2!important}#welcomePanel .welcome-actions{width:min(600px,100%)!important}
 #welcomePanel .welcome-actions{max-width:600px!important;width:100%!important;flex-direction:row!important}
+
+/* ============================================================
+   微信级洁净覆盖（追加，仅本文件；浅色 #ededed/#ffffff/#191919/#e5e5e5，
+   深色 #191919/#2c2c2c/#d6d6d6/#3a3a3a）
+   ============================================================ */
+
+/* ---------- 会话列表 ---------- */
+.contact-list .contact {
+  height: 64px !important;
+  min-height: 64px !important;
+  max-height: 64px !important;
+  padding: 0 12px !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+}
+#chatView .contact-list .contact:hover { background: #e5e5e5 !important; }
+#chatView .contact-list .contact.on,
+#chatView .contact-list .contact.active,
+#chatView .contact-list .contact.selected { background: #e5e5e5 !important; }
+#chatView .contact-list .contact:has(.contact-mark:not(.muted)),
+#chatView .contact-list .contact.conversation-group { background: #ededed !important; }
+#chatView .contact-list .contact:has(.contact-mark:not(.muted)):hover,
+#chatView .contact-list .contact.conversation-group:hover { background: #e5e5e5 !important; }
+#chatView .contact-list .contact .avatar {
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px !important;
+  border-radius: 4px !important;
+}
+#chatView .contact-list .contact .name {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #191919 !important;
+  line-height: 20px !important;
+}
+#chatView .contact-list .contact .last {
+  font-size: 12px !important;
+  color: #8a8a8a !important;
+  line-height: 17px !important;
+  margin-top: 3px !important;
+}
+#chatView #contactList .contact .chat-time {
+  top: 12px !important;
+  right: 12px !important;
+  font-size: 11px !important;
+  line-height: 15px !important;
+  color: #a0a0a0 !important;
+}
+#chatView #contactList .contact .badge,
+#chatView #contactList .contact .unread,
+#chatView #contactList .contact .badge.dot { background: #fa5151 !important; color: #fff !important; }
+
+/* ---------- 聊天头部（桌面 60 / 移动 44） ---------- */
+#chatView .main .header {
+  height: 60px !important;
+  min-height: 60px !important;
+  background: #f7f7f7 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+#chatView .main .header #chatHeader {
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #191919 !important;
+}
+#chatView .chat-header,
+#chatMobileHeader.chat-header {
+  height: 44px !important;
+  min-height: 44px !important;
+  background: #f7f7f7 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+#chatView .chat-header .chat-title,
+#chatMobileHeader .chat-title {
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #191919 !important;
+}
+
+/* ---------- 消息区 ---------- */
+#chatView .messages,
+#chatView .main .messages {
+  background: #ededed !important;
+  background-color: #ededed !important;
+}
+#chatView .messages .msg-row .bubble-wrap { max-width: 62% !important; }
+#chatView .messages .msg-row .bubble {
+  padding: 9px 12px !important;
+  border-radius: 4px !important;
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  color: #191919 !important;
+}
+#chatView .messages .msg-row.other .bubble { background: #fff !important; color: #191919 !important; }
+#chatView .messages .msg-row.me .bubble { background: #95ec69 !important; color: #191919 !important; }
+#chatView .messages .msg-row.other .bubble::before { border-right-color: #fff !important; }
+#chatView .messages .msg-row.me .bubble::after { border-left-color: #95ec69 !important; }
+#chatView .messages .day-divider {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  color: #a0a0a0 !important;
+  font-size: 12px !important;
+  line-height: 17px !important;
+  text-align: center !important;
+  padding: 2px 0 !important;
+  margin: 8px 0 !important;
+  border-radius: 0 !important;
+}
+
+/* ---------- 输入区 ---------- */
+#chatView .main .composer {
+  background: #fff !important;
+  border-top: 1px solid #e5e5e5 !important;
+}
+#chatView .main .composer-tools button,
+#chatView .main .composer-tools .tool,
+#chatView .main .tool { color: #555 !important; }
+#chatView .main .composer-tools button svg,
+#chatView .main .composer-tools .tool svg,
+#chatView .main .tool svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+#chatView .main .composer .btn.send,
+#chatView .main #desktopSendBtn,
+#chatView .main .composer-send-btn {
+  background: #07c160 !important;
+  color: #fff !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+}
+#chatView #chatMobileComposer {
+  background: #fff !important;
+  border-top: 1px solid #e5e5e5 !important;
+}
+#chatView #chatMobileComposer .composer-icon-btn { color: #555 !important; }
+#chatView #chatMobileComposer .composer-icon-btn svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+/* ---------- 深色模式对应 ---------- */
+body.dark-mode {
+  --sk-bg: #191919;
+  --sk-surface: #191919;
+  --sk-surface-2: #2c2c2c;
+  --sk-line: #3a3a3a;
+  --sk-line-2: #3a3a3a;
+  --sk-text: #d6d6d6;
+  --sk-text-2: #d6d6d6;
+  --sk-muted: #a0a0a0;
+  --sk-other: #2c2c2c;
+  background: #191919 !important;
+  color: #d6d6d6 !important;
+}
+body.dark-mode #chatView .sidebar-content,
+body.dark-mode #chatView .sidebar-tools,
+body.dark-mode #chatView .contact-list { background: #191919 !important; }
+body.dark-mode #chatView .contact-list .contact { background: transparent !important; }
+body.dark-mode #chatView .contact-list .contact:hover { background: #2c2c2c !important; }
+body.dark-mode #chatView .contact-list .contact.on,
+body.dark-mode #chatView .contact-list .contact.active,
+body.dark-mode #chatView .contact-list .contact.selected { background: #2c2c2c !important; }
+body.dark-mode #chatView .contact-list .contact:has(.contact-mark:not(.muted)),
+body.dark-mode #chatView .contact-list .contact.conversation-group { background: #2c2c2c !important; }
+body.dark-mode #chatView .contact-list .contact:has(.contact-mark:not(.muted)):hover,
+body.dark-mode #chatView .contact-list .contact.conversation-group:hover { background: #3a3a3a !important; }
+body.dark-mode #chatView .contact-list .contact .name { color: #d6d6d6 !important; }
+body.dark-mode #chatView .contact-list .contact .last { color: #a0a0a0 !important; }
+body.dark-mode #chatView #contactList .contact .chat-time { color: #a0a0a0 !important; }
+body.dark-mode #chatView #contactList .contact .badge,
+body.dark-mode #chatView #contactList .contact .unread,
+body.dark-mode #chatView #contactList .contact .badge.dot { background: #fa5151 !important; color: #fff !important; }
+body.dark-mode #chatView .main .header,
+body.dark-mode #chatView .chat-header,
+body.dark-mode #chatMobileHeader.chat-header {
+  background: #2c2c2c !important;
+  border-bottom: 1px solid #3a3a3a !important;
+}
+body.dark-mode #chatView .main .header #chatHeader,
+body.dark-mode #chatView .chat-header .chat-title,
+body.dark-mode #chatMobileHeader .chat-title { color: #d6d6d6 !important; }
+body.dark-mode #chatView .main .messages,
+body.dark-mode #chatView .messages { background: #191919 !important; background-color: #191919 !important; }
+body.dark-mode #chatView .messages .msg-row.other .bubble { background: #2c2c2c !important; color: #d6d6d6 !important; }
+body.dark-mode #chatView .messages .msg-row.other .bubble::before { border-right-color: #2c2c2c !important; }
+body.dark-mode #chatView .messages .msg-row.me .bubble { background: #3eb575 !important; color: #0d0d0d !important; }
+body.dark-mode #chatView .messages .msg-row.me .bubble::after { border-left-color: #3eb575 !important; }
+body.dark-mode #chatView .messages .day-divider,
+body.dark-mode .messages .day-divider { background: transparent !important; color: #a0a0a0 !important; }
+body.dark-mode #chatView .main .composer,
+body.dark-mode #chatView #chatMobileComposer {
+  background: #2c2c2c !important;
+  border-top: 1px solid #3a3a3a !important;
+}
+body.dark-mode #chatView .main .composer-tools button,
+body.dark-mode #chatView .composer .composer-icon-btn,
+body.dark-mode #chatView #chatMobileComposer .composer-icon-btn { color: #d6d6d6 !important; }
+html body .feature-grid .feature-item .feature-icon,html body .feature-item .feature-icon,html body .feature-item:hover .feature-icon{background:#e8f8ef!important;background-image:none!important;border:0!important;border-radius:12px!important;color:#07c160!important}
+html body .feature-icon svg{fill:#07c160!important;stroke:#07c160!important}
+html body.dark-mode .feature-grid .feature-item .feature-icon,html body.dark-mode .feature-item .feature-icon{background:#1f3a2c!important;color:#4ade80!important}
+html body.dark-mode .feature-icon svg{fill:#4ade80!important;stroke:#4ade80!important}
