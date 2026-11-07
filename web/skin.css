@@ -3795,4 +3795,5 @@ body.dark-mode .moments-page{background:#191919!important}
 body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .moments-body{background:#2c2c2c!important}.wechat-page,.kb-panel{animation:scFadeIn .18s ease-out}html body .pwd-eye{display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
 html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}html body #groupAnnounceBanner:empty{display:none!important;margin:0!important;padding:0!important;height:0!important}html body #chatView #friendsSide .section-label,html body #chatView #friendsSide .group-actions{display:none!important}
 html body #chatView #friendsSide .add-friend{display:none!important}
-html body #chatView #friendsSide.show-add .add-friend{display:flex!important;margin-top:8px}html.is-mobile #chatDesktopComposer{display:none!important}
+html body #chatView #friendsSide.show-add .add-friend{display:flex!important;margin-top:8px}html.is-mobile #chatDesktopComposer{display:none!important}@media (min-width: 761px) { #chatView .emoji-panel { width: 420px !important; max-width: calc(100% - 16px) !important; right: auto !important; } }
+#chatDesktopComposer .tool:not(:has(svg)):not(.rp-tool-btn) { display: none !important; }
