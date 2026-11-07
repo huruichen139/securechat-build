@@ -2311,6 +2311,12 @@ function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
       var ic = btn && btn.querySelector('.welcome-icon');
       if (ic && !ic.querySelector('svg')) { ic.removeAttribute('data-i18n'); ic.innerHTML = welcomeIcons[id]; }
     });
+    var addBtn = document.getElementById('contactsAddBtn');
+    if (addBtn && !addBtn.querySelector('svg')) {
+      addBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:22px;height:22px;display:block"><path d="M12 5v14M5 12h14"/></svg>';
+      addBtn.style.fontSize = '0';
+      addBtn.setAttribute('aria-label', '添加');
+    }
     ['chatMobileMoreBtn', 'chatHeaderMoreBtn'].forEach(function (id) {
       const more = document.getElementById(id);
       if (more && !more.querySelector('svg')) { more.innerHTML = dots; more.setAttribute('aria-label', '更多'); more.style.fontSize = '0'; }
@@ -5960,7 +5966,7 @@ function openSettingsPage() {
   hdr.style.cssText = 'display:flex;align-items:center;padding:12px 16px;background:var(--surface,#f5f5f5);border-bottom:1px solid var(--border,#e5e5e5);position:sticky;top:0;z-index:1';
   const backBtn = document.createElement('button');
   backBtn.className = 'settings-back';
-  backBtn.textContent = '\u2190';
+  backBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><path d="M15 4L7 12l8 8"/></svg>';backBtn.setAttribute('aria-label','返回');
   backBtn.style.cssText = 'background:none;border:none;font-size:20px;color:var(--text,#191919);cursor:pointer;padding:4px 8px';
   backBtn.onclick = () => {
     panel.style.display = 'none';
