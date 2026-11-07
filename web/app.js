@@ -2290,6 +2290,24 @@ function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 (function () {
+  function upgradeNavIcons() {
+    const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><path d="M15 4L7 12l8 8"/></svg>';
+    const dots = '<svg viewBox="0 0 24 24" fill="currentColor" style="width:22px;height:22px;display:block"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
+    ['backToListBtn','chatMobileBackBtn','discoverBackBtn','meBackBtn','blocklistBackBtn','contactsBackBtn','downloadBackBtn','adminBackBtn'].forEach(function (id) {
+      const b = document.getElementById(id);
+      if (!b || b.querySelector('svg')) return;
+      b.removeAttribute('data-i18n');
+      b.innerHTML = back;
+      b.setAttribute('aria-label', '返回');
+      b.style.fontSize = '0';
+    });
+    const more = document.getElementById('chatMobileMoreBtn');
+    if (more && !more.querySelector('svg')) { more.innerHTML = dots; more.setAttribute('aria-label', '更多'); more.style.fontSize = '0'; }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', upgradeNavIcons);
+  else upgradeNavIcons();
+})();
+(function () {
   const COLORS = ['#4a7dde','#2f9e74','#c08a00','#cf5540','#2f8fae','#6f55b3','#cf6f2f','#1f7f7f','#c25f86','#566b8c'];
   function paint() {
     document.querySelectorAll('.avatar,.chat-avatar,.msg-avatar,.contact .avatar,.profile-avatar').forEach(function (el) {
