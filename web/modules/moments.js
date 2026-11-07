@@ -177,7 +177,7 @@
       '</div>' +
       '<div class="page-body moments-body"><div class="moments-feed" data-role="feed"></div>' +
         '<div class="moments-more" data-role="more" hidden><button type="button" data-role="loadmore">加载更多</button></div>' +
-        '<div class="moments-empty" data-role="empty" hidden>还没有动态，点右上角「发布」记录第一条吧</div>' +
+        '<div class="moments-empty" data-role="empty" hidden>还没有动态</div>' +
       '</div>';
     document.body.appendChild(pageEl);
     listEl = pageEl.querySelector('[data-role="feed"]');
