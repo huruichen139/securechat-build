@@ -587,6 +587,35 @@ function initLoginExtras() {
     pw.parentNode.insertBefore(row, hint ? hint.nextSibling : pw.nextSibling);
     link.onclick = () => { startForgotPassword(); };
   }
+  // 密码显隐切换按钮（右侧“显示/隐藏”）
+  let pwWrap = pw.parentNode;
+  if (!pwWrap.querySelector || !pwWrap.querySelector('.pwd-eye')) {
+    if (!pwWrap.classList || !pwWrap.classList.contains('pwd-wrap')) {
+      const wrap = document.createElement('div');
+      wrap.className = 'pwd-wrap';
+      wrap.style.cssText = 'position:relative';
+      pw.parentNode.insertBefore(wrap, pw);
+      wrap.appendChild(pw);
+      pwWrap = wrap;
+    }
+    if (getComputedStyle(pwWrap).position === 'static') pwWrap.style.position = 'relative';
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'pwd-eye';
+    eye.textContent = '显示';
+    eye.setAttribute('aria-label', '显示密码');
+    eye.onclick = () => {
+      const show = pw.type === 'password';
+      const selStart = pw.selectionStart;
+      const selEnd = pw.selectionEnd;
+      pw.type = show ? 'text' : 'password';
+      eye.textContent = show ? '隐藏' : '显示';
+      eye.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+      pw.focus();
+      try { if (selStart != null && selEnd != null) pw.setSelectionRange(selStart, selEnd); } catch (e) {}
+    };
+    pwWrap.appendChild(eye);
+  }
 }
 
 // “忘记密码”入口：服务端没有 /api/password/reset/request，改用现有接口：

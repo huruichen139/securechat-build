@@ -3133,8 +3133,14 @@ body.dark-mode #chatView .composer .composer-icon-btn:hover{color:#d6d6d6!import
 @media (min-width:761px){
   #contactsPage .page-body,#discoverPage .page-body,#mePage .page-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
   #settingsPanel .settings-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
-  #momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
+#momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
 }
+/* 密码显隐切换按钮 */
+.pwd-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#7a7a7a;font-size:12px;padding:4px 6px;cursor:pointer}
+.pwd-eye:hover{color:#07c160}
+body.dark-mode .pwd-eye{color:#b2b2b2}
+body.dark-mode .pwd-eye:hover{color:#07c160}
+#password{padding-right:52px!important}
 
 #chatView .messages .msg-row:hover{position:relative!important;z-index:5!important}
 @media (max-width:760px){#downloadView .download-header{justify-content:center!important;position:relative!important}#downloadView .download-header .back-btn{position:absolute!important;left:8px!important;top:50%!important;transform:translateY(-50%)!important}}
