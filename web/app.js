@@ -5865,7 +5865,7 @@ const panel = document.getElementById('settingsPanel');
       title: '隐私',
       items: [
         { label: '黑名单', desc: '管理被屏蔽的用户', icon: '黑', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; renderBlocklistPage(); showMobilePage('blocklistPage'); } },
-        { label: '朋友圈设置', desc: '不看谁/谁不看', icon: '圈', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; if (window.SecureChatMomentExt && window.SecureChatMomentExt.openFilterPanel) window.SecureChatMomentExt.openFilterPanel(); else toast('朋友圈模块未加载', 'warn'); } },
+        { label: '朋友圈设置', desc: '不看谁/谁不看', icon: '圈', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; if (window.SecureChatMomentExt) openContainerFeature(window.SecureChatMomentExt, '朋友圈设置'); else toast('朋友圈模块未加载', 'warn'); } },
         { label: '添加我的方式', desc: '通过ID搜索加好友', icon: '搜', fn: () => {
           const cur = localStorage.sc_allowIdSearch !== '0';
           localStorage.sc_allowIdSearch = cur ? '0' : '1';
