@@ -449,6 +449,7 @@ let hvCaptchaId = null;
 let hvToken = null; // turnstile token
 let capToken = null; // cap token
 let hvTurnstileRendered = false;
+let pwdReset = null; // 找回密码流程激活状态：{ email }
 
 // 加载 Cap widget 脚本
 function loadCapWidget() {
@@ -553,6 +554,60 @@ function collectHumanBody() {
   return window.__hvApi();
 }
 
+// 登录按钮文案：密码登录=登录，验证码登录=验证码登录，注册=注册，找回密码=重置密码
+function authBtnLabel() {
+  if (pwdReset) return '重置密码';
+  if (mode === 'register') return t('register', '注册');
+  if (loginMode === 'code') return t('codeLogin', '验证码登录');
+  return t('login', '登录');
+}
+
+// 登录页扩展：密码登录提示与“忘记密码”入口（仅改 app.js，动态插入 DOM）
+function initLoginExtras() {
+  const pw = $('password');
+  if (!pw || !pw.parentNode) return;
+  if (!$('pwLoginHint')) {
+    const hint = document.createElement('div');
+    hint.id = 'pwLoginHint';
+    hint.textContent = '密码登录无需图形验证码';
+    hint.style.cssText = 'display:none;margin:-4px 0 8px 2px;font-size:12px;color:#999;line-height:1.4';
+    pw.parentNode.insertBefore(hint, pw.nextSibling);
+  }
+  if (!$('forgotPwRow')) {
+    const row = document.createElement('div');
+    row.id = 'forgotPwRow';
+    row.style.cssText = 'display:none;text-align:right;margin:-2px 0 8px';
+    const link = document.createElement('a');
+    link.href = 'javascript:void(0)';
+    link.id = 'forgotPwBtn';
+    link.textContent = '忘记密码？';
+    link.style.cssText = 'font-size:12px;color:#888;text-decoration:none;cursor:pointer';
+    row.appendChild(link);
+    const hint = $('pwLoginHint');
+    pw.parentNode.insertBefore(row, hint ? hint.nextSibling : pw.nextSibling);
+    link.onclick = () => { startForgotPassword(); };
+  }
+}
+
+// “忘记密码”入口：服务端没有 /api/password/reset/request，改用现有接口：
+// /api/email/code(purpose=reset) 获取重置验证码（需人机验证），
+// 再调用 /api/password/reset { email, code, newPassword } 完成重置。
+async function startForgotPassword() {
+  const raw = await scAsk({ title: '找回密码', placeholder: '请输入注册邮箱', type: 'email', okText: '下一步' });
+  if (raw == null) return;
+  const email = String(raw).trim();
+  if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { toast('邮箱格式错误', 'warn'); return; }
+  pwdReset = { email };
+  mode = 'login';
+  loginMode = 'code';
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.tab === 'login'));
+  $('email').value = email;
+  $('code').value = '';
+  applyLoginMode();
+  $('authErr').textContent = '请完成人机验证后点击“发送验证码”，再输入验证码和新密码';
+  toast('已进入找回密码流程，请先获取重置验证码', 'info', 2600);
+}
+
 // 根据当前 mode 与 loginMode 统一刷新登录/注册表单字段的显隐
 function applyLoginMode() {
   const showReg = mode === 'register';
@@ -572,6 +627,12 @@ function applyLoginMode() {
   $('email').style.display = (showReg || useCode) ? 'block' : 'none';
   $('codeRow').style.display = (showReg || useCode) ? 'flex' : 'none';
   $('authBtn').style.display = (showReg || !useQr) ? 'block' : 'none';
+  // 密码登录专属提示与“忘记密码”入口：仅登录-密码模式显示
+  const showPwLogin = !showReg && loginMode === 'password';
+  const pwHint = $('pwLoginHint');
+  if (pwHint) pwHint.style.display = showPwLogin ? 'block' : 'none';
+  const forgotRow = $('forgotPwRow');
+  if (forgotRow) forgotRow.style.display = showPwLogin ? 'block' : 'none';
   const qa = $('qrLoginArea');
   if (qa) qa.style.display = useQr ? 'block' : 'none';
   // 人机验证区域：仅注册/验证码登录显示（密码登录和扫码不需要人机验证）
@@ -602,14 +663,17 @@ function applyLoginMode() {
   $('email').placeholder = showReg ? t('email', '邮箱（注册时填写）') : t('emailLogin', '邮箱');
   // 登录方式按钮高亮
   document.querySelectorAll('.login-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.loginMode === loginMode));
+  // 登录按钮文案随模式同步（请求中不覆盖“登录中…”）
+  const ab = $('authBtn');
+  if (ab && !ab.disabled) ab.textContent = authBtnLabel();
   $('authErr').textContent = '';
 }
 
 document.querySelectorAll('.tab').forEach(tt => {
   tt.onclick = () => {
     mode = tt.dataset.tab;
+    pwdReset = null;
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === tt));
-    $('authBtn').textContent = mode === 'login' ? t('login', '登录') : t('register', '注册');
     applyLoginMode();
   };
 });
@@ -618,11 +682,13 @@ document.querySelectorAll('.tab').forEach(tt => {
 document.querySelectorAll('.login-mode-btn').forEach(b => {
   b.onclick = () => {
     loginMode = b.dataset.loginMode;
+    pwdReset = null;
     applyLoginMode();
   };
 });
 
 // 初始化登录页，首次打开时直接显示密码登录/验证码登录切换。
+initLoginExtras();
 applyLoginMode();
 
 // 人机验证：点击图形刷新 + 切换按钮
@@ -657,6 +723,38 @@ $('authBtn').onclick = async () => {
   const city = $('city') ? $('city').value.trim() : '';
   $('authErr').textContent = '';
   let endpoint, body;
+  // 找回密码流程：验证码登录态下改为提交 /api/password/reset
+  if (pwdReset && mode === 'login' && loginMode === 'code') {
+    if (!email) { $('authErr').textContent = '请填写邮箱'; return; }
+    if (!code) { $('authErr').textContent = '请输入邮箱验证码'; return; }
+    const np = await scAsk({ title: '设置新密码', placeholder: '请输入新密码（至少6位）', type: 'password', okText: '重置密码' });
+    if (np == null) return;
+    if (String(np).length < 6) { $('authErr').textContent = '新密码至少6位'; return; }
+    const rbtn = $('authBtn');
+    rbtn.disabled = true;
+    rbtn.textContent = '重置中…';
+    try {
+      const res = await fetch(state.serverHost + '/api/password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, newPassword: String(np) })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { $('authErr').textContent = data.error || '重置失败'; return; }
+      pwdReset = null;
+      $('code').value = '';
+      $('password').value = '';
+      loginMode = 'password';
+      applyLoginMode();
+      toast('密码已重置，请使用新密码登录', 'success', 2600);
+    } catch (e) {
+      $('authErr').textContent = '无法连接服务器：' + e.message;
+    } finally {
+      rbtn.disabled = false;
+      rbtn.textContent = authBtnLabel();
+    }
+    return;
+  }
   if (mode === 'register') {
     // 注册：用户名 + 密码 + 邮箱 + 验证码
     if (!username || !password) { $('authErr').textContent = '请输入用户名和密码'; return; }
@@ -725,7 +823,7 @@ $('authBtn').onclick = async () => {
     $('authErr').textContent = '无法连接服务器：' + e.message;
   } finally {
     btn.disabled = false;
-    btn.textContent = mode === 'register' ? t('register', '注册') : (loginMode === 'code' ? t('codeLogin', '验证码登录') : t('login', '登录'));
+    btn.textContent = authBtnLabel();
   }
 };
 
@@ -992,8 +1090,9 @@ $('sendCodeBtn').onclick = async () => {
   const email = $('email').value.trim();
   if (!email) { $('authErr').textContent = '请先填写邮箱'; return; }
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { $('authErr').textContent = '邮箱格式错误'; return; }
-  // 根据当前状态决定验证码用途：注册 → register；登录+验证码登录 → login
-  const purpose = mode === 'register' ? 'register' : 'login';
+  // 根据当前状态决定验证码用途：找回密码 → reset；注册 → register；登录+验证码登录 → login
+  const purpose = pwdReset ? 'reset' : (mode === 'register' ? 'register' : 'login');
+  if (pwdReset) pwdReset.email = email;
   // 组构造请求：附加人机验证数据
   const hvExtra = {};
   if (hvMethod === 'cap') {

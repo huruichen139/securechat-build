@@ -440,7 +440,7 @@ body::before { display: none !important; }
   border: none !important;
   border-radius: 9px !important;
   font-weight: 600;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, .22) !important;
+  box-shadow: 0 6px 16px rgba(7, 193, 96, .20) !important;
   transition: filter .15s ease, transform .12s ease;
 }
 .btn:hover { filter: brightness(1.04); transform: none !important; }
@@ -463,8 +463,8 @@ body::before { display: none !important; }
 }
 .input:focus, .input-sm:focus, .code-input:focus, .hv-input:focus, .select:focus {
   background: #fff !important;
-  border-color: #c9d8f7 !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .10) !important;
+  border-color: #07c160 !important;
+  box-shadow: 0 0 0 3px rgba(7, 193, 96, .12) !important;
 }
 .code-btn { background: #f4f5f7 !important; color: var(--w-accent) !important; border-radius: 8px !important; }
 .login-mode-btn {
@@ -482,19 +482,16 @@ body::before { display: none !important; }
 
 /* ---------- 登录页 ---------- */
 .auth-wrap {
-  background:
-    radial-gradient(900px 520px at 50% -10%, rgba(79, 139, 255, .10), transparent 62%),
-    radial-gradient(700px 460px at 88% 8%, rgba(124, 92, 245, .07), transparent 60%),
-    #f7f8fa !important;
+  background: #f7f7f7 !important;
   background-attachment: fixed !important;
 }
-.auth-wrap.mica-bg { background-image: none !important; background: #f7f8fa !important; }
+.auth-wrap.mica-bg { background-image: none !important; background: #f7f7f7 !important; }
 .auth-wrap.mica-bg::after { display: none !important; content: none !important; }
 .auth-card, .auth-wrap.mica-bg .auth-card {
   background: #fff !important;
   border: 1px solid var(--w-line) !important;
-  border-radius: 18px !important;
-  box-shadow: var(--w-shadow-lg) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .06) !important;
   padding: 36px 34px 30px !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -532,7 +529,7 @@ body::before { display: none !important; }
   box-shadow: var(--w-shadow-xs) !important;
   font-weight: 600;
 }
-.oauth-sep { color: #b8bcc6 !important; }
+.oauth-sep { color: #b0b0b0 !important; }
 .oauth-btn.mica {
   background: #fff !important;
   border: 1px solid var(--w-line) !important;
@@ -544,9 +541,9 @@ body::before { display: none !important; }
 .mica-primary {
   background: var(--w-grad) !important;
   border: 1px solid transparent !important;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, .22) !important;
+  box-shadow: 0 6px 16px rgba(7, 193, 96, .18) !important;
 }
-.mica-primary:hover { background: var(--w-grad) !important; filter: brightness(1.04); box-shadow: 0 8px 20px rgba(37, 99, 235, .26) !important; transform: none !important; }
+.mica-primary:hover { background: var(--w-grad) !important; filter: brightness(1.04); box-shadow: 0 8px 20px rgba(7, 193, 96, .22) !important; transform: none !important; }
 .mica::after, .mica-primary::before { display: none !important; content: none !important; }
 .qr-login-tip { color: var(--w-muted) !important; }
 .err { color: var(--w-danger) !important; }
@@ -870,7 +867,7 @@ html.is-mobile #chatView { overflow: hidden; position: relative; }
 .admin-btn.danger:hover { background: #fff5f5 !important; }
 
 .admin-loginmask {
-  background: radial-gradient(900px 520px at 50% -10%, rgba(79, 139, 255, .12), transparent 62%), var(--w-bg) !important;
+  background: #f7f7f7 !important;
 }
 .admin-logincard {
   background: #fff !important;
@@ -908,7 +905,7 @@ html.is-mobile #chatView { overflow: hidden; position: relative; }
 .admin-login-input:focus {
   background: #fff !important;
   border-color: var(--w-accent) !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12) !important;
+  box-shadow: 0 0 0 3px rgba(7, 193, 96, .12) !important;
   outline: none !important;
 }
 .admin-search {
@@ -985,9 +982,12 @@ html.dark-mode, body.dark-mode {
 .dark-mode .msg-row.other .bubble::before { border-color: transparent #1e2026 transparent transparent !important; }
 .dark-mode .msg-row.other .bubble::after { border-color: transparent #1e2026 transparent transparent !important; }
 .dark-mode .msg-row.me .bubble { background: var(--w-mine) !important; color: #eaf1ff !important; border-color: var(--w-mine) !important; }
-.dark-mode .composer-input-wrap, .dark-mode .auto-grow-textarea, .dark-mode .composer textarea,
-.dark-mode .input, .dark-mode .input-sm, .dark-mode .code-input, .dark-mode .hv-input,
-.dark-mode .search {
+.dark-mode .composer-input-wrap, body.dark-mode .composer-input-wrap,
+.dark-mode .auto-grow-textarea, body.dark-mode .auto-grow-textarea,
+.dark-mode .composer textarea, body.dark-mode .composer textarea,
+.dark-mode .input, body.dark-mode .input, .dark-mode .input-sm, body.dark-mode .input-sm,
+.dark-mode .code-input, body.dark-mode .code-input, .dark-mode .hv-input, body.dark-mode .hv-input,
+.dark-mode .search, body.dark-mode .search {
   background: #1f2229 !important; color: var(--w-text) !important;
 }
 .dark-mode .modal, .dark-mode .panel, .dark-mode .card, .dark-mode .dl-card, .dark-mode .account-card,
@@ -995,7 +995,9 @@ html.dark-mode, body.dark-mode {
 .dark-mode .me-card, .dark-mode .me-header, .dark-mode .me-page, .dark-mode .wechat-page {
   background: #16181d !important;
 }
-.dark-mode .auth-card, .dark-mode .auth-wrap, .dark-mode .auth-wrap.mica-bg { background: #16181d !important; }
+.dark-mode .auth-card, body.dark-mode .auth-card,
+.dark-mode .auth-wrap, body.dark-mode .auth-wrap,
+.dark-mode .auth-wrap.mica-bg, body.dark-mode .auth-wrap.mica-bg { background: #16181d !important; }
 .dark-mode .add-btn, .dark-mode .login-mode-btn, .dark-mode .code-btn { background: #1f2229 !important; color: var(--w-text-2) !important; }
 .dark-mode .tabs { background: #1f2229 !important; }
 .dark-mode .tab.on { background: #2a2e36 !important; color: var(--w-text) !important; }
@@ -1006,7 +1008,7 @@ html.dark-mode, body.dark-mode {
   .sidebar-rail { width: 60px !important; flex-basis: 60px !important; }
   .messages { padding: 14px !important; }
   .composer { padding: 8px 12px 12px !important; }
-  .auth-card { border-radius: 18px !important; padding: 30px 22px 24px !important; }
+  .auth-card { border-radius: 6px !important; padding: 30px 22px 24px !important; }
 }
 
 /* ---------- 朋友圈（modules/moments.js）---------- */
@@ -1185,8 +1187,8 @@ html, body { background: var(--w-bg) !important; }
 .auth-card {
   background: var(--w-surface) !important;
   border: 1px solid var(--w-line) !important;
-  border-radius: 10px !important;
-  box-shadow: var(--w-shadow-md) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .06) !important;
   backdrop-filter: none !important;
 }
 .admin-loginmask { background-color: rgba(0, 0, 0, .45) !important; }
