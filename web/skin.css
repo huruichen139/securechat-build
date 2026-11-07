@@ -3748,4 +3748,6 @@ html body.dark-mode .sidebar-rail .rail-action:hover{background:#2c2c2c!importan
 html body .vid-ops button svg{flex:0 0 auto}
 html body .vid-novideo{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:8px!important;min-height:220px!important;background:#111!important;color:#9a9a9a!important;font-size:12px!important}
 html body .vid-author{display:flex!important;align-items:center!important;gap:8px!important}
-html body .vid-ava{width:26px!important;height:26px!important;border-radius:50%!important;background:#4a7dde!important;color:#fff!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:12px!important}
+html body .vid-ava{width:26px!important;height:26px!important;border-radius:50%!important;background:#4a7dde!important;color:#fff!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:12px!important}html body .shop-item-img,html body .product-img{display:flex!important;align-items:center!important;justify-content:center!important;color:#07c160!important;background:#e8f8ef!important;border-radius:6px!important}
+html body .shop-item-img svg,html body .product-img svg{width:40px!important;height:40px!important}
+html body .memory-card svg{margin:auto}

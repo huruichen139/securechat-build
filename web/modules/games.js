@@ -190,7 +190,14 @@
   }
 
   function startMemory(body, g) {
-    var emojis = ['🍎','🍌','🍇','🍒','🍓','🍑','🍊','🍋'];
+    var emojis = ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><circle cx="12" cy="12" r="7"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><path d="M12 4l7 14H5z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><path d="M12 20s-7-4.4-9.3-8.2C1.2 8.7 2.6 5.5 5.6 5.5c1.8 0 3 1 3.4 2.1.4-1.1 1.6-2.1 3.4-2.1 3 0 4.4 3.2 2.9 6.3C19 15.6 12 20 12 20z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><path d="M12 3l7 9-7 9-7-9z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><path d="M12 3l7 4v10l-7 4-7-4V7z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;display:block"><path d="M20 14.5A8 8 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>'];
     var cards = emojis.concat(emojis).sort(function () { return Math.random() - 0.5; });
     var flipped = [];
     var matched = 0;

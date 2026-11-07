@@ -10,6 +10,21 @@
   function loadCart() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { return []; } }
   function saveCart(c) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch (e) {} }
 
+  function pIcon(id) {
+    var ICONS = ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h12v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="13" width="4" height="7" rx="1.5"/><rect x="17" y="13" width="4" height="7" rx="1.5"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M10 6h4"/><circle cx="12" cy="15" r="2.4"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4l4 2 4-2 3 5-3 2v9H8v-9L5 9z"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10l1 13H6z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="11" rx="2"/><path d="M7 11h2M13 11h2M7 14h6"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l2 4v12H5V8z"/><path d="M9 4v4M15 4v4"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v3H9z"/><path d="M8 6h8v15H8z"/><path d="M12 10v5"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M10 7h4"/><path d="M12 17h.01"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4h3v14H6V7h3z"/><path d="M9 12h6"/></svg>',
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h12v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/><circle cx="12" cy="15" r="1.6"/></svg>'];
+    return ICONS[(id - 1) % ICONS.length];
+  }
   var PRODUCTS = [
     { id: 1, name: 'SecureChat 定制马克杯', price: 39.9, oldPrice: 59.9, cat: '生活', img: '☕', sold: 1234, desc: '陶瓷材质，3D 立体 Logo，可微波加热，容量 350ml' },
     { id: 2, name: '无线蓝牙耳机 Pro', price: 199, oldPrice: 399, cat: '数码', img: '🎧', sold: 5678, desc: '主动降噪，30 小时续航，IPX5 防水，低延迟游戏模式' },
@@ -24,6 +39,7 @@
     { id: 11, name: '不锈钢餐具套装', price: 29.9, oldPrice: 49, cat: '生活', img: '🍴', sold: 2345, desc: '筷勺刀叉五件套，304 不锈钢，便携收纳盒，环保出行' },
     { id: 12, name: '运动蓝牙音箱', price: 129, oldPrice: 229, cat: '数码', img: '🔊', sold: 4567, desc: 'IPX7 防水，20W 大功率，12 小时续航，TWS 串联' },
   ];
+  PRODUCTS.forEach(function (p) { p.img = pIcon(p.id); });
 
   function mount(host) {
     host.className = (host.className || '') + ' shop-panel';
