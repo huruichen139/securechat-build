@@ -7069,7 +7069,7 @@ document.addEventListener('click', function(e){
       else settings.style.display = 'none';
       return;
     }
-    const moments = document.getElementById('momentsPage');
+    const moments = document.querySelector('.moments-page') || document.getElementById('momentsPage');
     if (moments && (moments.classList.contains('active') || isVisible(moments))) {
       const back = moments.querySelector('[data-role="back"], .back-btn');
       if (back) back.click();
