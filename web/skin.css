@@ -3135,3 +3135,7 @@ body.dark-mode #chatView .composer .composer-icon-btn:hover{color:#d6d6d6!import
   #settingsPanel .settings-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
   #momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
 }
+
+#chatView .messages .msg-row:hover{position:relative!important;z-index:5!important}
+@media (max-width:760px){#downloadView .download-header{justify-content:center!important;position:relative!important}#downloadView .download-header .back-btn{position:absolute!important;left:8px!important;top:50%!important;transform:translateY(-50%)!important}}
+#mobileBottomNav .side-tab.on span,#mobileBottomNav .side-tab.on svg{color:#07c160!important;fill:#07c160!important}
