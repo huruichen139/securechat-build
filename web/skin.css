@@ -3129,3 +3129,9 @@ body.dark-mode #mePage .me-id{color:#b2b2b2!important}
 body.dark-mode #chatView #chatMobileHeader .header-back,body.dark-mode #chatView #chatMobileHeader .header-more,body.dark-mode #chatView #chatMobileHeader #chatMobileBackBtn,body.dark-mode #chatView #chatMobileHeader #chatMobileMoreBtn{color:#d6d6d6!important}
 body.dark-mode #chatView .composer .composer-icon-btn,body.dark-mode #chatView .composer .composer-icon-btn svg{color:#b2b2b2!important;fill:#b2b2b2!important}
 body.dark-mode #chatView .composer .composer-icon-btn:hover{color:#d6d6d6!important}
+/* desktop width cap */
+@media (min-width:761px){
+  #contactsPage .page-body,#discoverPage .page-body,#mePage .page-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
+  #settingsPanel .settings-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
+  #momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
+}
