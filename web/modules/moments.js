@@ -171,9 +171,9 @@
     pageEl.className = 'wechat-page moments-page';
     pageEl.innerHTML =
       '<div class="page-header moments-header">' +
-        '<button class="back-btn" type="button" data-role="back">返回</button>' +
+        '<button class="back-btn" type="button" data-role="back" aria-label="返回" style="display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><path d="M15 4L7 12l8 8"/></svg></button>' +
         '<h2>朋友圈</h2>' +
-        '<button class="moments-publish-btn" type="button" data-role="publish">发布</button>' +
+        '<button class="moments-publish-btn" type="button" data-role="publish" aria-label="发布" style="display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg></button>' +
       '</div>' +
       '<div class="page-body moments-body"><div class="moments-feed" data-role="feed"></div>' +
         '<div class="moments-more" data-role="more" hidden><button type="button" data-role="loadmore">加载更多</button></div>' +
