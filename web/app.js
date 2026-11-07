@@ -2301,6 +2301,16 @@ function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
       b.setAttribute('aria-label', '返回');
       b.style.fontSize = '0';
     });
+    var welcomeIcons = {
+      welcomeAddBtn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;display:block"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 8v6M15 11h6"/></svg>',
+      welcomeGroupBtn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;display:block"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.2"/><path d="M15 20a5 5 0 0 1 6-4.8"/></svg>',
+      welcomeAiBtn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;display:block"><path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>'
+    };
+    Object.keys(welcomeIcons).forEach(function (id) {
+      var btn = document.getElementById(id);
+      var ic = btn && btn.querySelector('.welcome-icon');
+      if (ic && !ic.querySelector('svg')) { ic.removeAttribute('data-i18n'); ic.innerHTML = welcomeIcons[id]; }
+    });
     ['chatMobileMoreBtn', 'chatHeaderMoreBtn'].forEach(function (id) {
       const more = document.getElementById(id);
       if (more && !more.querySelector('svg')) { more.innerHTML = dots; more.setAttribute('aria-label', '更多'); more.style.fontSize = '0'; }
