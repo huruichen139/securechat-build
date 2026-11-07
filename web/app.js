@@ -5954,7 +5954,7 @@ function renderMePage() {
   if (!header) return;
   const hasImg = state.me.avatar;
   const avHtml = hasImg ? `<img src="${escapeHtml(state.me.avatar)}">` : avatarChar(state.me.nickname);
-  const qrHtml = '<span class="me-qr" id="meQrBtn" title="扫一扫"><span class="wx-ico-sm">扫</span></span>';
+  const qrHtml = '<span class="me-qr" id="meQrBtn" title="我的二维码"><span class="wx-ico-sm">码</span></span>';
   header.innerHTML = `
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
@@ -5963,7 +5963,7 @@ function renderMePage() {
     </div>
     ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
-  if (qrBtn) qrBtn.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); openQrScanner(); };
+  if (qrBtn) qrBtn.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); showMyCard(); };
   // 头部（我的名片）点击 → 展示名片二维码
   header.onclick = () => showMyCard();
   header.style.cursor = 'pointer';
