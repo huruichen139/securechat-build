@@ -3169,4 +3169,16 @@ body.dark-mode .at-panel{background:#2c2c2c!important;color:#d6d6d6!important}
 @media (min-width:761px){
 #settingsPanel .settings-content,#settingsPanel .settings-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
 #momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
+}@media (min-width:761px){
+#chatView #contactsPage .page-body,#chatView #discoverPage .page-body,#chatView #mePage .page-body{max-width:none!important;margin:0!important;width:100%!important}
 }
+#chatView .messages .msg-row{padding-bottom:22px!important}
+#chatView .messages .msg-row .message-actions{top:100%!important;bottom:auto!important;margin-top:2px!important;margin-bottom:0!important}/* feature center polish */
+.feature-item,.feature-item:hover{padding:10px 4px!important;background:#fff!important;border:1px solid #ececec!important;border-radius:8px!important;box-shadow:none!important;transform:none!important}
+.feature-item:hover{background:#f7f7f7!important;border-color:#dcdcdc!important}
+.feature-item .feature-icon,.feature-item:hover .feature-icon{width:44px!important;height:44px!important;border-radius:12px!important;background:#e8f8ef!important;background-image:none!important;border:0!important;color:#07c160!important;font-size:13px!important;font-weight:500!important;box-shadow:none!important;transform:none!important}
+.feature-item .feature-label{font-size:12px!important;font-weight:400!important;color:#333!important;margin-top:8px!important}
+body.dark-mode .feature-item,body.dark-mode .feature-item:hover{background:#2c2c2c!important;border-color:#3a3a3a!important}
+body.dark-mode .feature-item .feature-icon,body.dark-mode .feature-item:hover .feature-icon{background:#1f3a2c!important;color:#4ade80!important}
+body.dark-mode .feature-item .feature-label{color:#b2b2b2!important}
+.feature-grid{gap:10px!important}
