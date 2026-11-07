@@ -3734,4 +3734,5 @@ body.dark-mode .profile-card{box-shadow:0 8px 30px rgba(0,0,0,.45)!important}#ch
 body.dark-mode #chatView #welcomePanel .welcome-action{background:#2c2c2c!important;border-color:#3a3a3a!important}
 body.dark-mode #chatView #welcomePanel .welcome-action .welcome-icon{background:#1f3a2c!important;color:#4ade80!important}
 body.dark-mode #chatView #welcomePanel .welcome-action b{color:#e5e5e5!important}
-body.dark-mode #chatView #welcomePanel .welcome-action small{color:#b2b2b2!important}
+body.dark-mode #chatView #welcomePanel .welcome-action small{color:#b2b2b2!important}#authView .auth-card{border-radius:10px!important;box-shadow:0 8px 30px rgba(0,0,0,.08)!important;background:#fff!important;border:1px solid #ececec!important}
+body.dark-mode #authView .auth-card{background:#191919!important;border-color:#2a2a2a!important;box-shadow:0 8px 30px rgba(0,0,0,.5)!important}
