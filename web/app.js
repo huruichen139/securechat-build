@@ -321,12 +321,16 @@ function scAsk(opts) {
     const title = document.createElement('div');
     title.className = 'sc-fav-ask-title';
     title.textContent = opts.title || '';
-    const input = document.createElement('input');
-    input.className = 'sc-fav-ask-input';
-    input.type = opts.type || 'text';
-    input.placeholder = opts.placeholder || '';
-    input.value = opts.value || '';
-    input.readOnly = !!opts.readonly;
+    const field = document.createElement(opts.multiline ? 'textarea' : 'input');
+    field.className = 'sc-fav-ask-input';
+    if (!opts.multiline) field.type = opts.type || 'text';
+    field.placeholder = opts.placeholder || '';
+    field.value = opts.value || '';
+    field.readOnly = !!opts.readonly;
+    if (opts.multiline) {
+      field.style.cssText = 'height:120px;padding:10px;resize:vertical;line-height:1.5;font-family:inherit';
+      field.maxLength = opts.maxLength || 0;
+    }
     const actions = document.createElement('div');
     actions.className = 'sc-fav-ask-actions';
     const cancel = document.createElement('button');
@@ -339,7 +343,7 @@ function scAsk(opts) {
     actions.appendChild(cancel);
     actions.appendChild(ok);
     box.appendChild(title);
-    box.appendChild(input);
+    box.appendChild(field);
     box.appendChild(actions);
     mask.appendChild(box);
     document.body.appendChild(mask);
@@ -351,16 +355,16 @@ function scAsk(opts) {
       mask.remove();
       resolve(v);
     };
-    const submit = () => finish(input.value);
+    const submit = () => finish(field.value);
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); finish(null); }
-      else if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      else if (e.key === 'Enter') { if (opts.multiline && !e.ctrlKey && !e.metaKey) return; e.preventDefault(); submit(); }
     };
     cancel.onclick = () => finish(null);
     ok.onclick = submit;
     mask.onclick = (e) => { if (e.target === mask) finish(null); };
     document.addEventListener('keydown', onKey, true);
-    setTimeout(() => { input.focus(); input.select(); }, 30);
+    setTimeout(() => { field.focus(); field.select(); }, 30);
   });
 }
 window.scAsk = scAsk;
@@ -3055,7 +3059,7 @@ async function openGroupProfile(groupId) {
   const annEditBtn = mask.querySelector('.ann-edit-btn');
   if (annEditBtn) annEditBtn.onclick = async () => {
     const cur = announcement && announcement.content ? announcement.content : '';
-    const content = prompt('编辑群公告（2000 字以内）：', cur);
+    const content = await scAsk({ title: '编辑群公告（2000 字以内）', value: cur, multiline: true, maxLength: 2000, okText: '保存' });
     if (content == null) return;
     if (String(content).length > 2000) { toast('公告不能超过 2000 字', 'error'); return; }
     try {
