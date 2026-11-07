@@ -3792,4 +3792,5 @@ body.dark-mode #settingsPanel .settings-hdr{background:#2c2c2c!important;border-
   html body .moments-page .moments-body{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important}
 }
 body.dark-mode .moments-page{background:#191919!important}
-body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .moments-body{background:#2c2c2c!important}.wechat-page,.kb-panel{animation:scFadeIn .18s ease-out}
+body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .moments-body{background:#2c2c2c!important}.wechat-page,.kb-panel{animation:scFadeIn .18s ease-out}html body .pwd-eye{display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
+html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}

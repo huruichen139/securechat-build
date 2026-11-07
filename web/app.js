@@ -602,14 +602,16 @@ function initLoginExtras() {
     const eye = document.createElement('button');
     eye.type = 'button';
     eye.className = 'pwd-eye';
-    eye.textContent = '显示';
+    const EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+    const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M3 3l18 18"/><path d="M10.6 6.2A9.8 9.8 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3 3.6"/><path d="M6.1 6.9C3.5 8.6 2 12 2 12s3.5 6 10 6a10 10 0 0 0 4.4-1"/></svg>';
+    eye.innerHTML = EYE_OPEN;
     eye.setAttribute('aria-label', '显示密码');
     eye.onclick = () => {
       const show = pw.type === 'password';
       const selStart = pw.selectionStart;
       const selEnd = pw.selectionEnd;
       pw.type = show ? 'text' : 'password';
-      eye.textContent = show ? '隐藏' : '显示';
+      eye.innerHTML = show ? EYE_OFF : EYE_OPEN;
       eye.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
       pw.focus();
       try { if (selStart != null && selEnd != null) pw.setSelectionRange(selStart, selEnd); } catch (e) {}
