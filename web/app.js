@@ -5676,6 +5676,16 @@ function hideMobileChatView() {
   if (desktopComposer) desktopComposer.style.display = '';
 }
 window.addEventListener('resize', () => {
+  setTimeout(() => {
+    if (window.IS_MOBILE) return;
+    const cv = document.getElementById('chatView');
+    if (cv && cv.classList.contains('mobile-chat-active')) {
+      cv.classList.remove('mobile-chat-active');
+      const mh = document.getElementById('chatMobileHeader'); if (mh) mh.style.display = 'none';
+      const mc = document.getElementById('chatMobileComposer'); if (mc) mc.style.display = 'none';
+      const dc = document.getElementById('chatDesktopComposer'); if (dc) dc.style.display = '';
+    }
+  }, 60);
   if (window.IS_MOBILE) return;
   const active = document.querySelector('.wechat-page.active');
   if (!active) return;
