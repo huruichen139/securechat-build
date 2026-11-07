@@ -5796,14 +5796,8 @@ const panel = document.getElementById('settingsPanel');
           openSettingsPage();
         }},
         { label: '聊天背景', desc: '设置聊天界面背景', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; pickChatBg(); } },
-        { label: '字体大小', desc: localStorage.chatFontSize || '默认', icon: '字', fn: () => {
-          const sizes = ['默认', '小', '中', '大', '特大'];
-          const cur = sizes.indexOf(localStorage.chatFontSize || '默认');
-          const next = (cur + 1) % sizes.length;
-          localStorage.chatFontSize = sizes[next];
-          const base = { '默认': 15, '小': 13, '中': 15, '大': 17, '特大': 19 };
-          document.documentElement.style.fontSize = (base[sizes[next]] || 15) + 'px';
-          toast('字体已设为' + sizes[next], 'success');
+        { label: '字体大小', desc: ({ s: '小', m: '标准', l: '大' })[localStorage.getItem('sc_msg_font') || 'm'], icon: '字', fn: () => {
+          cycleMsgFont();
           openSettingsPage();
         }},
         { label: '深色模式', desc: document.body.classList.contains('dark-mode') ? '已开启' : '已关闭', icon: '暗', fn: () => {
