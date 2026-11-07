@@ -4483,7 +4483,7 @@ if (desktopInput) desktopInput.addEventListener('input', () => {
 
 // 本地主题切换，不影响账号和聊天数据
 const themeToggle = $('themeToggle');
-const savedTheme = localStorage.getItem('sc_theme');
+const savedTheme = localStorage.getItem('sc_theme') || (localStorage.darkMode === '1' ? 'dark' : '');
 if (savedTheme === 'dark') document.body.classList.add('dark-mode');
 if (themeToggle) themeToggle.onclick = () => {
   const dark = document.body.classList.toggle('dark-mode');
@@ -5806,8 +5806,10 @@ const panel = document.getElementById('settingsPanel');
         }},
         { label: '深色模式', desc: document.body.classList.contains('dark-mode') ? '已开启' : '已关闭', icon: '暗', fn: () => {
           document.body.classList.toggle('dark-mode');
-          localStorage.darkMode = document.body.classList.contains('dark-mode') ? '1' : '0';
-          toast('深色模式已' + (document.body.classList.contains('dark-mode') ? '开启' : '关闭'), 'success');
+          const nowDark = document.body.classList.contains('dark-mode');
+          localStorage.setItem('sc_theme', nowDark ? 'dark' : 'light');
+          localStorage.darkMode = nowDark ? '1' : '0';
+          toast('深色模式已' + (nowDark ? '开启' : '关闭'), 'success');
           openSettingsPage();
         }},
         { label: '语言', desc: (window.SCI18N && window.SCI18N.locale) ? String(window.SCI18N.locale).toUpperCase() : 'ZH', icon: '语', fn: () => {
