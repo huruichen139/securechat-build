@@ -3739,4 +3739,9 @@ body.dark-mode #authView .auth-card{background:#191919!important;border-color:#2
 .wx-me-icon svg{width:18px;height:18px;display:block;stroke:currentColor;fill:none}
 .wx-discover-icon{background:#f2f2f2!important;color:var(--ic,#07c160)!important;border-radius:6px!important}
 body.dark-mode .wx-me-icon,body.dark-mode .wx-discover-icon{background:#2c2c2c!important}html body .wx-me-icon,html body .wx-discover-icon{color:var(--ic,#07c160)!important}
-html body .wx-me-icon svg,html body .wx-discover-icon svg{stroke:currentColor!important}
+html body .wx-me-icon svg,html body .wx-discover-icon svg{stroke:currentColor!important}html body .sidebar-rail .rail-action{width:36px;height:36px;padding:0!important;display:flex!important;align-items:center;justify-content:center;border-radius:6px!important;background:transparent!important;color:#7a7a7a!important;font-size:0!important;line-height:0!important}
+html body .sidebar-rail .rail-action svg{width:19px;height:19px;display:block}
+html body .sidebar-rail .rail-action:hover{background:#ececec!important;color:#191919!important}
+html body.dark-mode .sidebar-rail .rail-action{color:#b0b0b0!important}
+html body.dark-mode .sidebar-rail .rail-action:hover{background:#2c2c2c!important;color:#e6e6e6!important}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
