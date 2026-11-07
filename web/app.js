@@ -2301,8 +2301,10 @@ function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
       b.setAttribute('aria-label', '返回');
       b.style.fontSize = '0';
     });
-    const more = document.getElementById('chatMobileMoreBtn');
-    if (more && !more.querySelector('svg')) { more.innerHTML = dots; more.setAttribute('aria-label', '更多'); more.style.fontSize = '0'; }
+    ['chatMobileMoreBtn', 'chatHeaderMoreBtn'].forEach(function (id) {
+      const more = document.getElementById(id);
+      if (more && !more.querySelector('svg')) { more.innerHTML = dots; more.setAttribute('aria-label', '更多'); more.style.fontSize = '0'; }
+    });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', upgradeNavIcons);
   else upgradeNavIcons();
