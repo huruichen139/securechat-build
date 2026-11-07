@@ -3786,4 +3786,10 @@ html body .plus-ico svg{width:24px!important;height:24px!important;display:block
   #settingsPanel .settings-hdr{width:860px!important;max-width:860px!important;margin:0 auto!important;background:#fff!important;border-bottom:1px solid #f0f0f0!important}
 }
 body.dark-mode #settingsPanel{background:#191919!important}
-body.dark-mode #settingsPanel .settings-hdr{background:#2c2c2c!important;border-bottom-color:#3a3a3a!important}
+body.dark-mode #settingsPanel .settings-hdr{background:#2c2c2c!important;border-bottom-color:#3a3a3a!important}@media(min-width:761px){
+  html body .moments-page{background:#ededed!important}
+  html body .moments-page .moments-header{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important}
+  html body .moments-page .moments-body{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important}
+}
+body.dark-mode .moments-page{background:#191919!important}
+body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .moments-body{background:#2c2c2c!important}
