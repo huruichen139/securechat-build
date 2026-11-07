@@ -3139,3 +3139,13 @@ body.dark-mode #chatView .composer .composer-icon-btn:hover{color:#d6d6d6!import
 #chatView .messages .msg-row:hover{position:relative!important;z-index:5!important}
 @media (max-width:760px){#downloadView .download-header{justify-content:center!important;position:relative!important}#downloadView .download-header .back-btn{position:absolute!important;left:8px!important;top:50%!important;transform:translateY(-50%)!important}}
 #mobileBottomNav .side-tab.on span,#mobileBottomNav .side-tab.on svg{color:#07c160!important;fill:#07c160!important}
+/* dark mode: image preview mask and toolbar (actual classes img-preview-mask/bar/dl) */
+body.dark-mode .img-preview-mask{background:#0f0f0f!important}
+body.dark-mode .img-preview-bar,body.dark-mode .img-preview-dl{background:rgba(44,44,44,.94)!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+/* dark mode: voice recording bar (actual classes rec-bar/voice-tip) */
+body.dark-mode .rec-bar,body.dark-mode .voice-tip{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+/* dark mode: forward picker (actual classes forward-card/forward-mask) */
+body.dark-mode .forward-card{background:#191919!important;color:#d6d6d6!important}
+body.dark-mode .forward-card .profile-member{border-color:#2a2a2a!important}
+/* dark mode: at panel (actual class at-panel) */
+body.dark-mode .at-panel{background:#2c2c2c!important;color:#d6d6d6!important}

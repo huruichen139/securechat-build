@@ -6993,3 +6993,62 @@ document.addEventListener('click', function(e){
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSidePlus);
   else initSidePlus();
 })();
+
+// ============ 可用性：为图标型按钮补全 aria-label / title（仅缺失时） ============
+(function initA11yLabels() {
+  function fillLabel(el, label) {
+    if (!el || !label) return;
+    if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', label);
+    if (!el.getAttribute('title')) el.setAttribute('title', label);
+  }
+  function apply() {
+    const pairs = [
+      ['#chatMobileBackBtn', '返回'],
+      ['#chatMobileMoreBtn', '更多'],
+      ['#emojiIconBtn', '表情'],
+      ['#voiceIconBtn', '语音'],
+      ['#plusIconBtn', '更多功能'],
+      ['#sendBtn, .composer-send-btn', '发送'],
+      ['#searchInput', '搜索'],
+      ['#addFriendBtn', '添加好友']
+    ];
+    pairs.forEach(function (p) {
+      document.querySelectorAll(p[0]).forEach(function (el) { fillLabel(el, p[1]); });
+    });
+    document.querySelectorAll('.side-tab').forEach(function (el) {
+      const label = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      fillLabel(el, label);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
+  else apply();
+})();
+
+// ============ 可用性：Esc 关闭最上层弹窗/面板（不影响聊天页） ============
+(function initEscCloseTopLayer() {
+  const SELECTOR = '.modal-mask, .profile-mask, .sc-overlay';
+  function isVisible(el) {
+    if (!el || !el.isConnected || el.hidden) return false;
+    const cs = window.getComputedStyle(el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
+  }
+  function topLayer() {
+    let best = null;
+    let bestZ = -Infinity;
+    document.querySelectorAll(SELECTOR).forEach(function (el) {
+      if (!isVisible(el)) return;
+      const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+      const zz = isNaN(z) ? 0 : z;
+      if (zz >= bestZ) { bestZ = zz; best = el; }
+    });
+    return best;
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    const layer = topLayer();
+    if (!layer) return;
+    const closer = layer.querySelector('.modal-x, .profile-close, .sc-overlay-close');
+    if (closer) closer.click();
+    else layer.remove();
+  }, true);
+})();
