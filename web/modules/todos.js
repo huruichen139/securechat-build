@@ -92,7 +92,7 @@
       '<div style="font-size:16px;font-weight:600;margin-bottom:12px">发布今日待办</div>' +
       '<input class="td-title" placeholder="待办标题（默认：今日待办）" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px">' +
       '<div id="td-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>' +
-      '<button class="td-add" style="padding:6px 12px;background:#f2f2f2;border:none;border-radius:16px;cursor:pointer;margin-bottom:10px">+ 添加待办项</button>' +
+      '<button class="td-add" style="padding:6px 12px;background:#f2f2f2;color:#06a854;border:none;border-radius:16px;cursor:pointer;margin-bottom:10px">+ 添加待办项</button>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="td-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +
       '<button class="td-confirm primary" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +

@@ -36,6 +36,12 @@
   function esc(s) { return escapeHtml ? escapeHtml(s) : String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function fmt(ts) { if (!ts) return ''; const d = new Date(Number(ts)); const p = n => (n < 10 ? '0' + n : '' + n); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
   function toastMsg(msg, kind) { if (window.toast) window.toast(msg, kind || 'info'); }
+  function fixWidth(root) {
+    if (!root) return;
+    root.style.minWidth = '0';
+    const nodes = root.querySelectorAll('.oa-head,.oa-body,.oa-cards,.oa-card,.oa-list,.oa-item,.oa-meta,.oa-article,.oa-content,.oa-comments,.oa-comment,.oa-cover,.oa-back,.oa-composer,.oa-c-head,.oa-c-body');
+    for (let i = 0; i < nodes.length; i++) nodes[i].style.minWidth = '0';
+  }
 
   function _me() {
     if (window.state && window.state.me) return window.state.me;
@@ -60,6 +66,20 @@
       '</div>' +
       '<div class="oa-body"><div class="oa-loading">加载中…</div></div>';
     const body = host.querySelector('.oa-body');
+    host.style.overflowX = 'hidden';
+    host.style.minWidth = '0';
+    host.style.boxSizing = 'border-box';
+    host.style.width = '100%';
+    host.style.maxWidth = '100%';
+    body.style.width = '100%';
+    body.style.maxWidth = '100%';
+    body.style.boxSizing = 'border-box';
+    body.style.minWidth = '0';
+    fixWidth(body);
+    if (window.MutationObserver) {
+      const mo = new MutationObserver(function () { fixWidth(body); });
+      mo.observe(body, { childList: true, subtree: true });
+    }
     host.querySelectorAll('[data-act]').forEach(function (b) {
       b.onclick = function () { Act[b.dataset.act] ? Act[b.dataset.act](body) : loadAccounts(body); };
     });
@@ -293,7 +313,13 @@
     closeX.onclick = function () { mask.remove(); };
     mask.addEventListener('click', function (e2) { if (e2.target === mask) mask.remove(); });
     const host = box.querySelector('.oa-container');
-    host.style.maxHeight = '70vh'; host.style.overflow = 'auto';
+    host.style.overflowX = 'hidden';
+    host.style.overflowY = 'auto';
+    host.style.minWidth = '0';
+    host.style.boxSizing = 'border-box';
+    host.style.width = '100%';
+    host.style.maxWidth = '100%';
+    host.style.maxHeight = '70vh';
     mount(host);
   }
   function renderInto(el) { if (el) mount(el); }

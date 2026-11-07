@@ -3096,3 +3096,21 @@ body.dark-mode .login-mode-btn.on {
 #chatView .messages .msg-row.show-actions{margin-bottom:30px!important}
 .modal-mask:not(:has(> .moments-composer)){padding:12px!important;box-sizing:border-box!important}
 .modal.modal-scroll{overflow-y:auto!important;max-height:90vh!important}
+/* audit fixes */
+#chatView #messages{overflow-x:hidden!important}
+#chatView .messages .msg-row{max-width:100%!important}
+#chatView .messages .msg-row .message-actions{left:auto!important;right:0!important;width:auto!important;max-width:100%!important;flex-wrap:wrap!important;height:auto!important;justify-content:flex-end!important;row-gap:2px!important}
+#chatView .messages .msg-row.me .message-actions{left:auto!important;right:0!important}
+.modal-mask > .modal:not(.oa-view):not(.moments-composer){max-height:calc(100vh - 24px)!important;overflow-y:auto!important;overflow-x:hidden!important}
+.profile-mask .profile-card{max-height:calc(100vh - 24px)!important;overflow-y:auto!important}
+#settingsPanel .settings-section-title{color:#7a7a7a!important}
+#chatView #contactList .contact .chat-time{color:#8a8a8a!important}
+.moments-empty{color:#8a8a8a!important}
+.field-row > label{color:#7a7a7a!important}
+#mePage .me-id{color:#8a8a8a!important}
+body.dark-mode #settingsPanel .settings-section-title{color:#b2b2b2!important}
+body.dark-mode #chatView #contactList .contact .chat-time{color:#b2b2b2!important}
+body.dark-mode .moments-empty{color:#b2b2b2!important}
+body.dark-mode .field-row > label{color:#b2b2b2!important}
+body.dark-mode #mePage .me-id{color:#b2b2b2!important}
+#welcomePanel h1::after{content:"SecureChat"!important}

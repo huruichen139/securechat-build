@@ -89,7 +89,7 @@
       '<div style="font-size:16px;font-weight:600;margin-bottom:12px">设置定时提醒</div>' +
       '<div style="font-size:13px;color:#666;margin-bottom:8px">目标：' + (targetType === 'group' ? '群 #' + targetId : '单聊成员 #' + targetId) + '</div>' +
       '<input class="rm-dt" placeholder="提醒时间" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px">' +
-      '<div style="font-size:11px;color:#aaa;margin-bottom:8px">时间格式：YYYY-MM-DD HH:mm（如 2026-08-15 18:00）</div>' +
+      '<div style="font-size:11px;color:#8a8a8a;margin-bottom:8px">时间格式：YYYY-MM-DD HH:mm（如 2026-08-15 18:00）</div>' +
       '<textarea class="rm-ct" placeholder="提醒内容" rows="2" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px">' + esc(defaultContent || '') + '</textarea>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="rm-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +

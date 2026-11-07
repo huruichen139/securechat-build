@@ -2988,3 +2988,8 @@ body[data-bubble-style=""] #chatView .messages .msg-row .bubble { border-radius:
 body.dark-mode .admin-nav-tab { background: #1f2023; border-color: #333; color: #94a3b8; }
 body.dark-mode .admin-nav-tab.on { background: var(--primary, #2563eb); border-color: var(--primary, #2563eb); color: #fff; }
 body.dark-mode .admin-ov-card { background: rgba(30,32,36,.75); }
+
+.chat-bg-item span { color: #7a7a7a !important; }
+body.dark-mode .chat-bg-item { background: #2c2c2c; border-color: #3a3a3a; }
+body.dark-mode .chat-bg-item span { color: #b2b2b2 !important; }
+body.dark-mode .chat-bg-grid { background: transparent; }

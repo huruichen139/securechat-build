@@ -995,3 +995,30 @@ body.dark-mode .tr-result {
   color: #d6d6d6 !important;
   border-color: #3a3a3a !important;
 }
+
+/* ============================================================
+   审计修复：公众号弹窗溢出 / 投票创建按钮 / 视频占位 /
+   直播结束标记 / 翻译菜单对比度
+   ============================================================ */
+.modal.oa-view .oa-container,
+.modal.oa-view .oa-container > .oa-body {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+.oa-container { overflow-x: hidden !important; }
+
+.polls-creator .pc-add {
+  background: #f2f2f2 !important;
+  color: #07c160 !important;
+  border: 1px solid #e5e5e5 !important;
+}
+.pc-confirm { background: #07c160 !important; color: #fff !important; }
+
+.vid-novideo { color: #b2b2b2 !important; background: #000 !important; }
+
+.live-badge.end { background: #8a8a8a !important; color: #fff !important; }
+
+.tr-menu button { color: #06a854 !important; }
+body.dark-mode .tr-menu button { color: #d6d6d6 !important; }
