@@ -2848,3 +2848,7 @@ html.is-mobile #chatView > #downloadView.dl-hidden{display:none!important}
   body.dark-mode #chatView .ai-header > span[data-i18n="ai"]{color:#d6d6d6!important}
   body.dark-mode #chatView .ai-header #aiBackBtn{color:#d6d6d6!important}
 }
+/* message search highlight in WeChat green */
+.msg-row.search-hit .bubble{outline:2px solid #07c160!important;outline-offset:2px}
+.msg-row.search-current .bubble{outline:2px solid #07c160!important;background:#e8f7ee!important}
+body.dark-mode .msg-row.search-current .bubble{background:#123a24!important}
