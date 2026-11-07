@@ -204,3 +204,12 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - 「我」页二维码入口改为打开我的名片二维码（原为扫一扫）。
 - 消息内搜索高亮改微信绿（#07c160）。
 - 复测：群聊 @、群资料/公告、邀请进群、转发选择器、聊天背景、会话搜索、深色模式（列表/发现/我/朋友圈/scAsk）全部正常；smoke2/audit3/msw320 0 异常。
+
+## 2026-11-07 Web 客户端设置项修复（app.js 1832f, skin.css v123, theme-white.css v29）
+- 消息字体：skin 的 .bubble font-size !important 压住容器内联字号，改为 messages 容器加 msg-font-s/m/l 类并在 skin 中按类覆盖；设置页「字体大小」改为复用同一档位（小/标准/大），刷新后保持。
+- 气泡样式：原 CSS 选择器 .msg/.mine 与实际 .msg-row/.me 不匹配，且被 #chatView 规则压制；改为 body[data-bubble-style] #chatView .messages .msg-row，圆角/直角/圆润三档实测生效（4px/2px/18px）。
+- 聊天背景：getChatBg/setChatBg 用 sc_chatbg_ 而 applyChatBg 写 chatBgColor_，enterChat 时用空值把已存颜色清掉；统一为 chatBgColor_ 并兼容旧键；--chat-bg 规则被 theme-white 与 #chatView .main .messages 的 #ededed !important 压住，追加高优先级 var(--chat-bg) 规则，浅色/深色均生效。
+- 设置页「聊天背景」改为打开颜色网格选择器；theme-white 中 .chat-bg-grid{display:none!important} 导致 16 色网格不可见，已删除该规则。
+- 「清理本地缓存」正则 ^sc_msg_ 会误删 sc_msg_font 设置，改为 ^sc_drafts_；清理后同步重置聊天背景显示。
+- 「关于我们」版本号改为 PACKAGE_VERSION（1.80.7，与 pubspec 一致），访问 GitHub 按钮补上打开链接的处理器。
+- 验证：字体 15→13/17 且刷新保持；气泡圆角三档；背景色刷新/深色/清除；设置背景网格 16 项可见；清理缓存保留字体；关于弹窗 390 无溢出；smoke2/func/audit3/msw320/ov1440 全通过，0 JS 异常。
