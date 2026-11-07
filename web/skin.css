@@ -3728,7 +3728,7 @@ body.dark-mode .profile-card .profile-id,body.dark-mode .profile-card .profile-r
 body.dark-mode .profile-card{box-shadow:0 8px 30px rgba(0,0,0,.45)!important}#chatView #welcomePanel .welcome-actions{max-width:600px!important;width:100%!important;flex-direction:row!important;gap:12px!important;flex-wrap:wrap!important;justify-content:center!important}
 #chatView #welcomePanel .welcome-action{background:#fff!important;border:1px solid #ececec!important;border-radius:8px!important;box-shadow:none!important;padding:16px 18px!important;min-width:170px!important}
 #chatView #welcomePanel .welcome-action:hover{background:#f7f7f7!important;border-color:#dcdcdc!important}
-#chatView #welcomePanel .welcome-action .welcome-icon{width:44px!important;height:44px!important;border-radius:12px!important;background:#e8f8ef!important;color:#07c160!important;box-shadow:none!important}
+#chatView #welcomePanel .welcome-action .welcome-icon{width:44px!important;height:44px!important;border-radius:8px!important;background:#e8f8ef!important;color:#07c160!important;box-shadow:none!important}
 #chatView #welcomePanel .welcome-action b{color:#191919!important;font-size:14px!important;font-weight:500!important}
 #chatView #welcomePanel .welcome-action small{color:#8a8a8a!important;font-size:12px!important}
 body.dark-mode #chatView #welcomePanel .welcome-action{background:#2c2c2c!important;border-color:#3a3a3a!important}
