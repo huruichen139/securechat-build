@@ -2653,6 +2653,14 @@ async function loadConversationPreviews() {
 }
 window.loadConversationPreviews = loadConversationPreviews;
 
+function formatPreviewText(value) {
+  const s = String(value == null ? '' : value).trim();
+  if (/^\[红包:\d+\]$/.test(s)) return '[红包]';
+  if (s.indexOf('__VOICE__') === 0) return '[语音]';
+  if (s.indexOf('__FILE__') === 0) return '[文件]';
+  if (s.indexOf('[合并转发]') === 0) return '[合并转发]';
+  return s;
+}
 function renderContacts() {
   updateUnreadBadge();
   try { if (state.activePeer) unremoveConv('u:' + state.activePeer); if (state.activeGroup) unremoveConv('g:' + state.activeGroup); } catch {}
@@ -2701,7 +2709,7 @@ function renderContacts() {
       const lastTime = state.groupLastMsgTime[g.id] || 0;
       const isPinned = !!chatPrefs().pinned[c.key];
       const isMuted = !!chatPrefs().muted[c.key];
-      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}${state.groupMention[g.id] ? '<span class="mention-tag">@我</span>' : ''}</div><div class="last">${escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
+      div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}${state.groupMention[g.id] ? '<span class="mention-tag">@我</span>' : ''}</div><div class="last">${escapeHtml(formatPreviewText(lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
       bindConvContextMenu(div, c.key, g.name || ('群 #' + g.id), () => selectGroup(g.id));
       list.appendChild(div);
@@ -2716,7 +2724,7 @@ function renderContacts() {
     const isMuted = !!chatPrefs().muted['u:' + u.id];
     const lastMsg = state.lastFrom[u.id];
     const lastTime = state.lastMsgTime ? state.lastMsgTime[u.id] : 0;
-    const preview = lastMsg ? escapeHtml(String(lastMsg).replace(/\n/g, ' ').slice(0, 30)) : (u.online ? '在线' : '离线');
+    const preview = lastMsg ? escapeHtml(formatPreviewText(lastMsg).replace(/\n/g, ' ').slice(0, 30)) : (u.online ? '在线' : '离线');
     const timeStr = lastTime ? fmtChatListTime(lastTime) : '';
     div.innerHTML = `<div class="avatar">${avHtml}</div>
       <div style="flex:1;overflow:hidden">
@@ -2908,7 +2916,7 @@ function renderGroupList() {
     div.innerHTML = `<div class="avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div>
        <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(g.name)}<span class="last" style="margin-left:6px">ID:${g.id}${ownerMark}</span></div>
-        <div class="last">${escapeHtml(String(lastMsg).slice(0, 30))}</div>
+        <div class="last">${escapeHtml(formatPreviewText(lastMsg).slice(0, 30))}</div>
        </div>
        ${groupTime ? `<span class="chat-time">${groupTime}</span>` : ''}
       ${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
