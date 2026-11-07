@@ -3780,4 +3780,5 @@ body.dark-mode .kb-head,body.dark-mode .kb-tabs,body.dark-mode .kb-list{backgrou
   html body .modal.live-view{width:480px!important;max-width:92vw!important}
   html body .modal.oa-view{width:680px!important;max-width:92vw!important}
   html body .modal.scan-view{width:560px!important;max-width:92vw!important}
-}
+}html body .plus-ico{display:flex!important;align-items:center!important;justify-content:center!important}
+html body .plus-ico svg{width:24px!important;height:24px!important;display:block}

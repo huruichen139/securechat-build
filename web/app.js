@@ -5169,7 +5169,18 @@ function sendAttachmentFile(f) {
     const p = document.createElement('div');
     p.id = 'plusPanel';
     p.className = 'plus-panel';
-    p.innerHTML = '<div class="plus-item" data-kind="album"><div class="plus-ico">▦</div><span>相册</span></div><div class="plus-item" data-kind="camera"><div class="plus-ico">◉</div><span>拍摄</span></div><div class="plus-item" data-kind="file"><div class="plus-ico">▤</div><span>文件</span></div><div class="plus-item" data-kind="rp"><div class="plus-ico">¥</div><span>红包</span></div><div class="plus-item" data-kind="transfer"><div class="plus-ico">⇄</div><span>转账</span></div><div class="plus-item" data-kind="fav"><div class="plus-ico">★</div><span>收藏</span></div><div class="plus-item" data-kind="audio"><div class="plus-ico">☎</div><span>语音通话</span></div><div class="plus-item" data-kind="video"><div class="plus-ico">▷</div><span>视频通话</span></div>';
+    const PLUS_ICONS = {
+      album: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="M21 16l-5-5-8 9"/></svg>',
+      camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg>',
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>',
+      rp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M12 10v9"/><path d="M9 6l3-3 3 3"/></svg>',
+      transfer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>',
+      fav: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>',
+      audio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
+      video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;display:block"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="M15 10l6-3v10l-6-3z"/></svg>'
+    };
+    const PLUS_ITEMS = [["album","相册"],["camera","拍摄"],["file","文件"],["rp","红包"],["transfer","转账"],["fav","收藏"],["audio","语音通话"],["video","视频通话"]];
+    p.innerHTML = PLUS_ITEMS.map(function (it) { return '<div class="plus-item" data-kind="' + it[0] + '"><div class="plus-ico">' + PLUS_ICONS[it[0]] + '</div><span>' + it[1] + '</span></div>'; }).join('');
     host.appendChild(p);
     p.querySelectorAll('.plus-item').forEach(el => {
       el.onclick = () => {
