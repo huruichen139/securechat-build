@@ -213,3 +213,11 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - 「清理本地缓存」正则 ^sc_msg_ 会误删 sc_msg_font 设置，改为 ^sc_drafts_；清理后同步重置聊天背景显示。
 - 「关于我们」版本号改为 PACKAGE_VERSION（1.80.7，与 pubspec 一致），访问 GitHub 按钮补上打开链接的处理器。
 - 验证：字体 15→13/17 且刷新保持；气泡圆角三档；背景色刷新/深色/清除；设置背景网格 16 项可见；清理缓存保留字体；关于弹窗 390 无溢出；smoke2/func/audit3/msw320/ov1440 全通过，0 JS 异常。
+## 2026-11-07 登录页重做 / 浅色侧栏 / 直达底部 / 模块深色
+- 登录页：去掉绿色块 logo（改绿字无底）、卡片 380px/6px 圆角、oauth 圆形图标一行、浅绿 tab、密码登录提示与忘记密码入口（/api/email/code purpose=reset + /api/password/reset）、authBtnLabel 按模式同步。
+- 修复 `.auth-card .code-row{display:flex!important}` 压过内联 none，导致密码/扫码模式仍显示邮箱验证码行；去掉 !important 后 320 实测密码模式 codeRow=none、注册/验证码模式=flex。
+- 侧边栏：rail #2e2e2e→#f7f7f7、图标 #7a7a7a、active #e6e6e6/#07c160；rail-bottom 改 flex；聊天列表收起时侧栏 72px。
+- 聊天打开：移除 scroll-behavior:smooth，scrollToLatest 同步置底 + rAF 校正，无滚动动画。
+- 模块：pay/polls/todos/remind/translate/videos/live 深色与微信卡片化；modules.css 修复 oa-container/sc-status-panel/sc-mext-panel 被当全屏遮罩；modal 宽度 min(calc(100vw-32px))、下载页去蓝底/去死区、merchant/wallet-pay 转绿。
+- 回归：smoke2/func/audit3/msw/ov/mdarkmods2/mlogin4 全 PASS，ERRS 空；320 弹窗 288 无溢出、下载页 bottom=0、AI header 44px。
+- commits: e846ee9, a90e84a, e766dd3。
