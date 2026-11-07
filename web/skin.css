@@ -74,8 +74,8 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
 .sidebar-rail {
   width: 60px !important;
   min-width: 60px !important;
-  background: #2e2e2e !important;
-  border-right: 0 !important;
+  background: #f7f7f7 !important;
+  border-right: 1px solid #e7e7e7 !important;
   padding: 18px 0 10px !important;
   gap: 0 !important;
   align-items: center !important;
@@ -98,7 +98,7 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
   border-radius: 4px !important;
   background: transparent !important;
   border: none !important;
-  color: #9a9a9a !important;
+  color: #7a7a7a !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -115,10 +115,10 @@ button:hover, .contact:hover, .feature-item:hover, .welcome-action:hover,
   transform: scale(.92);
 }
 .sidebar-rail-group button:hover,
-.sidebar-rail button.rail-btn:hover { background: #3a3a3a !important; color: #d6d6d6 !important; }
+.sidebar-rail button.rail-btn:hover { background: #ececec !important; color: #333 !important; }
 .sidebar-rail-group button.on,
 .sidebar-rail-group button.active,
-.sidebar-rail button.rail-btn.on { background: #3a3a3a !important; color: #07c160 !important; }
+.sidebar-rail button.rail-btn.on { background: #e6e6e6 !important; color: #07c160 !important; }
 .sidebar-rail-bottom { gap: 2px !important; }
 .sidebar-rail-bottom .rail-action {
   width: 40px !important;
@@ -1298,8 +1298,8 @@ body.dark-mode .system-msg, body.dark-mode .sys-tip { color: #7f7f7f !important;
   min-width: 60px !important;
   max-width: 60px !important;
   flex: 0 0 60px !important;
-  background: #2e2e2e !important;
-  border: 0 !important;
+  background: #f7f7f7 !important;
+  border-right: 1px solid #e7e7e7 !important;
   padding: 18px 0 10px !important;
 }
 #chatView .sidebar-rail-group button,
@@ -1309,11 +1309,11 @@ body.dark-mode .system-msg, body.dark-mode .sys-tip { color: #7f7f7f !important;
   padding: 0 !important;
   border-radius: 4px !important;
   background: transparent !important;
-  color: #9a9a9a !important;
+  color: #7a7a7a !important;
 }
 #chatView .sidebar-rail-group button.on,
 #chatView .sidebar-rail-group button.active {
-  background: #3a3a3a !important;
+  background: #e6e6e6 !important;
   color: #07c160 !important;
 }
 #chatView .sidebar-rail-group button svg { width: 21px !important; height: 21px !important; }
@@ -2859,3 +2859,41 @@ body.dark-mode .msg-row.search-current .bubble{background:#123a24!important}
 /* user chat background wins over theme/mobile defaults */
 #chatView .messages, #chatView .main .messages{background:var(--chat-bg,#ededed)!important}
 body.dark-mode #chatView .main .messages{background:var(--chat-bg,#111111)!important}
+/* ---------- UI polish: light rail, contrast, dark-mode gaps ---------- */
+#chatView .sidebar-rail-bottom{display:flex!important;flex-direction:column!important;align-items:center!important;gap:6px!important;padding:8px 0 12px!important}
+#chatView .sidebar-rail-bottom .rail-action{width:44px!important;height:28px!important;margin:0!important;border-radius:4px!important;font-size:11px!important;background:transparent!important}
+#chatView .sidebar-rail-bottom .rail-action::first-letter{font-size:inherit!important}
+#chatView .sidebar-rail .side-tab::before{content:none!important}
+#chatView .sidebar-rail .side-tab:hover{background:#ececec!important;color:#333!important}
+#chatView .sidebar-rail .side-tab.on{background:#e6e6e6!important;color:#07c160!important}
+html.chat-list-hidden:not(.is-mobile) #chatView > .sidebar{width:72px!important;min-width:72px!important;max-width:72px!important;flex:0 0 72px!important}
+html.chat-list-hidden:not(.is-mobile) #chatView > .wechat-page{left:72px!important}
+#chatView .messages .day-divider{background:#dcdcdc!important;color:#7a7a7a!important}
+body.dark-mode #chatView .messages .day-divider{background:#2a2a2a!important;color:#9a9a9a!important}
+#chatView .contact-list .contact .last{color:#8a8a8a!important}
+#chatView .contact-list .contact .chat-time{color:#a0a0a0!important}
+#chatView .contact-list .contact .avatar,#chatView .contact-list .contact:hover .avatar{transform:none!important;transition:none!important}
+body.dark-mode #chatView #aiView{background:#111!important}
+body.dark-mode #chatView .ai-header{background:#191919!important;border-bottom-color:#2a2a2a!important}
+body.dark-mode #chatView .mini-programs{background:#191919!important;border-bottom-color:#2a2a2a!important}
+body.dark-mode #chatView .ai-composer{background:#191919!important;border-top-color:#2a2a2a!important}
+body.dark-mode #chatView .ai-composer input{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+body.dark-mode #chatView #messageSearchBar{background:#191919!important;border-bottom-color:#2a2a2a!important}
+body.dark-mode #chatView #messageSearchBar input{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+body.dark-mode .profile-card .profile-name{color:#e5e5e5!important}
+body.dark-mode .profile-card .profile-id,body.dark-mode .profile-card .profile-region{color:#9a9a9a!important}
+body.dark-mode .call-bar,body.dark-mode .file-bar,body.dark-mode .rec-bar,body.dark-mode .voice-tip{background:#191919!important;border-bottom-color:#2a2a2a!important;color:#b2b2b2!important}
+body.dark-mode .call-bar #callText,body.dark-mode .file-bar *{color:#d6d6d6!important}
+body.dark-mode .modal .field label,body.dark-mode .modal .field-row label{color:#b3b7c0!important}
+body.dark-mode .modal .field input,body.dark-mode .modal .field-row input{background:#1f2229!important;color:#e9eaee!important;border-color:#31363f!important}
+body.dark-mode .moments-addimg{background:#2c2c2c!important;border-color:#3a3a3a!important;color:#d6d6d6!important}
+body.dark-mode .friend-req-bar{background:#2a2410!important;color:#e5c76b!important}
+body.dark-mode #chatView .messages .msg-row .message-actions button{background:rgba(44,44,44,.94)!important;border-color:#3a3a3a!important;color:#b2b2b2!important}
+body.dark-mode #chatView .messages .msg-row.me .bubble::before{border-color:transparent transparent transparent #3eb575!important}
+@media (max-width:760px){
+  #chatView .contact-list{padding-bottom:calc(60px + env(safe-area-inset-bottom))!important}
+  #chatView .chat-composer{align-items:center!important}
+  #chatView .chat-composer .composer-icon-btn,#chatView .chat-composer .composer-send-btn,#chatView .chat-composer textarea{height:36px!important}
+}
+/* 聊天消息直接定位到底部，不做滚动动画 */
+.messages,#chatView .messages{scroll-behavior:auto!important}

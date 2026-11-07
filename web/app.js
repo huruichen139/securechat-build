@@ -5034,9 +5034,12 @@ function __msgScrollFlush() {
 function scrollToLatest() {
   const box = $('messages');
   if (!box) return;
-  __msgScrollToBottom();
-  requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-  setTimeout(() => { box.scrollTop = box.scrollHeight; }, 200);
+  if (__msgScrollRaf) { cancelAnimationFrame(__msgScrollRaf); __msgScrollRaf = null; }
+  box.scrollTop = box.scrollHeight;
+  requestAnimationFrame(() => {
+    const b = $('messages');
+    if (b) b.scrollTop = b.scrollHeight;
+  });
 }
 function appendFileMsg(mine, name, size, fileId, createdAt, mime, isGroup, fromUser, fromName) {
   const fUrl = (id) => state.serverHost + (isGroup ? '/api/group-files/' : '/api/files/') + encodeURIComponent(id);
