@@ -3744,4 +3744,8 @@ html body .sidebar-rail .rail-action svg{width:19px;height:19px;display:block}
 html body .sidebar-rail .rail-action:hover{background:#ececec!important;color:#191919!important}
 html body.dark-mode .sidebar-rail .rail-action{color:#b0b0b0!important}
 html body.dark-mode .sidebar-rail .rail-action:hover{background:#2c2c2c!important;color:#e6e6e6!important}
-.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}html body .vid-ops button{display:inline-flex!important;align-items:center!important;gap:4px!important;padding:5px 10px!important;border-radius:6px!important;font-size:12px!important;line-height:1!important}
+html body .vid-ops button svg{flex:0 0 auto}
+html body .vid-novideo{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:8px!important;min-height:220px!important;background:#111!important;color:#9a9a9a!important;font-size:12px!important}
+html body .vid-author{display:flex!important;align-items:center!important;gap:8px!important}
+html body .vid-ava{width:26px!important;height:26px!important;border-radius:50%!important;background:#4a7dde!important;color:#fff!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:12px!important}

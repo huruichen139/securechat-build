@@ -6,6 +6,10 @@
   window.SecureChatVideos = { name: '视频号', label: '视频号', icon: '视', open: openPanel, renderInto: renderInto };
 
   const BTN_GREEN = 'background:#07c160;background-image:none;color:#fff;border:1px solid transparent';
+  function ico(name, on) {
+    const p1 = name === 'heart' ? (on ? '<path d="M12 20s-7-4.4-9.3-8.2C1.2 8.7 2.6 5.5 5.6 5.5c1.8 0 3 1 3.4 2.1.4-1.1 1.6-2.1 3.4-2.1 3 0 4.4 3.2 2.9 6.3C19 15.6 12 20 12 20z" fill="currentColor"/>' : '<path d="M12 20s-7-4.4-9.3-8.2C1.2 8.7 2.6 5.5 5.6 5.5c1.8 0 3 1 3.4 2.1.4-1.1 1.6-2.1 3.4-2.1 3 0 4.4 3.2 2.9 6.3C19 15.6 12 20 12 20z"/>') : name === 'star' ? (on ? '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="currentColor"/>' : '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>') : name === 'comment' ? '<path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/>' : '<path d="M4 12v7h16v-7"/><path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:block">' + p1 + '</svg>';
+  }
   const BTN_GRAY = 'background:#f2f2f2;background-image:none;color:#333;border:1px solid transparent';
 
   function base() {
@@ -87,17 +91,17 @@
     const src = mediaUrl(v.url);
     return '<div class="vid-card" data-id="' + v.id + '">' +
       '<div class="vid-player">' +
-        (src ? '<video preload="metadata" muted controls playsinline src="' + esc(src) + '" type="video/' + esc(v.fileType || 'mp4') + '"></video>' : '<div class="vid-novideo">[未加载视频]</div>') +
+        (src ? '<video preload="metadata" muted controls playsinline src="' + esc(src) + '" type="video/' + esc(v.fileType || 'mp4') + '"></video>' : '<div class="vid-novideo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:34px;height:34px;opacity:.55"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg><span>视频暂不可用</span></div>') +
       '</div>' +
       '<div class="vid-info">' +
         '<div class="vid-author"><span class="vid-ava">' + esc((v.nickname || '?')[0] || '?') + '</span>' + esc(v.nickname || v.username || '') + '</div>' +
         '<div class="vid-desc">' + esc(v.title) + '</div>' +
         (v.content ? '<div class="vid-content">' + esc(v.content) + '</div>' : '') +
         '<div class="vid-ops">' +
-          '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
-          '<button data-cmt="' + v.id + '" style="' + BTN_GRAY + '">评论 ' + (v.commentCount || 0) + '</button>' +
-          '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
-          '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">↗ ' + (v.shareCount || 0) + '</button>' +
+          '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + ico('heart', v.likedByMe) + '<span>' + (v.likeCount || 0) + '</span></button>' +
+          '<button data-cmt="' + v.id + '" style="' + BTN_GRAY + '">' + ico('comment') + '<span>' + (v.commentCount || 0) + '</span></button>' +
+          '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + ico('star', v.favoritedByMe) + '<span>' + (v.favoriteCount || 0) + '</span></button>' +
+          '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">' + ico('share') + '<span>' + (v.shareCount || 0) + '</span></button>' +
           '<span class="vid-time">' + fmt(v.createdAt) + '</span>' +
         '</div>' +
       '</div>' +
@@ -138,14 +142,14 @@
     const id = Number(btn.closest('.vid-card').dataset.id);
     const on = btn.dataset.on !== '1';
     fetchJson('/api/videos/' + id + '/like', { method: 'POST', json: { on: on } })
-      .then(function (d) { btn.dataset.on = on ? '1' : '0'; btn.textContent = (on ? '♥ ' : '♡ ') + (d.likeCount || 0); })
+      .then(function (d) { btn.dataset.on = on ? '1' : '0'; btn.innerHTML = ico('heart', on) + '<span>' + (d.likeCount || 0) + '</span>'; })
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
   function toggleFav(btn) {
     const id = Number(btn.closest('.vid-card').dataset.id);
     const on = btn.dataset.on !== '1';
     fetchJson('/api/videos/' + id + '/favorite', { method: 'POST', json: { on: on } })
-      .then(function (d) { btn.dataset.on = on ? '1' : '0'; btn.textContent = (on ? '★ ' : '☆ ') + (d.favoriteCount || 0); })
+      .then(function (d) { btn.dataset.on = on ? '1' : '0'; btn.innerHTML = ico('star', on) + '<span>' + (d.favoriteCount || 0) + '</span>'; })
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
   function share(btn) {
@@ -154,7 +158,7 @@
       navigator.share({ title: '分享视频', url: location.href }).catch(function () {});
     }
     fetchJson('/api/videos/' + id + '/share', { method: 'POST' })
-      .then(function (d) { btn.textContent = '↗ ' + (d.shareCount || 0); toastMsg('已转发'); })
+      .then(function (d) { btn.innerHTML = ico('share') + '<span>' + (d.shareCount || 0) + '</span>'; toastMsg('已转发'); })
       .catch(function (e) { toastMsg(e.message, 'error'); });
   }
   async function comment(id, grid, host) {
