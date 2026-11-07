@@ -3769,4 +3769,10 @@ body.dark-mode #mePage .page-header,body.dark-mode #discoverPage .page-header,bo
 body.dark-mode #mePage,body.dark-mode #discoverPage,body.dark-mode #contactsPage,body.dark-mode #blocklistPage{background:#191919!important}html body #chatView .messages .bubble,html body #chatView .messages .msg-bubble{max-width:min(62%,560px)!important}html body #chatView .messages .msg-row .bubble-wrap{max-width:min(62%,560px)!important}@media(max-width:760px){html body .modal.live-view{width:calc(100vw - 24px)!important;max-width:366px!important}}html body #authView{background:#f5f6f7!important}
 body.dark-mode #authView{background:#111!important}@keyframes scFadeIn{from{opacity:0}to{opacity:1}}
 .modal-mask,.overlay,.feature-modal{animation:scFadeIn .18s ease-out}
-button:active{opacity:.82}
+button:active{opacity:.82}@media(min-width:761px){
+  .kb-panel{background:#ededed!important;align-items:center!important}
+  .kb-head,.kb-tabs,.kb-list{width:680px!important;max-width:680px!important;background:#fff!important}
+  .kb-list{margin:0 auto!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important}
+}
+body.dark-mode .kb-panel{background:#191919!important}
+body.dark-mode .kb-head,body.dark-mode .kb-tabs,body.dark-mode .kb-list{background:#2c2c2c!important}
