@@ -3000,11 +3000,17 @@ function openPeerProfile(peerId) {
       </div>
       <div class="profile-actions">
         <button class="btn-cn" id="profileMsgBtn">发消息</button>
-        <button class="btn-cn gray" id="profileBlockBtn">${blocked ? '解除拉黑' : '拉黑'}</button>
+        <button class="btn-cn" id="profileVoiceBtn">语音通话</button>
+        <button class="btn-cn" id="profileVideoBtn">视频通话</button>
+        <button class="btn-cn gray" id="profileBlockBtn">${blocked ? '取消拉黑' : '拉黑'}</button>
       </div>
     </div>`;
   document.body.appendChild(mask);
   mask.querySelector('#profileMsgBtn').onclick = () => { mask.remove(); selectPeer(peer.id); };
+  const pv = mask.querySelector('#profileVoiceBtn');
+  if (pv) pv.onclick = () => { mask.remove(); selectPeer(peer.id); startOutgoingCall('voice'); };
+  const pvid = mask.querySelector('#profileVideoBtn');
+  if (pvid) pvid.onclick = () => { mask.remove(); selectPeer(peer.id); startOutgoingCall('video'); };
   mask.querySelector('#profileBlockBtn').onclick = () => {
     toggleBlock(peer.id, () => {
       const bl = mask.querySelector('#profileBlockBtn');
