@@ -5853,7 +5853,8 @@ const panel = document.getElementById('settingsPanel');
         }},
         { label: '清理本地缓存', desc: '清空聊天背景与草稿缓存', icon: '清', fn: () => {
           let n = 0;
-          Object.keys(localStorage).forEach(k => { if (/^sc_msg_|^sc_chatbg_|^chatBgColor|^sc_avatar_/.test(k)) { localStorage.removeItem(k); n++; } });
+          Object.keys(localStorage).forEach(k => { if (/^sc_drafts_|^sc_chatbg_|^chatBgColor|^sc_avatar_/.test(k)) { localStorage.removeItem(k); n++; } });
+          applyChatBg(null);
           toast('已清理 ' + n + ' 项缓存', 'success');
           openSettingsPage();
         }},
