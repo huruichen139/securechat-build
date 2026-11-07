@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.80.6';
+const PACKAGE_VERSION = '1.80.7';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -1558,6 +1558,7 @@ function showInfoModal(title, html) {
   mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
   const onKey = (ev) => { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
+  return mask;
 }
 
 // ---------- 特性发现中心（更多功能入口）----------
@@ -5878,7 +5879,9 @@ const panel = document.getElementById('settingsPanel');
       items: [
         { label: '意见反馈', desc: '提交问题或建议', icon: '反', fn: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈开发中', 'info'); } },
         { label: '关于我们', desc: 'SecureChat v' + PACKAGE_VERSION, icon: '关', fn: () => {
-          showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">传输全程加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：1.70.0</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
+          const m = showInfoModal('关于 SecureChat', '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;font-weight:800;color:var(--primary,#07c160);margin-bottom:8px">SecureChat</div><div style="font-size:14px;color:var(--muted,#999)">传输全程加密聊天</div><div style="font-size:13px;color:var(--muted,#999);margin-top:16px">版本：' + PACKAGE_VERSION + '</div><div style="font-size:13px;color:var(--muted,#999);margin-top:4px">安全 - 快速 - 可靠</div><div style="margin-top:20px"><button id="aboutGithubBtn" style="background:var(--primary,#07c160);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer">访问 GitHub</button></div></div>');
+          const g = m && m.querySelector('#aboutGithubBtn');
+          if (g) g.onclick = () => window.open('https://github.com/huruichen139/securechat-build', '_blank');
         }},
       ]
     },
