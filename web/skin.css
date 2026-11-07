@@ -3793,4 +3793,4 @@ body.dark-mode #settingsPanel .settings-hdr{background:#2c2c2c!important;border-
 }
 body.dark-mode .moments-page{background:#191919!important}
 body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .moments-body{background:#2c2c2c!important}.wechat-page,.kb-panel{animation:scFadeIn .18s ease-out}html body .pwd-eye{display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
-html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}
+html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}html body #groupAnnounceBanner:empty{display:none!important;margin:0!important;padding:0!important;height:0!important}
