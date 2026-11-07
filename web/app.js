@@ -3459,6 +3459,28 @@ function parseMerged(content) {
   } catch (e) {}
   return null;
 }
+function parseRedPacket(content) {
+  if (typeof content !== 'string') return null;
+  const m = /^\[红包:(\d+)\]$/.exec(content.trim());
+  return m ? m[1] : null;
+}
+function redPacketCardHtml(m, mine) {
+  const id = parseRedPacket(m.content);
+  if (!id) return null;
+  return '<div class="bubble rp-bubble" data-rp="' + id + '">'
+    + '<div class="rp-bubble-icon">' + (mine ? '发' : '收') + '</div>'
+    + '<div class="rp-bubble-body"><div class="rp-bubble-title">红包</div>'
+    + '<div class="rp-bubble-sub">' + (mine ? '查看领取详情' : '点击领取红包') + '</div></div></div>';
+}
+function bindRedPacket(row) {
+  const b = row.querySelector('.rp-bubble[data-rp]');
+  if (!b) return;
+  b.onclick = function () {
+    const rp = window.SecureChatRedpacket;
+    if (rp && rp.openGrabDialog) rp.openGrabDialog(Number(this.dataset.rp));
+    else toast('红包功能未加载', 'info');
+  };
+}
 function mergedCardHtml(m) {
   const merged = parseMerged(m.content);
   if (!merged) return null;
@@ -3599,11 +3621,12 @@ function appendGroupMessage(m, prepend) {
   row.innerHTML = `<div class="avatar">${avHtml}</div>
     <div class="bubble-wrap">
       ${nameLine}
-      ${mergedHtmlG || '<div class="bubble">' + quoteBlockHtml(m) + escapeHtml(m.content) + '</div>'}
+      ${redPacketCardHtml(m, mine) || mergedHtmlG || '<div class="bubble">' + quoteBlockHtml(m) + escapeHtml(m.content) + '</div>'}
       <span class="time">${fmtTime(m.createdAt)}</span>
       ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
     </div>`;
+  bindRedPacket(row);
   if (canGroupRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
   }

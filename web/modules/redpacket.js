@@ -297,7 +297,7 @@
   } else {
     init();
   }
-  window.SecureChatRedpacket = { name: '红包', label: '红包', icon: '红包', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail };
+  window.SecureChatRedpacket = { name: '红包', label: '红包', icon: '红包', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail, openGrabDialog: openGrabDialog };
 
   if (window.SecureChatExt && typeof window.SecureChatExt.registerFeature === 'function') {
     window.SecureChatExt.registerFeature('redpacket', { name: '红包', label: '红包', icon: '红包', open: openPanel, sendDialog: openSendDialog, grab: grab, fetchDetail: fetchDetail });
