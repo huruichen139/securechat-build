@@ -11,8 +11,8 @@
   --v2-border: #e4e7ec;
   --v2-text: #1a1d21;
   --v2-text-sub: #6b7280;
-  --v2-accent: #2563eb;
-  --v2-accent-deep: #1d4ed8;
+  --v2-accent: #07c160;
+  --v2-accent-deep: #06a854;
   --v2-mine: #dbe8ff;
   --v2-mine-text: #10240b;
   --v2-radius: 14px;
@@ -74,7 +74,7 @@ body::before { display: none !important; }
 /* ---------- 登录页 ---------- */
 .auth-wrap {
   background:
-    radial-gradient(900px 600px at 85% -10%, rgba(37,99,235,.08), transparent 55%),
+    radial-gradient(900px 600px at 85% -10%, rgba(7,193,96,.08), transparent 55%),
     var(--v2-bg) !important;
   background-attachment: scroll !important;
 }
@@ -102,7 +102,7 @@ body::before { display: none !important; }
   transition: background .18s ease, color .18s ease;
 }
 .tab.on {
-  background: rgba(37,99,235,.1);
+  background: rgba(7,193,96,.1);
   color: var(--v2-accent) !important;
 }
 
@@ -115,7 +115,7 @@ input:not([type="checkbox"]):not([type="radio"]), textarea {
 }
 input:focus, textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37,99,235,.14);
+  box-shadow: 0 0 0 3px rgba(7,193,96,.14);
 }
 
 /* ---------- 主布局：侧栏 + 主区 ---------- */
@@ -419,7 +419,7 @@ input:focus, textarea:focus {
 .contact .last { font-size: 12.5px !important; color: var(--v2-text-sub) !important; }
 .contact .time { font-size: 10.5px !important; color: var(--v2-text-sub) !important; }
 .contact .dot { background: #b6bcc6 !important; }
-.contact .dot.online { background: var(--v2-accent) !important; box-shadow: 0 0 0 2px rgba(37,99,235,.18) !important; }
+.contact .dot.online { background: var(--v2-accent) !important; box-shadow: 0 0 0 2px rgba(7,193,96,.18) !important; }
 .contact .avatar img { border-radius: 10px !important; object-fit: cover; }
 
 /* 未读徽标 */
@@ -446,7 +446,7 @@ input:focus, textarea:focus {
   transition: background .14s ease !important;
 }
 .admin-nav-item:hover { background: var(--v2-surface-2) !important; }
-.admin-nav-item.active { background: rgba(37,99,235,.1) !important; }
+.admin-nav-item.active { background: rgba(7,193,96,.1) !important; }
 .admin-nav-item.active span { color: var(--v2-accent) !important; }
 .admin-workspace { background: var(--v2-bg) !important; }
 .admin-topbar { background: var(--v2-surface) !important; border-bottom: 1px solid var(--v2-border) !important; }
@@ -467,7 +467,7 @@ input:focus, textarea:focus {
 .admin-action-btn { border-radius: 8px !important; }
 .admin-table th { color: var(--v2-text-sub) !important; font-weight: 600 !important; }
 .admin-table td, .admin-table th { border-bottom-color: var(--v2-border) !important; }
-.admin-badge.online { background: rgba(37,99,235,.12) !important; color: var(--v2-accent) !important; }
+.admin-badge.online { background: rgba(7,193,96,.12) !important; color: var(--v2-accent) !important; }
 .admin-badge.banned { background: rgba(250,81,81,.12) !important; color: #fa5151 !important; }
 .admin-realtime { background: var(--v2-surface) !important; border-bottom: 1px solid var(--v2-border) !important; }
 .admin-live-dot { background: var(--v2-accent) !important; }

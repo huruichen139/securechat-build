@@ -138,7 +138,7 @@
     box.innerHTML =
       '<div style="font-size:16px;font-weight:700;margin-bottom:10px">' + esc(title) + '</div>' +
       '<div style="font-size:13px;color:#888;margin-bottom:12px">识别到以下内容，可复制使用：</div>' +
-      '<textarea readonly style="width:100%;box-sizing:border-box;min-height:90px;padding:10px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#f8fafc;color:#333;resize:vertical">' + escText + '</textarea>' +
+      '<textarea readonly style="width:100%;box-sizing:border-box;min-height:90px;padding:10px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#ededed;color:#333;resize:vertical">' + escText + '</textarea>' +
       '<div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">' +
         '<button class="scan-text-copy" type="button" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">复制</button>' +
         '<button class="scan-text-close" type="button" style="padding:8px 16px;border:none;border-radius:8px;background:#07c160;color:#fff;cursor:pointer;font-size:13px">完成</button>' +
