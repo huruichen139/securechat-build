@@ -3114,3 +3114,18 @@ body.dark-mode .moments-empty{color:#b2b2b2!important}
 body.dark-mode .field-row > label{color:#b2b2b2!important}
 body.dark-mode #mePage .me-id{color:#b2b2b2!important}
 #welcomePanel h1::after{content:"SecureChat"!important}
+/* desktop audit fixes */
+@media (min-width:761px){
+  #settingsPanel{left:72px!important}
+  #momentsPage{inset:0 0 0 72px!important}
+  #chatView .wechat-page .page-header{height:60px!important;min-height:60px!important}
+  #chatView .composer{padding-left:14px!important;padding-right:14px!important}
+  #chatView .messages{padding-left:20px!important;padding-right:20px!important}
+  .sidebar-rail .side-tab{margin-left:0!important;margin-right:0!important}
+  .sidebar-rail{justify-content:flex-start!important}
+  #chatView #contactList{scrollbar-gutter:auto!important}
+}
+#mobileBottomNav .side-tab.on span,#mobileBottomNav .side-tab.on{color:#07c160!important}
+body.dark-mode #chatView #chatMobileHeader .header-back,body.dark-mode #chatView #chatMobileHeader .header-more,body.dark-mode #chatView #chatMobileHeader #chatMobileBackBtn,body.dark-mode #chatView #chatMobileHeader #chatMobileMoreBtn{color:#d6d6d6!important}
+body.dark-mode #chatView .composer .composer-icon-btn,body.dark-mode #chatView .composer .composer-icon-btn svg{color:#b2b2b2!important;fill:#b2b2b2!important}
+body.dark-mode #chatView .composer .composer-icon-btn:hover{color:#d6d6d6!important}
