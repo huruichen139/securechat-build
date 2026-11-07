@@ -6,6 +6,18 @@
 (function () {
   if (typeof window === 'undefined') return;
 
+  try {
+    if (!document.getElementById('todos-dark-style')) {
+      const st = document.createElement('style');
+      st.id = 'todos-dark-style';
+      st.textContent =
+        'body.dark-mode .sc-create-modal{background:#191919!important;color:#d6d6d6!important;border-color:#2a2a2a!important}\n' +
+        'body.dark-mode .sc-create-modal input,body.dark-mode .sc-create-modal textarea,body.dark-mode .sc-create-modal select{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}\n' +
+        'body.dark-mode .sc-create-modal button:not(.primary){background:#2c2c2c!important;color:#d6d6d6!important}';
+      (document.head || document.documentElement).appendChild(st);
+    }
+  } catch (e) {}
+
   const u = (window.SecureChatExt && window.SecureChatExt._util) || {};
   const apiFn = u.api;
 
@@ -45,7 +57,7 @@
   // 渲染：todo 卡片 + 进度条
   function renderTodoPanel(container, todo) {
     container.innerHTML =
-      '<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
+      '<div style="background:var(--bg,#fff);border:1px solid var(--border,#e5e5e5);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
       '<div style="font-size:13px;color:#999;margin-bottom:4px">' + esc((todo.creator && todo.creator.nickname) || '未知') + ' 发布 · ' + fmtDate(todo.createdAt) + '</div>' +
       '<div style="font-size:16px;font-weight:600;margin-bottom:10px">' + esc(todo.title) + '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
@@ -76,14 +88,14 @@
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
     wrap.innerHTML =
-      '<div style="background:#fff;border-radius:16px;padding:20px;width:420px;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.2)">' +
+      '<div class="sc-create-modal" style="background:var(--bg,#fff);border-radius:6px;padding:20px;width:420px;max-width:92vw;box-shadow:0 2px 12px rgba(0,0,0,.14)">' +
       '<div style="font-size:16px;font-weight:600;margin-bottom:12px">发布今日待办</div>' +
       '<input class="td-title" placeholder="待办标题（默认：今日待办）" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px">' +
       '<div id="td-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>' +
       '<button class="td-add" style="padding:6px 12px;background:#f2f2f2;border:none;border-radius:16px;cursor:pointer;margin-bottom:10px">+ 添加待办项</button>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="td-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +
-      '<button class="td-confirm" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +
+      '<button class="td-confirm primary" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">发布</button>' +
       '</div></div>';
     document.body.appendChild(wrap);
     const box = wrap.querySelector('#td-items');

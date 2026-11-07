@@ -8,6 +8,18 @@
 (function () {
   if (typeof window === 'undefined') return;
 
+  try {
+    if (!document.getElementById('remind-dark-style')) {
+      const st = document.createElement('style');
+      st.id = 'remind-dark-style';
+      st.textContent =
+        'body.dark-mode .sc-create-modal{background:#191919!important;color:#d6d6d6!important;border-color:#2a2a2a!important}\n' +
+        'body.dark-mode .sc-create-modal input,body.dark-mode .sc-create-modal textarea,body.dark-mode .sc-create-modal select{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}\n' +
+        'body.dark-mode .sc-create-modal button:not(.primary){background:#2c2c2c!important;color:#d6d6d6!important}';
+      (document.head || document.documentElement).appendChild(st);
+    }
+  } catch (e) {}
+
   const u = (window.SecureChatExt && window.SecureChatExt._util) || {};
   const apiFn = u.api;
 
@@ -53,7 +65,7 @@
   // ---------- 渲染（我的提醒列表） ----------
   function renderList(container) {
     container.innerHTML =
-      '<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
+      '<div style="background:var(--bg,#fff);border:1px solid var(--border,#e5e5e5);border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
       '<div style="font-size:15px;font-weight:600;margin-bottom:10px">我的定时提醒</div>' +
       (reminders.length ? reminders.map((r) =>
         '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px">' +
@@ -73,7 +85,7 @@
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
     wrap.innerHTML =
-      '<div style="background:#fff;border-radius:16px;padding:20px;width:400px;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.2)">' +
+      '<div class="sc-create-modal" style="background:var(--bg,#fff);border-radius:6px;padding:20px;width:400px;max-width:92vw;box-shadow:0 2px 12px rgba(0,0,0,.14)">' +
       '<div style="font-size:16px;font-weight:600;margin-bottom:12px">设置定时提醒</div>' +
       '<div style="font-size:13px;color:#666;margin-bottom:8px">目标：' + (targetType === 'group' ? '群 #' + targetId : '单聊成员 #' + targetId) + '</div>' +
       '<input class="rm-dt" placeholder="提醒时间" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px">' +
@@ -81,7 +93,7 @@
       '<textarea class="rm-ct" placeholder="提醒内容" rows="2" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px">' + esc(defaultContent || '') + '</textarea>' +
       '<div style="display:flex;gap:10px;justify-content:flex-end">' +
       '<button class="rm-cancel" style="padding:8px 16px;background:#f2f2f2;border:none;border-radius:20px;cursor:pointer">取消</button>' +
-      '<button class="rm-confirm" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">确认</button>' +
+      '<button class="rm-confirm primary" style="padding:8px 16px;background:#07c160;color:#fff;border:none;border-radius:20px;cursor:pointer">确认</button>' +
       '</div></div>';
     document.body.appendChild(wrap);
     wrap.querySelector('.rm-cancel').onclick = () => wrap.remove();

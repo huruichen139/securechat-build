@@ -12,9 +12,24 @@
   const u = (window.SecureChatExt && window.SecureChatExt._util) || {};
   const apiFn = u.api;
 
+  ensureDarkStyle();
+
   function toast(msg, kind) {
     try { if (typeof window.toast === 'function') return window.toast(msg, kind || 'info'); } catch (e) {}
     try { alert(msg); } catch (e) {}
+  }
+
+  function ensureDarkStyle() {
+    try {
+      if (!document || document.getElementById('translate-dark-style')) return;
+      const st = document.createElement('style');
+      st.id = 'translate-dark-style';
+      st.textContent =
+        'body.dark-mode .tr-menu,body.dark-mode .tr-result{background:#191919!important;color:#d6d6d6!important}' +
+        'body.dark-mode .tr-menu input,body.dark-mode .tr-result textarea{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}' +
+        'body.dark-mode .tr-copy{background:#2c2c2c!important;color:#d6d6d6!important}';
+      (document.head || document.documentElement).appendChild(st);
+    } catch (e) {}
   }
 
   // 判断文本是否像中文（用于默认目标语言）
@@ -56,20 +71,22 @@
   }
 
   function showMenu(messageEl, getText) {
+    ensureDarkStyle();
     const text = typeof getText === 'function' ? getText() : (messageEl.textContent || '').trim();
     if (!text) return;
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:9998';
     wrap.addEventListener('mousedown', function (e) { if (e.target === wrap) wrap.remove(); });
     const box = document.createElement('div');
-    box.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:14px;min-width:260px;max-width:88vw;box-shadow:0 8px 30px rgba(0,0,0,.25);overflow:hidden;z-index:9999';
+    box.className = 'tr-menu';
+    box.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg,#fff);color:var(--text,#191919);border-radius:6px;min-width:260px;max-width:88vw;box-shadow:0 2px 12px rgba(0,0,0,.14);overflow:hidden;z-index:9999';
     const isZh = looksChinese(text);
     const items = [
       { label: isZh ? '翻译成英文' : '翻译成中文', act: 'en-zh', hideName: true },
     ];
     box.innerHTML =
-      '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#333">消息内容</div>' +
-      '<div style="padding:8px 14px;max-height:120px;overflow:auto;color:#666;font-size:13px;border-bottom:1px solid #f0f0f0">' + esc(text) + '</div>' +
+      '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:var(--text,#333)">消息内容</div>' +
+      '<div style="padding:8px 14px;max-height:120px;overflow:auto;color:var(--text,#666);font-size:13px;border-bottom:1px solid #f0f0f0">' + esc(text) + '</div>' +
       '<div id="t-acts" style="padding:6px 0"></div>';
     const acts = box.querySelector('#t-acts');
     const mkItem = (label, act) => {
@@ -103,11 +120,13 @@
   }
 
   function showResult(original, res, target) {
+    ensureDarkStyle();
     const d = document.createElement('div');
-    d.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;border-radius:12px;padding:14px 18px;max-width:88vw;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:9999';
+    d.className = 'tr-result';
+    d.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg,#fff);color:var(--text,#191919);border-radius:6px;padding:14px 18px;max-width:88vw;box-shadow:0 2px 12px rgba(0,0,0,.14);z-index:9999';
     d.innerHTML =
       '<div style="font-size:12px;color:#999;margin-bottom:4px">翻译结果（' + (target === 'zh' ? '中文' : '英文') + '）</div>' +
-      '<div style="font-size:15px;color:#333;margin-bottom:8px">' + esc(res.translated) + '</div>' +
+      '<div style="font-size:15px;color:var(--text,#333);margin-bottom:8px">' + esc(res.translated) + '</div>' +
       '<div style="display:flex;gap:8px">' +
       '<button class="tr-copy" style="padding:5px 12px;background:#eee;border:none;border-radius:16px;cursor:pointer;font-size:12px">复制</button>' +
       '<button class="tr-close" style="padding:5px 12px;background:#07c160;color:#fff;border:none;border-radius:16px;cursor:pointer;font-size:12px">关闭</button>' +

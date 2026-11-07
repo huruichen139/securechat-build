@@ -825,3 +825,153 @@
   .sc-status-modal, .sc-mext-modal, .scan-head, .shake-stage,
   .miniapp-frame, .ce-modal, .oa-container > .oa-body, .sc-fav-panel { background: var(--bg, #1e1e1e); }
 }
+
+/* ============================================================
+   修复：内容容器被误纳入全屏遮罩组
+   .oa-container / .sc-status-panel / .sc-mext-panel 实际是嵌在
+   .modal 内部的内容容器，却继承了 position:fixed; inset:0 与
+   半透明黑底，导致公众号 / 看一看 / 小程序 / 搜索 / 扫一扫 /
+   相册 / 卡包等弹窗整屏变黑。此处追加覆盖还原为普通块级容器。
+   ============================================================ */
+.oa-container,
+.sc-status-panel,
+.sc-mext-panel {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  background: var(--bg, #fff);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation: none;
+}
+.oa-container {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 16px;
+  overflow-y: auto;
+}
+.sc-status-panel,
+.sc-mext-panel {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+.sc-fav-panel {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+/* ============================================================
+   视频号 / 直播：微信式基础样式
+   ============================================================ */
+.vid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+.vid-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow: none;
+  overflow: hidden;
+}
+.vid-player {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.vid-player video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.vid-tab {
+  padding: 5px 13px;
+  border: none;
+  border-radius: 4px;
+  background: #f2f2f2;
+  color: #191919;
+  font-size: 13.5px;
+  line-height: 1.5;
+  cursor: pointer;
+  font-family: inherit;
+}
+.vid-tab.on {
+  background: #07c160;
+  color: #fff;
+}
+.live-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+.live-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow: none;
+  overflow: hidden;
+  cursor: pointer;
+}
+.live-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.live-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.live-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: #fa5151;
+  color: #fff;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.live-badge.end {
+  background: #b2b2b2;
+}
+
+/* 视频号 / 直播：深色模式 */
+body.dark-mode .vid-card,
+body.dark-mode .live-card {
+  background: #191919;
+  border-color: #2c2c2c;
+}
+body.dark-mode .vid-tab {
+  background: #2a2a2a;
+  color: #d6d6d6;
+}
+body.dark-mode .vid-tab.on {
+  background: #07c160;
+  color: #fff;
+}
+body.dark-mode .vid-player,
+body.dark-mode .live-video {
+  background: #000;
+}

@@ -8,6 +8,27 @@
 (function () {
   'use strict';
 
+  // 深色模式兜底样式（只注入一次）
+  (function injectPayDarkStyle() {
+    if (document.getElementById('pay-dark-style')) return;
+    const st = document.createElement('style');
+    st.id = 'pay-dark-style';
+    st.textContent = [
+      'body.dark-mode .pay-wallet,body.dark-mode .pay-recharge,body.dark-mode .pay-group,body.dark-mode .pay-bill{background:#191919!important;color:#d6d6d6!important}',
+      'body.dark-mode .pay-wallet input,body.dark-mode .pay-wallet select,body.dark-mode .pay-wallet textarea,',
+      'body.dark-mode .pay-recharge input,body.dark-mode .pay-recharge select,body.dark-mode .pay-recharge textarea,',
+      'body.dark-mode .pay-group input,body.dark-mode .pay-group select,body.dark-mode .pay-group textarea,',
+      'body.dark-mode .pay-bill input,body.dark-mode .pay-bill select,body.dark-mode .pay-bill textarea{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}',
+      'body.dark-mode .pay-wallet h3,body.dark-mode .pay-wallet #pay-bal,body.dark-mode .pay-wallet #pay-recv,',
+      'body.dark-mode .pay-recharge h3,body.dark-mode .pay-group h3,body.dark-mode .pay-bill h3{color:#d6d6d6!important}',
+      'body.dark-mode .pay-wallet [style*="border-bottom:1px solid #eee"],body.dark-mode .pay-wallet [style*="border-bottom:1px solid #f5f5f5"],body.dark-mode .pay-wallet [style*="border:1px solid #eee"],body.dark-mode .pay-wallet [style*="border:1px solid #f0f0f0"],',
+      'body.dark-mode .pay-recharge [style*="border-bottom:1px solid #eee"],body.dark-mode .pay-recharge [style*="border-bottom:1px solid #f5f5f5"],body.dark-mode .pay-recharge [style*="border:1px solid #eee"],body.dark-mode .pay-recharge [style*="border:1px solid #f0f0f0"],',
+      'body.dark-mode .pay-group [style*="border-bottom:1px solid #eee"],body.dark-mode .pay-group [style*="border-bottom:1px solid #f5f5f5"],body.dark-mode .pay-group [style*="border:1px solid #eee"],body.dark-mode .pay-group [style*="border:1px solid #f0f0f0"],',
+      'body.dark-mode .pay-bill [style*="border-bottom:1px solid #eee"],body.dark-mode .pay-bill [style*="border-bottom:1px solid #f5f5f5"],body.dark-mode .pay-bill [style*="border:1px solid #eee"],body.dark-mode .pay-bill [style*="border:1px solid #f0f0f0"]{border-color:#2a2a2a!important}',
+    ].join('');
+    (document.head || document.documentElement).appendChild(st);
+  })();
+
   const HOST = String((window.SERVER_HOST || '').replace(/\/$/, ''));
   function token() {
     if (window.SecureChatExt && window.SecureChatExt._util && typeof window.SecureChatExt._util.getToken === 'function') {
@@ -161,7 +182,7 @@
     lb.textContent = label;
     lb.style.cssText = 'display:block;font-size:12px;color:#888;margin-bottom:4px';
     const sel = document.createElement('select');
-    sel.style.cssText = 'width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d9d9;border-radius:8px;font-size:14px;outline:none;background:#fff';
+    sel.style.cssText = 'width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d9d9;border-radius:8px;font-size:14px;outline:none;background:var(--bg,#fff)';
     (optsList || []).forEach((o) => {
       const op = document.createElement('option');
       op.value = o.value; op.textContent = o.label;
@@ -201,7 +222,7 @@
     const img = document.createElement('img');
     const info = document.createElement('div');
     const countdown = document.createElement('div');
-    info.style.cssText = 'text-align:center;font-size:14px;color:#333';
+    info.style.cssText = 'text-align:center;font-size:14px;color:var(--text,#191919)';
     countdown.style.cssText = 'text-align:center;font-size:24px;font-weight:800;letter-spacing:1px;color:#07c160;margin:4px 0 8px';
     const tip = document.createElement('div');
     tip.style.cssText = 'text-align:center;font-size:12px;color:#999;margin-top:8px';
@@ -239,7 +260,7 @@
         }, 1000);
       }
     }
-    img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:#fff';
+    img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:var(--bg,#fff)';
     tip.textContent = '扫码后跳转 securechat://pay 解码确认';
     const acts = [countdown, info, img, tip];
     const panel = modal(isPay ? '我的付款码 v1.53.0' : '收款码', (body) => {
@@ -336,7 +357,7 @@
     const gsel = selField('选择群', groups.map(g => ({ value: g.id, label: (g.name || '群' + g.id) })), groups.length ? String(groups[0].id) : '');
     const title = field('收款说明', '聚餐AA');
     const amt = field('每人金额', '', { type: 'number' });
-    modal('群收款', (body) => { body.appendChild(gsel.w); body.appendChild(title.w); body.appendChild(amt.w); },
+    modal('群收款', (body) => { body.classList.add('pay-group'); body.appendChild(gsel.w); body.appendChild(title.w); body.appendChild(amt.w); },
       (acts, close) => {
         const go = document.createElement('button');
         go.className = 'btn-primary'; go.textContent = '发起';
@@ -360,6 +381,7 @@
     (async () => {
       const c = await Pay.collectDetail(id);
       const box = container || modal('群收款', (body) => {
+        body.classList.add('pay-group');
         const out = document.createElement('div'); body.appendChild(out);
         drawCollect(c, out);
       }, (acts, close) => {
@@ -373,7 +395,7 @@
     const head = document.createElement('div');
     head.style.cssText = 'text-align:center;padding:8px 0 14px;border-bottom:1px solid #eee;margin-bottom:12px';
     head.innerHTML = `<div style="font-size:28px;font-weight:800;color:#07c160">¥${Number(c.amount).toFixed(2)}</div>
-      <div style="font-size:14px;color:#333;margin-top:4px">${esc(c.title)}</div>
+      <div style="font-size:14px;color:var(--text,#191919);margin-top:4px">${esc(c.title)}</div>
       <div style="font-size:12px;color:#999;margin-top:4px">${esc(c.groupName)} · ${c.paidCount}/${c.memberCount} 已缴</div>`;
     out.appendChild(head);
     if (c.status === 'open') {
@@ -396,11 +418,11 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #f0f0f0;border-radius:8px';
       const av = document.createElement('div');
-      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#eff4ff;color:#07c160;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
+      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:rgba(7,193,96,.08);color:#07c160;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
       if (m.avatar) av.innerHTML = `<img src="${esc(m.avatar)}" style="width:100%;height:100%;object-fit:cover">`;
       else av.textContent = (m.name || '?').charAt(0);
       const nm = document.createElement('div');
-      nm.style.cssText = 'flex:1;font-size:14px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      nm.style.cssText = 'flex:1;font-size:14px;color:var(--text,#191919);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       nm.textContent = (m.name || '') + (m.remark ? '（' + m.remark + '）' : '');
       const st = document.createElement('div');
       st.style.cssText = 'font-size:12px;color:' + (m.paid ? '#07c160' : '#999');
@@ -444,7 +466,7 @@
   function drawSolection(s, out) {
     const head = document.createElement('div');
     head.style.cssText = 'padding:8px 0 14px;border-bottom:1px solid #eee;margin-bottom:12px';
-    head.innerHTML = `<div style="font-size:17px;font-weight:700;color:#333">${esc(s.subject)}</div>
+    head.innerHTML = `<div style="font-size:17px;font-weight:700;color:var(--text,#191919)">${esc(s.subject)}</div>
       <div style="font-size:12px;color:#999;margin-top:4px">${esc(s.groupName)} · ${s.entryCount} 人已报名</div>`;
     out.appendChild(head);
     const joined = (s.entries || []).some(e => e.userId === myId());
@@ -453,7 +475,7 @@
         const leaveBtn = document.createElement('button');
         leaveBtn.className = 'btn-cn';
         leaveBtn.textContent = '取消报名';
-        leaveBtn.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border:1px solid #eee;border-radius:10px;cursor:pointer;background:#fff;margin-bottom:12px';
+        leaveBtn.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border:1px solid #eee;border-radius:10px;cursor:pointer;background:var(--bg,#fff);margin-bottom:12px';
         leaveBtn.onclick = async () => { try { await Pay.leaveSolection(s.id); showToast('已取消', 'success'); renderSolectionDetail(s.id, out.parentElement); } catch (e) { showToast('失败：' + e.message, 'error'); } };
         out.appendChild(leaveBtn);
       } else {
@@ -472,11 +494,11 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #f0f0f0;border-radius:8px';
       const av = document.createElement('div');
-      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#eff4ff;color:#07c160;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
+      av.style.cssText = 'width:30px;height:30px;border-radius:50%;background:rgba(7,193,96,.08);color:#07c160;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden';
       if (e.avatar) av.innerHTML = `<img src="${esc(e.avatar)}" style="width:100%;height:100%;object-fit:cover">`;
       else av.textContent = (e.name || '?').charAt(0);
       const nm = document.createElement('div');
-      nm.style.cssText = 'flex:1;font-size:14px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      nm.style.cssText = 'flex:1;font-size:14px;color:var(--text,#191919);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       nm.textContent = (idx + 1) + '. ' + (e.name || '') + (e.remark ? '（' + e.remark + '）' : '');
       row.appendChild(av); row.appendChild(nm);
       list.appendChild(row);
@@ -523,6 +545,7 @@
   // 账单
   async function renderBills(container) {
     const wrap = document.createElement('div');
+    wrap.className = 'pay-bill';
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
     const title = document.createElement('h3');
@@ -541,18 +564,18 @@
       bills.forEach((b) => {
         const ined = b.kind === 'in';
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eee;border-radius:10px;background:#fff';
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eee;border-radius:10px;background:var(--bg,#fff)';
         const icon = document.createElement('div');
-        icon.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + (ined ? '#eff4ff' : '#fdecea') + ';color:' + (ined ? '#07c160' : '#e74c3c') + ';display:flex;align-items:center;justify-content:center;font-size:14px';
+        icon.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + (ined ? 'rgba(7,193,96,.08)' : '#fdecea') + ';color:' + (ined ? '#07c160' : '#e74c3c') + ';display:flex;align-items:center;justify-content:center;font-size:14px';
         icon.textContent = ined ? '收' : '支';
         const mid = document.createElement('div');
         mid.style.cssText = 'flex:1;min-width:0';
-        const t1 = document.createElement('div'); t1.textContent = b.title || b.category; t1.style.cssText = 'font-size:14px;color:#333;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        const t1 = document.createElement('div'); t1.textContent = b.title || b.category; t1.style.cssText = 'font-size:14px;color:var(--text,#191919);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         const t2 = document.createElement('div'); t2.textContent = fmtTime(b.createdAt) + (b.peerName ? ' · ' + b.peerName : ''); t2.style.cssText = 'font-size:12px;color:#999';
         mid.appendChild(t1); mid.appendChild(t2);
         const amt = document.createElement('div');
         amt.textContent = (ined ? '+' : '-') + Number(b.amount).toFixed(2);
-        amt.style.cssText = 'font-size:15px;font-weight:400;color:' + (ined ? '#07c160' : '#191919');
+        amt.style.cssText = 'font-size:15px;font-weight:400;color:' + (ined ? '#07c160' : 'var(--text,#191919)');
         row.appendChild(icon); row.appendChild(mid); row.appendChild(amt);
         inner.appendChild(row);
       });
@@ -564,16 +587,17 @@
   // ---------- 主导航面板 ----------
   function homePanel(container) {
     const wrap = document.createElement('div');
+    wrap.className = 'pay-wallet';
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px';
     const title = document.createElement('h3');
-    title.textContent = '钱包与生活服务'; title.style.cssText = 'margin:0;font-size:17px;font-weight:500;color:#191919';
+    title.textContent = '钱包与生活服务'; title.style.cssText = 'margin:0;font-size:17px;font-weight:500;color:var(--text,#191919)';
     head.appendChild(title);
     wrap.appendChild(head);
 
     // 余额卡
     const balCard = document.createElement('div');
-    balCard.style.cssText = 'background:#fff;border-radius:0;padding:18px 0;color:#191919;margin-bottom:8px';
+    balCard.style.cssText = 'background:var(--bg,#fff);border-radius:0;padding:18px 0;color:var(--text,#191919);margin-bottom:8px';
     balCard.innerHTML = `<div style="font-size:13px;color:#888">我的余额（元）</div>
       <div id="pay-bal" style="font-size:32px;font-weight:500;margin:8px 0 6px">0.00</div>
       <div id="pay-recv" style="font-size:13px;color:#888">累计收款 ¥0.00</div>`;
@@ -593,9 +617,9 @@
     ];
     items.forEach((it) => {
       const cell = document.createElement('button');
-      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border:0;border-radius:0;background:#fff;cursor:pointer';
+      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border:0;border-radius:0;background:var(--bg,#fff);cursor:pointer';
       const ic = document.createElement('div');
-      ic.style.cssText = 'width:36px;height:36px;border-radius:4px;background:#f2f2f2;color:#333;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500';
+      ic.style.cssText = 'width:36px;height:36px;border-radius:4px;background:#f2f2f2;color:var(--text,#191919);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500';
       ic.textContent = it.icon;
       const lb = document.createElement('div'); lb.textContent = it.label; lb.style.cssText = 'font-size:12px;color:#555';
       cell.appendChild(ic); cell.appendChild(lb);
@@ -624,6 +648,7 @@
   // 充值入口：三选一（兑换码/聊天/支付宝）
   function rechargeEntry() {
     const m = modal('充值', (body) => {
+      body.classList.add('pay-recharge');
       body.style.cssText = 'padding:0';
       const options = [
         { label: '兑换码充值', desc: '输入兑换码兑换余额', icon: '\u5151', color: '#07c160', fn: redeemFlow },
@@ -632,14 +657,14 @@
       ];
       options.forEach(opt => {
         const row = document.createElement('button');
-        row.style.cssText = 'display:flex;align-items:center;gap:14px;width:100%;padding:16px 18px;border:none;background:#fff;cursor:pointer;text-align:left;border-bottom:1px solid #f5f5f5';
-        row.onmouseover = () => row.style.background = '#f9f9f9';
-        row.onmouseout = () => row.style.background = '#fff';
+        row.style.cssText = 'display:flex;align-items:center;gap:14px;width:100%;padding:16px 18px;border:none;background:var(--bg,#fff);cursor:pointer;text-align:left;border-bottom:1px solid #f5f5f5';
+        row.onmouseover = () => row.style.background = 'rgba(127,127,127,.12)';
+        row.onmouseout = () => row.style.background = 'var(--bg,#fff)';
         const ic = document.createElement('div');
         ic.style.cssText = 'width:42px;height:42px;border-radius:10px;background:' + opt.color + '15;color:' + opt.color + ';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0';
         ic.textContent = opt.icon;
         const info = document.createElement('div');
-        info.innerHTML = '<div style="font-size:15px;font-weight:600;color:#191919">' + opt.label + '</div><div style="font-size:12px;color:#999;margin-top:2px">' + opt.desc + '</div>';
+        info.innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--text,#191919)">' + opt.label + '</div><div style="font-size:12px;color:#999;margin-top:2px">' + opt.desc + '</div>';
         const arrow = document.createElement('div');
         arrow.style.cssText = 'margin-left:auto;color:#ccc;font-size:16px';
         arrow.textContent = '\u203a';
@@ -664,13 +689,13 @@
       const b = document.createElement('button');
       b.textContent = t.label;
       b.dataset.type = t.id;
-      b.style.cssText = 'flex:1;padding:10px 0;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13.5px;color:#555';
+      b.style.cssText = 'flex:1;padding:10px 0;border-radius:9px;border:1.5px solid #e5e7eb;background:var(--bg,#fff);cursor:pointer;font-size:13.5px;color:#555';
       b.onclick = () => {
         payType = t.id;
         btns.forEach(x => {
           const on = x.dataset.type === payType;
           x.style.borderColor = on ? '#07c160' : '#e5e7eb';
-          x.style.background = on ? 'rgba(7,193,96,.08)' : '#fff';
+          x.style.background = on ? 'rgba(7,193,96,.08)' : 'var(--bg,#fff)';
           x.style.color = on ? '#07c160' : '#555';
           x.style.fontWeight = on ? '700' : '400';
         });
@@ -679,6 +704,7 @@
       return b;
     });
     modal('在线充值', (body) => {
+      body.classList.add('pay-recharge');
       body.appendChild(amount.w);
       const lb = document.createElement('label');
       lb.textContent = '支付方式';
@@ -739,7 +765,7 @@
   // 兑换码充值（复用巨石 /api/wallet/redeem）
   function redeemFlow() {
     const code = field('兑换码', '', { placeholder: '输入 16 位兑换码' });
-    modal('兑换码充值', (body) => body.appendChild(code.w),
+    modal('兑换码充值', (body) => { body.classList.add('pay-recharge'); body.appendChild(code.w); },
       (acts, close) => {
         const go = document.createElement('button');
         go.className = 'btn-primary'; go.textContent = '兑换';

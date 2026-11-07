@@ -6,6 +6,9 @@
   if (window.SecureChatLive) return;
   window.SecureChatLive = { name: '直播', label: '直播', icon: '直', open: openPanel, renderInto: renderInto };
 
+  const BTN_GREEN = 'background:#07c160;background-image:none;color:#fff;border:0';
+  const BTN_GRAY = 'background:#f2f2f2;background-image:none;color:#333;border:0';
+
   function base() {
     if (window.SecureChatExt && window.SecureChatExt._util) return window.SecureChatExt._util.serverHost();
     if (window.state && window.state.serverHost) return window.state.serverHost;
@@ -42,9 +45,9 @@
     host.innerHTML =
       '<div class="live-head">' +
         '<div class="live-title">直播</div>' +
-        '<button class="live-btn" data-start>开播</button>' +
-        '<button class="live-btn" data-refresh>刷新</button>' +
-        '<button class="live-btn" data-fav>我的收藏</button>' +
+        '<button class="live-btn" data-start style="' + BTN_GREEN + '">开播</button>' +
+        '<button class="live-btn" data-refresh style="' + BTN_GRAY + '">刷新</button>' +
+        '<button class="live-btn" data-fav style="' + BTN_GRAY + '">我的收藏</button>' +
       '</div>' +
       '<div class="live-list"><div class="live-loading">加载中…</div></div>';
     const list = host.querySelector('.live-list');
@@ -79,7 +82,7 @@
   function myFav(list) {
     fetchJson('/api/live/me/favorites').then(function (d) {
       const rooms = d.rooms || [];
-      list.innerHTML = '<div class="live-back"><button data-back>← 返回</button><span>我的收藏</span></div>';
+      list.innerHTML = '<div class="live-back"><button data-back style="' + BTN_GRAY + '">← 返回</button><span>我的收藏</span></div>';
       list.innerHTML += (rooms.length ? rooms.map(function (r) {
         return '<div class="live-card" data-id="' + r.id + '"><div class="live-badge end">' + (r.status === 'live' ? '● 直播中' : '已结束') + '</div><div class="live-title2">' + esc(r.title) + '</div></div>';
       }).join('') : '<div class="live-empty">还没有收藏</div>');
@@ -130,15 +133,15 @@
         (src ? '<video controls autoplay muted playsinline src="' + esc(src) + '"></video>' : '<div class="vid-novideo">' + (onAir ? '主播未配置视频流，本直播为文字 + 聊天室模式' : '回放地址未配置') + '</div>') +
       '</div>' +
       '<div class="live-ops">' +
-        '<button data-like data-on="' + (room.likedByMe ? '1' : '0') + '">' + (room.likedByMe ? '♥' : '♡') + ' ' + (room.likeCount || 0) + '</button>' +
-        '<button data-fav data-on="' + (room.favoritedByMe ? '1' : '0') + '">' + (room.favoritedByMe ? '★' : '☆') + ' ' + (room.favoriteCount || 0) + '</button>' +
-        (isHost || (backFn && backFn.dataHost) ? (onAir ? '<button data-record>录像</button>' : '') + '<button data-end>结束直播</button>' : '') +
+        '<button data-like data-on="' + (room.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (room.likedByMe ? '♥' : '♡') + ' ' + (room.likeCount || 0) + '</button>' +
+        '<button data-fav data-on="' + (room.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (room.favoritedByMe ? '★' : '☆') + ' ' + (room.favoriteCount || 0) + '</button>' +
+        (isHost || (backFn && backFn.dataHost) ? (onAir ? '<button data-record style="' + BTN_GRAY + '">录像</button>' : '') + '<button data-end style="' + BTN_GREEN + '">结束直播</button>' : '') +
         '<span class="live-viewers">观看 ' + (room.viewerCount || 0) + '</span>' +
       '</div>' +
       '<div class="live-chat-box">' +
         '<div class="live-chats"></div>' +
         '<div class="live-composer">' +
-          (onAir ? '<input data-chat placeholder="发一条弹幕…" maxlength="300" /><button data-send>发送</button>' : '<span class="live-notice">直播已结束，可查看回放</span>') +
+          (onAir ? '<input data-chat placeholder="发一条弹幕…" maxlength="300" /><button data-send style="' + BTN_GREEN + '">发送</button>' : '<span class="live-notice">直播已结束，可查看回放</span>') +
         '</div>' +
       '</div>';
 

@@ -5,6 +5,9 @@
   if (window.SecureChatVideos) return;
   window.SecureChatVideos = { name: '视频号', label: '视频号', icon: '视', open: openPanel, renderInto: renderInto };
 
+  const BTN_GREEN = 'background:#07c160;background-image:none;color:#fff;border:1px solid transparent';
+  const BTN_GRAY = 'background:#f2f2f2;background-image:none;color:#333;border:1px solid transparent';
+
   function base() {
     if (window.SecureChatExt && window.SecureChatExt._util) return window.SecureChatExt._util.serverHost();
     if (window.state && window.state.serverHost) return window.state.serverHost;
@@ -39,16 +42,24 @@
     host.innerHTML =
       '<div class="vid-head">' +
         '<div class="vid-title">视频号</div>' +
-        '<button class="vid-tab on" data-feed="pub">推荐</button>' +
-        '<button class="vid-tab" data-feed="follow">关注</button>' +
-        '<button class="vid-tab" data-feed="fav">收藏</button>' +
-        '<button class="vid-btn" data-pub>发布视频</button>' +
+        '<button class="vid-tab on" data-feed="pub" style="' + BTN_GREEN + '">推荐</button>' +
+        '<button class="vid-tab" data-feed="follow" style="' + BTN_GRAY + '">关注</button>' +
+        '<button class="vid-tab" data-feed="fav" style="' + BTN_GRAY + '">收藏</button>' +
+        '<button class="vid-btn" data-pub style="' + BTN_GREEN + '">发布视频</button>' +
       '</div>' +
       '<div class="vid-grid"><div class="vid-loading">加载中…</div></div>';
     const grid = host.querySelector('.vid-grid');
     let cur = 'pub';
     host.querySelectorAll('[data-feed]').forEach(function (b) {
-      b.onclick = function () { cur = b.dataset.feed; host.querySelectorAll('[data-feed]').forEach(x => x.classList.toggle('on', x === b)); loadFeed(cur, grid, host); };
+      b.onclick = function () {
+        cur = b.dataset.feed;
+        host.querySelectorAll('[data-feed]').forEach(function (x) {
+          const on = x === b;
+          x.classList.toggle('on', on);
+          x.style.cssText = on ? BTN_GREEN : BTN_GRAY;
+        });
+        loadFeed(cur, grid, host);
+      };
     });
     host.querySelector('[data-pub]').onclick = function () { publishForm(host, grid); };
     loadFeed('pub', grid, host);
@@ -83,10 +94,10 @@
         '<div class="vid-desc">' + esc(v.title) + '</div>' +
         (v.content ? '<div class="vid-content">' + esc(v.content) + '</div>' : '') +
         '<div class="vid-ops">' +
-          '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
-          '<button data-cmt="' + v.id + '">评论 ' + (v.commentCount || 0) + '</button>' +
-          '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
-          '<button data-share="' + v.id + '">↗ ' + (v.shareCount || 0) + '</button>' +
+          '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
+          '<button data-cmt="' + v.id + '" style="' + BTN_GRAY + '">评论 ' + (v.commentCount || 0) + '</button>' +
+          '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
+          '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">↗ ' + (v.shareCount || 0) + '</button>' +
           '<span class="vid-time">' + fmt(v.createdAt) + '</span>' +
         '</div>' +
       '</div>' +
@@ -164,23 +175,23 @@
       const v = d.video || {};
       const cmts = v.comments || [];
       grid.innerHTML =
-        '<div class="vid-back"><button data-back>← 返回</button><span class="vid-title2">' + esc(v.title) + '</span></div>' +
+        '<div class="vid-back"><button data-back style="' + BTN_GRAY + '">← 返回</button><span class="vid-title2">' + esc(v.title) + '</span></div>' +
         '<div class="vid-detail">' +
           '<div class="vid-player">' + (mediaUrl(v.url) ? '<video controls autoplay muted playsinline src="' + esc(mediaUrl(v.url)) + '" type="video/' + esc(v.fileType || 'mp4') + '"></video>' : '<div class="vid-novideo">[未加载视频]</div>') + '</div>' +
           '<div class="vid-author">' + esc(v.nickname || v.username || '') + ' · ' + fmt(v.createdAt) + '</div>' +
           '<div class="vid-desc">' + esc(v.title) + '</div>' +
           (v.content ? '<div class="vid-content">' + esc(v.content) + '</div>' : '') +
           '<div class="vid-ops">' +
-            '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
-            '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
-            '<button data-share="' + v.id + '">↗ ' + (v.shareCount || 0) + '</button>' +
+            '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
+            '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
+            '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">↗ ' + (v.shareCount || 0) + '</button>' +
             '<span class="vid-time">播放 ' + (v.playCount || 0) + '</span>' +
           '</div>' +
           '<div class="vid-cmt-title">评论（' + (cmts.length) + '）</div>' +
           '<div class="vid-cmts">' + (cmts.length ? cmts.map(function (c) {
             return '<div class="vid-cmt"><b>' + esc(c.nickname || c.username || ('用户' + c.userId)) + '</b> ' + esc(c.content) + '</div>';
           }).join('') : '<div class="vid-empty">还没有评论</div>') + '</div>' +
-          '<div class="vid-composer"><textarea data-cmt placeholder="说点什么…"></textarea><button data-send>发送</button></div>' +
+          '<div class="vid-composer"><textarea data-cmt placeholder="说点什么…"></textarea><button data-send style="' + BTN_GREEN + '">发送</button></div>' +
         '</div>';
       grid.querySelector('[data-back]').onclick = function () { loadFeed('pub', grid, host); };
       grid.querySelector('[data-like]').onclick = function () { toggleLike(grid.querySelector('[data-like]')); };
