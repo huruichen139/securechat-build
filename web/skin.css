@@ -3767,4 +3767,6 @@ html{-webkit-tap-highlight-color:transparent}html body .contact .last,html body 
 }body.dark-mode #chatView #mePage .page-body,body.dark-mode #chatView #discoverPage .page-body,body.dark-mode #chatView #contactsPage .page-body,body.dark-mode #chatView #blocklistPage .page-body{background:#2c2c2c!important;box-shadow:none!important}
 body.dark-mode #mePage .page-header,body.dark-mode #discoverPage .page-header,body.dark-mode #contactsPage .page-header,body.dark-mode #blocklistPage .page-header{background:#2c2c2c!important;border-bottom-color:#3a3a3a!important}
 body.dark-mode #mePage,body.dark-mode #discoverPage,body.dark-mode #contactsPage,body.dark-mode #blocklistPage{background:#191919!important}html body #chatView .messages .bubble,html body #chatView .messages .msg-bubble{max-width:min(62%,560px)!important}html body #chatView .messages .msg-row .bubble-wrap{max-width:min(62%,560px)!important}@media(max-width:760px){html body .modal.live-view{width:calc(100vw - 24px)!important;max-width:366px!important}}html body #authView{background:#f5f6f7!important}
-body.dark-mode #authView{background:#111!important}
+body.dark-mode #authView{background:#111!important}@keyframes scFadeIn{from{opacity:0}to{opacity:1}}
+.modal-mask,.overlay,.feature-modal{animation:scFadeIn .18s ease-out}
+button:active{opacity:.82}
