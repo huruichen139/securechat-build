@@ -3088,3 +3088,11 @@ body.dark-mode .login-mode-btn.on {
   background: rgba(7, 193, 96, .18) !important;
   color: #07c160 !important;
 }
+/* mobile polish round 2 */
+@media (max-width:760px){
+  #chatView .ai-header{height:44px!important;min-height:44px!important}
+  #downloadView .download-header{justify-content:center!important}
+}
+#chatView .messages .msg-row.show-actions{margin-bottom:30px!important}
+.modal-mask:not(:has(> .moments-composer)){padding:12px!important;box-sizing:border-box!important}
+.modal.modal-scroll{overflow-y:auto!important;max-height:90vh!important}

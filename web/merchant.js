@@ -9,7 +9,7 @@
   function tip(msg, ok) {
     const el = $('mainTip');
     el.textContent = msg || '';
-    el.style.color = ok ? '#1f5fd8' : '#b91c1c';
+    el.style.color = ok ? '#07c160' : '#b91c1c';
   }
 
   async function api(path, opts) {

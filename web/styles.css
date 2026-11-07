@@ -95,8 +95,8 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 .logout-btn:hover { color: #fa5151; background: #fff0f0; }
 
 /* 模态弹窗 */
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(3px); }
-.modal { width: 320px; background: #fff; border-radius: 2px; padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,.2); animation: rise .25s cubic-bezier(.22,1,.36,1) both; }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(3px); padding: 12px; box-sizing: border-box; }
+.modal { width: min(320px, calc(100vw - 32px)); background: #fff; border-radius: 2px; padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,.2); animation: rise .25s cubic-bezier(.22,1,.36,1) both; }
 .modal h3 { font-size: 16px; color: var(--text); margin-bottom: 14px; font-weight: 600; text-align: center; }
 /* 顶部带叉叉的标题栏 */
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
@@ -113,7 +113,7 @@ input, textarea { outline: none; -webkit-user-select: text; user-select: text; }
 .modal-actions .ok:hover { filter: brightness(0.95); }
 .modal-actions .cancel { background: #f0f0f0; color: #555; }
 .modal-actions .cancel:hover { background: #e5e5e5; }
-.modal.modal-scroll { width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal.modal-scroll { width: min(480px, calc(100vw - 32px)); max-height: 90vh; overflow-y: auto; overflow-x: hidden; }
 .modal .field-cat { font-size: 13px; font-weight: 700; color: var(--primary); margin: 14px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .modal .field-row { margin-bottom: 8px; }
 .modal .field-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
@@ -343,24 +343,24 @@ body.dark-mode .call-bar #callText { color: #e5e5e5; }
 }
 .ai-view .ai-composer input:focus { border-color: var(--primary); }
 .ai-view .ai-composer .btn.send { width:80px; height:38px; padding:0; }
-.download-view { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #f8fafc; overflow: auto; }
+.download-view { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #ededed; overflow: auto; }
 .download-header { min-height: 72px; padding: 0 32px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: #ffffffeb; font-size: 15px; font-weight: 700; }
 .download-header-sub { color: var(--muted); font-size: 12px; font-weight: 400; }
 .download-page { width: min(960px, calc(100% - 48px)); margin: 0 auto; padding: 34px 0 52px; color: #17211b; font: 15px/1.6 "Microsoft YaHei", "Segoe UI", sans-serif; }
 .download-status { min-height: 25px; color: var(--muted); text-align: center; margin: 0 0 14px; }
 .download-page .note { margin: 8px 0 0; font-size: 12.5px; color: #a06a1f; background: #fdf6e7; border: 1px solid #f0dfb6; border-radius: 8px; padding: 8px 10px; }
-.download-page .download.alt { color: var(--primary); background: #eff4ff; margin-top: 8px; }
-.download-recommend { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px; border: 2px solid var(--primary); border-radius: 18px; background: #fff; box-shadow: 0 12px 32px rgba(26,58,102,.09); }
+.download-page .download.alt { color: var(--primary); background: #e8f8ef; margin-top: 8px; }
+.download-recommend { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px; border: 2px solid var(--primary); border-radius: 4px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .download-recommend .recommend-label { color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .download-recommend .platform-name { margin: 2px 0; font-size: 24px; font-weight: 700; }
 .download-recommend .details, .download-recommend .version { margin: 0; color: var(--muted); }
 .download-recommend .version { margin-top: 8px; font-size: 13px; }
-.download-page .download { display: inline-block; padding: 11px 22px; border-radius: 9px; color: #fff; background: var(--primary); text-decoration: none; font-weight: 700; white-space: nowrap; }
+.download-page .download { display: inline-block; padding: 11px 22px; border-radius: 4px; color: #fff; background: var(--primary); text-decoration: none; font-weight: 700; white-space: nowrap; }
 .download-page .download.disabled { color: #89958e; background: #edf1ee; pointer-events: none; }
-.download-other { margin-top: 22px; border: 1px solid #e5ebe7; border-radius: 14px; background: rgba(255,255,255,.8); overflow: hidden; }
+.download-other { margin-top: 22px; border: 1px solid #e5e5e5; border-radius: 4px; background: rgba(255,255,255,.8); overflow: hidden; box-shadow: none; }
 .download-other summary { padding: 15px 18px; cursor: pointer; font-weight: 650; }
 .download-platform-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; padding: 0 14px 14px; }
-.download-platform-list .platform { display: flex; min-height: 126px; flex-direction: column; padding: 16px; border: 1px solid #e5ebe7; border-radius: 11px; background: #fff; }
+.download-platform-list .platform { display: flex; min-height: 126px; flex-direction: column; padding: 16px; border: 1px solid #e5e5e5; border-radius: 4px; background: #fff; box-shadow: none; }
 .download-platform-list .platform h3 { margin: 0 0 2px; font-size: 17px; }
 .download-platform-list .platform .details { flex: 1; margin: 0; color: var(--muted); font-size: 13px; }
 .download-platform-list .platform .version { margin: 7px 0 10px; color: var(--muted); font-size: 13px; }
@@ -376,7 +376,7 @@ body.dark-mode .call-bar #callText { color: #e5e5e5; }
 
 /* ============ 版本更新浮层 ============ */
 .update-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1100; }
-.update-dialog { width: 380px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+.update-dialog { width: min(380px, calc(100vw - 32px)); background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
 .update-dialog h3 { font-size: 18px; color: var(--primary); margin-bottom: 10px; }
 .update-dialog .notes { font-size: 13px; color: #555; max-height: 200px; overflow-y: auto; margin: 10px 0; line-height: 1.6; }
 .update-dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
@@ -1430,10 +1430,10 @@ html.is-mobile #chatView.mobile-chat-active > .main,
 html.is-mobile #chatView.mobile-chat-active > #aiView {
   bottom: 0;
 }
-/* 下载视图内容同样让位（downloadView 是绝对定位，需要留出 tab 位置以防万一） */
-html.is-mobile #chatView.mobile-chat-active > #downloadView {
-  bottom: 56px;
-  bottom: calc(56px + env(safe-area-inset-bottom, 0));
+/* 下载/管理视图内容同样让位（tab 已隐藏，贴底显示） */
+html.is-mobile #chatView.mobile-chat-active > #downloadView,
+html.is-mobile #chatView.mobile-chat-active > #adminView {
+  bottom: 0;
 }
 
 /* =========================================================
