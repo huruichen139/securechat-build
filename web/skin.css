@@ -3406,3 +3406,319 @@ html body .feature-grid .feature-item .feature-icon,html body .feature-item .fea
 html body .feature-icon svg{fill:#07c160!important;stroke:#07c160!important}
 html body.dark-mode .feature-grid .feature-item .feature-icon,html body.dark-mode .feature-item .feature-icon{background:#1f3a2c!important;color:#4ade80!important}
 html body.dark-mode .feature-icon svg{fill:#4ade80!important;stroke:#4ade80!important}
+
+html body #chatView #contactsPage .page-body,
+html body #chatView #discoverPage .page-body,
+html body #chatView #mePage .page-body {
+  background: #ededed !important;
+  background-image: none !important;
+  overflow-x: hidden !important;
+}
+html body #chatView #discoverPage #discoverList {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+html body #chatView #contactsPage .contact-section,
+html body #chatView #discoverPage .wx-group,
+html body #chatView #mePage .wx-me-group {
+  background: #fff !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+html body #chatView #contactsPage .contact-section .contact,
+html body #chatView #discoverPage .wx-discover-item,
+html body #chatView #mePage .wx-me-item,
+html body #settingsPanel .settings-row {
+  display: flex !important;
+  align-items: center !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 16px !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  gap: 12px !important;
+}
+html body #chatView #discoverPage .wx-group .wx-discover-item:last-child,
+html body #chatView #mePage .wx-me-group .wx-me-item:last-child,
+html body #settingsPanel .settings-card .settings-row:last-child {
+  border-bottom: 0 !important;
+}
+html body #chatView #contactsPage .contact-section .contact:hover,
+html body #chatView #discoverPage .wx-discover-item:hover,
+html body #chatView #mePage .wx-me-item:hover,
+html body #settingsPanel .settings-row:hover {
+  background: #f5f5f5 !important;
+}
+html body #chatView #contactsPage .contact-section .contact::before,
+html body #chatView #discoverPage .wx-discover-item::before,
+html body #chatView #discoverPage .wx-discover-item::after,
+html body #chatView #mePage .wx-me-item::before,
+html body #chatView #mePage .wx-me-item::after {
+  content: none !important;
+  display: none !important;
+}
+html body #chatView #contactsPage .contact-section .contact[data-uid]:not(:has(button))::after,
+html body #chatView #contactsPage .contact-section .contact[data-gid]::after {
+  content: '\203A' !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  color: #c8c8c8 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+}
+html body #chatView #contactsPage .contact-group-label,
+html body #settingsPanel .settings-section-title {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 16px !important;
+  color: #8a8a8a !important;
+  background: #ededed !important;
+  background-image: none !important;
+  padding: 8px 16px 6px !important;
+  margin: 0 !important;
+  position: static !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body #chatView #contactsPage .contact-section .contact .name,
+html body #chatView #discoverPage .wx-discover-item .wx-discover-name,
+html body #chatView #mePage .wx-me-item .wx-me-name,
+html body #settingsPanel .settings-row .settings-info > div:first-child {
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  color: #191919 !important;
+}
+html body #chatView #contactsPage .contact-section .contact .last {
+  font-size: 12px !important;
+  line-height: 16px !important;
+  color: #8a8a8a !important;
+  margin-top: 2px !important;
+}
+html body #settingsPanel .settings-row > div:nth-child(2) > div:first-child {
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  color: #191919 !important;
+}
+html body #settingsPanel .settings-row > div:nth-child(2) > div:last-child {
+  font-size: 12px !important;
+  line-height: 16px !important;
+  color: #8a8a8a !important;
+  margin-top: 2px !important;
+}
+html body #chatView #discoverPage .wx-discover-arrow,
+html body #chatView #mePage .wx-me-item .wx-discover-arrow,
+html body #settingsPanel .settings-row .settings-arrow {
+  color: #c8c8c8 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  margin-left: 0 !important;
+  flex: 0 0 auto !important;
+}
+html body #settingsPanel .settings-row .settings-ic {
+  width: 24px !important;
+  height: 24px !important;
+  flex: 0 0 24px !important;
+  border-radius: 4px !important;
+  background: #f2f2f2 !important;
+  background-image: none !important;
+  color: #555 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  margin-right: 0 !important;
+  box-shadow: none !important;
+}
+html body #chatView #discoverPage .wx-discover-item .wx-discover-icon,
+html body #chatView #mePage .wx-me-item .wx-me-icon {
+  width: 28px !important;
+  height: 28px !important;
+  flex: 0 0 28px !important;
+  border-radius: 4px !important;
+  background: #e8f8ef !important;
+  background-image: none !important;
+  color: #555 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+html body #chatView #mePage .me-header {
+  background: #fff !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 0 8px !important;
+  padding: 20px 16px !important;
+  box-sizing: border-box !important;
+}
+html body #settingsPanel {
+  background: #ededed !important;
+  background-image: none !important;
+  overflow-x: hidden !important;
+}
+html body #settingsPanel .settings-hdr {
+  background: #ededed !important;
+  border-bottom: 0 !important;
+}
+html body #settingsPanel .settings-content {
+  width: 100% !important;
+  max-width: 860px !important;
+  margin: 0 auto !important;
+  padding: 0 0 40px !important;
+  box-sizing: border-box !important;
+}
+html body #settingsPanel .settings-profile {
+  background: #fff !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 0 8px !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+}
+html body #settingsPanel .settings-section {
+  margin: 0 0 8px !important;
+}
+html body #settingsPanel .settings-card {
+  background: #fff !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+html body #settingsPanel .settings-logout {
+  width: 100% !important;
+  height: 56px !important;
+  margin: 8px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  background-image: none !important;
+  color: #fa5151 !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+html body.dark-mode #chatView #contactsPage .page-body,
+html body.dark-mode #chatView #discoverPage .page-body,
+html body.dark-mode #chatView #mePage .page-body,
+html body.dark-mode #settingsPanel {
+  background: #191919 !important;
+  background-color: #191919 !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-section,
+html body.dark-mode #chatView #discoverPage .wx-group,
+html body.dark-mode #chatView #mePage .wx-me-group,
+html body.dark-mode #settingsPanel .settings-card {
+  background: #2c2c2c !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-section .contact,
+html body.dark-mode #chatView #discoverPage .wx-discover-item,
+html body.dark-mode #chatView #mePage .wx-me-item,
+html body.dark-mode #settingsPanel .settings-row,
+html body.dark-mode #settingsPanel .settings-profile,
+html body.dark-mode #settingsPanel .settings-logout,
+html body.dark-mode #chatView #mePage .me-header {
+  background: #2c2c2c !important;
+  border-bottom-color: #3a3a3a !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-section .contact:hover,
+html body.dark-mode #chatView #discoverPage .wx-discover-item:hover,
+html body.dark-mode #chatView #mePage .wx-me-item:hover,
+html body.dark-mode #settingsPanel .settings-row:hover {
+  background: #3a3a3a !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-group-label,
+html body.dark-mode #settingsPanel .settings-section-title {
+  background: #191919 !important;
+  color: #a0a0a0 !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-section .contact .name,
+html body.dark-mode #chatView #discoverPage .wx-discover-item .wx-discover-name,
+html body.dark-mode #chatView #mePage .wx-me-item .wx-me-name,
+html body.dark-mode #settingsPanel .settings-row .settings-info > div:first-child {
+  color: #d6d6d6 !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-section .contact .last,
+html body.dark-mode #settingsPanel .settings-row .settings-info > div:last-child,
+html body.dark-mode #settingsPanel .settings-row > div:nth-child(2) > div:last-child {
+  color: #a0a0a0 !important;
+}
+html body.dark-mode #settingsPanel .settings-row > div:nth-child(2) > div:first-child {
+  color: #d6d6d6 !important;
+}
+html body.dark-mode #chatView #contactsPage .contact-section .contact[data-uid]:not(:has(button))::after,
+html body.dark-mode #chatView #contactsPage .contact-section .contact[data-gid]::after {
+  color: #8a8a8a !important;
+}
+html body.dark-mode #chatView #discoverPage .wx-discover-arrow,
+html body.dark-mode #chatView #mePage .wx-me-item .wx-discover-arrow,
+html body.dark-mode #settingsPanel .settings-row .settings-arrow {
+  color: #8a8a8a !important;
+}
+html body.dark-mode #settingsPanel .settings-row .settings-ic {
+  background: #3a3a3a !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode #chatView #discoverPage .wx-discover-item .wx-discover-icon,
+html body.dark-mode #chatView #mePage .wx-me-item .wx-me-icon {
+  background: #3a3a3a !important;
+  background-image: none !important;
+  color: #d6d6d6 !important;
+}
+html body.dark-mode #settingsPanel .settings-hdr {
+  background: #191919 !important;
+  border-bottom-color: #3a3a3a !important;
+}/* module surfaces polish */
+html body .oa-container,html body .oa-panel,html body .oa-view,html body .vid-container,html body .vid-panel,html body .vid-view,html body .live-container,html body .live-panel,html body .live-view,html body .pay-wallet,html body .pay-recharge,html body .pay-group,html body .pay-bill,html body .polls-panel,html body .todos-panel,html body .remind-panel,html body .sc-status-panel,html body .sc-fav-panel,html body .scan-panel,html body .miniapp-panel,html body .cards-panel,html body .shop-panel,html body .games-panel,html body .nearby-panel,html body .read-panel,html body .search-panel{background:#fff!important;color:#191919!important;box-shadow:none!important}
+html body .oa-card,html body .vid-card,html body .live-card,html body .oa-item,html body .polls-opt,html body .sc-fav-item,html body .miniapp-card,html body .nearby-item,html body .shop-item,html body .games-item,html body .cards-item,html body .read-item,html body .search-item,html body .pay-opt,html body .bill-item{background:#fff!important;border:1px solid #e5e5e5!important;border-radius:6px!important;box-shadow:none!important}
+html body .oa-head,html body .vid-head,html body .live-head,html body .live-room-head{height:44px!important;background:#f7f7f7!important;border-bottom:1px solid #e5e5e5!important;color:#191919!important}
+@media (min-width:761px){html body .oa-head,html body .vid-head,html body .live-head,html body .live-room-head{height:60px!important}}
+html body .oa-title,html body .vid-title,html body .live-title,html body .oa-item-title{font-size:15px!important;font-weight:500!important;color:#191919!important}
+html body .oa-sub,html body .oa-item-sub,html body .oa-meta,html body .vid-author,html body .vid-time,html body .vid-desc,html body .live-sub,html body .live-viewers,html body .oa-c-time{color:#8a8a8a!important;font-size:12px!important}
+html body .oa-btn,html body .vid-btn,html body .live-btn,html body .pay-wallet .pay-confirm,html body .pay-recharge .pay-confirm{background:#07c160!important;color:#fff!important;border:0!important;border-radius:4px!important;box-shadow:none!important}
+html body .vid-btn.ghost,html body .oa-btn.ghost,html body .live-btn.ghost{background:#f2f2f2!important;color:#191919!important}
+html body .live-btn.end,html body .live-btn.danger{background:#fa5151!important;color:#fff!important}
+html body .vid-player,html body .live-video{background:#000!important;border-radius:4px!important}
+html body .live-badge{background:#fa5151!important;color:#fff!important;border-radius:3px!important}
+html body .live-badge.end{background:#8a8a8a!important}
+html body .vid-tab{background:#f2f2f2!important;color:#191919!important;border-radius:4px!important}
+html body .vid-tab.on{background:#07c160!important;color:#fff!important}
+html body .vid-novideo,html body .vid-empty,html body .live-empty,html body .oa-empty{color:#8a8a8a!important;background:transparent!important}
+html body .pay-bal{font-size:28px!important;font-weight:600!important;color:#191919!important}
+html body .pay-recv{color:#07c160!important}
+html body .polls-panel button,html body .todos-panel button,html body .remind-panel button,html body .sc-status-panel button,html body .sc-fav-panel button,html body .scan-panel button,html body .miniapp-panel button,html body .cards-panel button,html body .shop-panel button,html body .games-panel button,html body .nearby-panel button,html body .read-panel button,html body .search-panel button{background:#f2f2f2!important;background-image:none!important;color:#191919!important;border:1px solid #e5e5e5!important;border-radius:4px!important;box-shadow:none!important;transform:none!important}
+html body .polls-panel button.primary,html body .pc-confirm,html body .td-confirm,html body .rm-confirm{background:#07c160!important;color:#fff!important;border:0!important}
+html body .pc-add{color:#07c160!important;background:#e8f8ef!important;border:1px solid #b7e4c9!important}
+html body .sc-fav-tag-active,html body .sc-fav-cfg-active,html body .polls-opt-on,html body .sc-status-icon-active{background:#e8f8ef!important;color:#07c160!important}
+body.dark-mode .oa-container,body.dark-mode .oa-panel,body.dark-mode .oa-view,body.dark-mode .vid-container,body.dark-mode .vid-panel,body.dark-mode .vid-view,body.dark-mode .live-container,body.dark-mode .live-panel,body.dark-mode .live-view,body.dark-mode .pay-wallet,body.dark-mode .pay-recharge,body.dark-mode .pay-group,body.dark-mode .pay-bill,body.dark-mode .polls-panel,body.dark-mode .todos-panel,body.dark-mode .remind-panel,body.dark-mode .sc-status-panel,body.dark-mode .sc-fav-panel,body.dark-mode .scan-panel,body.dark-mode .miniapp-panel,body.dark-mode .cards-panel,body.dark-mode .shop-panel,body.dark-mode .games-panel,body.dark-mode .nearby-panel,body.dark-mode .read-panel,body.dark-mode .search-panel{background:#191919!important;color:#d6d6d6!important}
+body.dark-mode .oa-card,body.dark-mode .vid-card,body.dark-mode .live-card,body.dark-mode .oa-item,body.dark-mode .polls-opt,body.dark-mode .sc-fav-item,body.dark-mode .miniapp-card,body.dark-mode .nearby-item,body.dark-mode .shop-item,body.dark-mode .games-item,body.dark-mode .cards-item,body.dark-mode .read-item,body.dark-mode .search-item,body.dark-mode .pay-opt,body.dark-mode .bill-item{background:#2c2c2c!important;border-color:#3a3a3a!important;color:#d6d6d6!important}
+body.dark-mode .oa-head,body.dark-mode .vid-head,body.dark-mode .live-head,body.dark-mode .live-room-head{background:#191919!important;border-bottom-color:#3a3a3a!important;color:#d6d6d6!important}
+body.dark-mode .oa-title,body.dark-mode .vid-title,body.dark-mode .live-title,body.dark-mode .oa-item-title,body.dark-mode .pay-bal{color:#d6d6d6!important}
+body.dark-mode .oa-sub,body.dark-mode .oa-item-sub,body.dark-mode .oa-meta,body.dark-mode .vid-author,body.dark-mode .vid-time,body.dark-mode .vid-desc,body.dark-mode .live-sub,body.dark-mode .live-viewers,body.dark-mode .oa-c-time{color:#b2b2b2!important}
+body.dark-mode .polls-panel button,body.dark-mode .todos-panel button,body.dark-mode .remind-panel button,body.dark-mode .sc-status-panel button,body.dark-mode .sc-fav-panel button,body.dark-mode .scan-panel button,body.dark-mode .miniapp-panel button,body.dark-mode .cards-panel button,body.dark-mode .shop-panel button,body.dark-mode .games-panel button,body.dark-mode .nearby-panel button,body.dark-mode .read-panel button,body.dark-mode .search-panel button{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
