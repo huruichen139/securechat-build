@@ -3012,9 +3012,10 @@ document.querySelectorAll('.side-tab').forEach(tt => {
 });
 
 // 移动端底部导航：克隆 rail tab 到底部栏，点击时转发到原 tab
-(function initMobileBottomNav() {
+function initMobileBottomNav() {
   const nav = $('mobileBottomNav');
   if (!nav || !window.IS_MOBILE) return;
+  nav.innerHTML = '';
   // 微信式底部导航：仅保留 4 个核心 Tab（微信 / 通讯录 / 发现 / 我）
   const CORE_TABS = ['friends', 'contacts', 'ai', 'downloads'];
   document.querySelectorAll('.sidebar-rail .side-tab').forEach(src => {
@@ -3025,7 +3026,7 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     b.dataset.side = src.dataset.side;
     b.innerHTML = src.innerHTML;
     const NAV_LABEL = { friends: '微信', contacts: '通讯录', ai: '发现', downloads: '我' };
-    const navLbl = b.querySelector('span:last-child');
+    const navLbl = b.querySelector('span[data-i18n]') || [...b.querySelectorAll('span')].find((s) => !s.classList.contains('rail-icon') && !s.classList.contains('rail-badge'));
     if (navLbl && NAV_LABEL[src.dataset.side]) { navLbl.removeAttribute('data-i18n'); navLbl.textContent = NAV_LABEL[src.dataset.side]; }
     b.onclick = () => {
       const real = document.querySelector('.sidebar-rail .side-tab[data-side="' + src.dataset.side + '"]');
@@ -3038,7 +3039,9 @@ document.querySelectorAll('.side-tab').forEach(tt => {
     nav.appendChild(b);
   });
   syncMobileNav(state.tabContact || 'friends');
-})();
+}
+window.initMobileBottomNav = initMobileBottomNav;
+initMobileBottomNav();
 
 const contactsAddBtn = $('contactsAddBtn');
 if (contactsAddBtn) contactsAddBtn.onclick = () => {
@@ -5677,7 +5680,7 @@ function hideMobileChatView() {
 }
 window.addEventListener('resize', () => {
   setTimeout(() => {
-    if (window.IS_MOBILE) return;
+    if (window.IS_MOBILE) { if (window.initMobileBottomNav) window.initMobileBottomNav(); return; }
     const cv = document.getElementById('chatView');
     if (cv && cv.classList.contains('mobile-chat-active')) {
       cv.classList.remove('mobile-chat-active');
@@ -6534,6 +6537,13 @@ function updateUnreadBadge() {
   }
   badge.style.display = total > 0 ? 'flex' : 'none';
   badge.textContent = total > 99 ? '99+' : String(total);
+  const mtab = document.querySelector('#mobileBottomNav .side-tab[data-side="friends"]');
+  if (mtab) {
+    let mb = mtab.querySelector('.rail-badge');
+    if (!mb) { mb = document.createElement('span'); mb.className = 'rail-badge'; mtab.appendChild(mb); }
+    mb.style.display = total > 0 ? 'flex' : 'none';
+    mb.textContent = total > 99 ? '99+' : String(total);
+  }
 }
 // 桌面端：聊天人列表只在点击"微信"时显示
 function setChatListVisible(show) {
