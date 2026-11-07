@@ -26,18 +26,18 @@
     return ICONS[(id - 1) % ICONS.length];
   }
   var PRODUCTS = [
-    { id: 1, name: 'SecureChat 定制马克杯', price: 39.9, oldPrice: 59.9, cat: '生活', img: '☕', sold: 1234, desc: '陶瓷材质，3D 立体 Logo，可微波加热，容量 350ml' },
-    { id: 2, name: '无线蓝牙耳机 Pro', price: 199, oldPrice: 399, cat: '数码', img: '🎧', sold: 5678, desc: '主动降噪，30 小时续航，IPX5 防水，低延迟游戏模式' },
-    { id: 3, name: '智能手表 S9', price: 899, oldPrice: 1299, cat: '数码', img: '⌚', sold: 2345, desc: 'AMOLED 屏幕，心率血氧监测，100+ 运动模式，14 天续航' },
-    { id: 4, name: '纯棉短袖 T 恤', price: 59, oldPrice: 99, cat: '服饰', img: '👕', sold: 8901, desc: '100% 新疆长绒棉，亲肤透气，多色可选，宽松版型' },
-    { id: 5, name: '保温杯 500ml', price: 49.9, oldPrice: 89, cat: '生活', img: '🥤', sold: 4567, desc: '316 不锈钢内胆，24 小时保温保冷，防漏设计，送杯刷' },
-    { id: 6, name: '机械键盘 87 键', price: 159, oldPrice: 259, cat: '数码', img: '⌨️', sold: 3456, desc: '红轴/青轴可选，RGB 背光，Type-C 可换线，PBT 键帽' },
-    { id: 7, name: '速干运动短裤', price: 39, oldPrice: 69, cat: '服饰', img: '🩳', sold: 6789, desc: '四面弹力面料，速干透气，内衬安全裤，多色可选' },
-    { id: 8, name: '香薰蜡烛礼盒', price: 79, oldPrice: 128, cat: '生活', img: '🕯️', sold: 1234, desc: '天然大豆蜡，4 种香型，助眠安神，燃烧 30 小时' },
-    { id: 9, name: '便携充电宝 20000mAh', price: 99, oldPrice: 169, cat: '数码', img: '🔋', sold: 7890, desc: '22.5W 快充，双向 PD，可上飞机，LED 数显电量' },
-    { id: 10, name: '帆布单肩包', price: 45, oldPrice: 88, cat: '服饰', img: '👜', sold: 3456, desc: '16oz 加厚帆布，大容量，可装 14 寸笔记本，多口袋设计' },
-    { id: 11, name: '不锈钢餐具套装', price: 29.9, oldPrice: 49, cat: '生活', img: '🍴', sold: 2345, desc: '筷勺刀叉五件套，304 不锈钢，便携收纳盒，环保出行' },
-    { id: 12, name: '运动蓝牙音箱', price: 129, oldPrice: 229, cat: '数码', img: '🔊', sold: 4567, desc: 'IPX7 防水，20W 大功率，12 小时续航，TWS 串联' },
+    { id: 1, name: 'SecureChat 定制马克杯', price: 39.9, oldPrice: 59.9, cat: '生活', img: '', sold: 1234, desc: '陶瓷材质，3D 立体 Logo，可微波加热，容量 350ml' },
+    { id: 2, name: '无线蓝牙耳机 Pro', price: 199, oldPrice: 399, cat: '数码', img: '', sold: 5678, desc: '主动降噪，30 小时续航，IPX5 防水，低延迟游戏模式' },
+    { id: 3, name: '智能手表 S9', price: 899, oldPrice: 1299, cat: '数码', img: '', sold: 2345, desc: 'AMOLED 屏幕，心率血氧监测，100+ 运动模式，14 天续航' },
+    { id: 4, name: '纯棉短袖 T 恤', price: 59, oldPrice: 99, cat: '服饰', img: '', sold: 8901, desc: '100% 新疆长绒棉，亲肤透气，多色可选，宽松版型' },
+    { id: 5, name: '保温杯 500ml', price: 49.9, oldPrice: 89, cat: '生活', img: '', sold: 4567, desc: '316 不锈钢内胆，24 小时保温保冷，防漏设计，送杯刷' },
+    { id: 6, name: '机械键盘 87 键', price: 159, oldPrice: 259, cat: '数码', img: '', sold: 3456, desc: '红轴/青轴可选，RGB 背光，Type-C 可换线，PBT 键帽' },
+    { id: 7, name: '速干运动短裤', price: 39, oldPrice: 69, cat: '服饰', img: '', sold: 6789, desc: '四面弹力面料，速干透气，内衬安全裤，多色可选' },
+    { id: 8, name: '香薰蜡烛礼盒', price: 79, oldPrice: 128, cat: '生活', img: '', sold: 1234, desc: '天然大豆蜡，4 种香型，助眠安神，燃烧 30 小时' },
+    { id: 9, name: '便携充电宝 20000mAh', price: 99, oldPrice: 169, cat: '数码', img: '', sold: 7890, desc: '22.5W 快充，双向 PD，可上飞机，LED 数显电量' },
+    { id: 10, name: '帆布单肩包', price: 45, oldPrice: 88, cat: '服饰', img: '', sold: 3456, desc: '16oz 加厚帆布，大容量，可装 14 寸笔记本，多口袋设计' },
+    { id: 11, name: '不锈钢餐具套装', price: 29.9, oldPrice: 49, cat: '生活', img: '', sold: 2345, desc: '筷勺刀叉五件套，304 不锈钢，便携收纳盒，环保出行' },
+    { id: 12, name: '运动蓝牙音箱', price: 129, oldPrice: 229, cat: '数码', img: '', sold: 4567, desc: 'IPX7 防水，20W 大功率，12 小时续航，TWS 串联' },
   ];
   PRODUCTS.forEach(function (p) { p.img = pIcon(p.id); });
 

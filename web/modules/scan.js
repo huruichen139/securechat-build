@@ -258,7 +258,7 @@
             raf = requestAnimationFrame(loop);
           })
           .catch(function (e) {
-            statusEl.textContent = '摄像头不可用：' + (e && e.name || e) + '。可上传二维码图片识别';
+            statusEl.textContent = '未检测到摄像头，可上传二维码图片识别';
             toastMsg('摄像头不可用，可改用上传图片', 'warn');
           });
       } else {

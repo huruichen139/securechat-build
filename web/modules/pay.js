@@ -263,7 +263,7 @@
     img.style.cssText = 'width:260px;height:260px;display:block;margin:12px auto;border:1px solid #eee;border-radius:10px;background:var(--bg,#fff)';
     tip.textContent = '扫码后跳转 securechat://pay 解码确认';
     const acts = [countdown, info, img, tip];
-    const panel = modal(isPay ? '我的付款码 v1.53.0' : '收款码', (body) => {
+    const panel = modal(isPay ? '我的付款码' : '收款码', (body) => {
       acts.forEach((a) => body.appendChild(a));
     }, (actsBox, close) => {
       const b = document.createElement('button');
