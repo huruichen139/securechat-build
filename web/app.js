@@ -2158,7 +2158,9 @@ function applyChatBg(uri) {
   try {
     const bk = 'chatBgColor_' + (state.me && state.me.id || 'anon');
     if (uri) localStorage.setItem(bk, uri); else localStorage.removeItem(bk);
-  } catch (e) {}
+  } catch (e) {
+    try { toast('背景图片过大，本次生效但无法保存', 'warn'); } catch (_) {}
+  }
 }
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
 
@@ -3037,6 +3039,8 @@ async function openGroupProfile(groupId) {
   let members = [];
   let announcement = null;
   let isOwner = false;
+  let myNickname = '';
+  let displayName = g.displayName || g.name;
   try {
     const res = await fetch(state.serverHost + '/api/groups/' + groupId, { headers: { 'Authorization': 'Bearer ' + state.token } });
     const data = await res.json();
@@ -3044,6 +3048,8 @@ async function openGroupProfile(groupId) {
       members = data.group.members || [];
       announcement = data.group.announcement || null;
       isOwner = !!data.group.isOwner;
+      myNickname = data.group.myNickname || '';
+      displayName = data.group.displayName || g.name;
     }
   } catch (e) {}
   const mask = document.createElement('div');
@@ -3051,9 +3057,10 @@ async function openGroupProfile(groupId) {
   mask.innerHTML = `
     <div class="profile-card">
       <div class="profile-head">
-        <div class="profile-avatar">${escapeHtml((g.name || '群').charAt(0))}</div>
-        <div class="profile-name">${escapeHtml(g.name)}</div>
+        <div class="profile-avatar">${escapeHtml((displayName || '群').charAt(0))}</div>
+        <div class="profile-name">${escapeHtml(displayName || g.name)}</div>
         <div class="profile-id">${members.length} 名成员</div>
+        <div class="profile-region group-nick-row" style="margin-top:6px">我在本群的昵称：<span id="groupNickVal">${escapeHtml(myNickname || '未设置')}</span> ›</div>
         ${announcement && announcement.content ? `<div class="profile-region" style="margin-top:6px;word-break:break-all">公告：${escapeHtml(String(announcement.content).slice(0, 200))}${String(announcement.content).length > 200 ? '…' : ''}${isOwner ? '<button class="ann-edit-btn" type="button">编辑</button>' : ''}</div>` : (isOwner ? '<div class="profile-region" style="margin-top:6px">暂无公告<button class="ann-edit-btn" type="button">发布公告</button></div>' : '')}
       </div>
       <div class="profile-members">
@@ -3069,8 +3076,46 @@ async function openGroupProfile(groupId) {
     </div>`;
   document.body.appendChild(mask);
   mask.querySelectorAll('.profile-member').forEach(el => {
-    el.onclick = () => { mask.remove(); const mid = parseInt(el.dataset.mid); if (mid && state.friends.some(f => f.id === mid)) selectPeer(mid); };
+    el.onclick = async () => {
+      const mid = parseInt(el.dataset.mid);
+      if (!mid) return;
+      if (isOwner && state.me && mid !== state.me.id) {
+        if (!await scConfirm({ title: '将 ' + (el.querySelector('span') ? el.querySelector('span').textContent : '该成员') + ' 移出群聊？', okText: '移出' })) return;
+        try {
+          const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/remove', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+            body: JSON.stringify({ userId: mid })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || '操作失败');
+          toast('已移出群聊', 'success');
+          mask.remove();
+          loadGroups();
+          openGroupProfile(groupId);
+        } catch (e) { toast('移出失败：' + e.message, 'error'); }
+        return;
+      }
+      mask.remove();
+      if (state.friends.some(f => f.id === mid)) selectPeer(mid);
+    };
   });
+  const nickRow = mask.querySelector('.group-nick-row');
+  if (nickRow) nickRow.onclick = async () => {
+    const val = await scAsk({ title: '我在本群的昵称', value: myNickname, placeholder: '留空则使用昵称', maxLength: 32, okText: '保存' });
+    if (val == null) return;
+    try {
+      const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/nickname', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+        body: JSON.stringify({ nickname: String(val).trim() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '保存失败');
+      toast('昵称已更新', 'success');
+      mask.remove();
+      loadGroups();
+      openGroupProfile(groupId);
+    } catch (e) { toast('保存失败：' + e.message, 'error'); }
+  };
   const annEditBtn = mask.querySelector('.ann-edit-btn');
   if (annEditBtn) annEditBtn.onclick = async () => {
     const cur = announcement && announcement.content ? announcement.content : '';
