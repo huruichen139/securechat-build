@@ -1320,8 +1320,6 @@ html.is-mobile .mobile-bottom-nav {
 .sidebar, .main { border-radius: 10px !important; }
 .page-body .contact-section { border-radius: 10px !important; }
 
-body[data-bubble-style="pill"] .msg .bubble { border-radius: 10px !important; }
-
 /* ---------- 平面化覆盖层 3：欢迎页 ---------- */
 .welcome-panel { padding: 28px 20px !important; }
 .welcome-panel h1 {

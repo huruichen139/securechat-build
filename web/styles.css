@@ -2965,10 +2965,10 @@ body.acrylic-off .composer,
 body.acrylic-off .auth-card { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--surface, #fff) !important; }
 body.acrylic-off html, body.acrylic-off body,
 body.acrylic-off body::before { background: var(--bg, #f5f5f5) !important; animation: none !important; }
-body[data-bubble-style="sharp"] .msg .bubble { border-radius: 2px !important; }
-body[data-bubble-style="pill"] .msg .bubble { border-radius: 18px 18px 18px 4px !important; }
-body[data-bubble-style="pill"] .msg.mine .bubble { border-radius: 18px 18px 4px 18px !important; }
-body[data-bubble-style=""] .msg .bubble { border-radius: 10px !important; }
+body[data-bubble-style="sharp"] #chatView .messages .msg-row .bubble { border-radius: 2px !important; }
+body[data-bubble-style="pill"] #chatView .messages .msg-row .bubble { border-radius: 18px 18px 18px 4px !important; }
+body[data-bubble-style="pill"] #chatView .messages .msg-row.me .bubble { border-radius: 18px 18px 4px 18px !important; }
+body[data-bubble-style=""] #chatView .messages .msg-row .bubble { border-radius: 4px !important; }
 
 /* ============ admin 面板扩展 ============ */
 .admin-tabbar { display: flex; gap: 8px; padding: 14px 16px 0; }
