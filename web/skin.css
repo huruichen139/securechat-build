@@ -3149,3 +3149,18 @@ body.dark-mode .forward-card{background:#191919!important;color:#d6d6d6!importan
 body.dark-mode .forward-card .profile-member{border-color:#2a2a2a!important}
 /* dark mode: at panel (actual class at-panel) */
 body.dark-mode .at-panel{background:#2c2c2c!important;color:#d6d6d6!important}
+/* message hover actions above bubble, single line */
+#chatView .messages .msg-row .message-actions{top:auto!important;bottom:100%!important;margin-top:0!important;margin-bottom:2px!important;flex-wrap:nowrap!important;width:max-content!important;max-width:none!important;height:auto!important}
+#chatView .messages .msg-row.me .message-actions{left:auto!important;right:0!important}
+#chatView .messages .msg-row:not(.me) .message-actions{left:0!important;right:auto!important}
+/* desktop 860px center override */
+@media (min-width:761px){
+#chatView #contactsPage .page-body,#chatView #discoverPage .page-body,#chatView #mePage .page-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
+#chatView #settingsPanel .settings-content,#chatView #settingsPanel .settings-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
+#chatView #momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
+}
+#chatView .messages .msg-row .message-actions{margin-bottom:6px!important}
+@media (min-width:761px){
+#settingsPanel .settings-content,#settingsPanel .settings-body{max-width:860px!important;margin:0 auto!important;width:100%!important}
+#momentsPage .moments-feed{max-width:760px!important;margin:0 auto!important}
+}

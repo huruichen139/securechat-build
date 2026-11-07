@@ -1113,7 +1113,7 @@ body.dark-mode .sidebar-mini-stats b { color: #d6d6d6; }
 .admin-nav-item span { font-size: 13px; font-weight: 700; }
 .admin-nav-item small { font-size: 10px; color: #94a3b8; }
 .admin-nav-item:hover { color: var(--primary); background: var(--primary-soft); }
-.admin-nav-item.active { color: var(--primary); background: #f4f8ff; border-color: #d5e3ff; box-shadow: 0 4px 12px rgba(7,193,96,.08); }
+.admin-nav-item.active { color: var(--primary); background: #e8f8ef; border-color: #cdeedd; box-shadow: 0 4px 12px rgba(7,193,96,.08); }
 .admin-side-bottom { flex: 0 0 48px; display: flex; align-items: center; gap: 8px; padding: 0 18px; color: #7a7a7a; font-size: 11px; border-top: 1px solid #eef2f7; }
 .admin-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
 .admin-workspace { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }

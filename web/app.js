@@ -1971,7 +1971,11 @@ function openFeatureModalFrom(feature, method, hint) {
       const box = document.createElement('div'); box.className = 'modal';
       box.style.cssText = 'width:min(620px,94vw);max-height:88vh;overflow:auto';
       const head = document.createElement('div'); head.className = 'modal-head';
-      const h3 = document.createElement('h3'); h3.textContent = (feature._title || method) + '';
+      const rawTitle = String(feature._title || method || '');
+      const fallbackTitles = { homePanel: '钱包' };
+      let titleText = t(rawTitle, '');
+      if (!titleText || titleText === rawTitle) titleText = fallbackTitles[rawTitle] || rawTitle;
+      const h3 = document.createElement('h3'); h3.textContent = titleText;
       const xBtn = document.createElement('button'); xBtn.className = 'modal-x'; xBtn.type = 'button'; xBtn.innerHTML = '&times;';
       head.appendChild(h3); head.appendChild(xBtn); box.appendChild(head);
       const host = document.createElement('div'); box.appendChild(host);
@@ -3092,7 +3096,8 @@ function openPeerProfile(peerId) {
   mask.className = 'profile-mask';
   const region = [peer.country, peer.province, peer.city].filter(Boolean).join(' ');
   mask.innerHTML = `
-    <div class="profile-card">
+    <div class="profile-card" style="position:relative">
+      <button class="profile-x" type="button" aria-label="关闭" style="position:absolute;top:6px;right:8px;z-index:2;background:transparent;border:none;font-size:22px;line-height:1;color:#b2b2b2;cursor:pointer;padding:4px 6px">×</button>
       <div class="profile-head">
         <div class="profile-avatar">${peer.avatar ? '<img src="' + escapeHtml(peer.avatar) + '">' : avatarChar(peer.nickname)}</div>
         <div class="profile-name">${escapeHtml(peer.nickname || peer.username)}</div>
@@ -3108,6 +3113,8 @@ function openPeerProfile(peerId) {
       </div>
     </div>`;
   document.body.appendChild(mask);
+  const peerCloseBtn = mask.querySelector('.profile-x');
+  if (peerCloseBtn) peerCloseBtn.onclick = () => mask.remove();
   mask.querySelector('#profileMsgBtn').onclick = () => { mask.remove(); selectPeer(peer.id); };
   const pv = mask.querySelector('#profileVoiceBtn');
   if (pv) pv.onclick = () => { mask.remove(); selectPeer(peer.id); startOutgoingCall('voice'); };
@@ -3146,7 +3153,8 @@ async function openGroupProfile(groupId) {
   const mask = document.createElement('div');
   mask.className = 'profile-mask';
   mask.innerHTML = `
-    <div class="profile-card">
+    <div class="profile-card" style="position:relative">
+      <button class="profile-x" type="button" aria-label="关闭" style="position:absolute;top:6px;right:8px;z-index:2;background:transparent;border:none;font-size:22px;line-height:1;color:#b2b2b2;cursor:pointer;padding:4px 6px">×</button>
       <div class="profile-head">
         <div class="profile-avatar">${escapeHtml((displayName || '群').charAt(0))}</div>
         <div class="profile-name">${escapeHtml(displayName || g.name)}</div>
@@ -3166,6 +3174,8 @@ async function openGroupProfile(groupId) {
       </div>
     </div>`;
   document.body.appendChild(mask);
+  const groupCloseBtn = mask.querySelector('.profile-x');
+  if (groupCloseBtn) groupCloseBtn.onclick = () => mask.remove();
   mask.querySelectorAll('.profile-member').forEach(el => {
     el.onclick = async () => {
       const mid = parseInt(el.dataset.mid);
@@ -7046,9 +7056,24 @@ document.addEventListener('click', function(e){
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' && e.key !== 'Esc') return;
     const layer = topLayer();
-    if (!layer) return;
-    const closer = layer.querySelector('.modal-x, .profile-close, .sc-overlay-close');
-    if (closer) closer.click();
-    else layer.remove();
+    if (layer) {
+      const closer = layer.querySelector('.modal-x, .profile-close, .profile-x, .sc-overlay-close');
+      if (closer) closer.click();
+      else layer.remove();
+      return;
+    }
+    const settings = document.getElementById('settingsPanel');
+    if (settings && isVisible(settings)) {
+      const back = settings.querySelector('.settings-back');
+      if (back) back.click();
+      else settings.style.display = 'none';
+      return;
+    }
+    const moments = document.getElementById('momentsPage');
+    if (moments && (moments.classList.contains('active') || isVisible(moments))) {
+      const back = moments.querySelector('[data-role="back"], .back-btn');
+      if (back) back.click();
+      else moments.classList.remove('active');
+    }
   }, true);
 })();

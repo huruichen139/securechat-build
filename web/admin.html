@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SecureChat 管理员后台</title>
+<link rel="icon" href="data:," />
 <link rel="stylesheet" href="styles.css?v=admin-i18n-20261031-1" />
 <link rel="stylesheet" href="theme-white.css?v=12" />
 <script>
@@ -12,6 +13,13 @@
     var host = location.hostname || '';
     window.SERVER_HOST = location.origin;
   })();
+  // 兼容旧脚本残留的 $ 选择器调用，避免 ReferenceError 中断后台初始化。
+  if (typeof window.$ !== 'function') {
+    window.$ = function (sel) {
+      if (typeof sel !== 'string') return sel;
+      return sel.charAt(0) === '#' ? document.getElementById(sel.slice(1)) : document.querySelector(sel);
+    };
+  }
 </script>
 </head>
 <body class="admin-body">
