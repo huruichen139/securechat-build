@@ -3760,4 +3760,10 @@ body.dark-mode ::-webkit-scrollbar-thumb{background:#4a4a4a}
 :focus-visible{outline:2px solid #07c160;outline-offset:2px}
 button{transition:background-color .15s ease,color .15s ease,opacity .15s ease}
 ::selection{background:#b8ebc9;color:#111}
-html{-webkit-tap-highlight-color:transparent}html body .contact .last,html body .contact .name,html body .contact .time{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+html{-webkit-tap-highlight-color:transparent}html body .contact .last,html body .contact .name,html body .contact .time{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}@media(min-width:761px){
+  #mePage,#discoverPage,#contactsPage,#blocklistPage{background:#ededed!important}
+  #mePage .page-header,#discoverPage .page-header,#contactsPage .page-header,#blocklistPage .page-header{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;border-bottom:1px solid #f0f0f0!important}
+  html body #chatView #mePage .page-body,html body #chatView #discoverPage .page-body,html body #chatView #contactsPage .page-body,html body #chatView #blocklistPage .page-body{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important}
+}body.dark-mode #chatView #mePage .page-body,body.dark-mode #chatView #discoverPage .page-body,body.dark-mode #chatView #contactsPage .page-body,body.dark-mode #chatView #blocklistPage .page-body{background:#2c2c2c!important;box-shadow:none!important}
+body.dark-mode #mePage .page-header,body.dark-mode #discoverPage .page-header,body.dark-mode #contactsPage .page-header,body.dark-mode #blocklistPage .page-header{background:#2c2c2c!important;border-bottom-color:#3a3a3a!important}
+body.dark-mode #mePage,body.dark-mode #discoverPage,body.dark-mode #contactsPage,body.dark-mode #blocklistPage{background:#191919!important}
