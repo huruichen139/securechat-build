@@ -3796,4 +3796,6 @@ body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .momen
 html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}html body #groupAnnounceBanner:empty{display:none!important;margin:0!important;padding:0!important;height:0!important}html body #chatView #friendsSide .section-label,html body #chatView #friendsSide .group-actions{display:none!important}
 html body #chatView #friendsSide .add-friend{display:none!important}
 html body #chatView #friendsSide.show-add .add-friend{display:flex!important;margin-top:8px}html.is-mobile #chatDesktopComposer{display:none!important}@media (min-width: 761px) { #chatView .emoji-panel { width: 420px !important; max-width: calc(100% - 16px) !important; right: auto !important; } }
-#chatDesktopComposer .tool:not(:has(svg)):not(.rp-tool-btn) { display: none !important; }html.is-mobile #chatView .messages .msg-row .bubble-wrap { max-width: 72% !important; }
+#chatDesktopComposer .tool:not(:has(svg)):not(.rp-tool-btn) { display: none !important; }html.is-mobile #chatView .messages .msg-row .bubble-wrap { max-width: 72% !important; }html.is-mobile #friendsSide { padding: 6px 12px 4px !important; }
+html.is-mobile #friendsSide .mobile-list-title { height: 38px !important; line-height: 38px !important; font-size: 17px !important; }
+html.is-mobile #friendsSide #search { margin-top: 6px !important; }
