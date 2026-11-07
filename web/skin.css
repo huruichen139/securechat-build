@@ -2856,3 +2856,6 @@ body.dark-mode .msg-row.search-current .bubble{background:#123a24!important}
 #chatView .messages.msg-font-s .msg-row .bubble{font-size:13px!important}
 #chatView .messages.msg-font-m .msg-row .bubble{font-size:15px!important}
 #chatView .messages.msg-font-l .msg-row .bubble{font-size:17px!important}
+/* user chat background wins over theme/mobile defaults */
+#chatView .messages, #chatView .main .messages{background:var(--chat-bg,#ededed)!important}
+body.dark-mode #chatView .main .messages{background:var(--chat-bg,#111111)!important}

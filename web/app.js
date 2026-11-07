@@ -2067,8 +2067,11 @@ function openFeedback() {
 }
 
 // 背景图按用户ID隔离存储，每个用户各自的背景
-function bgKey() { return 'sc_chatbg_' + (state.me && state.me.id || 'anon'); }
-function getChatBg() { return localStorage.getItem(bgKey()); }
+function bgKey() { return 'chatBgColor_' + (state.me && state.me.id || 'anon'); }
+function getChatBg() {
+  const k = bgKey();
+  return localStorage.getItem(k) || localStorage.getItem('sc_chatbg_' + (state.me && state.me.id || 'anon')) || '';
+}
 function setChatBg(uri) {
   if (uri) {
     try { localStorage.setItem(bgKey(), uri); }
@@ -2151,7 +2154,10 @@ function applyChatBg(uri) {
       document.documentElement.style.removeProperty('--chat-bg');
     }
   } catch (e) {}
-  try { localStorage.setItem('chatBgColor_' + (state.me && state.me.id || 'anon'), uri || ''); } catch (e) {}
+  try {
+    const bk = 'chatBgColor_' + (state.me && state.me.id || 'anon');
+    if (uri) localStorage.setItem(bk, uri); else localStorage.removeItem(bk);
+  } catch (e) {}
 }
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
 
