@@ -606,21 +606,21 @@
     const grid = document.createElement('div');
     grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:12px';
     const items = [
-      { label: '转账', icon: '→', fn: openTransfer },
-      { label: '收款码', icon: '￥', fn: () => showReceiveCodeFlow() },
-      { label: '付款码', icon: '◈', fn: () => Pay.createPayCode().then(r => showCodePanel(r, "pay", () => Pay.createPayCode())).catch(e => showToast('生成失败：' + e.message, 'error')) },
-      { label: '扫一扫', icon: '▦', fn: () => scanFlow('receive') },
-      { label: '群收款', icon: '⊞', fn: () => openGroupCollect() },
-      { label: '群接龙', icon: '≡', fn: () => openGroupSolection() },
-      { label: '充值', icon: '¥', fn: () => rechargeEntry() },
-      { label: '缴费', icon: '▤', fn: () => openLifePay() },
+      { label: '转账', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>', fn: openTransfer },
+      { label: '收款码', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2h-2zM18 18h2v2h-2z"/></svg>', fn: () => showReceiveCodeFlow() },
+      { label: '付款码', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M4 5v14M8 5v14M11 5v14M15 5v14M18 5v14M21 5v14"/></svg>', fn: () => Pay.createPayCode().then(r => showCodePanel(r, "pay", () => Pay.createPayCode())).catch(e => showToast('生成失败：' + e.message, 'error')) },
+      { label: '扫一扫', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/></svg>', fn: () => scanFlow('receive') },
+      { label: '群收款', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.2"/><path d="M15 20a5 5 0 0 1 6-4.8"/></svg>', fn: () => openGroupCollect() },
+      { label: '群接龙', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M5 6h14M5 12h9M5 18h11"/><path d="M17 15l2 2 3-4"/></svg>', fn: () => openGroupSolection() },
+      { label: '充值', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>', fn: () => rechargeEntry() },
+      { label: '缴费', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>', fn: () => openLifePay() },
     ];
     items.forEach((it) => {
       const cell = document.createElement('button');
       cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border:0;border-radius:0;background:var(--bg,#fff);cursor:pointer';
       const ic = document.createElement('div');
-      ic.style.cssText = 'width:36px;height:36px;border-radius:4px;background:#f2f2f2;color:var(--text,#191919);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500';
-      ic.textContent = it.icon;
+      ic.style.cssText = 'width:36px;height:36px;border-radius:4px;background:#e8f8ef;color:#07c160;display:flex;align-items:center;justify-content:center';
+      ic.innerHTML = it.icon;
       const lb = document.createElement('div'); lb.textContent = it.label; lb.style.cssText = 'font-size:12px;color:#555';
       cell.appendChild(ic); cell.appendChild(lb);
       cell.onclick = it.fn;
