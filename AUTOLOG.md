@@ -221,3 +221,11 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - 模块：pay/polls/todos/remind/translate/videos/live 深色与微信卡片化；modules.css 修复 oa-container/sc-status-panel/sc-mext-panel 被当全屏遮罩；modal 宽度 min(calc(100vw-32px))、下载页去蓝底/去死区、merchant/wallet-pay 转绿。
 - 回归：smoke2/func/audit3/msw/ov/mdarkmods2/mlogin4 全 PASS，ERRS 空；320 弹窗 288 无溢出、下载页 bottom=0、AI header 44px。
 - commits: e846ee9, a90e84a, e766dd3。
+## 2026-11-07 第二轮：桌面布局 / 深色修复 / 全站去蓝 / 登录增强
+- 桌面：设置面板左留 72px rail、朋友圈对齐、页头统一 60px、内容 860px 居中（contacts/discover/me/settings，双 ID 选择器压过 max-width:none）、消息悬停操作条移到气泡上方单行显示（gap 6px，不遮下一条）。
+- 深色：聊天返回/更多按钮与输入栏图标、图片预览/语音条/转发/At 面板；设置/朋友圈深色扫描 0 白块。
+- 全站去蓝：index/admin/merchant/wallet-pay/styles/theme-white/theme-v2/scan/notes/tools 旧蓝色清零，功能磁贴与模块按钮统一微信绿灰；FEATURE_GRADS 收敛为 4 个绿色/灰色渐变。
+- 登录：密码框「显示/隐藏」切换；Esc 可关设置/朋友圈/最上层弹窗；钱包标题 homePanel→钱包；资料卡补 × 关闭按钮。
+- 无障碍：图标按钮补 aria-label/title。
+- 回归：smoke2/func/msw/ov 全绿，EVENTS 0、ERRS 空；320/1440 无横向溢出。
+- commits: 434a357, e3ad37a, b8cbcc4, 841c86a, 96b1e34, 0957fc0。
