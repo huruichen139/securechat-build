@@ -659,7 +659,7 @@ function applyLoginMode() {
   // 密码登录专属提示与“忘记密码”入口：仅登录-密码模式显示
   const showPwLogin = !showReg && loginMode === 'password';
   const pwHint = $('pwLoginHint');
-  if (pwHint) pwHint.style.display = showPwLogin ? 'block' : 'none';
+  if (pwHint) pwHint.style.display = 'none';
   const forgotRow = $('forgotPwRow');
   if (forgotRow) forgotRow.style.display = showPwLogin ? 'block' : 'none';
   const qa = $('qrLoginArea');
