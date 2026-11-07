@@ -4081,10 +4081,13 @@ function showAtPanel(anchorInput) {
   const members = (g && g.members) || [];
   if (!members.length) return;
   hideAtPanel();
-  const list = members.map(id => {
-    const u = state.friends.find(f => f.id === id);
-    return { id, name: u ? (u.nickname || u.username) : ('用户' + id) };
-  });
+  const list = members.map(m => {
+    if (m && typeof m === 'object') {
+      return { id: m.id, name: m.myNickname || m.nickname || m.username || ('用户' + m.id) };
+    }
+    const u = state.friends.find(f => f.id === m);
+    return { id: m, name: u ? (u.nickname || u.username) : ('用户' + m) };
+  }).filter(m => !state.me || String(m.id) !== String(state.me.id));
   atPanel = document.createElement('div');
   atPanel.className = 'at-panel';
   atPanel.innerHTML = list.map(m => '<div class="at-item" data-id="' + m.id + '">' + escapeHtml(m.name) + '</div>').join('');
