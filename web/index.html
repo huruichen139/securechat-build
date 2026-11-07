@@ -13,20 +13,20 @@
   --bg:#fff;--bg2:#f7f8fa;--bg3:#f0f1f5;
   --border:#e8e9ee;--border2:#dcdde3;
   --text:#17181c;--text2:#5b5d66;--text3:#9a9ca6;
-  --brand:#2563eb;--brand-dark:#1d4ed8;--blue:#3376ff;
+  --brand:#07c160;--brand-dark:#06a854;--blue:#3376ff;
   --shadow-s:0 1px 4px rgba(20,24,40,.05);
   --shadow-m:0 6px 24px rgba(20,24,40,.08);
   --shadow-l:0 16px 48px rgba(20,24,40,.12);
 }
 html{scroll-behavior:smooth}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-::selection{background:rgba(37,99,235,.18)}
+::selection{background:rgba(7,193,96,.18)}
 
 /* ===== NAV ===== */
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;height:60px;padding:0 max(40px,calc((100% - 1200px)/2));display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.72);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
 .nav.scrolled{border-bottom-color:var(--border);box-shadow:var(--shadow-s)}
 .nav-logo{font-size:17px;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
-.logo-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--brand),#2563eb);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;box-shadow:0 2px 8px rgba(37,99,235,.3);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.logo-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--brand),#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;box-shadow:0 2px 8px rgba(7,193,96,.3);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .nav-logo:hover .logo-mark{transform:rotate(-8deg) scale(1.08)}
 .nav-links{display:flex;gap:28px;align-items:center}
 .nav-links a.nl{font-size:14px;color:var(--text2);text-decoration:none;position:relative;padding:4px 0;transition:color .2s}
@@ -34,28 +34,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .nav-links a.nl:hover{color:var(--text)}
 .nav-links a.nl:hover::after{width:100%}
 .btn-open{padding:8px 20px;font-size:14px;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:8px;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-block}
-.btn-open:hover{background:var(--brand-dark);transform:translateY(-1px);box-shadow:0 6px 18px rgba(37,99,235,.35)}
+.btn-open:hover{background:var(--brand-dark);transform:translateY(-1px);box-shadow:0 6px 18px rgba(7,193,96,.35)}
 .btn-open:active{transform:scale(.97)}
 
 /* ===== HERO ===== */
 .hero{position:relative;padding:150px 24px 90px;text-align:center;overflow:hidden}
-.hero-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:900px;height:500px;background:radial-gradient(ellipse at center,rgba(37,99,235,.13),rgba(51,118,255,.07) 45%,transparent 70%);filter:blur(20px);pointer-events:none;animation:breathe 8s ease-in-out infinite}
+.hero-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:900px;height:500px;background:radial-gradient(ellipse at center,rgba(7,193,96,.13),rgba(51,118,255,.07) 45%,transparent 70%);filter:blur(20px);pointer-events:none;animation:breathe 8s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:.8;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.08)}}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;margin-bottom:28px;font-size:13px;font-weight:600;color:var(--brand-dark);background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:99px;cursor:pointer;transition:all .25s}
-.hero-badge:hover{background:rgba(37,99,235,.14);transform:translateY(-2px);box-shadow:0 4px 14px rgba(37,99,235,.2)}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;margin-bottom:28px;font-size:13px;font-weight:600;color:var(--brand-dark);background:rgba(7,193,96,.08);border:1px solid rgba(7,193,96,.2);border-radius:99px;cursor:pointer;transition:all .25s}
+.hero-badge:hover{background:rgba(7,193,96,.14);transform:translateY(-2px);box-shadow:0 4px 14px rgba(7,193,96,.2)}
 .hero-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.5)}50%{box-shadow:0 0 0 6px rgba(37,99,235,0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(7,193,96,.5)}50%{box-shadow:0 0 0 6px rgba(7,193,96,0)}}
 .hero h1{font-size:clamp(38px,6vw,68px);font-weight:800;line-height:1.12;letter-spacing:-.03em;color:var(--text)}
 .hero h1 em{font-style:normal;background:linear-gradient(120deg,var(--brand),#3376ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero-sub{margin:22px auto 0;font-size:clamp(15px,1.8vw,18px);color:var(--text2);max-width:520px;line-height:1.75}
 .hero-actions{margin-top:40px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.btn-main{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;padding:14px 36px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--brand),#2563eb);border:none;border-radius:12px;cursor:pointer;text-decoration:none;transition:all .25s cubic-bezier(.22,1,.36,1);box-shadow:0 8px 24px rgba(37,99,235,.3)}
+.btn-main{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;padding:14px 36px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--brand),#07c160);border:none;border-radius:12px;cursor:pointer;text-decoration:none;transition:all .25s cubic-bezier(.22,1,.36,1);box-shadow:0 8px 24px rgba(7,193,96,.3)}
 .btn-main::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.35),transparent 70%);transform:translateX(-110%);transition:transform .6s}
-.btn-main:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(37,99,235,.42)}
+.btn-main:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(7,193,96,.42)}
 .btn-main:hover::before{transform:translateX(110%)}
 .btn-main:active{transform:scale(.96)}
 .btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;font-size:16px;font-weight:600;color:var(--text);background:#fff;border:1px solid var(--border2);border-radius:12px;cursor:pointer;text-decoration:none;transition:all .25s;box-shadow:var(--shadow-s)}
-.btn-ghost:hover{border-color:var(--brand);color:var(--brand);transform:translateY(-3px);box-shadow:0 10px 26px rgba(37,99,235,.14)}
+.btn-ghost:hover{border-color:var(--brand);color:var(--brand);transform:translateY(-3px);box-shadow:0 10px 26px rgba(7,193,96,.14)}
 .btn-ghost:active{transform:scale(.96)}
 .hero-note{margin-top:18px;font-size:13px;color:var(--text3)}
 
@@ -65,7 +65,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .mockup-stage:hover .mockup{transform:rotateX(0)}
 .mk-titlebar{height:40px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 16px}
 .mk-dot{width:11px;height:11px;border-radius:50%}
-.mk-dot:nth-child(1){background:#ff5f57}.mk-dot:nth-child(2){background:#febc2e}.mk-dot:nth-child(3){background:#2563eb}
+.mk-dot:nth-child(1){background:#ff5f57}.mk-dot:nth-child(2){background:#febc2e}.mk-dot:nth-child(3){background:#07c160}
 .mk-title{flex:1;text-align:center;font-size:12px;color:var(--text3)}
 .mk-body{display:flex;height:420px}
 .mk-side{width:230px;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
@@ -114,7 +114,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .feat-card:hover::after{transform:scaleX(1)}
 .feat-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:20px;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .feat-card:hover .feat-ico{transform:scale(1.12) rotate(-6deg)}
-.fi-green{background:rgba(37,99,235,.1);color:var(--brand)}
+.fi-green{background:rgba(7,193,96,.1);color:var(--brand)}
 .fi-blue{background:rgba(51,118,255,.09);color:var(--blue)}
 .fi-orange{background:rgba(255,148,62,.12);color:#f07800}
 .fi-purple{background:rgba(136,84,255,.1);color:#8854ff}
@@ -133,7 +133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .sc-copy p{font-size:15.5px;color:var(--text2);line-height:1.8;margin-bottom:20px;max-width:440px}
 .sc-tags{display:flex;gap:10px;flex-wrap:wrap}
 .sc-tag{padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--text2);background:#fff;border:1px solid var(--border);border-radius:99px;transition:all .2s;cursor:default}
-.sc-tag:hover{color:var(--brand);border-color:rgba(37,99,235,.4);background:rgba(37,99,235,.05);transform:translateY(-2px)}
+.sc-tag:hover{color:var(--brand);border-color:rgba(7,193,96,.4);background:rgba(7,193,96,.05);transform:translateY(-2px)}
 /* phone mockups */
 .phone-wrap{display:flex;justify-content:center;perspective:1200px}
 .phone{width:280px;height:560px;background:#111;border-radius:38px;padding:10px;box-shadow:0 30px 70px rgba(20,24,40,.25);transform:rotateY(-8deg) rotateX(3deg);transition:transform .6s cubic-bezier(.22,1,.36,1)}
@@ -156,19 +156,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .stats-band{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden;max-width:1000px;margin:0 auto}
 .stat-c{background:#fff;padding:38px 20px;text-align:center;transition:background .25s}
 .stat-c:hover{background:var(--bg2)}
-.stat-n{font-size:clamp(30px,4.4vw,44px);font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,#17181c,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-n{font-size:clamp(30px,4.4vw,44px);font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,#17181c,#07c160);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .stat-l{margin-top:4px;font-size:13px;color:var(--text2);font-weight:500}
 
 /* ===== DOWNLOAD ===== */
 .dl-section{text-align:center;padding:110px 24px}
 .os-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:860px;margin:52px auto 0}
 .os-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:34px 24px;text-decoration:none;color:var(--text);transition:all .35s cubic-bezier(.22,1,.36,1);cursor:pointer;display:block;position:relative;overflow:hidden}
-.os-card:hover{transform:translateY(-8px);box-shadow:0 20px 44px rgba(37,99,235,.16);border-color:rgba(37,99,235,.35)}
+.os-card:hover{transform:translateY(-8px);box-shadow:0 20px 44px rgba(7,193,96,.16);border-color:rgba(7,193,96,.35)}
 .os-ic{font-size:38px;margin-bottom:12px;display:block;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .os-card:hover .os-ic{transform:scale(1.18)}
 .os-name{font-size:16px;font-weight:700}
 .os-ver{margin-top:4px;font-size:12.5px;color:var(--text3)}
-.os-btn{margin-top:16px;display:inline-flex;align-items:center;gap:6px;padding:8px 22px;font-size:13px;font-weight:600;color:var(--brand);background:rgba(37,99,235,.08);border-radius:8px;transition:all .2s}
+.os-btn{margin-top:16px;display:inline-flex;align-items:center;gap:6px;padding:8px 22px;font-size:13px;font-weight:600;color:var(--brand);background:rgba(7,193,96,.08);border-radius:8px;transition:all .2s}
 .os-card:hover .os-btn{background:var(--brand);color:#fff}
 
 /* ===== FOOTER ===== */
@@ -183,7 +183,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .hero-badge{animation-delay:.05s}.hero h1{animation-delay:.15s}.hero-sub{animation-delay:.3s}.hero-actions{animation-delay:.45s}.hero-note{animation-delay:.6s}
 @keyframes heroIn{to{opacity:1;transform:none}}
 .blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none;animation:blobMove 14s ease-in-out infinite alternate}
-.blob-1{width:340px;height:340px;background:rgba(37,99,235,.16);top:-60px;left:-120px}
+.blob-1{width:340px;height:340px;background:rgba(7,193,96,.16);top:-60px;left:-120px}
 .blob-2{width:280px;height:280px;background:rgba(51,118,255,.13);top:120px;right:-100px;animation-delay:-4s}
 .blob-3{width:240px;height:240px;background:rgba(136,84,255,.1);bottom:-80px;left:30%;animation-delay:-8s}
 @keyframes blobMove{from{transform:translate(0,0) scale(1)}to{transform:translate(50px,-40px) scale(1.18)}}
@@ -196,12 +196,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .os-ic{width:64px;height:64px;margin:0 auto 12px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .os-w{background:rgba(51,118,255,.1);color:#3376ff}
 .os-m{background:rgba(23,24,28,.06);color:#17181c}
-.os-a{background:rgba(37,99,235,.1);color:#2563eb}
+.os-a{background:rgba(7,193,96,.1);color:#07c160}
 .os-i{background:rgba(136,84,255,.1);color:#8854ff}
 .os-z{background:rgba(255,148,62,.12);color:#f07800}
 .os-g{background:rgba(0,168,168,.1);color:#00a8a8}
 [data-tilt]{will-change:transform;transition:transform .18s ease-out}
-.ripple{position:absolute;border-radius:50%;background:rgba(37,99,235,.25);transform:scale(0);animation:rip .6s ease-out forwards;pointer-events:none}
+.ripple{position:absolute;border-radius:50%;background:rgba(7,193,96,.25);transform:scale(0);animation:rip .6s ease-out forwards;pointer-events:none}
 @keyframes rip{to{transform:scale(3);opacity:0}}
 .btn-main,.btn-open,.os-btn{position:relative;overflow:hidden}
 .mk-row.me:last-child .mk-bubble::after{content:'';display:inline-block;width:5px;height:11px;margin-left:3px;vertical-align:-1px;background:#333;animation:caret .9s steps(1) infinite}
@@ -209,9 +209,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 
 /* ===== ANIMATION OVERDOSE ===== */
 /* 1. 光标跟随光晕 */
-.cursor-glow{position:fixed;width:340px;height:340px;border-radius:50%;pointer-events:none;z-index:1;background:radial-gradient(circle,rgba(37,99,235,.07),transparent 65%);transform:translate(-50%,-50%);transition:opacity .3s}
+.cursor-glow{position:fixed;width:340px;height:340px;border-radius:50%;pointer-events:none;z-index:1;background:radial-gradient(circle,rgba(7,193,96,.07),transparent 65%);transform:translate(-50%,-50%);transition:opacity .3s}
 /* 2. 背景动态网格 */
-.animated-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(37,99,235,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.035) 1px,transparent 1px);background-size:56px 56px;animation:gridDrift 22s linear infinite}
+.animated-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(7,193,96,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(7,193,96,.035) 1px,transparent 1px);background-size:56px 56px;animation:gridDrift 22s linear infinite}
 @keyframes gridDrift{to{background-position:56px 112px}}
 /* 3. 章节标题逐词浮现 */
 .sec-head h2 .w{display:inline-block;opacity:0;transform:translateY(.6em) rotate(4deg);transition:all .55s cubic-bezier(.22,1,.36,1)}
@@ -233,19 +233,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .feat-card:nth-child(3n) .feat-ico{animation-delay:-2.3s}
 @keyframes icoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 /* 8. 下载卡扫光循环 */
-.os-card::before{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(37,99,235,.06),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
+.os-card::before{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(7,193,96,.06),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
 .os-card:nth-child(2)::before{animation-delay:1.2s}.os-card:nth-child(3)::before{animation-delay:2.4s}.os-card:nth-child(4)::before{animation-delay:.6s}.os-card:nth-child(5)::before{animation-delay:1.8s}.os-card:nth-child(6)::before{animation-delay:3s}
 @keyframes sheen{0%,55%{left:-80%}90%,100%{left:140%}}
 /* 9. 统计带流光边框 */
 .stats-band{position:relative}
-.stats-band::after{content:'';position:absolute;inset:-1px;border-radius:17px;padding:1px;background:linear-gradient(120deg,rgba(37,99,235,.4),transparent 30%,transparent 70%,rgba(51,118,255,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;background-size:220% 220%;animation:borderFlow 6s linear infinite;pointer-events:none}
+.stats-band::after{content:'';position:absolute;inset:-1px;border-radius:17px;padding:1px;background:linear-gradient(120deg,rgba(7,193,96,.4),transparent 30%,transparent 70%,rgba(51,118,255,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;background-size:220% 220%;animation:borderFlow 6s linear infinite;pointer-events:none}
 @keyframes borderFlow{0%{background-position:0% 0}100%{background-position:200% 0}}
 /* 10. 徽章摇摆 */
 .hero-badge:hover .dot{animation:wiggle .5s ease-in-out infinite}
 @keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(20deg) scale(1.2)}75%{transform:rotate(-20deg) scale(1.2)}}
 /* 11. Logo 常驻呼吸 */
 .logo-mark{animation:logoBreath 4s ease-in-out infinite}
-@keyframes logoBreath{0%,100%{box-shadow:0 2px 8px rgba(37,99,235,.3)}50%{box-shadow:0 4px 18px rgba(37,99,235,.55)}}
+@keyframes logoBreath{0%,100%{box-shadow:0 2px 8px rgba(7,193,96,.3)}50%{box-shadow:0 4px 18px rgba(7,193,96,.55)}}
 /* 12. 波浪分隔 */
 .wave-sep{display:block;width:100%;height:60px;color:var(--bg2)}
 /* 13. 跑马灯项 hover 跳起 */
@@ -313,7 +313,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .hero,.section,.showcase{perspective:1200px;transform-style:preserve-3d}
 /* 客户端 mockup：更强 3D 悬浮 + 底部倒影 */
 .mockup-stage{perspective:1600px}
-.mockup{transform:rotateX(10deg) rotateY(-4deg);box-shadow:0 50px 100px -20px rgba(20,24,40,.28),0 30px 60px -30px rgba(37,99,235,.18),inset 0 1px 0 rgba(255,255,255,.8)}
+.mockup{transform:rotateX(10deg) rotateY(-4deg);box-shadow:0 50px 100px -20px rgba(20,24,40,.28),0 30px 60px -30px rgba(7,193,96,.18),inset 0 1px 0 rgba(255,255,255,.8)}
 .mockup::after{content:'';position:absolute;left:6%;right:6%;bottom:-34px;height:34px;background:linear-gradient(180deg,rgba(20,24,40,.14),transparent 80%);transform:rotateX(80deg);filter:blur(10px);border-radius:50%}
 /* 3D 分层悬浮芯片 */
 .float-chip{transform-style:preserve-3d;box-shadow:0 18px 36px rgba(20,24,40,.16),inset 0 1px 0 rgba(255,255,255,.9)}
@@ -323,9 +323,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .feat-card:hover{transform:translateY(-10px) rotateX(4deg) rotateY(-3deg) translateZ(24px)}
 .feat-ico{transform:translateZ(30px);box-shadow:0 8px 18px rgba(20,24,40,.12)}
 /* 3D 按钮：厚度 + 按压 */
-.btn-main{box-shadow:0 6px 0 var(--brand-dark),0 16px 30px rgba(37,99,235,.32);transform-style:preserve-3d}
-.btn-main:hover{transform:translateY(-3px);box-shadow:0 9px 0 var(--brand-dark),0 22px 44px rgba(37,99,235,.4)}
-.btn-main:active{transform:translateY(3px);box-shadow:0 2px 0 var(--brand-dark),0 8px 16px rgba(37,99,235,.3)}
+.btn-main{box-shadow:0 6px 0 var(--brand-dark),0 16px 30px rgba(7,193,96,.32);transform-style:preserve-3d}
+.btn-main:hover{transform:translateY(-3px);box-shadow:0 9px 0 var(--brand-dark),0 22px 44px rgba(7,193,96,.4)}
+.btn-main:active{transform:translateY(3px);box-shadow:0 2px 0 var(--brand-dark),0 8px 16px rgba(7,193,96,.3)}
 .btn-ghost{box-shadow:0 4px 0 var(--border2)}
 .btn-ghost:hover{transform:translateY(-3px);box-shadow:0 7px 0 var(--border2),0 16px 30px rgba(20,24,40,.1)}
 .btn-ghost:active{transform:translateY(2px);box-shadow:0 1px 0 var(--border2)}
@@ -336,7 +336,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .phone-wrap:hover .phone{translate:0 -14px!important}
 /* 下载卡 3D 立体 */
 .os-card{transform-style:preserve-3d}
-.os-card:hover{transform:translateY(-10px) rotateX(6deg) translateZ(20px);box-shadow:0 30px 60px -12px rgba(37,99,235,.22)}
+.os-card:hover{transform:translateY(-10px) rotateX(6deg) translateZ(20px);box-shadow:0 30px 60px -12px rgba(7,193,96,.22)}
 .os-ic{transform:translateZ(34px);box-shadow:0 12px 26px rgba(20,24,40,.14)}
 /* 统计带 3D 浮起 */
 .stats-band{transform-style:preserve-3d;box-shadow:0 24px 50px -18px rgba(20,24,40,.16)}
@@ -349,23 +349,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .nav{transform-style:preserve-3d}
 .nav.scrolled{box-shadow:0 10px 34px -12px rgba(20,24,40,.16)}
 /* logo 3D 硬币感 */
-.logo-mark{box-shadow:0 3px 0 #17408f,0 8px 16px rgba(37,99,235,.35);transform:translateZ(0)}
+.logo-mark{box-shadow:0 3px 0 #17408f,0 8px 16px rgba(7,193,96,.35);transform:translateZ(0)}
 .logo-mark:hover{transform:rotateX(18deg) rotateY(-18deg)}
 /* hero 徽章 3D */
-.hero-badge{box-shadow:0 4px 0 rgba(37,99,235,.25),0 10px 22px -8px rgba(37,99,235,.3)}
+.hero-badge{box-shadow:0 4px 0 rgba(7,193,96,.25),0 10px 22px -8px rgba(7,193,96,.3)}
 .hero-badge:hover{transform:translateY(-2px) rotateX(8deg)}
 
 
 /* ===== 第四批动画：粒子+逐字波浪+渐变旋转 ===== */
 .particles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-.particles i{position:absolute;bottom:-10px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.5),rgba(37,99,235,0) 70%);animation:particleUp linear infinite}
+.particles i{position:absolute;bottom:-10px;border-radius:50%;background:radial-gradient(circle,rgba(7,193,96,.5),rgba(7,193,96,0) 70%);animation:particleUp linear infinite}
 @keyframes particleUp{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:.85}88%{opacity:.5}100%{transform:translateY(-92vh) scale(.4);opacity:0}}
 .hero h1 .ch{display:inline-block;opacity:0;transform:translateY(.5em) rotate(6deg);animation:chIn .5s cubic-bezier(.34,1.56,.64,1) forwards}
 @keyframes chIn{to{opacity:1;transform:none}}
 .kicker{position:relative}
 .kicker::after{content:'';position:absolute;left:50%;bottom:-6px;width:0;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--brand),#3376ff);transform:translateX(-50%);transition:width .5s cubic-bezier(.22,1,.36,1)}
 .sec-head:hover .kicker::after{width:100%}
-.btn-main{background:linear-gradient(135deg,var(--brand),#2563eb,#3376ff);background-size:220% 220%;animation:btnGrad 5s ease-in-out infinite}
+.btn-main{background:linear-gradient(135deg,var(--brand),#07c160,#3376ff);background-size:220% 220%;animation:btnGrad 5s ease-in-out infinite}
 @keyframes btnGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 .blob{will-change:transform}
 .mockup{animation:mockFloat 6s ease-in-out infinite}
@@ -403,15 +403,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .dev:nth-child(1){animation-delay:.15s}.dev:nth-child(2){animation-delay:.3s}.dev:nth-child(3){animation-delay:.45s}.dev:nth-child(4){animation-delay:.6s}
 @keyframes devIn{0%{opacity:0;transform:translateY(40px) scale(.85)}100%{opacity:1;transform:none}}
 .dev:hover{transform:translateY(-12px) rotateX(4deg)}
-.dev-glow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:70%;height:26px;background:radial-gradient(ellipse,rgba(37,99,235,.2),transparent 70%);filter:blur(8px);animation:glowPulse 4s ease-in-out infinite}
+.dev-glow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:70%;height:26px;background:radial-gradient(ellipse,rgba(7,193,96,.2),transparent 70%);filter:blur(8px);animation:glowPulse 4s ease-in-out infinite}
 @keyframes glowPulse{0%,100%{opacity:.6;width:70%}50%{opacity:1;width:82%}}
 /* 加密流程管道 */
 .pipe{display:flex;align-items:stretch;justify-content:center;gap:14px;flex-wrap:wrap;max-width:980px;margin:0 auto}
 .pipe-step{flex:1;min-width:170px;max-width:210px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px 18px;text-align:center;transition:all .35s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
-.pipe-step:hover{transform:translateY(-8px);box-shadow:var(--shadow-l);border-color:rgba(37,99,235,.35)}
+.pipe-step:hover{transform:translateY(-8px);box-shadow:var(--shadow-l);border-color:rgba(7,193,96,.35)}
 .pipe-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:14px;background:rgba(51,118,255,.09);color:#3376ff;display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .pipe-step:hover .pipe-ico{transform:scale(1.14) rotate(-6deg)}
-.pi-lock{background:rgba(37,99,235,.1);color:var(--brand)}
+.pi-lock{background:rgba(7,193,96,.1);color:var(--brand)}
 .pi-server{background:rgba(255,148,62,.12);color:#f07800}
 .pi-unlock{background:rgba(136,84,255,.1);color:#8854ff}
 .pipe-step h4{font-size:15px;font-weight:700;margin-bottom:4px}
@@ -423,7 +423,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .cd-label{font-size:12.5px;font-weight:700;color:var(--text3);letter-spacing:.06em}
 .cd-text{font-size:20px;font-weight:800;color:var(--text)}
 .cd-arrow{font-size:22px;color:var(--brand);animation:arrowNudge 1.6s ease-in-out infinite}
-.cd-cipher{font-family:ui-monospace,Consolas,monospace;font-size:17px;font-weight:700;color:var(--brand);background:rgba(37,99,235,.08);padding:8px 16px;border-radius:8px;letter-spacing:.05em;min-width:150px;text-align:center}
+.cd-cipher{font-family:ui-monospace,Consolas,monospace;font-size:17px;font-weight:700;color:var(--brand);background:rgba(7,193,96,.08);padding:8px 16px;border-radius:8px;letter-spacing:.05em;min-width:150px;text-align:center}
 /* 图片式入场揭示 */
 .rv-img{clip-path:inset(0 0 100% 0);transition:clip-path .9s cubic-bezier(.22,1,.36,1)}
 .rv-img.in{clip-path:inset(0 0 0% 0)}
@@ -467,15 +467,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .cl-fade-top{top:0;background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,0) 100%)}
 .cl-fade-bottom{bottom:0;background:linear-gradient(0deg,#fff 0%,rgba(255,255,255,0) 100%)}
 .changelog-timeline{position:relative}
-.changelog-timeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#2563eb,#4a86f7,#e0e0e0)}
+.changelog-timeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,#07c160,#4a86f7,#e0e0e0)}
 .cl-item{position:relative;padding-left:36px;margin-bottom:32px}
-.cl-dot{width:12px;height:12px;border-radius:50%;position:absolute;left:6px;top:4px;border:2px solid #fff;box-shadow:0 0 0 2px #2563eb}
+.cl-dot{width:12px;height:12px;border-radius:50%;position:absolute;left:6px;top:4px;border:2px solid #fff;box-shadow:0 0 0 2px #07c160}
 .cl-ver{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
 .cl-date{font-size:12px;color:#888;font-weight:400;margin-left:8px}
 .cl-content p{font-size:13px;color:#666;line-height:1.6;margin:0}
 /* ============ Status Badges ============ */
 .badge-live,.badge-beta,.badge-plan{display:inline-block;font-size:11px;padding:2px 8px;border-radius:2px;font-weight:600;vertical-align:middle;margin-left:6px;line-height:1.4}
-.badge-live{background:#eaf1ff;color:#2563eb;border:1px solid #c9dcff}
+.badge-live{background:#eaf1ff;color:#07c160;border:1px solid #c9dcff}
 .badge-beta{background:#fff3e0;color:#f57c00;border:1px solid #ffe0b2}
 .badge-plan{background:#f5f5f5;color:#999;border:1px solid #e0e0e0}
 
@@ -484,11 +484,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .chat-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
 .chat-left{padding:20px}
 .chat-left h2{font-size:32px;font-weight:800;color:#1a1a1a;margin:0 0 16px}
-.chat-left h2 em{color:#2563eb;font-style:normal}
+.chat-left h2 em{color:#07c160;font-style:normal}
 .chat-left>p{color:#666;font-size:15px;line-height:1.7;margin:0 0 28px}
 .chat-feat-list{list-style:none;padding:0;margin:0}
 .chat-feat-list li{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}
-.cf-icon{width:36px;height:36px;border-radius:2px;background:#eaf1ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#2563eb;font-size:16px}
+.cf-icon{width:36px;height:36px;border-radius:2px;background:#eaf1ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#07c160;font-size:16px}
 .cf-text strong{display:block;font-size:14px;color:#1a1a1a;margin-bottom:2px}
 .cf-text span{font-size:13px;color:#888;line-height:1.5}
 
@@ -498,7 +498,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .file-card{background:#fafbfc;border:1px solid #f0f0f0;border-radius:2px;padding:28px 24px;text-align:center;transition:transform .3s,box-shadow .3s}
 .file-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.06)}
 .fc-icon{width:56px;height:56px;border-radius:2px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:24px}
-.fc-icon.green{background:#eaf1ff;color:#2563eb}
+.fc-icon.green{background:#eaf1ff;color:#07c160}
 .fc-icon.blue{background:#e3f2fd;color:#1976d2}
 .fc-icon.orange{background:#fff3e0;color:#f57c00}
 .fc-icon.teal{background:#e0f2f1;color:#00897b}
@@ -517,13 +517,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 
 /* ============ Security Section ============ */
 .sec-section{padding:100px 20px;background:#1a1a1a;color:#fff}
-.sec-section .sec-head .kicker{color:#2563eb}
+.sec-section .sec-head .kicker{color:#07c160}
 .sec-section .sec-head h2{color:#fff}
 .sec-section .sec-head p{color:rgba(255,255,255,.6)}
 .sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1100px;margin:40px auto 0}
 .sec-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:2px;padding:28px 24px;transition:transform .3s,background .3s}
 .sec-card:hover{transform:translateY(-3px);background:rgba(255,255,255,.1)}
-.sc-icon{width:44px;height:44px;border-radius:2px;background:rgba(37,99,235,.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+.sc-icon{width:44px;height:44px;border-radius:2px;background:rgba(7,193,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
 .sec-card h4{font-size:15px;color:#fff;margin:0 0 8px}
 .sec-card p{font-size:13px;color:rgba(255,255,255,.6);line-height:1.6;margin:0}
 
@@ -537,7 +537,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .cd-screen .cd-chat{padding:24px 8px 8px;font-size:9px;color:#666;text-align:left;width:100%}
 .cd-screen .cd-chat .cd-line{margin-bottom:4px}
 .cd-screen .cd-chat .cd-line.me{text-align:right}
-.cd-screen .cd-chat .cd-bub{display:inline-block;background:#2563eb;color:#fff;padding:3px 6px;border-radius:4px;font-size:8px}
+.cd-screen .cd-chat .cd-bub{display:inline-block;background:#07c160;color:#fff;padding:3px 6px;border-radius:4px;font-size:8px}
 .cd-screen .cd-chat .cd-bub.them{background:#f0f0f0;color:#333}
 .cd-name{font-size:13px;font-weight:600;color:#1a1a1a}
 .cd-type{font-size:11px;color:#888}
@@ -545,7 +545,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 /* ============ Platform Logos Row ============ */
 .plat-row{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;margin:30px auto 0;max-width:800px}
 .plat-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
-.plat-dot{width:8px;height:8px;border-radius:50%;background:#2563eb}
+.plat-dot{width:8px;height:8px;border-radius:50%;background:#07c160}
 
 
 /* ============ Contacts Section ============ */
@@ -594,7 +594,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hira
 .disc-card:nth-child(3),.me-card:nth-child(3),.msg-card:nth-child(3){transition-delay:.2s}
 .disc-card:nth-child(4),.me-card:nth-child(4),.msg-card:nth-child(4){transition-delay:.3s}
 /* ===== v4 Modern White 覆盖层（大圆角 + 柔和阴影 + 渐变蓝，Linear/Notion 质感） ===== */
-:root{--w-bg:#f7f8fa;--w-surface:#ffffff;--w-surface-2:#fbfbfc;--w-line:#eceef2;--w-text:#111827;--w-muted:#9ca3af;--w-sub:#4b5563;--w-accent:#2563eb;--w-accent-soft:#eff4ff;--w-grad:linear-gradient(135deg,#4f8bff,#2563eb 55%,#1d4ed8);--w-shadow-xs:0 1px 2px rgba(16,24,40,.05);--w-shadow-sm:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);--w-shadow-md:0 2px 4px rgba(16,24,40,.04),0 12px 32px rgba(16,24,40,.08);--w-shadow-lg:0 4px 8px rgba(16,24,40,.04),0 24px 64px rgba(16,24,40,.12);--w-radius:16px;--w-radius-sm:12px}
+:root{--w-bg:#f7f8fa;--w-surface:#ffffff;--w-surface-2:#fbfbfc;--w-line:#eceef2;--w-text:#111827;--w-muted:#9ca3af;--w-sub:#4b5563;--w-accent:#07c160;--w-accent-soft:#eff4ff;--w-grad:linear-gradient(135deg,#4f8bff,#07c160 55%,#06a854);--w-shadow-xs:0 1px 2px rgba(16,24,40,.05);--w-shadow-sm:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);--w-shadow-md:0 2px 4px rgba(16,24,40,.04),0 12px 32px rgba(16,24,40,.08);--w-shadow-lg:0 4px 8px rgba(16,24,40,.04),0 24px 64px rgba(16,24,40,.12);--w-radius:16px;--w-radius-sm:12px}
 html,body{background:#fff!important;background-image:none!important;color:var(--w-text)}
 body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .animated-grid,.cursor-glow,.blob,.particles,#net3d,.hero-glow{display:none!important}
@@ -605,9 +605,9 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .nav .nl{color:var(--w-sub)!important;font-weight:500}
 .nav .nl:hover{color:var(--w-text)!important}
 .nav-logo{color:var(--w-text)!important;font-weight:800;letter-spacing:-.02em}
-.logo-mark{background:var(--w-grad)!important;color:#fff!important;border-radius:10px!important;box-shadow:0 6px 16px rgba(37,99,235,.28)!important}
-.btn-open{background:var(--w-grad)!important;border-radius:10px!important;box-shadow:0 6px 16px rgba(37,99,235,.24)!important;color:#fff!important;font-weight:600}
-.btn-open:hover{filter:brightness(1.06)!important;box-shadow:0 10px 24px rgba(37,99,235,.30)!important;transform:translateY(-1px)!important}
+.logo-mark{background:var(--w-grad)!important;color:#fff!important;border-radius:10px!important;box-shadow:0 6px 16px rgba(7,193,96,.28)!important}
+.btn-open{background:var(--w-grad)!important;border-radius:10px!important;box-shadow:0 6px 16px rgba(7,193,96,.24)!important;color:#fff!important;font-weight:600}
+.btn-open:hover{filter:brightness(1.06)!important;box-shadow:0 10px 24px rgba(7,193,96,.30)!important;transform:translateY(-1px)!important}
 
 /* Hero */
 .hero{padding:150px 24px 96px!important;background:radial-gradient(1000px 520px at 50% -8%,rgba(79,139,255,.13),transparent 62%),radial-gradient(720px 420px at 82% 8%,rgba(139,92,246,.09),transparent 60%),#fff!important}
@@ -615,9 +615,9 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .hero h1 em{background:var(--w-grad)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:var(--w-accent)!important}
 .hero-sub{color:var(--w-sub)!important;font-size:17px!important;line-height:1.7!important}
 .hero-badge{background:rgba(255,255,255,.8)!important;border:1px solid var(--w-line)!important;color:var(--w-sub)!important;box-shadow:var(--w-shadow-xs)!important;border-radius:999px!important;padding:7px 14px!important;backdrop-filter:blur(8px)!important}
-.hero-badge .dot{background:var(--w-accent)!important;box-shadow:0 0 0 3px rgba(37,99,235,.16)!important}
-.btn-main{background:var(--w-grad)!important;border-radius:12px!important;box-shadow:0 8px 22px rgba(37,99,235,.28)!important;color:#fff!important;font-weight:600!important;border:none!important}
-.btn-main:hover{filter:brightness(1.06)!important;box-shadow:0 12px 30px rgba(37,99,235,.34)!important;transform:translateY(-2px)!important}
+.hero-badge .dot{background:var(--w-accent)!important;box-shadow:0 0 0 3px rgba(7,193,96,.16)!important}
+.btn-main{background:var(--w-grad)!important;border-radius:12px!important;box-shadow:0 8px 22px rgba(7,193,96,.28)!important;color:#fff!important;font-weight:600!important;border:none!important}
+.btn-main:hover{filter:brightness(1.06)!important;box-shadow:0 12px 30px rgba(7,193,96,.34)!important;transform:translateY(-2px)!important}
 .btn-main::after{display:none!important}
 .btn-ghost{background:#fff!important;border:1px solid var(--w-line)!important;border-radius:12px!important;box-shadow:var(--w-shadow-xs)!important;backdrop-filter:none!important;color:var(--w-text)!important;font-weight:600!important}
 .btn-ghost:hover{background:var(--w-surface-2)!important;border-color:#dfe3ea!important;box-shadow:var(--w-shadow-sm)!important}
@@ -633,7 +633,7 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .mk-chat{background:var(--w-surface-2)!important}
 .mk-bubble{background:#fff!important;border:1px solid var(--w-line)!important;border-radius:12px!important;box-shadow:var(--w-shadow-xs)!important;color:#1f2937!important}
 .mk-row.me .mk-bubble{background:#e7f0ff!important;border-color:#d8e5ff!important;color:#16233d!important;box-shadow:none!important}
-.mk-send{background:var(--w-grad)!important;border-radius:9px!important;box-shadow:0 4px 12px rgba(37,99,235,.28)!important}
+.mk-send{background:var(--w-grad)!important;border-radius:9px!important;box-shadow:0 4px 12px rgba(7,193,96,.28)!important}
 .float-chip{background:#fff!important;border:1px solid var(--w-line)!important;border-radius:14px!important;box-shadow:var(--w-shadow-md)!important;color:#374151!important}
 .chip-ico{border-radius:9px!important;box-shadow:none!important}
 
@@ -650,7 +650,7 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .feat-card:hover,.disc-card:hover,.me-card:hover,.msg-card:hover,.os-card:hover,.pipe-step:hover{transform:translateY(-4px)!important;box-shadow:var(--w-shadow-md)!important;border-color:#e0e4ec!important}
 .feat-card::after,.feat-card::before{display:none!important}
 .feat-ico,.ctf-icon,.dc-icon,.mec-icon,.msgc-icon{border-radius:14px!important;box-shadow:none!important}
-.fi-green,.fi-blue{background:#e8f0ff!important;color:#2563eb!important}
+.fi-green,.fi-blue{background:#e8f0ff!important;color:#07c160!important}
 .fi-purple{background:#f0ecff!important;color:#7c5cf5!important}
 .fi-orange{background:#fff4e5!important;color:#e08a1e!important}
 .fi-red{background:#ffedef!important;color:#e5484d!important}
@@ -745,7 +745,7 @@ html{overflow-x:hidden}
       <div class="mk-body">
         <div class="mk-side">
           <div class="mk-search">搜索联系人</div>
-          <div class="mk-item on"><div class="mk-ava" style="background:#2563eb">李</div><div class="mk-info"><b>李小明</b><span>消息已加密，放心发送</span></div></div>
+          <div class="mk-item on"><div class="mk-ava" style="background:#07c160">李</div><div class="mk-info"><b>李小明</b><span>消息已加密，放心发送</span></div></div>
           <div class="mk-item"><div class="mk-ava" style="background:#3376ff">产</div><div class="mk-info"><b>产品讨论组</b><span>王五: 新版本今晚发布</span></div></div>
           <div class="mk-item"><div class="mk-ava" style="background:#8854ff">陈</div><div class="mk-info"><b>陈晨</b><span>[语音] 0:12</span></div></div>
           <div class="mk-item"><div class="mk-ava" style="background:#ff943e">设</div><div class="mk-info"><b>设计部</b><span>赵六: 文件已上传</span></div></div>
@@ -753,18 +753,18 @@ html{overflow-x:hidden}
         <div class="mk-chat">
           <div class="mk-head">李小明</div>
           <div class="mk-msgs">
-            <div class="mk-row"><div class="mk-miniava" style="background:#2563eb"></div><div class="mk-bubble">周末一起爬山吗？天气不错</div></div>
+            <div class="mk-row"><div class="mk-miniava" style="background:#07c160"></div><div class="mk-bubble">周末一起爬山吗？天气不错</div></div>
             <div class="mk-row me"><div class="mk-bubble">好啊！几点出发？</div></div>
             <div class="mk-row me"><div class="mk-bubble">顺便把路线图发我一下</div></div>
-            <div class="mk-row"><div class="mk-miniava" style="background:#2563eb"></div><div class="mk-bubble">早上七点，路线图稍后发你</div></div>
-            <div class="mk-row"><div class="mk-miniava" style="background:#2563eb"></div><div class="mk-bubble">对了，这个聊天是端到端加密的，随便聊</div></div>
+            <div class="mk-row"><div class="mk-miniava" style="background:#07c160"></div><div class="mk-bubble">早上七点，路线图稍后发你</div></div>
+            <div class="mk-row"><div class="mk-miniava" style="background:#07c160"></div><div class="mk-bubble">对了，这个聊天是端到端加密的，随便聊</div></div>
           </div>
           <div class="mk-inputbar"><div class="mk-tools"><span></span><span></span><span></span></div><div class="mk-send">发送</div></div>
         </div>
       </div>
       <div class="typing-dots" style="position:absolute;bottom:70px;left:250px"><i></i><i></i><i></i></div>
     </div>
-    <div class="float-chip chip-a"><div class="chip-ico" style="background:#2563eb">&#10003;</div>已端到端加密</div>
+    <div class="float-chip chip-a"><div class="chip-ico" style="background:#07c160">&#10003;</div>已端到端加密</div>
     <div class="float-chip chip-b"><div class="chip-ico" style="background:#3376ff">&#9654;</div>语音视频通话</div>
     <div class="float-chip chip-c"><div class="chip-ico" style="background:#ff943e">&#8690;</div>文件极速传输</div>
   </div>
@@ -814,11 +814,11 @@ html{overflow-x:hidden}
       <div class="phone"><div class="screen">
         <div class="scr-head">李小明</div>
         <div class="scr-body">
-          <div class="scr-row"><div class="scr-ava" style="background:#2563eb"></div><div class="scr-bub">会议改到下午三点</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub">会议改到下午三点</div></div>
           <div class="scr-row me"><div class="scr-bub">收到，我记下了</div></div>
           <div class="scr-row me"><div class="scr-bub">需要我提前准备什么吗？</div></div>
-          <div class="scr-row"><div class="scr-ava" style="background:#2563eb"></div><div class="scr-bub">把上周的数据带上就行</div></div>
-          <div class="scr-row"><div class="scr-ava" style="background:#2563eb"></div><div class="scr-bub">对方正在输入...</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub">把上周的数据带上就行</div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub">对方正在输入...</div></div>
         </div>
         <div class="scr-foot"><div class="scr-field"></div></div>
       </div></div>
@@ -835,13 +835,13 @@ html{overflow-x:hidden}
       <div class="phone"><div class="screen" style="background:#16181d">
         <div class="scr-head" style="background:transparent;color:#eee;border:none">语音通话 03:42</div>
         <div class="scr-body" style="align-items:center;justify-content:center;gap:18px">
-          <div style="width:92px;height:92px;border-radius:50%;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:34px;color:#fff;font-weight:800;animation:pulse 2s infinite">李</div>
+          <div style="width:92px;height:92px;border-radius:50%;background:#07c160;display:flex;align-items:center;justify-content:center;font-size:34px;color:#fff;font-weight:800;animation:pulse 2s infinite">李</div>
           <div style="display:flex;gap:4px;align-items:flex-end;height:32px">
-            <i style="width:4px;height:12px;background:#2563eb;border-radius:2px;animation:eq .8s ease-in-out infinite"></i>
-            <i style="width:4px;height:26px;background:#2563eb;border-radius:2px;animation:eq .8s ease-in-out .15s infinite"></i>
-            <i style="width:4px;height:18px;background:#2563eb;border-radius:2px;animation:eq .8s ease-in-out .3s infinite"></i>
-            <i style="width:4px;height:30px;background:#2563eb;border-radius:2px;animation:eq .8s ease-in-out .45s infinite"></i>
-            <i style="width:4px;height:14px;background:#2563eb;border-radius:2px;animation:eq .8s ease-in-out .6s infinite"></i>
+            <i style="width:4px;height:12px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out infinite"></i>
+            <i style="width:4px;height:26px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .15s infinite"></i>
+            <i style="width:4px;height:18px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .3s infinite"></i>
+            <i style="width:4px;height:30px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .45s infinite"></i>
+            <i style="width:4px;height:14px;background:#07c160;border-radius:2px;animation:eq .8s ease-in-out .6s infinite"></i>
           </div>
           <style>@keyframes eq{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}</style>
           <div style="display:flex;gap:14px;margin-top:10px">
@@ -866,13 +866,13 @@ html{overflow-x:hidden}
         <div class="scr-body">
           <div class="scr-row me"><div class="scr-bub" style="min-width:170px;padding:12px">
             <div style="display:flex;gap:8px;align-items:center"><span style="width:34px;height:34px;border-radius:8px;background:rgba(250,81,81,.12);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fa5151" stroke-width="2" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg></span><div><b style="font-size:12px;display:block">季度报告.pdf</b><span style="font-size:10px;color:#999">24.6 MB</span></div></div>
-            <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:78%;height:100%;background:#2563eb;border-radius:2px"></i></div>
-            <div style="margin-top:4px;font-size:10px;color:#2563eb">78% · 2.4MB/s</div>
+            <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:78%;height:100%;background:#07c160;border-radius:2px"></i></div>
+            <div style="margin-top:4px;font-size:10px;color:#07c160">78% · 2.4MB/s</div>
           </div></div>
-          <div class="scr-row"><div class="scr-ava" style="background:#2563eb"></div><div class="scr-bub" style="min-width:170px;padding:12px">
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div class="scr-bub" style="min-width:170px;padding:12px">
             <div style="display:flex;gap:8px;align-items:center"><span style="width:34px;height:34px;border-radius:8px;background:rgba(51,118,255,.1);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3376ff" stroke-width="2" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5m0 0 9-5"/></svg></span><div><b style="font-size:12px;display:block">设计方案.zip</b><span style="font-size:10px;color:#999">156 MB · 已完成</span></div></div>
-            <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:100%;height:100%;background:#2563eb;border-radius:2px"></i></div>
-            <div style="margin-top:4px;font-size:10px;color:#2563eb">&#10003; 已完成</div>
+            <div style="margin-top:8px;height:4px;background:#e8e8e8;border-radius:2px;overflow:hidden"><i style="display:block;width:100%;height:100%;background:#07c160;border-radius:2px"></i></div>
+            <div style="margin-top:4px;font-size:10px;color:#07c160">&#10003; 已完成</div>
           </div></div>
           <div class="scr-row me"><div class="scr-bub">收到！速度真快</div></div>
         </div>
@@ -975,14 +975,14 @@ html{overflow-x:hidden}
       <div class="cl-mask">
         <div class="cl-fade-top"></div>
         <div class="cl-scroll">
-          <div class="cl-item"><div class="cl-dot" style="background:#2563eb"></div><div class="cl-content"><div class="cl-ver">v1.80.4 <span class="cl-date">2026-09-01</span></div><p>消息弹窗通知 · 表情回应 · 多语言翻译 · 连续消息合并 · 群@提及 · 已读回执 · 免打扰</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.80.4 <span class="cl-date">2026-09-01</span></div><p>消息弹窗通知 · 表情回应 · 多语言翻译 · 连续消息合并 · 群@提及 · 已读回执 · 免打扰</p></div></div>
           <div class="cl-item"><div class="cl-dot" style="background:#4a86f7"></div><div class="cl-content"><div class="cl-ver">v1.70.0 <span class="cl-date">2026-08-24</span></div><p>全新落地页 · 3D 粒子网络 · 深度加密演示 · 3D 设备巡展 · 聊天风格 UI 全面升级</p></div></div>
           <div class="cl-item"><div class="cl-dot" style="background:#4a86f7"></div><div class="cl-content"><div class="cl-ver">v1.69.0 <span class="cl-date">2026-08-22</span></div><p>会话置顶 · 消息免打扰 · 右键菜单 · 阅读状态 · 骨架屏加载 · 消息双击点赞</p></div></div>
-          <div class="cl-item"><div class="cl-dot" style="background:#2563eb"></div><div class="cl-content"><div class="cl-ver">v1.68.0 <span class="cl-date">2026-08-20</span></div><p>聊天风格聊天气泡 · 多彩主题 · 暗黑模式 · 聊天背景 · 字数统计 · 图片粘贴发送</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.68.0 <span class="cl-date">2026-08-20</span></div><p>聊天风格聊天气泡 · 多彩主题 · 暗黑模式 · 聊天背景 · 字数统计 · 图片粘贴发送</p></div></div>
           <div class="cl-item"><div class="cl-dot" style="background:#4a86f7"></div><div class="cl-content"><div class="cl-ver">v1.67.0 <span class="cl-date">2026-08-18</span></div><p>端到端加密 · Signal 协议 · 语音视频通话 · 文件加密传输 · 群聊管理</p></div></div>
-          <div class="cl-item"><div class="cl-dot" style="background:#2563eb"></div><div class="cl-content"><div class="cl-ver">v1.66.0 <span class="cl-date">2026-08-15</span></div><p>联系人管理 · 通讯录搜索 · 个人资料页 · 多主题切换 · 深色模式</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.66.0 <span class="cl-date">2026-08-15</span></div><p>联系人管理 · 通讯录搜索 · 个人资料页 · 多主题切换 · 深色模式</p></div></div>
           <div class="cl-item"><div class="cl-dot" style="background:#4a86f7"></div><div class="cl-content"><div class="cl-ver">v1.65.0 <span class="cl-date">2026-08-12</span></div><p>语音通话优化 · 视频通话稳定 · 消息撤回 · 重新编辑 · 消息引用</p></div></div>
-          <div class="cl-item"><div class="cl-dot" style="background:#2563eb"></div><div class="cl-content"><div class="cl-ver">v1.64.0 <span class="cl-date">2026-08-10</span></div><p>群聊管理 · 群公告 · 群成员权限 · 表情回应 · @功能</p></div></div>
+          <div class="cl-item"><div class="cl-dot" style="background:#07c160"></div><div class="cl-content"><div class="cl-ver">v1.64.0 <span class="cl-date">2026-08-10</span></div><p>群聊管理 · 群公告 · 群成员权限 · 表情回应 · @功能</p></div></div>
           <div class="cl-item"><div class="cl-dot" style="background:#4a86f7"></div><div class="cl-content"><div class="cl-ver">v1.63.0 <span class="cl-date">2026-08-08</span></div><p>文件传输升级 · 断点续传 · 批量发送 · 文件预览 · 进度条</p></div></div>
         </div>
         <div class="cl-fade-bottom"></div>
@@ -1016,13 +1016,13 @@ html{overflow-x:hidden}
         <div class="scr-head">产品讨论组 (5)</div>
         <div class="scr-body">
           <div class="scr-row"><div class="scr-ava" style="background:#f5a623"></div><div><span style="font-size:10px;color:#888">王总</span><div class="scr-bub">新版本的设计稿大家看看</div></div></div>
-          <div class="scr-row me"><div class="scr-bub" style="position:relative">收到！我下午review <span style="position:absolute;top:-8px;right:-4px;background:#fff;border:1px solid #e0e0f0;border-radius:8px;padding:1px 4px;font-size:8px;color:#2563eb">12</span></div></div>
+          <div class="scr-row me"><div class="scr-bub" style="position:relative">收到！我下午review <span style="position:absolute;top:-8px;right:-4px;background:#fff;border:1px solid #e0e0f0;border-radius:8px;padding:1px 4px;font-size:8px;color:#07c160">12</span></div></div>
           <div class="scr-row"><div class="scr-ava" style="background:#4a86f7"></div><div><span style="font-size:10px;color:#888">张设计</span><div class="scr-bub">[图片] 3张设计稿已上传</div></div></div>
           <div class="scr-row me"><div class="scr-bub">第三版配色方案更好</div></div>
-          <div class="scr-row"><div class="scr-ava" style="background:#2563eb"></div><div><span style="font-size:10px;color:#888">李工</span><div class="scr-bub">技术上都没问题，可以排期</div></div></div>
+          <div class="scr-row"><div class="scr-ava" style="background:#07c160"></div><div><span style="font-size:10px;color:#888">李工</span><div class="scr-bub">技术上都没问题，可以排期</div></div></div>
           <div class="scr-row me"><div class="scr-bub">那就定周三发布？</div></div>
           <div class="scr-row"><div class="scr-ava" style="background:#f5a623"></div><div><span style="font-size:10px;color:#888">王总</span><div class="scr-bub" style="background:#fff3e0;color:#f57c00">[红包] 恭喜新版上线</div></div></div>
-          <div class="scr-row me"><div class="scr-bub" style="background:#2563eb;color:#fff">谢谢老板！</div></div>
+          <div class="scr-row me"><div class="scr-bub" style="background:#07c160;color:#fff">谢谢老板！</div></div>
         </div>
       </div></div>
     </div>
@@ -1099,37 +1099,37 @@ html{overflow-x:hidden}
   </div>
   <div class="ai-grid">
     <div class="ai-card rv d1">
-      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
       <span class="badge-live">已上线</span>
       <h4>聊天图片 AI 处理</h4>
       <p>查看图片时底部新增"AI 处理"，支持美化、提取信息、智能修改。</p>
     </div>
     <div class="ai-card rv d2">
-      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
       <span class="badge-beta">Beta</span>
       <h4>朋友圈 AI 帮写</h4>
       <p>上传图片后 AI 自动理解内容，生成多条备选文案，一键填入。</p>
     </div>
     <div class="ai-card rv d3">
-      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
       <span class="badge-live">已上线</span>
       <h4>实时翻译</h4>
       <p>收到外语消息自动翻译成中文，输入中文同步对外翻译，无需切换。</p>
     </div>
     <div class="ai-card rv d1">
-      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
       <span class="badge-beta">Beta</span>
       <h4>扫一扫拍照给 AI</h4>
       <p>拍照后 AI 识别内容，支持翻译外文、提取文字、总结图片信息。</p>
     </div>
     <div class="ai-card rv d2">
-      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
       <span class="badge-plan">规划中</span>
       <h4>语音指令代写</h4>
       <p>按住说话后滑入"指令"区域，AI 理解意图后生成适合语境的消息。</p>
     </div>
     <div class="ai-card rv d3">
-      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      <span class="ai-emoji"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
       <span class="badge-plan">规划中</span>
       <h4>AI 会议听记</h4>
       <p>会议记录、总结、待办跟进全智能闭环，自动生成会议纪要。</p>
@@ -1146,52 +1146,52 @@ html{overflow-x:hidden}
   </div>
   <div class="sec-grid">
     <div class="sec-card rv d1">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
       <h4>端到端加密</h4>
       <p>Signal 协议 + 前向保密，服务器被攻破也无法解密历史消息。</p>
-      <span class="badge-live" style="background:rgba(37,99,235,.15);color:#2563eb;border-color:rgba(37,99,235,.3)">已上线</span>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
     <div class="sec-card rv d2">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
       <h4>自动密钥验证</h4>
       <p>自动检测加密密钥是否被篡改，有效防范中间人攻击。</p>
       <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
     </div>
     <div class="sec-card rv d3">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
       <h4>阅后即焚</h4>
       <p>发送闪照和消失消息，阅读后自动删除，不留痕迹。</p>
-      <span class="badge-live" style="background:rgba(37,99,235,.15);color:#2563eb;border-color:rgba(37,99,235,.3)">已上线</span>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
     <div class="sec-card rv d1">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
       <h4>匿名注册</h4>
       <p>不绑定手机号，不收集个人信息，真正的零数据收集。</p>
       <span class="badge-plan" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15)">规划中</span>
     </div>
     <div class="sec-card rv d2">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
       <h4>设备管理</h4>
       <p>查看所有登录设备，一键远程踢出可疑会话，掌控账号安全。</p>
-      <span class="badge-live" style="background:rgba(37,99,235,.15);color:#2563eb;border-color:rgba(37,99,235,.3)">已上线</span>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
     <div class="sec-card rv d3">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
       <h4>双向删除</h4>
       <p>一键删除与对方的全部聊天记录，双方同步清除。</p>
       <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
     </div>
     <div class="sec-card rv d1">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
       <h4>隐藏会话</h4>
       <p>将特定会话设为隐藏，需通过搜索才能查看，强化隐私保护。</p>
       <span class="badge-beta" style="background:rgba(245,124,0,.12);color:#ffb74d;border-color:rgba(245,124,0,.25)">Beta</span>
     </div>
     <div class="sec-card rv d2">
-      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div class="sc-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#07c160" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
       <h4>零日志策略</h4>
       <p>服务器不留存任何消息内容和元数据，GDPR 全面合规。</p>
-      <span class="badge-live" style="background:rgba(37,99,235,.15);color:#2563eb;border-color:rgba(37,99,235,.3)">已上线</span>
+      <span class="badge-live" style="background:rgba(7,193,96,.15);color:#07c160;border-color:rgba(7,193,96,.3)">已上线</span>
     </div>
   </div>
 </section>
@@ -1267,12 +1267,12 @@ html{overflow-x:hidden}
   <div class="ct-grid">
     <div class="rvL">
       <ul class="ct-features">
-        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="ctf-text"><strong>全局搜索</strong><span>按姓名、备注、手机号、聊天号快速搜索，关键词高亮匹配</span></div></li>
-        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div><div class="ctf-text"><strong>字母索引</strong><span>A-Z 侧边快速跳转条，一键定位到目标联系人</span></div></li>
-        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div class="ctf-text"><strong>标签分组</strong><span>工作、家人、朋友自定义标签，按分组筛选联系人</span></div></li>
-        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="ctf-text"><strong>联系人详情</strong><span>头像、昵称、地区、个性签名，一键发消息或音视频通话</span></div></li>
-        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div><div class="ctf-text"><strong>面对面加好友</strong><span>输入四位数字即可添加，无需扫码</span></div></li>
-        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="ctf-text"><strong>手机通讯录匹配</strong><span>读取通讯录自动匹配已注册用户，一键添加好友</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="ctf-text"><strong>全局搜索</strong><span>按姓名、备注、手机号、聊天号快速搜索，关键词高亮匹配</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div><div class="ctf-text"><strong>字母索引</strong><span>A-Z 侧边快速跳转条，一键定位到目标联系人</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div class="ctf-text"><strong>标签分组</strong><span>工作、家人、朋友自定义标签，按分组筛选联系人</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="ctf-text"><strong>联系人详情</strong><span>头像、昵称、地区、个性签名，一键发消息或音视频通话</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div><div class="ctf-text"><strong>面对面加好友</strong><span>输入四位数字即可添加，无需扫码</span></div></li>
+        <li><div class="ctf-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="ctf-text"><strong>手机通讯录匹配</strong><span>读取通讯录自动匹配已注册用户，一键添加好友</span></div></li>
       </ul>
       <div style="margin-top:12px"><span class="badge-live">已上线</span> <span class="badge-beta">Beta</span></div>
     </div>
@@ -1283,28 +1283,28 @@ html{overflow-x:hidden}
           <div style="background:#f5f5f5;border-radius:2px;padding:6px 8px;margin-bottom:10px;font-size:9px;color:#999">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#999" stroke-width="2" style="vertical-align:middle"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> 搜索
           </div>
-          <div style="font-size:8px;color:#2563eb;margin-bottom:4px;font-weight:600">新的朋友</div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">新的朋友</div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 0">
             <div style="width:22px;height:22px;border-radius:2px;background:#f5a623;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700">F</div>
             <div><span style="font-size:8px;color:#333;font-weight:600">新的朋友</span><br><span style="font-size:7px;color:#888">3条验证消息</span></div>
           </div>
-          <div style="font-size:8px;color:#2563eb;margin-bottom:4px;font-weight:600">A</div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">A</div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
-            <div style="width:20px;height:20px;border-radius:2px;background:#2563eb;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
+            <div style="width:20px;height:20px;border-radius:2px;background:#07c160;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
             <div style="font-size:8px;color:#333">安迪</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
             <div style="width:20px;height:20px;border-radius:2px;background:#4a86f7;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">A</div>
             <div style="font-size:8px;color:#333">阿杰</div>
           </div>
-          <div style="font-size:8px;color:#2563eb;margin-bottom:4px;font-weight:600">B</div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">B</div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
             <div style="width:20px;height:20px;border-radius:2px;background:#f5a623;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">B</div>
             <div style="font-size:8px;color:#333">白露</div>
           </div>
-          <div style="font-size:8px;color:#2563eb;margin-bottom:4px;font-weight:600">C</div>
+          <div style="font-size:8px;color:#07c160;margin-bottom:4px;font-weight:600">C</div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:3px 0">
-            <div style="width:20px;height:20px;border-radius:2px;background:#2563eb;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">C</div>
+            <div style="width:20px;height:20px;border-radius:2px;background:#07c160;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700">C</div>
             <div style="font-size:8px;color:#333">陈星</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
@@ -1326,7 +1326,7 @@ html{overflow-x:hidden}
   </div>
   <div class="disc-grid">
     <div class="disc-card rv d1">
-      <div class="dc-icon" style="background:#eaf1ff"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.5"><path d="M4 4h16v16H4z" rx="2"/><circle cx="9" cy="9" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      <div class="dc-icon" style="background:#eaf1ff"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="1.5"><path d="M4 4h16v16H4z" rx="2"/><circle cx="9" cy="9" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
       <h4>朋友圈</h4>
       <p>发布图文动态，AI 自动帮写文案，支持多图上传和隐私可见范围设置</p>
       <span class="badge-live">已上线</span>
@@ -1379,7 +1379,7 @@ html{overflow-x:hidden}
       <span class="badge-live">已上线</span>
     </div>
     <div class="me-card rv d1">
-      <div class="mec-icon" style="background:#f1f6ff"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      <div class="mec-icon" style="background:#f1f6ff"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
       <h4>钱包支付</h4>
       <p>余额查询、交易记录、收付款码、转账、红包，支持支付宝/聊天充值</p>
       <span class="badge-live">已上线</span>
@@ -1396,7 +1396,7 @@ html{overflow-x:hidden}
   </div>
   <div class="msg-grid">
     <div class="msg-card rv d1">
-      <div class="msgc-icon" style="background:#eaf1ff"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
+      <div class="msgc-icon" style="background:#eaf1ff"><svg viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
       <h4>消息撤回</h4>
       <p>2分钟内可撤回，支持"重新编辑"原地修改后重发</p>
       <span class="badge-live">已上线</span>
@@ -1544,7 +1544,7 @@ phoneParallax();
 
 // confetti burst when clicking a download card
 function confettiBurst(x, y){
-  var colors = ['#2563eb','#3376ff','#8854ff','#ff943e','#fa5151','#00c8c8'];
+  var colors = ['#07c160','#3376ff','#8854ff','#ff943e','#fa5151','#00c8c8'];
   for(var i=0;i<26;i++){
     var c = document.createElement('div');
     c.className = 'confetti';
@@ -1721,7 +1721,7 @@ if(devStage){
         if(dd < LINK){
           var depth = (pa.z + pb.z) / 2;
           var alpha = (1 - dd/LINK) * (0.15 + depth*0.35);
-          ctx.strokeStyle = 'rgba(37,99,235,' + alpha.toFixed(3) + ')';
+          ctx.strokeStyle = 'rgba(7,193,96,' + alpha.toFixed(3) + ')';
           ctx.lineWidth = 0.5 + depth * 1.6;
           ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
         }
@@ -1732,18 +1732,18 @@ if(devStage){
       var q = pts[k];
       var r = 1 + q.z * 2.8;
       var grd = ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,r*3.5);
-      grd.addColorStop(0,'rgba(37,99,235,'+(0.3+q.z*0.6)+')');
-      grd.addColorStop(1,'rgba(37,99,235,0)');
+      grd.addColorStop(0,'rgba(7,193,96,'+(0.3+q.z*0.6)+')');
+      grd.addColorStop(1,'rgba(7,193,96,0)');
       ctx.fillStyle = grd;
       ctx.beginPath(); ctx.arc(q.x,q.y,r*3.5,0,6.284); ctx.fill();
-      ctx.fillStyle = 'rgba(37,99,235,'+(0.45+q.z*0.55)+')';
+      ctx.fillStyle = 'rgba(7,193,96,'+(0.45+q.z*0.55)+')';
       ctx.beginPath(); ctx.arc(q.x,q.y,r,0,6.284); ctx.fill();
     }
     // 鼠标附近额外高亮
     if(mouse.active){
       var mgrd = ctx.createRadialGradient(mouse.x,mouse.y,0,mouse.x,mouse.y,60);
-      mgrd.addColorStop(0,'rgba(37,99,235,0.06)');
-      mgrd.addColorStop(1,'rgba(37,99,235,0)');
+      mgrd.addColorStop(0,'rgba(7,193,96,0.06)');
+      mgrd.addColorStop(1,'rgba(7,193,96,0)');
       ctx.fillStyle = mgrd;
       ctx.beginPath(); ctx.arc(mouse.x,mouse.y,60,0,6.284); ctx.fill();
     }

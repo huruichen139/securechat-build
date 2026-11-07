@@ -1022,3 +1022,278 @@ body.dark-mode .tr-result {
 
 .tr-menu button { color: #06a854 !important; }
 body.dark-mode .tr-menu button { color: #d6d6d6 !important; }
+
+/* ============================================================
+   微信绿主题覆盖（追加于末尾，仅覆盖颜色 / 边框 / 圆角 / 阴影）
+   旧蓝色 #2563eb 统一改为微信绿 #07c160；
+   次要按钮 #f2f2f2 底 / #191919 字 / #e5e5e5 边框；
+   卡片 #fff 底 / #e5e5e5 边框 / 6px 圆角；
+   选中态 #e8f8ef 底 / #07c160 字；
+   深色模式 #2c2c2c 底 / #3a3a3a 边框 / #d6d6d6 字。
+   ============================================================ */
+
+/* ---------- 次要按钮 ---------- */
+.sc-fav-btn,
+.sc-status-btn,
+.oa-btn,
+.oa-read,
+.oa-reply,
+.miniapp-btn,
+.sol-go,
+.pc-cancel,
+.pc-min,
+.pc-multi,
+.pc-anon,
+.pc-only,
+.ce-cancel,
+.oauth-btn,
+.vid-tab {
+  background: #f2f2f2;
+  border: 1px solid #e5e5e5;
+  color: #191919;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+/* ---------- 主按钮：绿底白字 ---------- */
+.sc-fav-btn-primary,
+.btn-primary,
+.sc-status-btn-link,
+.fh-send,
+.scan-btn,
+.shake-btn,
+.sol-join,
+.oa-follow,
+.pc-confirm,
+.pc-add,
+.ce-ok {
+  background: #07c160;
+  border: 1px solid #07c160;
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: none;
+}
+.sc-fav-btn-primary:hover,
+.btn-primary:hover,
+.sc-status-btn-link:hover,
+.fh-send:hover,
+.scan-btn:hover,
+.shake-btn:hover,
+.sol-join:hover,
+.oa-follow:hover {
+  background: #06ad56;
+  border-color: #06ad56;
+  filter: none;
+}
+.polls-creator .pc-add {
+  background: #07c160 !important;
+  color: #fff !important;
+  border: 1px solid #07c160 !important;
+}
+
+/* ---------- 输入框聚焦 ---------- */
+.sc-fav-search:focus,
+.sc-status-input:focus,
+.fh-input:focus,
+.miniapp-search:focus,
+.feedback-box:focus,
+.sc-mext-form input:focus,
+.sc-mext-form textarea:focus,
+.oa-composer:focus {
+  border-color: #07c160;
+  box-shadow: 0 0 0 3px rgba(7, 193, 96, .12);
+}
+
+/* ---------- 卡片 ---------- */
+.sc-fav-item,
+.oa-card,
+.miniapp-card,
+.nearby-item,
+.polls-opt,
+.vid-card,
+.live-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+/* ---------- 选中态 / 浅绿标签 ---------- */
+.sc-fav-tag-active,
+.sc-fav-cfg-active,
+.sc-fav-tag-mini,
+.oa-badge,
+.sc-status-icon-active,
+.polls-opt-on,
+.ce-select-bar,
+.group-at-wrap .at-chip {
+  background: #e8f8ef;
+  border-color: #07c160;
+  color: #07c160;
+}
+.sc-fav-tag:hover,
+.sc-fav-cls:hover {
+  border-color: #07c160;
+  color: #07c160;
+}
+.miniapp-card:hover,
+.ce-bg-swatch:hover,
+.polls-opt:hover {
+  border-color: #07c160;
+}
+.sc-fav-item:hover {
+  border-color: rgba(7, 193, 96, .4);
+  box-shadow: 0 3px 12px rgba(7, 193, 96, .08);
+}
+.fb-tab.active {
+  color: #07c160;
+  border-bottom-color: #07c160;
+}
+
+/* ---------- 绿色文字 / 强调 ---------- */
+.sc-fav-item-tag,
+.sc-mext-add,
+.oa-wow,
+.scan-done,
+.oa-c-reply:hover,
+.bind-tip b,
+.vt-btn,
+.tr-copy,
+.td-add,
+.td-confirm,
+.rm-confirm {
+  color: #07c160;
+}
+.todo-ck { accent-color: #07c160; }
+.scan-corner { border-color: #07c160; }
+.sc-status-badge { background: #07c160; color: #fff; }
+.polls-opt-on .polls-pie { border-color: #07c160; background: #07c160; }
+.ce-selecting { background: rgba(7, 193, 96, .12); }
+
+/* ---------- 深色模式：系统主题 ---------- */
+@media (prefers-color-scheme: dark) {
+  .sc-fav-btn,
+  .sc-status-btn,
+  .oa-btn,
+  .oa-read,
+  .oa-reply,
+  .miniapp-btn,
+  .sol-go,
+  .pc-cancel,
+  .pc-min,
+  .pc-multi,
+  .pc-anon,
+  .pc-only,
+  .ce-cancel,
+  .oauth-btn,
+  .vid-tab {
+    background: #2c2c2c;
+    border-color: #3a3a3a;
+    color: #d6d6d6;
+  }
+
+  .sc-fav-item,
+  .oa-card,
+  .miniapp-card,
+  .nearby-item,
+  .polls-opt,
+  .vid-card,
+  .live-card {
+    background: #2c2c2c;
+    border-color: #3a3a3a;
+  }
+
+  .sc-fav-tag-active,
+  .sc-fav-cfg-active,
+  .sc-fav-tag-mini,
+  .oa-badge,
+  .sc-status-icon-active,
+  .polls-opt-on,
+  .ce-select-bar,
+  .group-at-wrap .at-chip {
+    background: rgba(7, 193, 96, .16);
+    border-color: #07c160;
+    color: #07c160;
+  }
+
+  .sc-fav-search,
+  .sc-status-input,
+  .fh-input,
+  .miniapp-search,
+  .scan-text-view,
+  .sc-mext-form input,
+  .sc-mext-form textarea,
+  .oa-composer,
+  .pc-title,
+  .rm-ct,
+  .rm-dt,
+  .td-title,
+  .feedback-box {
+    background: #2c2c2c;
+    border-color: #3a3a3a;
+    color: #d6d6d6;
+  }
+}
+
+/* ---------- 深色模式：body.dark-mode ---------- */
+body.dark-mode .sc-fav-btn,
+body.dark-mode .sc-status-btn,
+body.dark-mode .oa-btn,
+body.dark-mode .oa-read,
+body.dark-mode .oa-reply,
+body.dark-mode .miniapp-btn,
+body.dark-mode .sol-go,
+body.dark-mode .pc-cancel,
+body.dark-mode .pc-min,
+body.dark-mode .pc-multi,
+body.dark-mode .pc-anon,
+body.dark-mode .pc-only,
+body.dark-mode .ce-cancel,
+body.dark-mode .oauth-btn,
+body.dark-mode .vid-tab {
+  background: #2c2c2c;
+  border-color: #3a3a3a;
+  color: #d6d6d6;
+}
+
+body.dark-mode .sc-fav-item,
+body.dark-mode .oa-card,
+body.dark-mode .miniapp-card,
+body.dark-mode .nearby-item,
+body.dark-mode .polls-opt,
+body.dark-mode .vid-card,
+body.dark-mode .live-card {
+  background: #2c2c2c;
+  border-color: #3a3a3a;
+}
+
+body.dark-mode .sc-fav-tag-active,
+body.dark-mode .sc-fav-cfg-active,
+body.dark-mode .sc-fav-tag-mini,
+body.dark-mode .oa-badge,
+body.dark-mode .sc-status-icon-active,
+body.dark-mode .polls-opt-on,
+body.dark-mode .ce-select-bar,
+body.dark-mode .group-at-wrap .at-chip {
+  background: rgba(7, 193, 96, .16);
+  border-color: #07c160;
+  color: #07c160;
+}
+
+body.dark-mode .sc-fav-search,
+body.dark-mode .sc-status-input,
+body.dark-mode .fh-input,
+body.dark-mode .miniapp-search,
+body.dark-mode .scan-text-view,
+body.dark-mode .sc-mext-form input,
+body.dark-mode .sc-mext-form textarea,
+body.dark-mode .oa-composer,
+body.dark-mode .pc-title,
+body.dark-mode .rm-ct,
+body.dark-mode .rm-dt,
+body.dark-mode .td-title,
+body.dark-mode .feedback-box {
+  background: #2c2c2c;
+  border-color: #3a3a3a;
+  color: #d6d6d6;
+}
