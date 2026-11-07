@@ -2289,6 +2289,28 @@ function applyChatBg(uri) {
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
+(function () {
+  const COLORS = ['#4a7dde','#2f9e74','#c08a00','#cf5540','#2f8fae','#6f55b3','#cf6f2f','#1f7f7f','#c25f86','#566b8c'];
+  function paint() {
+    document.querySelectorAll('.avatar,.chat-avatar,.msg-avatar,.contact .avatar,.profile-avatar').forEach(function (el) {
+      if (el.dataset.avPainted === '1') return;
+      if (el.querySelector('img')) return;
+      const t = (el.textContent || '').trim();
+      if (!t) return;
+      let h = t.length * 7;
+      for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 2654435761) >>> 0;
+      const col = COLORS[(h >>> 24) % COLORS.length];
+      el.style.setProperty('background', col, 'important');
+      el.style.setProperty('color', '#fff', 'important');
+      el.dataset.avPainted = '1';
+    });
+  }
+  let timer = null;
+  function schedule() { clearTimeout(timer); timer = setTimeout(paint, 50); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { paint(); new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true }); });
+  else { paint(); new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true }); }
+  window.paintAvatars = paint;
+})();
 
 // 登录后自检媒体权限，避免"点接听没反应"
 async function checkMediaPermissionHint() {
