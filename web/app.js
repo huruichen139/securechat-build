@@ -2295,7 +2295,7 @@ function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
   function upgradeNavIcons() {
     const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><path d="M15 4L7 12l8 8"/></svg>';
     const dots = '<svg viewBox="0 0 24 24" fill="currentColor" style="width:22px;height:22px;display:block"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
-    ['backToListBtn','chatMobileBackBtn','discoverBackBtn','meBackBtn','blocklistBackBtn','contactsBackBtn','downloadBackBtn','adminBackBtn'].forEach(function (id) {
+    ['backToListBtn','chatMobileBackBtn','discoverBackBtn','meBackBtn','blocklistBackBtn','contactsBackBtn','downloadBackBtn','adminBackBtn','aiBackBtn'].forEach(function (id) {
       const b = document.getElementById(id);
       if (!b || b.querySelector('svg')) return;
       b.removeAttribute('data-i18n');
