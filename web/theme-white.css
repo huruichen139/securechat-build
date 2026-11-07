@@ -344,7 +344,6 @@ body::before { display: none !important; }
   background-image: none !important;
   padding: 20px 28px !important;
 }
-.chat-bg-grid { display: none !important; }
 .chat-time, .day-divider span, .messages .time {
   background: transparent !important;
   color: var(--w-faint) !important;

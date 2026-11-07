@@ -5795,7 +5795,7 @@ const panel = document.getElementById('settingsPanel');
           toast('亚克力玻璃已' + (next === '1' ? '开启' : '关闭'), 'success');
           openSettingsPage();
         }},
-        { label: '聊天背景', desc: '设置聊天界面背景', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; pickChatBg(); } },
+        { label: '聊天背景', desc: '设置聊天界面背景', icon: '景', fn: () => { panel.style.display = 'none'; if (main) main.style.display = ''; openChatBgPicker(); } },
         { label: '字体大小', desc: ({ s: '小', m: '标准', l: '大' })[localStorage.getItem('sc_msg_font') || 'm'], icon: '字', fn: () => {
           cycleMsgFont();
           openSettingsPage();
