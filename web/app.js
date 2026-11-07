@@ -2130,14 +2130,16 @@ function pickChatBg() {
 function applyChatBg(uri) {
   const view = $('chatView');
   if (view) {
-    if (uri) {
+    const isImg = !!uri && (uri.startsWith('data:') || uri.startsWith('http'));
+    if (isImg) {
       view.style.backgroundImage = 'url("' + CSS.escape(uri) + '")';
       view.style.backgroundSize = 'cover';
       view.style.backgroundPosition = 'center';
       view.style.backgroundRepeat = 'no-repeat';
+      view.style.backgroundColor = '';
     } else {
       view.style.backgroundImage = 'none';
-      view.style.backgroundColor = '';
+      view.style.backgroundColor = uri || '';
     }
   }
   try {
@@ -6549,7 +6551,11 @@ function applyMsgFont() {
   const s = localStorage.getItem('sc_msg_font') || 'm';
   const size = s === 's' ? '13px' : (s === 'l' ? '17px' : '15px');
   const box = $('messages');
-  if (box) box.style.fontSize = size;
+  if (box) {
+    box.style.fontSize = size;
+    box.classList.remove('msg-font-s', 'msg-font-m', 'msg-font-l');
+    box.classList.add('msg-font-' + s);
+  }
 }
 function cycleMsgFont() {
   const cur = localStorage.getItem('sc_msg_font') || 'm';

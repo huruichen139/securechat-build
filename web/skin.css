@@ -2852,3 +2852,7 @@ html.is-mobile #chatView > #downloadView.dl-hidden{display:none!important}
 .msg-row.search-hit .bubble{outline:2px solid #07c160!important;outline-offset:2px}
 .msg-row.search-current .bubble{outline:2px solid #07c160!important;background:#e8f7ee!important}
 body.dark-mode .msg-row.search-current .bubble{background:#123a24!important}
+/* message font size */
+#chatView .messages.msg-font-s .msg-row .bubble{font-size:13px!important}
+#chatView .messages.msg-font-m .msg-row .bubble{font-size:15px!important}
+#chatView .messages.msg-font-l .msg-row .bubble{font-size:17px!important}
