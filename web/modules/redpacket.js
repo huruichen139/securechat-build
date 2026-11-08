@@ -231,7 +231,7 @@
     var fmt = window.fmtTime || function (t) { var d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
     row.innerHTML =
       '<div class="bubble rp-bubble" data-rp="' + esc(id) + '">' +
-        '<div class="rp-bubble-icon">' + (mine ? '红包' : '红包') + '</div>' +
+        '<div class="rp-bubble-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M4 8c4.5 3 11.5 3 16 0"/><circle cx="12" cy="13.5" r="2.3"/></svg></div>' +
         '<div class="rp-bubble-body">' +
           '<div class="rp-bubble-title">聊天红包</div>' +
           '<div class="rp-bubble-sub">' + (mine ? '查看领取详情' : '点击领取红包') + '</div>' +
