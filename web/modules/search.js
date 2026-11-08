@@ -141,7 +141,7 @@
       html += '<div class="search-group"><div class="search-group-title">文件</div>';
       results.files.forEach(function (f) {
         html += '<div class="search-item" data-type="file" data-id="' + f.id + '">' +
-          '<div class="search-item-icon">文件</div>' +
+          '<div class="search-item-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></div>' +
           '<div class="search-item-info"><div class="search-item-name">' + esc(f.name) + '</div>' +
           '<div class="search-item-sub">' + esc(f.peer || '') + ' · ' + Math.round((f.size || 0) / 1024) + 'KB</div></div>' +
         '</div>';

@@ -97,7 +97,7 @@
         if (c.type === 'ticket') {
           var tExp = c.expireAt < Date.now();
           return '<div class="card-item card-ticket' + (c.used || tExp ? ' used' : '') + '">' +
-            '<div class="card-ticket-icon">票</div>' +
+            '<div class="card-ticket-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><path d="M13 7v2M13 15v2"/></svg></div>' +
             '<div class="card-ticket-info">' +
               '<div class="card-ticket-name">' + esc(c.name) + '</div>' +
               '<div class="card-ticket-code">兑换码：' + esc(c.code) + '</div>' +
