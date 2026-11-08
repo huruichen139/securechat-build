@@ -6371,16 +6371,16 @@ window.ME_ICONS = [
     { name: '支付', icon: '¥', action: () => {
       const pay = window.SecureChatExt && window.SecureChatExt.getFeature && window.SecureChatExt.getFeature('pay');
       if (pay && typeof pay.homePanel === 'function') openFeatureModalFrom(pay, 'homePanel');
-      else toast('支付功能开发中', 'info');
+      else toast('支付暂不可用', 'info');
     } },
-    { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) openContainerFeature(window.SecureChatFavorites, '我的收藏'); else toast('收藏功能开发中', 'info'); } },
-    { name: '相册', icon: '▦', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册功能开发中', 'info'); } },
-    { name: '卡包', icon: '▤', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包功能开发中', 'info'); } },
-    { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情功能开发中', 'info'); } },
+    { name: '收藏', icon: '★', action: () => { if (window.SecureChatFavorites) openContainerFeature(window.SecureChatFavorites, '我的收藏'); else toast('收藏暂不可用', 'info'); } },
+    { name: '相册', icon: '▦', action: () => { if (window.SecureChatAlbum) window.SecureChatAlbum.open(); else toast('相册暂不可用', 'info'); } },
+    { name: '卡包', icon: '▤', action: () => { if (window.SecureChatCards) window.SecureChatCards.open(); else toast('卡包暂不可用', 'info'); } },
+    { name: '表情', icon: '☺', action: () => { if (window.SecureChatStickers) window.SecureChatStickers.open(); else toast('表情暂不可用', 'info'); } },
     { name: '黑名单', icon: '⊘', action: () => { renderBlocklistPage(); showMobilePage('blocklistPage'); } },
     { name: '更多功能', icon: '⋯', action: () => openFeatureCenter() },
     { name: '下载', icon: '↓', action: () => { const main = document.querySelector('.main'); if (main) main.style.display = 'none'; hideMobilePages(); const dv = $('downloadView'); if (dv) { dv.style.display = 'flex'; dv.classList.remove('dl-hidden'); } if (window.IS_MOBILE) { const cv = document.getElementById('chatView'); if (cv) { cv.classList.add('mobile-chat-active'); cv.scrollLeft = 0; } } if (window.initDownloadView) window.initDownloadView(dv); } },
-    { name: '意见反馈', icon: '✉', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈功能开发中', 'info'); } },
+    { name: '意见反馈', icon: '✉', action: () => { if (window.SecureChatFeedback) window.SecureChatFeedback.open(); else toast('意见反馈暂不可用', 'info'); } },
     { name: '设置', icon: '⚙', action: () => openSettingsPage() },
   ];
   // 微信式分组：第一组 支付/收藏，第二组 相册/卡包/表情，第三组 更多功能/下载/意见反馈/设置
@@ -6581,9 +6581,9 @@ function renderContactsPage() {
   }
   // 标签 / 公众号占位行：点击给出明确提示，不做死按钮
   const lbl = document.getElementById('contactLabelsItem');
-  if (lbl) lbl.onclick = () => toast('标签功能开发中', 'info');
+  if (lbl) lbl.onclick = () => toast('标签暂不可用', 'info');
   const oa = document.getElementById('contactOAItem');
-  if (oa) oa.onclick = () => { if (window.SecureChatOa && window.SecureChatOa.open) window.SecureChatOa.open(); else toast('公众号功能开发中', 'info'); };
+  if (oa) oa.onclick = () => { if (window.SecureChatOa && window.SecureChatOa.open) window.SecureChatOa.open(); else toast('公众号暂不可用', 'info'); };
   // 空分组隐藏（微信式：无数据不显示分组）
   // 搜索框输入 → 实时过滤重渲染
   const sInput = document.getElementById('contactsSearch');
