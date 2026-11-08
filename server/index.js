@@ -644,7 +644,7 @@ async function checkTurnstile(token, ip) {
 // strict=true：必须通过（失败写 403）；strict=false：带了才验，不带则放行（兼容老客户端）
 // 通过返回 true；strict 且失败时已向 res 写 403 并返回 false
 async function verifyHuman(req, res, strict) {
-  const b = req.body || {};
+  const b = Object.assign({}, req.query || {}, req.body || {});
   // 优先检查 Cap token
   const capToken = b['cap-token'] || b.capToken;
   if (capToken) {
@@ -855,6 +855,8 @@ app.get('/api/oauth/connect', async (req, res) => {
   if (!OAUTH_TYPES.includes(type)) return res.status(400).json({ error: '不支持的登录方式' });
   const ip = getIp(req);
   if (rateLimit('oauth:' + ip, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+  // 登录发起必须完成人机验证；已登录用户绑定不重复验证
+  if (String((req.query || {}).bind || '') !== '1' && !(await verifyHuman(req, res, true))) return;
   // bind=1 表示"已登录用户主动绑定"：校验 token，把用户身份签进 state，
   // 这样浏览器跳第三方再回来（不带 Authorization 头）仍能确定绑到谁
   let bindUserId = 0;
@@ -1115,11 +1117,12 @@ function ghEnabled() { return !!(GH_CLIENT_ID && GH_CLIENT_SECRET); }
 const GH_SCOPE = process.env.GH_SCOPE || 'read:user user:email';
 
 // Step1 取 GitHub 授权地址：GET /api/github/connect
-app.get('/api/github/connect', (req, res) => {
+app.get('/api/github/connect', async (req, res) => {
   if (!ready) return res.status(503).json({ error: '服务初始化中' });
   if (!ghEnabled()) return res.status(503).json({ error: 'GitHub 登录未配置（缺少 GH_CLIENT_SECRET）' });
   const ip = getIp(req);
   if (rateLimit('gh:' + ip, 20, 10 * 60 * 1000)) return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+  if (!(await verifyHuman(req, res, true))) return;
   const state = oauthSignState({
     t: 'github',
     nonce: crypto.createHash('sha256').update(String(Date.now()) + Math.random() + ip).digest('hex').slice(0, 24),
@@ -1331,7 +1334,7 @@ app.post('/api/login', (req, res) => {
   // 密码登录：前端不携带人机验证数据（注册/验证码登录才带），故此处保持兼容模式，
   // 改由下方账号级失败计数（login_fail）兜底撞库与密码喷洒。
   // 注意：若改为 strict=true 会直接打断全部密码登录，客户端需同步改造。
-  verifyHuman(req, res, false).then((ok) => {
+  verifyHuman(req, res, true).then((ok) => {
     if (!ok) return;
     (function doLogin() {
   try {
@@ -1534,8 +1537,11 @@ app.post('/api/login/qr/consume', (req, res) => {
   const session = getQrLoginSession(req.body && req.body.token);
   if (!session) return res.status(410).json({ error: '二维码已过期' });
   if (session.status !== 'confirmed' || !session.loginToken) return res.json({ status: session.status });
-  session.consumed = true;
-  res.json({ status: 'ok', token: session.loginToken, user: publicUser(prepare('SELECT * FROM users WHERE id=?').get(session.userId)) });
+  verifyHuman(req, res, true).then((ok) => {
+    if (!ok) return;
+    session.consumed = true;
+    res.json({ status: 'ok', token: session.loginToken, user: publicUser(prepare('SELECT * FROM users WHERE id=?').get(session.userId)) });
+  });
 });
 
 // 通用二维码渲染：GET /api/qrcode/render?text=...&w=...（返回 PNG，用于网页端展示名片等）

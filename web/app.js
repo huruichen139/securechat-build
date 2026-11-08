@@ -554,6 +554,21 @@ function collectHumanBody() {
   return window.__hvApi();
 }
 
+// 当前选择的人机验证方式对应的请求体；未完成返回 null
+function humanVerifyBody() {
+  if (hvMethod === 'cap') {
+    if (!capToken) return null;
+    return { 'cap-token': capToken };
+  }
+  if (hvMethod === 'turnstile') {
+    if (!hvToken) return null;
+    return { turnstileToken: hvToken };
+  }
+  const ct = $('captchaText') ? $('captchaText').value.trim() : '';
+  if (!hvCaptchaId || !ct) return null;
+  return { captchaId: hvCaptchaId, captchaText: ct };
+}
+
 // 登录按钮文案：密码登录=登录，验证码登录=验证码登录，注册=注册，找回密码=重置密码
 function authBtnLabel() {
   if (pwdReset) return '重置密码';
@@ -569,7 +584,7 @@ function initLoginExtras() {
   if (!$('pwLoginHint')) {
     const hint = document.createElement('div');
     hint.id = 'pwLoginHint';
-    hint.textContent = '密码登录无需图形验证码';
+    hint.textContent = '登录需完成人机验证';
     hint.style.cssText = 'display:none;margin:-4px 0 8px 2px;font-size:12px;color:#999;line-height:1.4';
     pw.parentNode.insertBefore(hint, pw.nextSibling);
   }
@@ -669,7 +684,7 @@ function applyLoginMode() {
   // 人机验证区域：仅注册/验证码登录显示（密码登录和扫码不需要人机验证）
   const hv = $('humanVerify');
   if (hv) {
-    const needHv = showReg || useCode;
+    const needHv = true;
     hv.style.display = needHv ? 'block' : 'none';
     const capBox = $('capBox');
     const tst = $('turnstileBox');
@@ -809,7 +824,7 @@ $('authBtn').onclick = async () => {
     body = { account: username, password };
   }
   // 附加人机验证数据：仅注册/验证码登录需要（密码登录服务端不强制）
-  const needHv = mode === 'register' || loginMode === 'code';
+  const needHv = true;
   if (needHv) {
     if (hvMethod === 'cap') {
       if (!capToken) { $('authErr').textContent = '请完成人机验证'; return; }
@@ -885,9 +900,17 @@ $('authBtn').onclick = async () => {
     btns.forEach(b => { b.disabled = true; });
     if (errEl) errEl.textContent = '';
     try {
+      const hvBody = humanVerifyBody();
+      if (!hvBody) {
+        if (errEl) errEl.textContent = '请先完成上方人机验证';
+        btns.forEach(b => { b.disabled = false; });
+        return;
+      }
       // GitHub 走独立端点，其余走聚合登录网关
       const endpoint = (type === 'github') ? '/api/github/connect' : '/api/oauth/connect';
-      const res = await fetch(state.serverHost + endpoint + '?type=' + encodeURIComponent(type), { method: 'GET' });
+      const params = new URLSearchParams({ type });
+      Object.keys(hvBody).forEach(k => params.set(k, hvBody[k]));
+      const res = await fetch(state.serverHost + endpoint + '?' + params.toString(), { method: 'GET' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) throw new Error(data.error || '获取登录地址失败');
       try { sessionStorage.setItem('sc_oauth_state', data.state || ''); } catch (e) {}
@@ -1093,11 +1116,27 @@ async function setQrLogin() {
     qrLoginTimer = setInterval(async () => {
       if (done) return;
       try {
+        const sr = await fetch(state.serverHost + '/api/login/qr/status?token=' + encodeURIComponent(data.token));
+        const sd = await sr.json();
+        if (sr.status === 410) { done = true; clearInterval(qrLoginTimer); if (tip) tip.textContent = '二维码已失效，请刷新重试'; return; }
+        if (sd.status !== 'confirmed') return;
+        const hvBody = humanVerifyBody();
+        if (!hvBody) {
+          if (tip) tip.textContent = '已确认登录，请先完成上方人机验证，验证后自动登录。';
+          return;
+        }
         const r = await fetch(state.serverHost + '/api/login/qr/consume', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: data.token })
+          body: JSON.stringify(Object.assign({ token: data.token }, hvBody))
         });
-        const rdata = await r.json();
+        const rdata = await r.json().catch(() => ({}));
+        if (r.status === 403) {
+          if (tip) tip.textContent = '人机验证未通过，请重新验证后再试。';
+          if (hvMethod === 'img') { loadCaptcha(); if ($('captchaText')) $('captchaText').value = ''; }
+          else if (hvMethod === 'turnstile' && window.turnstile && $('turnstileBox')) { window.turnstile.reset(); hvToken = null; }
+          else { capToken = null; }
+          return;
+        }
         if (r.status === 410) { done = true; clearInterval(qrLoginTimer); if (tip) tip.textContent = '二维码已失效，请刷新重试'; return; }
         if (rdata.status === 'ok' && rdata.token && rdata.user) {
           done = true; clearInterval(qrLoginTimer); qrLoginTimer = null;
