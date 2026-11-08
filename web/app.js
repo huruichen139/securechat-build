@@ -3294,7 +3294,7 @@ async function openGroupProfile(groupId) {
         <div class="profile-avatar">${escapeHtml((displayName || '群').charAt(0))}</div>
         <div class="profile-name">${escapeHtml(displayName || g.name)}</div>
         <div class="profile-id">${members.length} 名成员</div>
-        <div class="profile-region group-nick-row" style="margin-top:6px">我在本群的昵称：<span id="groupNickVal">${escapeHtml(myNickname || '未设置')}</span> ›</div>
+        <div class="profile-region group-nick-row" style="margin-top:6px">我在本群的昵称：<span id="groupNickVal">${escapeHtml(myNickname || '未设置')}</span><button class="btn-cn gray" id="groupNickEdit" type="button" style="padding:2px 8px;font-size:12px;margin-left:6px">修改</button></div>
         ${announcement && announcement.content ? `<div class="profile-region" style="margin-top:6px;word-break:break-all">公告：${escapeHtml(String(announcement.content).slice(0, 200))}${String(announcement.content).length > 200 ? '…' : ''}${isOwner ? '<button class="ann-edit-btn" type="button">编辑</button>' : ''}</div>` : (isOwner ? '<div class="profile-region" style="margin-top:6px">暂无公告<button class="ann-edit-btn" type="button">发布公告</button></div>' : '')}
       </div>
       <div class="profile-members">
@@ -3309,6 +3309,24 @@ async function openGroupProfile(groupId) {
       </div>
     </div>`;
   document.body.appendChild(mask);
+  const groupNickEdit = mask.querySelector('#groupNickEdit');
+  if (groupNickEdit) groupNickEdit.onclick = async () => {
+    const v = await scAsk({ title: '修改群昵称', placeholder: '输入本群昵称', value: myNickname || '', okText: '保存' });
+    if (v == null) return;
+    try {
+      const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+        body: JSON.stringify({ nickname: String(v).trim() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      const span = mask.querySelector('#groupNickVal');
+      if (span) span.textContent = String(v).trim() || '未设置';
+      myNickname = String(v).trim();
+      toast('群昵称已更新', 'success');
+    } catch (e) { toast('更新失败：' + e.message, 'error'); }
+  };
   const groupCloseBtn = mask.querySelector('.profile-x');
   if (groupCloseBtn) groupCloseBtn.onclick = () => mask.remove();
   mask.querySelectorAll('.profile-member').forEach(el => {
