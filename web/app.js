@@ -4817,15 +4817,25 @@ if (desktopInput) desktopInput.addEventListener('input', () => {
 });
 
 // 本地主题切换，不影响账号和聊天数据
+const THEME_SUN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const THEME_MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M20 14.5A8 8 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
+function applyThemeIcon() {
+  const b = $('themeToggle');
+  if (!b) return;
+  const dark = document.body.classList.contains('dark-mode');
+  b.innerHTML = dark ? THEME_SUN_SVG : THEME_MOON_SVG;
+  b.title = dark ? '切换到浅色模式' : '切换到深色模式';
+  b.setAttribute('aria-label', b.title);
+}
 const themeToggle = $('themeToggle');
 const savedTheme = localStorage.getItem('sc_theme') || (localStorage.darkMode === '1' ? 'dark' : '');
 if (savedTheme === 'dark') document.body.classList.add('dark-mode');
 if (themeToggle) themeToggle.onclick = () => {
   const dark = document.body.classList.toggle('dark-mode');
   localStorage.setItem('sc_theme', dark ? 'dark' : 'light');
-  themeToggle.textContent = dark ? t('light', '日') : t('dark', '夜');
+  applyThemeIcon();
 };
-if (themeToggle && savedTheme === 'dark') themeToggle.textContent = t('light', '日');
+if (themeToggle) applyThemeIcon();
 
 // ============ 语言切换浮层 ============
 // 点击侧边栏底部 localeToggle 弹出语言选择菜单；选择后交给 SCI18N.setLocale。
@@ -4876,7 +4886,7 @@ document.addEventListener('sc-locale-change', () => {
   // 刷新 chatHeader 静态文案（如“请选择联系人”）
   if (!state.activePeer && !state.activeGroup && $('chatHeader')) $('chatHeader').textContent = t('noConversation', '请选择联系人');
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply();
-  if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark-mode') ? t('light', '日') : t('dark', '夜');
+  applyThemeIcon();
 });
 
 window.addEventListener('focus', () => { if (window.chatAPI) window.chatAPI.stopFlash(); });
