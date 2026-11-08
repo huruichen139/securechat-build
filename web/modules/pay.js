@@ -567,7 +567,9 @@
         row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eee;border-radius:10px;background:var(--bg,#fff)';
         const icon = document.createElement('div');
         icon.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + (ined ? 'rgba(7,193,96,.08)' : '#fdecea') + ';color:' + (ined ? '#07c160' : '#e74c3c') + ';display:flex;align-items:center;justify-content:center;font-size:14px';
-        icon.textContent = ined ? '收' : '支';
+        icon.innerHTML = ined
+          ? '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7L7 17"/><path d="M7 9v8h8"/></svg>'
+          : '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M9 7h8v8"/></svg>';
         const mid = document.createElement('div');
         mid.style.cssText = 'flex:1;min-width:0';
         const t1 = document.createElement('div'); t1.textContent = b.title || b.category; t1.style.cssText = 'font-size:14px;color:var(--text,#191919);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
