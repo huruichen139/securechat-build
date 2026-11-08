@@ -1251,7 +1251,7 @@ body.dark-mode .admin-main { background: #191919; }
 }
 .locale-item:hover { background: #f4f8ff; color: var(--primary); }
 .locale-item.active { color: var(--primary); font-weight: 700; background: #f6f9ff; }
-.locale-item.active::before { content: '? '; margin-right: 2px; font-weight: 700; }
+.locale-item.active::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; background-color: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center/contain no-repeat; }
 
 /* 深色模式：浮层背景比 sidebar-content (#111827) 更深，制造分层感 */
 body.dark-mode .locale-menu {
@@ -1480,7 +1480,7 @@ html.is-mobile .header .back-to-list-btn {
   background: transparent; color: var(--primary);
   font-size: 16px; font-weight: 500;
 }
-html.is-mobile .header .back-to-list-btn::before { content: '? '; font-size: 22px; }
+html.is-mobile .header .back-to-list-btn::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: 0; background-color: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/contain no-repeat; }
 
 /* 聊天列表（聊天/通讯录）：白底列表，行高大，头像圆角 */
 html.is-mobile .contact-list { background: #fff; }
