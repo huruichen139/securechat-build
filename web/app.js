@@ -3776,13 +3776,13 @@ function markGroupRecalled(id) {
 function onIncomingGroupMsg(payload) {
   state.groupLastMsg[payload.groupId] = payload.content || '[消息]';
   state.groupLastMsgTime[payload.groupId] = payload.createdAt || Date.now();
+  const cachedArr = state.groupMsgs[payload.groupId];
+  if (cachedArr) {
+    const exists = cachedArr.some(x => (x.id != null && payload.id != null && Number(x.id) === Number(payload.id)) || (x.clientMsgId && payload.clientMsgId && x.clientMsgId === payload.clientMsgId));
+    if (!exists) cachedArr.push(payload);
+  }
   if (state.activeGroup === payload.groupId) {
     appendGroupMessage(payload, false);
-    const arr = state.groupMsgs[payload.groupId];
-    if (arr) {
-      const exists = arr.some(x => (x.id != null && payload.id != null && Number(x.id) === Number(payload.id)) || (x.clientMsgId && payload.clientMsgId && x.clientMsgId === payload.clientMsgId));
-      if (!exists) arr.push(payload);
-    }
   } else {
    	state.groupUnread[payload.groupId] = (state.groupUnread[payload.groupId] || 0) + 1;
     if (payload.mentionMe) state.groupMention[payload.groupId] = true;
