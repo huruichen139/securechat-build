@@ -2951,9 +2951,10 @@ function renderContactsDirectory() {
 function renderGroupList() {
   const list = $('contactList');
   const kw = $('search').value.trim().toLowerCase();
+  const prefs = chatPrefs();
   const groups = state.groups.filter(g => !kw
     || (g.name || '').toLowerCase().includes(kw)
-    || String(g.id).includes(kw)).sort((a, b) => Number(!!chatPrefs().pinned['g:' + b.id]) - Number(!!chatPrefs().pinned['g:' + a.id]) || (a.name || '').localeCompare(b.name || ''));
+    || String(g.id).includes(kw)).sort((a, b) => Number(!!prefs.pinned['g:' + b.id]) - Number(!!prefs.pinned['g:' + a.id]) || (a.name || '').localeCompare(b.name || ''));
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
   const count = $('listCount');
@@ -2975,8 +2976,8 @@ function renderGroupList() {
     const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('成员 ' + memberCnt + ' 人');
     const groupTime = state.groupLastMsgTime[g.id] ? fmtChatListTime(state.groupLastMsgTime[g.id]) : '';
     const draftText = readDrafts()['g:' + g.id] || '';
-    const isPinned = !!chatPrefs().pinned['g:' + g.id];
-    const isMuted = !!chatPrefs().muted['g:' + g.id];
+    const isPinned = !!prefs.pinned['g:' + g.id];
+    const isMuted = !!prefs.muted['g:' + g.id];
     div.innerHTML = `<div class="avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div>
        <div style="flex:1;overflow:hidden">
         <div class="name">${escapeHtml(g.name)}<span class="last" style="margin-left:6px">ID:${g.id}${ownerMark}</span></div>
