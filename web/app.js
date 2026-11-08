@@ -3938,15 +3938,21 @@ async function selectPeer(peerId) {
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.unread[peerId] = 0;
   loadCallReplays(peerId);
-  // E2EE：先初始化接收会话，确保后续消息能解密
-  if (window.SCE2EE) {
-    try { await window.SCE2EE.primeReceiver(peerId); } catch (e) { console.warn('[E2EE] primeReceiver failed', e); }
-  }
   const peer = state.friends.find(u => u.id === peerId);
   renderChatHeader();
   renderContacts();
   refreshConversationButtons();
   restoreCurrentDraft();
+  // 移动端：选中联系人后立即切换到聊天区，历史消息随后异步填充
+  if (window.IS_MOBILE) showMobileChatView();
+  else {
+    hideMobilePages(); setRailActive('friends'); setChatListVisible(true);
+    const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
+    const aiV = $('aiView'); if (aiV) aiV.style.display = 'none';
+    const dv = $('downloadView'); if (dv) dv.style.display = 'none';
+  }
+  // E2EE 初始化放到后台，避免密钥协商阻塞联系人点击响应
+  if (window.SCE2EE) window.SCE2EE.primeReceiver(peerId).catch(e => console.warn('[E2EE] primeReceiver failed', e));
   try {
     const res = await fetch(state.serverHost + '/api/history/' + encodeURIComponent(String(peerId)), {
       headers: { 'Authorization': 'Bearer ' + state.token }
@@ -3964,14 +3970,6 @@ async function selectPeer(peerId) {
   } catch (e) {
     if (state.activePeer !== peerId) return;
     $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
-  }
-  // 移动端：选中联系人后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
-  if (window.IS_MOBILE) showMobileChatView();
-  else {
-    hideMobilePages(); setRailActive('friends'); setChatListVisible(true);
-    const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
-    const aiV = $('aiView'); if (aiV) aiV.style.display = 'none';
-    const dv = $('downloadView'); if (dv) dv.style.display = 'none';
   }
 }
 
