@@ -6569,6 +6569,7 @@ function updateUnreadBadge() {
     mb.style.display = total > 0 ? 'flex' : 'none';
     mb.textContent = total > 99 ? '99+' : String(total);
   }
+  try { document.title = total > 0 ? '(' + (total > 99 ? '99+' : total) + ') SecureChat' : 'SecureChat'; } catch (e) {}
 }
 // 桌面端：聊天人列表只在点击"微信"时显示
 function setChatListVisible(show) {
