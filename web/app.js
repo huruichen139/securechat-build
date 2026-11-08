@@ -2370,7 +2370,7 @@ function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
 (function () {
   const COLORS = ['#4a7dde','#2f9e74','#c08a00','#cf5540','#2f8fae','#6f55b3','#cf6f2f','#1f7f7f','#c25f86','#566b8c'];
   function paint() {
-    document.querySelectorAll('.avatar,.chat-avatar,.msg-avatar,.contact .avatar,.profile-avatar').forEach(function (el) {
+    document.querySelectorAll('.avatar,.row-avatar,.chat-avatar,.msg-avatar,.contact .avatar,.profile-avatar').forEach(function (el) {
       if (el.dataset.avPainted === '1') return;
       if (el.querySelector('img')) return;
       const t = (el.textContent || '').trim();
