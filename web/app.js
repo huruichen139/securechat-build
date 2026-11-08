@@ -4930,7 +4930,7 @@ function openLocaleMenu() {
     item.type = 'button';
     item.className = 'locale-item' + (SCI18N.locale === code ? ' active' : '');
     item.dataset.locale = code;
-    item.textContent = (SCI18N.locale === code ? '\u2713 ' : '') + SCI18N.names[code];
+    item.textContent = SCI18N.names[code];
     item.onclick = () => {
       const next = item.dataset.locale;
       closeLocaleMenu();
