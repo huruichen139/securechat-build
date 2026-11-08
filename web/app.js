@@ -3483,7 +3483,7 @@ async function selectGroup(groupId) {
   saveCurrentDraft();
   state.activeGroup = groupId;
   state.activePeer = null;
-  { const _mb = messages; if (_mb) _mb.classList.add('group-chat'); }
+  { const _mb = $('messages'); if (_mb) _mb.classList.add('group-chat'); }
   const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
   state.groupUnread[groupId] = 0;
@@ -3946,7 +3946,7 @@ async function selectPeer(peerId) {
   saveCurrentDraft();
   state.activePeer = peerId;
   state.activeGroup = null;
-  { const _mb = messages; if (_mb) _mb.classList.remove('group-chat'); }
+  { const _mb = $('messages'); if (_mb) _mb.classList.remove('group-chat'); }
   const _tt = document.querySelector('.typing-tip'); if (_tt) _tt.textContent = '';
   const annB = $('groupAnnounceBanner'); if (annB) annB.style.display = 'none';
   const welcome = $('welcomePanel'); if (welcome) welcome.style.display = 'none';
