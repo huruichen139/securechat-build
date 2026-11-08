@@ -3853,3 +3853,27 @@ body.dark-mode .auth-logo .auth-name{color:#000!important}
 body.dark-mode #authView .auth-card{background:#1c1c1c!important;border-color:#2a2a2a!important;box-shadow:0 12px 40px rgba(0,0,0,.5)!important}
 body.dark-mode #authView .auth-card .input{background:#262626!important}
 body.dark-mode .auth-logo .auth-name{color:#f5f5f5!important}
+/* ---------- 视觉精修覆盖（高特异性） ---------- */
+#chatView .messages .msg-row .bubble{padding:10px 13px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
+body[data-bubble-style=""] #chatView .messages .msg-row .bubble{border-radius:10px!important}
+body[data-bubble-style=""] #chatView .messages .msg-row.me .bubble{border-top-right-radius:4px!important}
+body[data-bubble-style=""] #chatView .messages .msg-row.other .bubble{border-top-left-radius:4px!important}
+@media (min-width:761px){
+  html body #chatView .main .header{height:58px!important;background:#fff!important;border-bottom:1px solid #ececec!important;padding:0 24px!important;box-shadow:none!important}
+  html body #chatView .main .header #chatHeader{font-size:15px!important;font-weight:600!important;color:#111!important}
+  html body #chatView .main .messages{background:#f4f5f6!important;padding:20px max(24px,calc((100% - 900px)/2)) 24px!important}
+  html body #chatView .main .composer{background:#fff!important;border-top:1px solid #ececec!important;padding:12px max(24px,calc((100% - 900px)/2)) 14px!important;gap:8px 12px!important}
+  html body #chatView .main .composer .composer-input-wrap{background:#f6f7f8!important;border-radius:10px!important;padding:6px 10px!important}
+  html body #chatView .main .composer textarea{background:transparent!important;font-size:14px!important;line-height:1.6!important}
+  html body #chatView .main .composer .btn.send{height:38px!important;border-radius:9px!important;font-weight:500!important;box-shadow:0 4px 12px rgba(7,193,96,.22)!important}
+  html body #chatView #friendsSide{background:#fff!important;border-right:1px solid #ececec!important}
+  html body #chatView #contactList .contact{transition:background .12s ease!important}
+  html body #chatView #contactList .contact.active{background:#ececec!important}
+}
+/* ---------- 视觉精修最终覆盖 ---------- */
+html body #chatView .main .header{min-height:58px!important}
+html body #chatView .messages .msg-row .bubble{padding:10px 13px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
+html body #chatView .main .composer textarea{border:0!important;box-shadow:none!important}
+/* ---------- 气泡最终覆盖（压过 msg-row.me 复合选择器） ---------- */
+html body #chatView .messages .msg-row.me .bubble,
+html body #chatView .messages .msg-row.other .bubble{padding:10px 13px!important;font-size:14.5px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
