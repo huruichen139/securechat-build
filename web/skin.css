@@ -3802,3 +3802,5 @@ html.is-mobile #friendsSide #search { margin-top: 6px !important; }
 html.is-mobile #mePage .page-body,html.is-mobile #discoverPage .page-body,html.is-mobile #contactsPage .page-body{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 #messages{overscroll-behavior:contain}
 .modal{overscroll-behavior:contain}
+
+html:not(.is-mobile) #inviteBar{display:none!important}

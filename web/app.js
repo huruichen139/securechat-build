@@ -6806,6 +6806,10 @@ function openChatMoreMenu(anchor) {
     const blocked = blockedMap ? blockedMap.has(peer.id) : false;
     items.push({ label: blocked ? '解除拉黑' : '拉黑该联系人', danger: !blocked, onClick: () => toggleBlock(peer.id) });
   }
+  if (state.activeGroup) {
+    items.push({ label: '群聊信息', onClick: () => { hideChatMoreMenu(); openGroupProfile(state.activeGroup); } });
+    items.push({ label: '邀请成员', onClick: () => { hideChatMoreMenu(); openGroupInvitePicker(); } });
+  }
   if (state.activePeer || state.activeGroup) {
     const key = state.activePeer ? 'u:' + state.activePeer : 'g:' + state.activeGroup;
     const prefs = chatPrefs();
