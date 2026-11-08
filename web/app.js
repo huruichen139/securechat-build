@@ -4828,7 +4828,7 @@ function applyThemeIcon() {
   b.setAttribute('aria-label', b.title);
 }
 const themeToggle = $('themeToggle');
-const savedTheme = localStorage.getItem('sc_theme') || (localStorage.darkMode === '1' ? 'dark' : '');
+const savedTheme = localStorage.getItem('sc_theme') || (localStorage.darkMode === '1' ? 'dark' : '') || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : '');
 if (savedTheme === 'dark') document.body.classList.add('dark-mode');
 if (themeToggle) themeToggle.onclick = () => {
   const dark = document.body.classList.toggle('dark-mode');

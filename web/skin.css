@@ -3799,3 +3799,6 @@ html body #chatView #friendsSide.show-add .add-friend{display:flex!important;mar
 #chatDesktopComposer .tool:not(:has(svg)):not(.rp-tool-btn) { display: none !important; }html.is-mobile #chatView .messages .msg-row .bubble-wrap { max-width: 72% !important; }html.is-mobile #friendsSide { padding: 6px 12px 4px !important; }
 html.is-mobile #friendsSide .mobile-list-title { height: 38px !important; line-height: 38px !important; font-size: 17px !important; }
 html.is-mobile #friendsSide #search { margin-top: 6px !important; }
+html.is-mobile #mePage .page-body,html.is-mobile #discoverPage .page-body,html.is-mobile #contactsPage .page-body{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+#messages{overscroll-behavior:contain}
+.modal{overscroll-behavior:contain}
