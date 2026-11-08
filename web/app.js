@@ -2745,6 +2745,7 @@ function renderContacts() {
     if (c.kind === 'group') {
       const g = c.item;
       const div = document.createElement('div');
+      div.dataset.gid = String(g.id);
       div.className = 'contact conversation-group' + (state.activeGroup === g.id ? ' active' : '');
       const unread = state.groupUnread[g.id] || 0;
       const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || '群聊';
@@ -2760,6 +2761,7 @@ function renderContacts() {
     }
     const u = c.item;
     const div = document.createElement('div');
+    div.dataset.uid = String(u.id);
     div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
     const unread = state.unread[u.id] || 0;
     const avHtml = escapeHtml(u.avatar) ? '<img src="' + escapeHtml(u.avatar) + '">' : avatarChar(u.nickname);
@@ -2785,6 +2787,21 @@ function renderContacts() {
     }
     list.appendChild(div);
   });
+}
+
+// 切换会话时只更新选中态，避免重建整个会话列表造成点击卡顿
+function markActiveConversation(key) {
+  updateUnreadBadge();
+  const list = $('contactList');
+  if (!list) return;
+  list.querySelectorAll('.contact.active').forEach(x => x.classList.remove('active'));
+  const id = String(key).slice(2);
+  const row = list.querySelector('.contact[data-' + (key.charAt(0) === 'g' ? 'gid' : 'uid') + '="' + id + '"]');
+  if (row) {
+    row.classList.add('active');
+    const badge = row.querySelector('.badge');
+    if (badge) badge.remove();
+  }
 }
 
 // ============ 会话右键菜单（微信式：置顶/免打扰/删除） ============
@@ -3476,7 +3493,7 @@ async function selectGroup(groupId) {
   state.groupMention[groupId] = false;
   groupReadCounted[groupId] = new Set();
   send(P.C_GROUP_READ, { groupId });
-  renderContacts();
+  markActiveConversation('g:' + groupId);
   renderChatHeader();
   refreshConversationButtons();
   restoreCurrentDraft();
@@ -3940,7 +3957,7 @@ async function selectPeer(peerId) {
   loadCallReplays(peerId);
   const peer = state.friends.find(u => u.id === peerId);
   renderChatHeader();
-  renderContacts();
+  markActiveConversation('u:' + peerId);
   refreshConversationButtons();
   restoreCurrentDraft();
   // 移动端：选中联系人后立即切换到聊天区，历史消息随后异步填充
@@ -6602,7 +6619,12 @@ function renderContactsPage() {
   });
   // 新好友行整行点击 → 打开与该用户的聊天
   newFEl.querySelectorAll('[data-uid]').forEach(el => {
-    el.onclick = () => selectPeer(parseInt(el.dataset.uid));
+    el.onclick = () => {
+      document.querySelectorAll('#contactsPage .contact.active').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      state._chatFrom = 'contacts';
+      selectPeer(parseInt(el.dataset.uid));
+    };
   });
 
   // 朋友群
@@ -6619,7 +6641,15 @@ function renderContactsPage() {
       </div>
     </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无朋友群</div>';
   grpEl.querySelectorAll('[data-gid]').forEach(btn => {
-    btn.onclick = () => { const gid = parseInt(btn.dataset.gid); if (gid) { state._chatFrom = 'contacts'; selectGroup(gid); } };
+    btn.onclick = () => {
+      const gid = parseInt(btn.dataset.gid);
+      if (gid) {
+        document.querySelectorAll('#contactsPage .contact.active').forEach(x => x.classList.remove('active'));
+        btn.classList.add('active');
+        state._chatFrom = 'contacts';
+        selectGroup(gid);
+      }
+    };
   });
 
   // 字母索引好友
@@ -6649,7 +6679,12 @@ function renderContactsPage() {
         </div>`).join('')}
     </div>`).join('') : (kw ? '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">没有匹配的联系人</div>' : '');
   alpEl.querySelectorAll('[data-uid]').forEach(el => {
-    el.onclick = () => { state._chatFrom = 'contacts'; selectPeer(parseInt(el.dataset.uid)); };
+    el.onclick = () => {
+      document.querySelectorAll('#contactsPage .contact.active').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      state._chatFrom = 'contacts';
+      selectPeer(parseInt(el.dataset.uid));
+    };
   });
 
   const page = document.getElementById('contactsPage');
