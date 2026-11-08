@@ -6413,12 +6413,21 @@ function openLabelPicker(name) {
   const selected = new Set((getLabelMembers()[name] || []).map(String));
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
-  mask.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-head"><span>标签：' + escapeHtml(name) + '</span><button class="modal-x" type="button">×</button></div><div style="padding:8px 14px;max-height:52vh;overflow:auto">' + (friends.length ? friends.map((u) => '<label style="display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:14px"><input type="checkbox" value="' + escapeHtml(String(u.id)) + '"' + (selected.has(String(u.id)) ? ' checked' : '') + '><span>' + escapeHtml(u.nickname || '') + '</span></label>').join('') : '<div style="padding:16px;color:#aaa">暂无好友</div>') + '</div><div class="modal-actions"><button type="button" class="btn-cn gray" data-cancel>取消</button><button type="button" class="btn-cn" data-save>保存</button></div></div>';
+  mask.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-head"><span>标签：' + escapeHtml(name) + '</span><button class="modal-x" type="button">×</button></div><div style="padding:8px 14px;max-height:52vh;overflow:auto">' + (friends.length ? friends.map((u) => '<label style="display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:14px"><input type="checkbox" value="' + escapeHtml(String(u.id)) + '"' + (selected.has(String(u.id)) ? ' checked' : '') + '><span>' + escapeHtml(u.nickname || '') + '</span></label>').join('') : '<div style="padding:16px;color:#aaa">暂无好友</div>') + '</div><div class="modal-actions"><button type="button" class="btn-cn gray" data-cancel>取消</button><button type="button" class="btn-cn gray" data-del>删除标签</button><button type="button" class="btn-cn" data-save>保存</button></div></div>';
   document.body.appendChild(mask);
   const close = () => mask.remove();
   mask.querySelector('.modal-x').onclick = close;
   mask.querySelector('[data-cancel]').onclick = close;
   mask.onclick = (e) => { if (e.target === mask) close(); };
+  mask.querySelector('[data-del]').onclick = () => {
+    saveContactLabels(getContactLabels().filter((x) => x !== name));
+    const m = getLabelMembers();
+    delete m[name];
+    saveLabelMembers(m);
+    close();
+    renderContactLabels();
+    toast('已删除标签', 'success');
+  };
   mask.querySelector('[data-save]').onclick = () => {
     const ids = [...mask.querySelectorAll('input[type=checkbox]:checked')].map((x) => x.value);
     const m = getLabelMembers();
