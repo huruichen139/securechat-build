@@ -6392,15 +6392,42 @@ function getContactLabels() {
 function saveContactLabels(list) {
   try { localStorage.setItem('sc_contact_labels', JSON.stringify(list)); } catch (e) {}
 }
+function getLabelMembers() {
+  try { const v = JSON.parse(localStorage.getItem('sc_label_members') || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; }
+}
+function saveLabelMembers(map) {
+  try { localStorage.setItem('sc_label_members', JSON.stringify(map)); } catch (e) {}
+}
+function openLabelPicker(name) {
+  const friends = state.friends || [];
+  const selected = new Set((getLabelMembers()[name] || []).map(String));
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-head"><span>标签：' + escapeHtml(name) + '</span><button class="modal-x" type="button">×</button></div><div style="padding:8px 14px;max-height:52vh;overflow:auto">' + (friends.length ? friends.map((u) => '<label style="display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:14px"><input type="checkbox" value="' + escapeHtml(String(u.id)) + '"' + (selected.has(String(u.id)) ? ' checked' : '') + '><span>' + escapeHtml(u.nickname || '') + '</span></label>').join('') : '<div style="padding:16px;color:#aaa">暂无好友</div>') + '</div><div class="modal-actions"><button type="button" class="btn-cn gray" data-cancel>取消</button><button type="button" class="btn-cn" data-save>保存</button></div></div>';
+  document.body.appendChild(mask);
+  const close = () => mask.remove();
+  mask.querySelector('.modal-x').onclick = close;
+  mask.querySelector('[data-cancel]').onclick = close;
+  mask.onclick = (e) => { if (e.target === mask) close(); };
+  mask.querySelector('[data-save]').onclick = () => {
+    const ids = [...mask.querySelectorAll('input[type=checkbox]:checked')].map((x) => x.value);
+    const m = getLabelMembers();
+    m[name] = ids;
+    saveLabelMembers(m);
+    close();
+    renderContactLabels();
+    toast('已更新标签', 'success');
+  };
+}
 function renderContactLabels() {
   const box = document.getElementById('contactsLabels');
   if (!box) return;
   const labels = getContactLabels();
   box.innerHTML = labels.map((name, i) =>
-    '<div class="contact" data-label-index="' + i + '"><div class="avatar" style="border-radius:6px">' + escapeHtml(name.charAt(0)) + '</div><div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(name) + '</div><div class="last">0 位朋友</div></div><span style="color:#c8c8c8;font-size:16px">›</span></div>'
+    '<div class="contact" data-label-index="' + i + '"><div class="avatar" style="border-radius:6px">' + escapeHtml(name.charAt(0)) + '</div><div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(name) + '</div><div class="last">' + ((getLabelMembers()[name] || []).length) + ' 位朋友</div></div><span style="color:#c8c8c8;font-size:16px">›</span></div>'
   ).join('') + '<div class="contact" id="contactAddLabel"><div class="avatar" style="border-radius:6px;background:#f2f2f2;color:#07c160;font-size:20px">+</div><div style="flex:1"><div class="name">新建标签</div></div></div>';
   box.querySelectorAll('[data-label-index]').forEach((el) => {
-    el.onclick = () => toast('标签：' + labels[Number(el.dataset.labelIndex)], 'info');
+    el.onclick = () => openLabelPicker(labels[Number(el.dataset.labelIndex)]);
   });
   const add = document.getElementById('contactAddLabel');
   if (add) add.onclick = async () => {
