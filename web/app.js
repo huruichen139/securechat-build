@@ -2718,6 +2718,7 @@ function renderContacts() {
   const list = $('contactList');
   list.innerHTML = '';
   const prefs = chatPrefs();
+  const drafts = readDrafts();
   const friends = state.friends.filter(u => !kw
     || (u.nickname || '').toLowerCase().includes(kw)
     || (u.username || '').toLowerCase().includes(kw)
@@ -2752,7 +2753,7 @@ function renderContacts() {
       const unread = state.groupUnread[g.id] || 0;
       const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || '群聊';
       const lastTime = state.groupLastMsgTime[g.id] || 0;
-      const draftText = readDrafts()['g:' + g.id] || '';
+      const draftText = drafts['g:' + g.id] || '';
       const isPinned = !!prefs.pinned[c.key];
       const isMuted = !!prefs.muted[c.key];
       div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}${state.groupMention[g.id] ? '<span class="mention-tag">@我</span>' : ''}</div><div class="last">${escapeHtml(chatPreview(draftText, lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
@@ -2770,7 +2771,7 @@ function renderContacts() {
     const isPinned = !!prefs.pinned['u:' + u.id];
     const isMuted = !!prefs.muted['u:' + u.id];
     const lastMsg = state.lastFrom[u.id];
-    const draftText = readDrafts()['u:' + u.id] || '';
+    const draftText = drafts['u:' + u.id] || '';
     const lastTime = state.lastMsgTime ? state.lastMsgTime[u.id] : 0;
     const preview = (lastMsg || draftText) ? escapeHtml(chatPreview(draftText, lastMsg).replace(/\n/g, ' ').slice(0, 30)) : (u.online ? '在线' : '离线');
     const timeStr = lastTime ? fmtChatListTime(lastTime) : '';
@@ -2952,6 +2953,7 @@ function renderGroupList() {
   const list = $('contactList');
   const kw = $('search').value.trim().toLowerCase();
   const prefs = chatPrefs();
+  const drafts = readDrafts();
   const groups = state.groups.filter(g => !kw
     || (g.name || '').toLowerCase().includes(kw)
     || String(g.id).includes(kw)).sort((a, b) => Number(!!prefs.pinned['g:' + b.id]) - Number(!!prefs.pinned['g:' + a.id]) || (a.name || '').localeCompare(b.name || ''));
@@ -2975,7 +2977,7 @@ function renderGroupList() {
     const memberCnt = (g.members || []).length;
     const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || ('成员 ' + memberCnt + ' 人');
     const groupTime = state.groupLastMsgTime[g.id] ? fmtChatListTime(state.groupLastMsgTime[g.id]) : '';
-    const draftText = readDrafts()['g:' + g.id] || '';
+    const draftText = drafts['g:' + g.id] || '';
     const isPinned = !!prefs.pinned['g:' + g.id];
     const isMuted = !!prefs.muted['g:' + g.id];
     div.innerHTML = `<div class="avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div>
