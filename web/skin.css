@@ -3877,3 +3877,118 @@ html body #chatView .main .composer textarea{border:0!important;box-shadow:none!
 /* ---------- 气泡最终覆盖（压过 msg-row.me 复合选择器） ---------- */
 html body #chatView .messages .msg-row.me .bubble,
 html body #chatView .messages .msg-row.other .bubble{padding:10px 13px!important;font-size:14.5px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
+/* ---------- 纸感绿调：与首页/后台统一（仅浅色模式） ---------- */
+body:not(.dark-mode){
+  --bg:#fbfaf6;--background:#f3f1ea;--side-bg:#fbfaf6;--surface:#fbfaf6;--card:#fbfaf6;
+  --border:#d8d4c8;--primary:#1f6f4a;--primary-soft:rgba(31,111,74,.09);
+  --text:#171a16;--text-2:#4f544d;--muted:#7c8179;--chip:#f3f1ea;
+  --bubble-mine:#1f6f4a;--bubble-other:#fbfaf6;--link:#155237;
+  background:#f3f1ea!important;color:#171a16!important;
+}
+body:not(.dark-mode) .chat-wrap,body:not(.dark-mode) .main,body:not(.dark-mode) #chatView{background:#f3f1ea!important}
+body:not(.dark-mode) .sidebar{background:#fbfaf6!important;border-right:1px solid #d8d4c8!important}
+body:not(.dark-mode) .sidebar-rail{background:#f3f1ea!important;border-right:1px solid #d8d4c8!important}
+body:not(.dark-mode) .sidebar-rail-brand{background:#171a16!important;color:#fbfaf6!important;border-radius:2px!important;font-family:Georgia,"Songti SC","Noto Serif SC",serif!important}
+body:not(.dark-mode) .side-tab{color:#4f544d!important;border-radius:2px!important}
+body:not(.dark-mode) .side-tab:hover{background:#fbfaf6!important;color:#171a16!important}
+body:not(.dark-mode) .side-tab.on{background:rgba(31,111,74,.1)!important;color:#155237!important;box-shadow:inset 2px 0 0 #1f6f4a!important}
+body:not(.dark-mode) .sidebar-content{background:#fbfaf6!important}
+body:not(.dark-mode) .sidebar-brand{border-bottom:1px solid #d8d4c8!important}
+body:not(.dark-mode) .brand-mark{background:#171a16!important;color:#fbfaf6!important;border-radius:2px!important;font-family:Georgia,"Songti SC","Noto Serif SC",serif!important}
+body:not(.dark-mode) .brand-copy strong{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
+body:not(.dark-mode) .brand-copy span,body:not(.dark-mode) .section-label,body:not(.dark-mode) .list-heading{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important;letter-spacing:.3px!important}
+body:not(.dark-mode) .search,body:not(.dark-mode) .add-friend input{background:#f3f1ea!important;border:1px solid #bcb7a9!important;border-radius:2px!important;color:#171a16!important}
+body:not(.dark-mode) .search:focus,body:not(.dark-mode) .add-friend input:focus{border-color:#1f6f4a!important;box-shadow:none!important}
+body:not(.dark-mode) .add-btn,body:not(.dark-mode) .btn-cn,body:not(.dark-mode) .me-entry{border:1px solid #bcb7a9!important;border-radius:2px!important;background:#fbfaf6!important;color:#171a16!important;box-shadow:none!important}
+body:not(.dark-mode) .add-btn:hover,body:not(.dark-mode) .btn-cn:hover,body:not(.dark-mode) .me-entry:hover{background:#f3f1ea!important;border-color:#171a16!important}
+body:not(.dark-mode) .contact{margin:2px 8px!important;border-radius:2px!important;border-left:0!important}
+body:not(.dark-mode) .contact:hover{background:#f3f1ea!important}
+body:not(.dark-mode) .contact.active{background:rgba(31,111,74,.09)!important;color:#155237!important;box-shadow:inset 2px 0 0 #1f6f4a!important}
+body:not(.dark-mode) .contact .name{color:#171a16!important;font-weight:500!important}
+body:not(.dark-mode) .contact .last{color:#7c8179!important}
+body:not(.dark-mode) .chat-time{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10px!important}
+body:not(.dark-mode) .badge{background:#1f6f4a!important;border-radius:2px!important}
+body:not(.dark-mode) .contact-mark{background:#7c8179!important;border-radius:2px!important}
+body:not(.dark-mode) .my-info{background:transparent!important;border-top:1px solid #d8d4c8!important}
+body:not(.dark-mode) .header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important;box-shadow:none!important}
+body:not(.dark-mode) .header #chatHeader{color:#171a16!important;font-weight:600!important}
+body:not(.dark-mode) .head-tool{color:#4f544d!important;border-radius:2px!important}
+body:not(.dark-mode) .head-tool:hover{background:#f3f1ea!important;color:#155237!important}
+body:not(.dark-mode) .messages,body:not(.dark-mode) .main .messages{background:#f3f1ea!important}
+body:not(.dark-mode) .messages .msg-row .bubble{background:#fbfaf6!important;border:1px solid #d8d4c8!important;color:#171a16!important;border-radius:6px!important;box-shadow:none!important}
+body:not(.dark-mode) .messages .msg-row.me .bubble,body:not(.dark-mode) .messages .msg-row.other .bubble{background:#fbfaf6!important;border-color:#d8d4c8!important;color:#171a16!important}
+body:not(.dark-mode) .messages .msg-row.me .bubble{background:#1f6f4a!important;border-color:#1f6f4a!important;color:#fbfaf6!important}
+body:not(.dark-mode) .messages .msg-row.me .bubble a,body:not(.dark-mode) .messages .msg-row.me .bubble *{color:#fbfaf6!important}
+body:not(.dark-mode) .msg-row .bubble-wrap .name{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10px!important}
+body:not(.dark-mode) .welcome-panel h1{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important;letter-spacing:-.03em!important}
+body:not(.dark-mode) .welcome-sub,body:not(.dark-mode) .welcome-tip{color:#4f544d!important}
+body:not(.dark-mode) .welcome-action{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:none!important}
+body:not(.dark-mode) .welcome-action:hover{transform:translate(-2px,-2px)!important;box-shadow:6px 6px 0 rgba(23,26,22,.1)!important;border-color:#171a16!important}
+body:not(.dark-mode) .welcome-action b{color:#171a16!important}
+body:not(.dark-mode) .welcome-action small{color:#7c8179!important}
+body:not(.dark-mode) .welcome-features span{background:#fbfaf6!important;border:1px solid #d8d4c8!important;color:#4f544d!important;border-radius:2px!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10px!important}
+body:not(.dark-mode) .composer,body:not(.dark-mode) #chatDesktopComposer,body:not(.dark-mode) #chatMobileComposer{background:#fbfaf6!important;border-top:1px solid #d8d4c8!important;box-shadow:none!important}
+body:not(.dark-mode) .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
+body:not(.dark-mode) .composer textarea,body:not(.dark-mode) #chatMobileComposer textarea{background:transparent!important;color:#171a16!important}
+body:not(.dark-mode) .composer textarea::placeholder,body:not(.dark-mode) #chatMobileComposer textarea::placeholder{color:#9a9f97!important}
+body:not(.dark-mode) .btn.send,body:not(.dark-mode) .composer-send-btn{background:#1f6f4a!important;border:1px solid #1f6f4a!important;color:#fbfaf6!important;border-radius:2px!important;box-shadow:none!important}
+body:not(.dark-mode) .btn.send:hover,body:not(.dark-mode) .composer-send-btn:hover{background:#155237!important;border-color:#155237!important}
+body:not(.dark-mode) .composer-tools .tool,body:not(.dark-mode) .composer-icon-btn{color:#4f544d!important}
+body:not(.dark-mode) .composer-tools .tool:hover,body:not(.dark-mode) .composer-icon-btn:hover{color:#155237!important;background:#f3f1ea!important}
+body:not(.dark-mode) .wechat-page{background:#f3f1ea!important}
+body:not(.dark-mode) .page-header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
+body:not(.dark-mode) .page-header h2{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important;letter-spacing:-.02em!important}
+body:not(.dark-mode) .page-body{background:#f3f1ea!important}
+body:not(.dark-mode) .me-header,body:not(.dark-mode) .me-card,body:not(.dark-mode) .settings-profile{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+body:not(.dark-mode) .me-name,body:not(.dark-mode) .settings-profile div{color:#171a16!important}
+body:not(.dark-mode) .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
+body:not(.dark-mode) .settings-hdr{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
+body:not(.dark-mode) .settings-back,body:not(.dark-mode) .settings-hdr span{color:#171a16!important}
+body:not(.dark-mode) .modal,body:not(.dark-mode) .dialog,body:not(.dark-mode) .sheet{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:10px 10px 0 rgba(23,26,22,.1)!important}
+body:not(.dark-mode) .modal-head{border-bottom:1px solid #d8d4c8!important;color:#171a16!important}
+body:not(.dark-mode) .modal-head h3{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;font-weight:600!important}
+body:not(.dark-mode) .modal .cancel,body:not(.dark-mode) .modal .ok{border-radius:2px!important;border:1px solid #bcb7a9!important;background:#fbfaf6!important;color:#171a16!important}
+body:not(.dark-mode) .modal .ok{background:#171a16!important;border-color:#171a16!important;color:#fbfaf6!important}
+body:not(.dark-mode) .conv-menu{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:8px 8px 0 rgba(23,26,22,.1)!important}
+body:not(.dark-mode) .conv-menu-item{color:#171a16!important}
+body:not(.dark-mode) .conv-menu-item:hover{background:#f3f1ea!important}
+body:not(.dark-mode) .toast{background:#171a16!important;color:#fbfaf6!important;border-radius:2px!important}
+body:not(.dark-mode) ::-webkit-scrollbar-thumb{background:#bcb7a9;border:2px solid #f3f1ea;border-radius:6px}
+body:not(.dark-mode) ::-webkit-scrollbar-track{background:#f3f1ea}
+/* ---------- 纸感绿调高优先级修正 ---------- */
+html body:not(.dark-mode) #chatView{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView .sidebar{background:#fbfaf6!important;border-right:1px solid #d8d4c8!important}
+html body:not(.dark-mode) #chatView .sidebar-rail{background:#f3f1ea!important;border-right:1px solid #d8d4c8!important}
+html body:not(.dark-mode) #chatView .sidebar-content{background:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .main{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView .main .header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .main .messages{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView .main .composer{background:#fbfaf6!important;border-top:1px solid #d8d4c8!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
+html body:not(.dark-mode) #chatView .composer textarea{background:transparent!important;color:#171a16!important}
+html body:not(.dark-mode) #chatView .btn.send,html body:not(.dark-mode) #chatView #desktopSendBtn{background:#1f6f4a!important;border:1px solid #1f6f4a!important;color:#fbfaf6!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .btn.send:hover,html body:not(.dark-mode) #chatView #desktopSendBtn:hover{background:#155237!important;border-color:#155237!important}
+html body:not(.dark-mode) #chatView .messages .msg-row .bubble{background:#fbfaf6!important;border:1px solid #d8d4c8!important;color:#171a16!important;border-radius:6px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble{background:#1f6f4a!important;border-color:#1f6f4a!important;color:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble *{color:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.other .bubble{background:#fbfaf6!important;border-color:#d8d4c8!important;color:#171a16!important}
+html body:not(.dark-mode) #chatView #contactList .contact{background:transparent!important;border-radius:2px!important}
+html body:not(.dark-mode) #chatView #contactList .contact:hover{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView #contactList .contact.active{background:rgba(31,111,74,.09)!important;box-shadow:inset 2px 0 0 #1f6f4a!important}
+html body:not(.dark-mode) #chatView .header #chatHeader{color:#171a16!important}
+html body:not(.dark-mode) #chatView .head-tool{color:#4f544d!important}
+html body:not(.dark-mode) #chatView .head-tool:hover{background:#f3f1ea!important;color:#155237!important}
+html body:not(.dark-mode) #chatView .wechat-page,html body:not(.dark-mode) #chatView .page-body{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView .page-header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
+html body:not(.dark-mode) #chatView .me-header,html body:not(.dark-mode) #chatView .me-card{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+/* 登录页统一纸感 */
+html body:not(.dark-mode) #authView,html body:not(.dark-mode) #authView.mica-bg{background:#f3f1ea!important;background-image:none!important}
+html body:not(.dark-mode) #authView .auth-card{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:10px 10px 0 rgba(23,26,22,.1)!important}
+html body:not(.dark-mode) #authView .auth-logo,html body:not(.dark-mode) #authView .auth-mark{background:#171a16!important;border-radius:2px!important;color:#fbfaf6!important}
+html body:not(.dark-mode) #authView .auth-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important;letter-spacing:-.03em!important}
+html body:not(.dark-mode) #authView .input,html body:not(.dark-mode) #authView input{background:#f3f1ea!important;border:1px solid #bcb7a9!important;border-radius:2px!important;color:#171a16!important}
+html body:not(.dark-mode) #authView .input:focus,html body:not(.dark-mode) #authView input:focus{border-color:#1f6f4a!important;box-shadow:none!important}
+html body:not(.dark-mode) #authView .btn,html body:not(.dark-mode) #authView button.primary{background:#171a16!important;border:1px solid #171a16!important;border-radius:2px!important;color:#fbfaf6!important;box-shadow:4px 4px 0 rgba(23,26,22,.14)!important}
+html body:not(.dark-mode) #authView .btn:hover,html body:not(.dark-mode) #authView button.primary:hover{background:#1f6f4a!important;border-color:#1f6f4a!important}
+html body:not(.dark-mode) #authView .tab,html body:not(.dark-mode) #authView .auth-tab{color:#7c8179!important}
+html body:not(.dark-mode) #authView .tab.active,html body:not(.dark-mode) #authView .auth-tab.active{color:#155237!important;border-color:#1f6f4a!important}

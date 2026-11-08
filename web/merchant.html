@@ -29,6 +29,27 @@
   .hidden { display: none; }
   a.back { color: #07c160; text-decoration: none; font-size: 13px; font-weight: 500; }
 </style>
+<style>
+  :root{--p-paper:#f3f1ea;--p-paper2:#fbfaf6;--p-ink:#171a16;--p-sub:#4f544d;--p-muted:#7c8179;--p-line:#d8d4c8;--p-line2:#bcb7a9;--p-green:#1f6f4a;--p-green-d:#155237;--p-serif:Georgia,"Songti SC","Noto Serif SC","SimSun",serif;--p-mono:"Cascadia Code",Consolas,"Courier New",monospace}
+  body{background:var(--p-paper)!important;color:var(--p-ink)!important}
+  .card{background:var(--p-paper2)!important;border:1px solid var(--p-line2)!important;border-radius:2px!important;box-shadow:10px 10px 0 rgba(23,26,22,.1)!important;padding:30px!important}
+  h1{font-family:var(--p-serif)!important;font-weight:600!important;color:var(--p-ink)!important;letter-spacing:-.03em!important}
+  .sub{color:var(--p-sub)!important}
+  label{font-family:var(--p-mono)!important;font-size:10.5px!important;letter-spacing:.3px!important;color:var(--p-muted)!important}
+  input[type=text],input[type=password]{background:var(--p-paper)!important;border:1px solid var(--p-line2)!important;border-radius:2px!important;color:var(--p-ink)!important}
+  input:focus{background:var(--p-paper2)!important;border-color:var(--p-green)!important}
+  .btn{background:var(--p-ink)!important;border:1px solid var(--p-ink)!important;border-radius:2px!important;color:var(--p-paper2)!important;box-shadow:3px 3px 0 rgba(23,26,22,.14)!important}
+  .btn:hover{background:var(--p-green)!important;border-color:var(--p-green)!important}
+  .btn.gray{background:var(--p-paper2)!important;border-color:var(--p-line2)!important;color:var(--p-ink)!important;box-shadow:none!important}
+  .btn.gray:hover{background:var(--p-paper)!important;border-color:var(--p-ink)!important}
+  .btn.orange{background:var(--p-green-d)!important;border-color:var(--p-green-d)!important;color:var(--p-paper2)!important;box-shadow:none!important}
+  .badge{border-radius:2px!important;font-family:var(--p-mono)!important;font-size:10px!important}
+  .badge.ok{background:rgba(31,111,74,.1)!important;color:var(--p-green-d)!important}
+  .tip{color:var(--p-muted)!important;font-family:var(--p-mono)!important;font-size:10.5px!important}
+  a.back{color:var(--p-green-d)!important;font-family:var(--p-mono)!important;font-size:11.5px!important}
+  hr{border-top-color:var(--p-line)!important}
+  code{background:var(--p-paper)!important;border:1px solid var(--p-line)!important;border-radius:2px!important;color:var(--p-green-d)!important}
+</style>
 </head>
 <body>
 <div class="card">
