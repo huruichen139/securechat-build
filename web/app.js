@@ -48,6 +48,7 @@ let state = {
   groupUnread: {},
   groupMention: {},
   groupMsgs: {},           // groupId -> 已加载消息数组（仅本地缓存当前/历史）
+  peerMsgs: {},            // peerId -> 最近一次加载的私聊消息，切换会话时先秒开
 };
 
 // 挂载到 window，供各独立模块（modules/*.js）读取全局登录态/当前会话。
@@ -3965,6 +3966,8 @@ async function selectPeer(peerId) {
     const aiV = $('aiView'); if (aiV) aiV.style.display = 'none';
     const dv = $('downloadView'); if (dv) dv.style.display = 'none';
   }
+  const cachedMsgs = state.peerMsgs[peerId];
+  if (cachedMsgs && cachedMsgs.length) renderMessages(cachedMsgs);
   // E2EE 初始化放到后台，避免密钥协商阻塞联系人点击响应
   if (window.SCE2EE) window.SCE2EE.primeReceiver(peerId).catch(e => console.warn('[E2EE] primeReceiver failed', e));
   try {
@@ -3979,11 +3982,14 @@ async function selectPeer(peerId) {
       trackSeq(m);
       if (window.SCE2EE && SCE2EE.isRatchetCipher(m.content)) m.content = '[加密消息，历史内容不可在此会话恢复]';
     }
+    cachePeerHistory(peerId, msgs);
     if (state.activePeer !== peerId) return;
     renderMessages(msgs);
   } catch (e) {
     if (state.activePeer !== peerId) return;
-    $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
+    if (!(state.peerMsgs[peerId] && state.peerMsgs[peerId].length)) {
+      $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
+    }
   }
 }
 
@@ -3992,6 +3998,24 @@ function renderMessages(msgs) {
   box.innerHTML = '';
   msgs.forEach(m => appendMessage(m, false));
   scrollToLatest();
+}
+
+// 私聊消息缓存：切换会话先渲染上次内容，网络请求回来后再刷新
+function cachePeerHistory(peerId, msgs) {
+  if (peerId == null || !Array.isArray(msgs)) return;
+  state.peerMsgs[peerId] = msgs.slice(-300);
+  const keys = Object.keys(state.peerMsgs);
+  if (keys.length > 40) keys.slice(0, keys.length - 40).forEach(k => { delete state.peerMsgs[k]; });
+}
+function cachePeerMessage(peerId, m) {
+  if (peerId == null || !m) return;
+  const arr = state.peerMsgs[peerId];
+  if (!arr) return;
+  const dup = arr.some(x => (m.id != null && x.id === m.id) || (m.clientMsgId && x.clientMsgId === m.clientMsgId));
+  if (!dup) {
+    arr.push(m);
+    if (arr.length > 300) arr.splice(0, arr.length - 300);
+  }
 }
 
 // ============ 会话级操作（右键菜单用） ============
@@ -4726,6 +4750,7 @@ async function onIncomingMsg(m) {
     m.content = state.sentPlain[m.clientMsgId];
     delete state.sentPlain[m.clientMsgId];
   }
+  cachePeerMessage(m.from === state.me.id ? m.to : m.from, m);
   if (m.from === state.me.id && m.clientMsgId && state.pendingLocal[m.clientMsgId]) {
     delete state.pendingLocal[m.clientMsgId];
     // 已乐观渲染过：仅补服务端 id（appendMessage 内部按 data-cmid 命中并回填），不新增行
@@ -4779,7 +4804,9 @@ function sendCurrent() {
   const localCreatedAt = Date.now();
   state.lastFrom[peerId] = text;
   state.lastMsgTime[peerId] = localCreatedAt;
-  appendMessage({ id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId, replyTo: reply }, false);
+  const localMsg = { id: 'local-' + clientMsgId, from: state.me.id, to: peerId, content: text, createdAt: localCreatedAt, clientMsgId, replyTo: reply };
+  appendMessage(localMsg, false);
+  cachePeerMessage(peerId, localMsg);
   if (reply) clearPendingReply();
   try { playSendSfx(); } catch (e) {}
   _e2eeSendContent(peerId, text).then(async (ct) => {
