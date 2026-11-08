@@ -3496,26 +3496,28 @@ async function selectGroup(groupId) {
   refreshConversationButtons();
   restoreCurrentDraft();
   showGroupAnnounceBanner();
-  try {
-    const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/messages', {
-      headers: { 'Authorization': 'Bearer ' + state.token }
-    });
-    const data = await res.json();
-    if (!res.ok) { if (state.activeGroup !== groupId) return; $('messages').innerHTML = '<div style="color:#999;text-align:center">' + escapeHtml(data.error || '加载历史失败') + '</div>'; return; }
-    state.groupMsgs[groupId] = data.messages || [];
-    if (state.activeGroup !== groupId) return;
-    renderGroupMessages(data.messages || []);
-  } catch (e) {
-    if (state.activeGroup !== groupId) return;
-    $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
-  }
-  // 移动端：选中群组后切换到聊天区（收起侧边栏并隐藏全屏页，避免挡住输入框）
+  const cachedGroupMsgs = state.groupMsgs[groupId];
+  if (cachedGroupMsgs && cachedGroupMsgs.length) renderGroupMessages(cachedGroupMsgs);
+  // 立即切换页面，历史消息随后异步刷新
   if (window.IS_MOBILE) showMobileChatView();
   else {
     hideMobilePages(); setRailActive('friends'); setChatListVisible(true);
     const main = document.querySelector('.main'); if (main) main.style.display = 'flex';
     const aiV = $('aiView'); if (aiV) aiV.style.display = 'none';
     const dv = $('downloadView'); if (dv) dv.style.display = 'none';
+  }
+  try {
+    const res = await fetch(state.serverHost + '/api/groups/' + groupId + '/messages', {
+      headers: { 'Authorization': 'Bearer ' + state.token }
+    });
+    const data = await res.json();
+    if (!res.ok) { if (state.activeGroup !== groupId) return; if (!(state.groupMsgs[groupId] && state.groupMsgs[groupId].length)) $('messages').innerHTML = '<div style="color:#999;text-align:center">' + escapeHtml(data.error || '加载历史失败') + '</div>'; return; }
+    state.groupMsgs[groupId] = data.messages || [];
+    if (state.activeGroup !== groupId) return;
+    renderGroupMessages(data.messages || []);
+  } catch (e) {
+    if (state.activeGroup !== groupId) return;
+    if (!(state.groupMsgs[groupId] && state.groupMsgs[groupId].length)) $('messages').innerHTML = '<div style="color:#999;text-align:center">加载历史失败</div>';
   }
 }
 
