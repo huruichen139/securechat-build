@@ -101,7 +101,7 @@
           '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + ico('heart', v.likedByMe) + '<span>' + (v.likeCount || 0) + '</span></button>' +
           '<button data-cmt="' + v.id + '" style="' + BTN_GRAY + '">' + ico('comment') + '<span>' + (v.commentCount || 0) + '</span></button>' +
           '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + ico('star', v.favoritedByMe) + '<span>' + (v.favoriteCount || 0) + '</span></button>' +
-          '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">' + ico('share') + '<span>' + (v.shareCount || 0) + '</span></button>' +
+          '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">' + ico('share') + '转发 ' + (v.shareCount || 0) + '</span></button>' +
           '<span class="vid-time">' + fmt(v.createdAt) + '</span>' +
         '</div>' +
       '</div>' +
@@ -186,9 +186,9 @@
           '<div class="vid-desc">' + esc(v.title) + '</div>' +
           (v.content ? '<div class="vid-content">' + esc(v.content) + '</div>' : '') +
           '<div class="vid-ops">' +
-            '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.likedByMe ? '♥' : '♡') + ' ' + (v.likeCount || 0) + '</button>' +
-            '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (v.favoritedByMe ? '★' : '☆') + ' ' + (v.favoriteCount || 0) + '</button>' +
-            '<button data-share="' + v.id + '" style="' + BTN_GRAY + '">↗ ' + (v.shareCount || 0) + '</button>' +
+            '<button data-like data-on="' + (v.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + '赞 ' + (v.likeCount || 0) + '</button>' +
+            '<button data-fav data-on="' + (v.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + '收藏 ' + (v.favoriteCount || 0) + '</button>' +
+            '<button data-share="' + v.id + '" style="' + BTN_GRAY + '转发 ' + (v.shareCount || 0) + '</button>' +
             '<span class="vid-time">播放 ' + (v.playCount || 0) + '</span>' +
           '</div>' +
           '<div class="vid-cmt-title">评论（' + (cmts.length) + '）</div>' +

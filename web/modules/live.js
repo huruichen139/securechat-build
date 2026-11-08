@@ -133,8 +133,8 @@
         (src ? '<video controls autoplay muted playsinline src="' + esc(src) + '"></video>' : '<div class="vid-novideo">' + (onAir ? '主播未配置视频流，本直播为文字 + 聊天室模式' : '回放地址未配置') + '</div>') +
       '</div>' +
       '<div class="live-ops">' +
-        '<button data-like data-on="' + (room.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (room.likedByMe ? '♥' : '♡') + ' ' + (room.likeCount || 0) + '</button>' +
-        '<button data-fav data-on="' + (room.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + (room.favoritedByMe ? '★' : '☆') + ' ' + (room.favoriteCount || 0) + '</button>' +
+        '<button data-like data-on="' + (room.likedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + '赞 ' + (room.likeCount || 0) + '</button>' +
+        '<button data-fav data-on="' + (room.favoritedByMe ? '1' : '0') + '" style="' + BTN_GRAY + '">' + '收藏 ' + (room.favoriteCount || 0) + '</button>' +
         (isHost || (backFn && backFn.dataHost) ? (onAir ? '<button data-record style="' + BTN_GRAY + '">录像</button>' : '') + '<button data-end style="' + BTN_GREEN + '">结束直播</button>' : '') +
         '<span class="live-viewers">观看 ' + (room.viewerCount || 0) + '</span>' +
       '</div>' +
