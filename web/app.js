@@ -6497,21 +6497,6 @@ function renderContactsPage() {
   const oa = document.getElementById('contactOAItem');
   if (oa) oa.onclick = () => { if (window.SecureChatOa && window.SecureChatOa.open) window.SecureChatOa.open(); else toast('公众号功能开发中', 'info'); };
   // 空分组隐藏（微信式：无数据不显示分组）
-  [['contactsNewFriends', state.pendingReq.length], ['contactsGroups', friendGroups.length]].forEach(function (pair) {
-    var el = document.getElementById(pair[0]);
-    if (!el) return;
-    var lab = el.previousElementSibling;
-    var show = pair[1] > 0;
-    el.style.display = show ? '' : 'none';
-    if (lab && lab.classList.contains('contact-group-label')) lab.style.display = show ? '' : 'none';
-  });
-  ['contactsLabels', 'contactsOA'].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    var lab = el.previousElementSibling;
-    el.style.display = 'none';
-    if (lab && lab.classList.contains('contact-group-label')) lab.style.display = 'none';
-  });
   // 搜索框输入 → 实时过滤重渲染
   const sInput = document.getElementById('contactsSearch');
   if (sInput) sInput.oninput = () => renderContactsPage();
