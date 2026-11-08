@@ -6377,6 +6377,39 @@ function meItemHtml(s, i) {
 }
 
 // 通讯录页渲染
+function getContactLabels() {
+  try {
+    const v = JSON.parse(localStorage.getItem('sc_contact_labels') || '[]');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()) : [];
+  } catch (e) { return []; }
+}
+function saveContactLabels(list) {
+  try { localStorage.setItem('sc_contact_labels', JSON.stringify(list)); } catch (e) {}
+}
+function renderContactLabels() {
+  const box = document.getElementById('contactsLabels');
+  if (!box) return;
+  const labels = getContactLabels();
+  box.innerHTML = labels.map((name, i) =>
+    '<div class="contact" data-label-index="' + i + '"><div class="avatar" style="border-radius:6px">' + escapeHtml(name.charAt(0)) + '</div><div style="flex:1;overflow:hidden"><div class="name">' + escapeHtml(name) + '</div><div class="last">0 位朋友</div></div><span style="color:#c8c8c8;font-size:16px">›</span></div>'
+  ).join('') + '<div class="contact" id="contactAddLabel"><div class="avatar" style="border-radius:6px;background:#f2f2f2;color:#07c160;font-size:20px">+</div><div style="flex:1"><div class="name">新建标签</div></div></div>';
+  box.querySelectorAll('[data-label-index]').forEach((el) => {
+    el.onclick = () => toast('标签：' + labels[Number(el.dataset.labelIndex)], 'info');
+  });
+  const add = document.getElementById('contactAddLabel');
+  if (add) add.onclick = async () => {
+    const name = await scAsk({ title: '新建标签', placeholder: '输入标签名称', okText: '创建' });
+    if (!name) return;
+    const clean = String(name).trim().slice(0, 12);
+    if (!clean) return;
+    const list = getContactLabels();
+    if (list.includes(clean)) { toast('标签已存在', 'warn'); return; }
+    list.push(clean);
+    saveContactLabels(list);
+    renderContactLabels();
+    toast('已创建标签', 'success');
+  };
+}
 function renderContactsPage() {
   const kw = (document.getElementById('contactsSearch') || {}).value || '';
   const newFEl = document.getElementById('contactsNewFriends');
@@ -6500,6 +6533,7 @@ function renderContactsPage() {
   // 搜索框输入 → 实时过滤重渲染
   const sInput = document.getElementById('contactsSearch');
   if (sInput) sInput.oninput = () => renderContactsPage();
+  renderContactLabels();
 }
 
 // 侧边栏 Tab 高亮：rail 按钮 + 移动端底部导航同步
