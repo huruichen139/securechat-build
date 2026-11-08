@@ -3803,4 +3803,4 @@ html.is-mobile #mePage .page-body,html.is-mobile #discoverPage .page-body,html.i
 #messages{overscroll-behavior:contain}
 .modal{overscroll-behavior:contain}
 
-html:not(.is-mobile) #inviteBar{display:none!important}
+#inviteBar{display:none!important}
