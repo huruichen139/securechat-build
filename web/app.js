@@ -3235,9 +3235,6 @@ function bindChatTitleAction(el, openFn) {
 
 // 统一渲染顶部 header（根据联系人/群而异）
 function renderChatHeader() {
-  if (state.activePeer) {
-    items.push({ label: '聊天信息', onClick: () => { hideChatMoreMenu(); openPeerProfile(state.activePeer); } });
-  }
   if (state.activeGroup) {
     const g = state.groups.find(x => x.id === state.activeGroup);
     const name = g ? g.name : ('群 #' + state.activeGroup);
