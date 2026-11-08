@@ -2717,10 +2717,11 @@ function renderContacts() {
   const kw = $('search').value.trim().toLowerCase();
   const list = $('contactList');
   list.innerHTML = '';
+  const prefs = chatPrefs();
   const friends = state.friends.filter(u => !kw
     || (u.nickname || '').toLowerCase().includes(kw)
     || (u.username || '').toLowerCase().includes(kw)
-    || String(u.id).includes(kw)).sort((a, b) => Number(!!chatPrefs().pinned['u:' + b.id]) - Number(!!chatPrefs().pinned['u:' + a.id]) || (a.nickname || '').localeCompare(b.nickname || ''));
+    || String(u.id).includes(kw)).sort((a, b) => Number(!!prefs.pinned['u:' + b.id]) - Number(!!prefs.pinned['u:' + a.id]) || (a.nickname || '').localeCompare(b.nickname || ''));
   const friendCount = $('friendCount'); if (friendCount) friendCount.textContent = state.friends.length;
   const groupCount = $('groupCount'); if (groupCount) groupCount.textContent = state.groups.length;
   const count = $('listCount');
@@ -2732,7 +2733,7 @@ function renderContacts() {
   groups.forEach(g => conversations.push({ kind: 'group', item: g, key: 'g:' + g.id, time: state.groupLastMsgTime[g.id] || 0 }));
   const _removed = removedConvList();
   const _convFiltered = conversations.filter(c => !_removed.includes(c.key));
-  _convFiltered.sort((a, b) => Number(!!chatPrefs().pinned[b.key]) - Number(!!chatPrefs().pinned[a.key]) || b.time - a.time);
+  _convFiltered.sort((a, b) => Number(!!prefs.pinned[b.key]) - Number(!!prefs.pinned[a.key]) || b.time - a.time);
   conversations.length = 0; conversations.push.apply(conversations, _convFiltered);
   if (count) count.textContent = conversations.length + ' 个会话';
   if (!conversations.length) {
@@ -2752,8 +2753,8 @@ function renderContacts() {
       const lastMsg = state.groupLastMsg[g.id] || (g.lastMessage && g.lastMessage.content) || '群聊';
       const lastTime = state.groupLastMsgTime[g.id] || 0;
       const draftText = readDrafts()['g:' + g.id] || '';
-      const isPinned = !!chatPrefs().pinned[c.key];
-      const isMuted = !!chatPrefs().muted[c.key];
+      const isPinned = !!prefs.pinned[c.key];
+      const isMuted = !!prefs.muted[c.key];
       div.innerHTML = `<div class="avatar group-avatar">${escapeHtml((g.name || '?').charAt(0).toUpperCase())}</div><div style="flex:1;overflow:hidden"><div class="name">${escapeHtml(g.name || ('群 #' + g.id))}${state.groupMention[g.id] ? '<span class="mention-tag">@我</span>' : ''}</div><div class="last">${escapeHtml(chatPreview(draftText, lastMsg).replace(/\n/g, ' ').slice(0, 30))}</div></div>${lastTime ? `<span class="chat-time">${fmtChatListTime(lastTime)}</span>` : ''}${isPinned ? '<span class="contact-mark">置顶</span>' : ''}${isMuted ? '<span class="contact-mark muted">静音</span>' : ''}${unread ? (isMuted ? '<span class="badge dot"></span>' : `<span class="badge">${unread > 99 ? '99+' : unread}</span>`) : ''}`;
       div.onclick = () => selectGroup(g.id);
       bindConvContextMenu(div, c.key, g.name || ('群 #' + g.id), () => selectGroup(g.id));
@@ -2766,8 +2767,8 @@ function renderContacts() {
     div.className = 'contact' + (state.activePeer === u.id ? ' active' : '');
     const unread = state.unread[u.id] || 0;
     const avHtml = escapeHtml(u.avatar) ? '<img src="' + escapeHtml(u.avatar) + '">' : avatarChar(u.nickname);
-    const isPinned = !!chatPrefs().pinned['u:' + u.id];
-    const isMuted = !!chatPrefs().muted['u:' + u.id];
+    const isPinned = !!prefs.pinned['u:' + u.id];
+    const isMuted = !!prefs.muted['u:' + u.id];
     const lastMsg = state.lastFrom[u.id];
     const draftText = readDrafts()['u:' + u.id] || '';
     const lastTime = state.lastMsgTime ? state.lastMsgTime[u.id] : 0;
