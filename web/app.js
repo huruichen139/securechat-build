@@ -6435,7 +6435,7 @@ function openLabelPicker(name) {
     if (nfLab && nfLab.classList.contains('contact-group-label')) nfLab.textContent = state.pendingReq.length ? ('新的朋友 (' + state.pendingReq.length + ')') : '新的朋友';
     const gr = document.getElementById('contactsGroups');
     const grLab = gr && gr.previousElementSibling;
-    if (grLab && grLab.classList.contains('contact-group-label')) grLab.textContent = '群聊';
+    if (grLab && grLab.classList.contains('contact-group-label')) grLab.textContent = state.groups.length ? ('群聊 (' + state.groups.length + ')') : '群聊';
   } catch (e) {}
 
     toast('已删除标签', 'success');
