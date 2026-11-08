@@ -3804,3 +3804,4 @@ html.is-mobile #mePage .page-body,html.is-mobile #discoverPage .page-body,html.i
 .modal{overscroll-behavior:contain}
 
 #inviteBar{display:none!important}
+.wx-discover-arrow,.settings-arrow,.ai-banner-arrow{font-size:0!important;width:14px;height:14px;display:inline-block;background-color:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") center/contain no-repeat}
