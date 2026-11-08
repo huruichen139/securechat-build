@@ -6021,6 +6021,27 @@ function applyMica() {
 }
 window.addEventListener('DOMContentLoaded', applyMica);
 
+function settingsIcon(label) {
+  const s = String(label || '');
+  const base = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;display:block"';
+  const svg = (body) => '<svg ' + base + '>' + body + '</svg>';
+  if (/QQ|微信|支付宝|GitHub/.test(s)) return svg('<circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>');
+  if (/邮箱|邮件/.test(s)) return svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/>');
+  if (/Passkey|密钥|设备/.test(s)) return svg('<circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v3M20 12v2"/>');
+  if (/字体|字号/.test(s)) return svg('<path d="M4 19 10 5l6 14M6.5 14h7"/>');
+  if (/背景/.test(s)) return svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/>');
+  if (/气泡/.test(s)) return svg('<path d="M4 5h16v11H9l-5 4z"/>');
+  if (/深色|主题|外观/.test(s)) return svg('<path d="M20 14.5A8 8 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>');
+  if (/语言/.test(s)) return svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/>');
+  if (/通知|声音|音效/.test(s)) return svg('<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 20a2 2 0 0 0 4 0"/>');
+  if (/缓存|清理/.test(s)) return svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>');
+  if (/黑名单|隐私/.test(s)) return svg('<path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/>');
+  if (/朋友圈/.test(s)) return svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5 6l4 4M19 6l-4 4"/>');
+  if (/反馈|意见/.test(s)) return svg('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>');
+  if (/关于|版本/.test(s)) return svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>');
+  if (/AI/.test(s)) return svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>');
+  return svg('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>');
+}
 function openSettingsPage() {
   const me = state.me;
   const main = document.querySelector('.main');
@@ -6305,7 +6326,8 @@ const panel = document.getElementById('settingsPanel');
       const ic = document.createElement('div');
   ic.className = 'settings-ic';
       ic.style.cssText = 'width:32px;height:32px;border-radius:6px;background:var(--primary,#07c160);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-right:12px;flex-shrink:0';
-      ic.textContent = item.icon;
+      ic.innerHTML = settingsIcon(item.label);
+      ic.style.fontSize = '0';
       const info = document.createElement('div');
       info.style.cssText = 'flex:1;min-width:0';
       info.innerHTML = '<div style="font-size:15px;color:var(--text,#191919)">' + item.label + '</div>' + (item.desc ? '<div style="font-size:12px;color:var(--muted,#999);margin-top:2px">' + item.desc + '</div>' : '');
