@@ -7331,7 +7331,7 @@ document.addEventListener('click', function(e){
     b.className = 'side-plus';
     b.type = 'button';
     b.title = '添加好友 / 建群';
-    b.textContent = '+';
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;display:block"><path d="M12 5v14M5 12h14"/></svg>';
     b.addEventListener('click', function (e) {
       e.stopPropagation();
       var old = document.getElementById('sidePlusMenu');
