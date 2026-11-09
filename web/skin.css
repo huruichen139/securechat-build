@@ -4024,3 +4024,16 @@ html body:not(.dark-mode) #chatView #mePage .wx-me-item *,html body:not(.dark-mo
 html body:not(.dark-mode) #chatView #mePage .me-header{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
 html body:not(.dark-mode) #chatView #mePage .me-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
 html body:not(.dark-mode) #chatView #mePage .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
+/* 朋友圈 / 钱包统一 */
+html body:not(.dark-mode) #momentsPage,html body:not(.dark-mode) #momentsPage .moments-body,html body:not(.dark-mode) #momentsPage .moments-feed{background:#f3f1ea!important}
+html body:not(.dark-mode) #momentsPage .moments-header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
+html body:not(.dark-mode) #momentsPage .moment-card{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #momentsPage .moment-content,html body:not(.dark-mode) #momentsPage .moment-comment{color:#171a16!important}
+html body:not(.dark-mode) #momentsPage .moment-social,html body:not(.dark-mode) #momentsPage .moment-like,html body:not(.dark-mode) #momentsPage .moment-comment-btn{background:#f3f1ea!important;border-radius:2px!important;color:#4f544d!important}
+html body:not(.dark-mode) #momentsPage .moments-more,html body:not(.dark-mode) #momentsPage .moments-textarea,html body:not(.dark-mode) #momentsPage .moments-addimg{background:#f3f1ea!important;border:1px solid #bcb7a9!important;border-radius:2px!important;color:#171a16!important}
+html body:not(.dark-mode) #momentsPage .moments-publish-btn{background:#171a16!important;border-radius:2px!important;color:#fbfaf6!important}
+html body:not(.dark-mode) #momentsPage .moment-avatar,html body:not(.dark-mode) #momentsPage .moments-img{border-radius:2px!important}
+html body:not(.dark-mode) .pay-wallet,html body:not(.dark-mode) .pay-recharge,html body:not(.dark-mode) .pay-group,html body:not(.dark-mode) .pay-bill{background:#fbfaf6!important;color:#171a16!important}
+html body:not(.dark-mode) .pay-wallet h3{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
+html body:not(.dark-mode) .pay-wallet [style*="border-radius:0"],html body:not(.dark-mode) .pay-wallet button{border-radius:2px!important}
+html body:not(.dark-mode) .pay-wallet [style*="background:#e8f8ef"]{background:rgba(31,111,74,.09)!important;color:#155237!important}
