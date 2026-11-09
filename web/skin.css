@@ -3992,3 +3992,16 @@ html body:not(.dark-mode) #authView .btn,html body:not(.dark-mode) #authView but
 html body:not(.dark-mode) #authView .btn:hover,html body:not(.dark-mode) #authView button.primary:hover{background:#1f6f4a!important;border-color:#1f6f4a!important}
 html body:not(.dark-mode) #authView .tab,html body:not(.dark-mode) #authView .auth-tab{color:#7c8179!important}
 html body:not(.dark-mode) #authView .tab.active,html body:not(.dark-mode) #authView .auth-tab.active{color:#155237!important;border-color:#1f6f4a!important}
+/* 设置页统一 */
+html body:not(.dark-mode) #settingsPanel{background:#f3f1ea!important}
+html body:not(.dark-mode) #settingsPanel .settings-hdr{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
+html body:not(.dark-mode) #settingsPanel .settings-hdr span{color:#171a16!important;font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;font-weight:600!important}
+html body:not(.dark-mode) #settingsPanel .settings-back{color:#171a16!important}
+html body:not(.dark-mode) #settingsPanel .settings-content{background:#f3f1ea!important}
+html body:not(.dark-mode) #settingsPanel .settings-profile{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #settingsPanel .settings-card{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important;overflow:hidden!important}
+html body:not(.dark-mode) #settingsPanel .settings-row{background:#fbfaf6!important;border-bottom:1px solid #e3dfd4!important;border-radius:0!important;color:#171a16!important}
+html body:not(.dark-mode) #settingsPanel .settings-row:hover{background:#f3f1ea!important}
+html body:not(.dark-mode) #settingsPanel .settings-row *{color:#171a16!important}
+html body:not(.dark-mode) #settingsPanel .settings-row .desc,html body:not(.dark-mode) #settingsPanel .settings-row small{color:#7c8179!important}
+html body:not(.dark-mode) #settingsPanel .settings-card h4,html body:not(.dark-mode) #settingsPanel .settings-title{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
