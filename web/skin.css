@@ -4101,3 +4101,4 @@ html body:not(.dark-mode) #chatView .main .composer-input-wrap{background:#f3f1e
 html body:not(.dark-mode) #chatView #welcomePanel .welcome-action{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:none!important}
 html body:not(.dark-mode) #chatView #welcomePanel .welcome-action:hover{background:#f3f1ea!important;border-color:#171a16!important}
 html body:not(.dark-mode) #chatView #chatDesktopComposer .composer-input-wrap,html body:not(.dark-mode) #chatView #chatMobileComposer .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
+html body:not(.dark-mode) #chatView #friendsSide.sidebar-tools{background:#fbfaf6!important}
