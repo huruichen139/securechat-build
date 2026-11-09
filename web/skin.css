@@ -4047,3 +4047,28 @@ html body:not(.dark-mode) #aiView .ai-composer input{background:#f3f1ea!importan
 html body:not(.dark-mode) #aiView .mini-programs,html body:not(.dark-mode) #aiView .mini-program-item{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;color:#171a16!important}
 html body:not(.dark-mode) #downloadView .download-page{background:#f3f1ea!important}
 html body:not(.dark-mode) #downloadView .download-recommend,html body:not(.dark-mode) #downloadView .download-status,html body:not(.dark-mode) #downloadView [class*="download-"]{border-color:#d8d4c8!important}
+/* 弹窗 / 更多功能 / 通讯录统一 */
+html body:not(.dark-mode) .modal-mask .modal,html body:not(.dark-mode) .modal-mask .dialog,html body:not(.dark-mode) .update-mask .update-dialog{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:10px 10px 0 rgba(23,26,22,.1)!important}
+html body:not(.dark-mode) .modal-mask .modal-head{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important;color:#171a16!important}
+html body:not(.dark-mode) .modal-mask .modal-head h3,html body:not(.dark-mode) .modal-mask .modal-head span{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
+html body:not(.dark-mode) .modal-mask .modal-actions .cancel,html body:not(.dark-mode) .modal-mask .modal-actions .ok{border-radius:2px!important;border:1px solid #bcb7a9!important;background:#fbfaf6!important;color:#171a16!important}
+html body:not(.dark-mode) .modal-mask .modal-actions .ok{background:#171a16!important;border-color:#171a16!important;color:#fbfaf6!important}
+html body:not(.dark-mode) .feature-tab{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;color:#4f544d!important}
+html body:not(.dark-mode) .feature-tab.active{background:#171a16!important;border-color:#171a16!important;color:#fbfaf6!important}
+html body:not(.dark-mode) .feature-item{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;color:#171a16!important}
+html body:not(.dark-mode) .feature-item:hover{background:#f3f1ea!important;border-color:#171a16!important}
+html body:not(.dark-mode) .feature-item *{color:#171a16!important}
+html body:not(.dark-mode) .feature-item small,html body:not(.dark-mode) .feature-item .feature-desc{color:#7c8179!important}
+html body:not(.dark-mode) #contactsPage .contact-section,html body:not(.dark-mode) #contactsPage .contact{background:#fbfaf6!important;border-color:#d8d4c8!important}
+html body:not(.dark-mode) #contactsPage .contact-group-label{background:#f3f1ea!important;color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
+html body:not(.dark-mode) #contactsPage .contact:hover{background:#f3f1ea!important}
+html body:not(.dark-mode) #contactsPage .contact .name{color:#171a16!important}
+html body:not(.dark-mode) .update-mask{background:rgba(23,26,22,.32)!important}
+html body:not(.dark-mode) .update-dialog .ok{background:#171a16!important;border-radius:2px!important;color:#fbfaf6!important}
+html body:not(.dark-mode) .update-dialog .cancel{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;color:#171a16!important}
+/* 通讯录高优先级修正 */
+html body:not(.dark-mode) #chatView #contactsPage .contact-section,html body:not(.dark-mode) #chatView #contactsPage .contact{background:#fbfaf6!important;border-color:#d8d4c8!important}
+html body:not(.dark-mode) #chatView #contactsPage .contact:hover{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView #contactsPage .contact-group-label{background:#f3f1ea!important;color:#7c8179!important}
+html body:not(.dark-mode) #chatView #contactsPage .contact .name{color:#171a16!important}
+html body:not(.dark-mode) #chatView #contactsPage .contact .last{color:#7c8179!important}
