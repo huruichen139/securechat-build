@@ -4005,3 +4005,22 @@ html body:not(.dark-mode) #settingsPanel .settings-row:hover{background:#f3f1ea!
 html body:not(.dark-mode) #settingsPanel .settings-row *{color:#171a16!important}
 html body:not(.dark-mode) #settingsPanel .settings-row .desc,html body:not(.dark-mode) #settingsPanel .settings-row small{color:#7c8179!important}
 html body:not(.dark-mode) #settingsPanel .settings-card h4,html body:not(.dark-mode) #settingsPanel .settings-title{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
+/* 我的 / 发现页统一 */
+html body:not(.dark-mode) #mePage .page-body,html body:not(.dark-mode) #discoverPage .page-body,html body:not(.dark-mode) #contactsPage .page-body{background:#f3f1ea!important}
+html body:not(.dark-mode) #mePage .me-header,html body:not(.dark-mode) #mePage .me-card{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #mePage .wx-me-group,html body:not(.dark-mode) #discoverPage .wx-group{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;overflow:hidden!important;box-shadow:none!important}
+html body:not(.dark-mode) #mePage .wx-me-item,html body:not(.dark-mode) #discoverPage .wx-discover-item{background:#fbfaf6!important;border-bottom:1px solid #e3dfd4!important;color:#171a16!important}
+html body:not(.dark-mode) #mePage .wx-me-item:hover,html body:not(.dark-mode) #discoverPage .wx-discover-item:hover{background:#f3f1ea!important}
+html body:not(.dark-mode) #mePage .wx-me-item *,html body:not(.dark-mode) #discoverPage .wx-discover-item *{color:#171a16!important}
+html body:not(.dark-mode) #mePage .wx-me-item .wx-arrow,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-arrow{color:#7c8179!important}
+html body:not(.dark-mode) #mePage .me-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
+html body:not(.dark-mode) #mePage .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
+/* 我的 / 发现页高优先级修正 */
+html body:not(.dark-mode) #chatView #mePage .page-body,html body:not(.dark-mode) #chatView #discoverPage .page-body,html body:not(.dark-mode) #chatView #contactsPage .page-body{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-group,html body:not(.dark-mode) #chatView #discoverPage .wx-group{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-item,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item{background:#fbfaf6!important;border-bottom:1px solid #e3dfd4!important;color:#171a16!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-item:hover,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item:hover{background:#f3f1ea!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-item *,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item *{color:#171a16!important}
+html body:not(.dark-mode) #chatView #mePage .me-header{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView #mePage .me-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
+html body:not(.dark-mode) #chatView #mePage .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
