@@ -4088,3 +4088,16 @@ html body:not(.dark-mode) .oa-item,html body:not(.dark-mode) .card-item,html bod
 html body:not(.dark-mode) .oa-item:hover,html body:not(.dark-mode) .card-item:hover,html body:not(.dark-mode) .search-item:hover{background:#f3f1ea!important}
 html body:not(.dark-mode) .oa-item-title,html body:not(.dark-mode) .search-item-name{color:#171a16!important}
 html body:not(.dark-mode) .oa-item-sub,html body:not(.dark-mode) .search-item-sub,html body:not(.dark-mode) .oa-empty,html body:not(.dark-mode) .album-empty{color:#7c8179!important}
+/* 侧栏工具区 / 欢迎卡 / 移动输入 / 下载卡片收口 */
+html body:not(.dark-mode) #chatView .sidebar-tools,html body:not(.dark-mode) #chatView #contactList,html body:not(.dark-mode) #chatView .sidebar-mini-stats,html body:not(.dark-mode) #chatView .list-heading{background:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .welcome-action{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .welcome-action:hover{background:#f3f1ea!important;border-color:#171a16!important;box-shadow:6px 6px 0 rgba(23,26,22,.1)!important}
+html body:not(.dark-mode) #chatView #chatMobileComposer.chat-composer{background:#fbfaf6!important;border-top:1px solid #d8d4c8!important}
+html body:not(.dark-mode) #chatView .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
+html body:not(.dark-mode) #chatView #downloadView .download-recommend,html body:not(.dark-mode) #chatView #downloadView .download-other,html body:not(.dark-mode) #chatView #downloadView .download-item,html body:not(.dark-mode) #chatView #downloadView .download-card,html body:not(.dark-mode) #chatView #downloadView .download-status{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;color:#171a16!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView #downloadView [class*="download-"] *{border-color:#d8d4c8!important}
+html body:not(.dark-mode) #chatView .welcome-panel .welcome-action{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .main .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
+html body:not(.dark-mode) #chatView #welcomePanel .welcome-action{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView #welcomePanel .welcome-action:hover{background:#f3f1ea!important;border-color:#171a16!important}
+html body:not(.dark-mode) #chatView #chatDesktopComposer .composer-input-wrap,html body:not(.dark-mode) #chatView #chatMobileComposer .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
