@@ -215,6 +215,7 @@ class _MePageState extends State<MePage> {
     final uid = (card['uid'] ?? '').toString();
     final extra = card['extra'];
     final signature = extra is Map ? (extra['signature'] ?? '').toString() : '';
+    final frame = extra is Map ? (extra['avatarFrame'] ?? 'none').toString() : 'none';
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       decoration: BoxDecoration(
@@ -230,7 +231,7 @@ class _MePageState extends State<MePage> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
             child: Row(children: [
-              _avatar(name, card['avatar'], 64),
+              _avatar(name, card['avatar'], 64, frame),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -256,22 +257,28 @@ class _MePageState extends State<MePage> {
   }
 
   /// 头像：`avatar` 是 data URI 时渲染真实图片，否则退回首字母底色块
-  Widget _avatar(String name, Object? avatar, double size) {
+  Widget _avatar(String name, Object? avatar, double size, [String frame = 'none']) {
     final Uint8List? bytes = decodeAvatarDataUri(avatar);
-    if (bytes != null) {
-      return ClipOval(
-        child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),
-      );
-    }
+    final Widget inner = bytes != null
+        ? ClipOval(
+            child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),
+          )
+        : Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: Ux.green, shape: BoxShape.circle),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'S',
+              style: TextStyle(color: Colors.white, fontSize: size * 0.4, fontWeight: FontWeight.bold),
+            ),
+          );
+    final color = kAvatarFrames[frame] ?? Colors.transparent;
+    if (color == Colors.transparent) return inner;
     return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(color: Ux.green, shape: BoxShape.circle),
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'S',
-        style: TextStyle(color: Colors.white, fontSize: size * 0.4, fontWeight: FontWeight.bold),
-      ),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: color, width: 3)),
+      child: inner,
     );
   }
 }

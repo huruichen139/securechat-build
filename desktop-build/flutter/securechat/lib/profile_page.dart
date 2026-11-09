@@ -5,10 +5,10 @@
 // 注意：服务端 extra 是「整体覆盖」语义，所以保存时必须把原有 extra 合并后回传。
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'services/app_config.dart';
 import 'services/securechat_api.dart';
@@ -16,6 +16,39 @@ import 'widgets/ux.dart';
 
 /// 头像 data URI 上限，与服务端 `/api/avatar` 的校验保持一致（整串长度 256KB）
 const int kAvatarDataUriLimit = 256 * 1024;
+
+/// 内置推荐头像（纸感绿调几何图形，点击即上传）
+const List<String> kPresetAvatars = <String>[
+  'assets/avatars/avatar_01.png',
+  'assets/avatars/avatar_02.png',
+  'assets/avatars/avatar_03.png',
+  'assets/avatars/avatar_04.png',
+  'assets/avatars/avatar_05.png',
+  'assets/avatars/avatar_06.png',
+  'assets/avatars/avatar_07.png',
+  'assets/avatars/avatar_08.png',
+  'assets/avatars/avatar_09.png',
+  'assets/avatars/avatar_10.png',
+  'assets/avatars/avatar_11.png',
+  'assets/avatars/avatar_12.png',
+];
+
+/// 头像框：保存在资料 extra.avatarFrame，全端按同一键渲染
+const Map<String, Color> kAvatarFrames = <String, Color>{
+  'none': Colors.transparent,
+  'green': Color(0xFF1F6F4A),
+  'gold': Color(0xFFB08A2E),
+  'ink': Color(0xFF25324D),
+  'rose': Color(0xFFB4552D),
+};
+
+const Map<String, String> kAvatarFrameNames = <String, String>{
+  'none': '无边框',
+  'green': '松绿',
+  'gold': '鎏金',
+  'ink': '墨蓝',
+  'rose': '陶红',
+};
 
 /// 把 `data:image/xxx;base64,....` 解成字节。非 data URI 或解码失败返回 null。
 Uint8List? decodeAvatarDataUri(Object? value) {
@@ -81,6 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
   /// extra 全量副本（服务端覆盖写，未知键也要原样带回）
   Map<String, String> _extra = {};
   String _gender = '';
+  String _frame = 'none';
   Uint8List? _avatarBytes;
   String _uid = '';
 
@@ -139,6 +173,8 @@ class _ProfilePageState extends State<ProfilePage> {
       _signature.text = _extra['signature'] ?? '';
       final g = _extra['gender'] ?? '';
       _gender = _genders.containsKey(g) ? g : '';
+      final fr = _extra['avatarFrame'] ?? 'none';
+      _frame = kAvatarFrames.containsKey(fr) ? fr : 'none';
     }
     if (card.containsKey('avatar')) _avatarBytes = decodeAvatarDataUri(card['avatar']);
   }
@@ -220,6 +256,34 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _usePreset(String asset) async {
+    if (_uploading) return;
+    setState(() => _uploading = true);
+    try {
+      final data = await rootBundle.load(asset);
+      final bytes = data.buffer.asUint8List();
+      final dataUri = 'data:image/png;base64,${base64Encode(bytes)}';
+      if (dataUri.length > kAvatarDataUriLimit) {
+        setState(() => _uploading = false);
+        _toast('内置头像过大，请改用本地上传');
+        return;
+      }
+      final r = await widget.api.setAvatar(dataUri);
+      if (!mounted) return;
+      final user = r['user'];
+      setState(() {
+        _avatarBytes = bytes;
+        _uploading = false;
+        if (user is Map) _result = user.cast<String, dynamic>();
+      });
+      _toast('头像已更新');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      _toast('头像上传失败：${_msg(e)}');
+    }
+  }
+
   Future<void> _pickGender() async {
     final picked = await showModalBottomSheet<String>(
       context: context,
@@ -259,7 +323,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     final extra = Map<String, String>.from(_extra)
       ..['signature'] = _signature.text.trim()
-      ..['gender'] = _gender;
+      ..['gender'] = _gender
+      ..['avatarFrame'] = _frame;
 
     setState(() => _saving = true);
     try {
@@ -405,27 +470,107 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
+        Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('推荐头像', style: TextStyle(fontSize: 13, color: t.subText)),
+          ),
+        ),
+        SizedBox(
+          height: 64,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            itemCount: kPresetAvatars.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (ctx, i) {
+              final asset = kPresetAvatars[i];
+              return InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: _uploading ? null : () => _usePreset(asset),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: t.div.withValues(alpha: 0.8)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(asset, fit: BoxFit.cover),
+                ),
+              );
+            },
+          ),
+        ),
+        Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+          child: Row(children: [
+            Text('头像框', style: TextStyle(fontSize: 13, color: t.subText)),
+            const SizedBox(width: 10),
+            Text(kAvatarFrameNames[_frame] ?? '无边框', style: TextStyle(fontSize: 12, color: t.subText)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              for (final e in kAvatarFrames.entries)
+                InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => setState(() => _frame = e.key),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: e.value == Colors.transparent ? Colors.transparent : e.value,
+                      border: Border.all(
+                        color: e.value == Colors.transparent ? t.div : e.value,
+                        width: 2,
+                      ),
+                    ),
+                    child: _frame == e.key
+                        ? Icon(Icons.check_rounded, size: 18, color: e.value == Colors.transparent ? t.subText : Colors.white)
+                        : (e.value == Colors.transparent
+                            ? Icon(Icons.block_rounded, size: 16, color: t.subText.withValues(alpha: 0.5))
+                            : null),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
   Widget _avatarView(double size) {
     final bytes = _avatarBytes;
-    if (bytes != null) {
-      return ClipOval(
-        child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),
-      );
-    }
-    final name = _nickname.text.trim();
+    final frameColor = kAvatarFrames[_frame] ?? Colors.transparent;
+    final hasFrame = frameColor != Colors.transparent;
+    final inner = bytes != null
+        ? ClipOval(
+            child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),
+          )
+        : Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: Ux.green, shape: BoxShape.circle),
+            child: Text(
+              _nickname.text.trim().isNotEmpty ? _nickname.text.trim()[0].toUpperCase() : 'S',
+              style: TextStyle(color: Colors.white, fontSize: size * 0.4, fontWeight: FontWeight.bold),
+            ),
+          );
+    if (!hasFrame) return inner;
     return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(color: Ux.green, shape: BoxShape.circle),
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'S',
-        style: TextStyle(color: Colors.white, fontSize: size * 0.4, fontWeight: FontWeight.bold),
-      ),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: frameColor, width: 3)),
+      child: inner,
     );
   }
 
