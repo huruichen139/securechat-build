@@ -50,6 +50,15 @@ const Map<String, String> kAvatarFrameNames = <String, String>{
   'rose': '陶红',
 };
 
+/// 个性状态：保存在资料 extra.statusTag
+const Map<String, String> kStatusTags = <String, String>{
+  '': '无',
+  'online': '在线',
+  'busy': '忙碌',
+  'away': '离开',
+  'dnd': '勿扰',
+};
+
 /// 把 `data:image/xxx;base64,....` 解成字节。非 data URI 或解码失败返回 null。
 Uint8List? decodeAvatarDataUri(Object? value) {
   if (value is! String || !value.startsWith('data:image/')) return null;
@@ -115,6 +124,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, String> _extra = {};
   String _gender = '';
   String _frame = 'none';
+  String _status = '';
   Uint8List? _avatarBytes;
   String _uid = '';
 
@@ -175,6 +185,8 @@ class _ProfilePageState extends State<ProfilePage> {
       _gender = _genders.containsKey(g) ? g : '';
       final fr = _extra['avatarFrame'] ?? 'none';
       _frame = kAvatarFrames.containsKey(fr) ? fr : 'none';
+      final st = _extra['statusTag'] ?? '';
+      _status = kStatusTags.containsKey(st) ? st : '';
     }
     if (card.containsKey('avatar')) _avatarBytes = decodeAvatarDataUri(card['avatar']);
   }
@@ -325,6 +337,11 @@ class _ProfilePageState extends State<ProfilePage> {
       ..['signature'] = _signature.text.trim()
       ..['gender'] = _gender
       ..['avatarFrame'] = _frame;
+    if (_status.isNotEmpty) {
+      extra['statusTag'] = _status;
+    } else {
+      extra.remove('statusTag');
+    }
 
     setState(() => _saving = true);
     try {
@@ -543,6 +560,42 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
             ],
           ),
+        ),
+        Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          child: Row(children: [
+            Text('个性状态', style: TextStyle(fontSize: 13, color: t.subText)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final e in kStatusTags.entries)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => setState(() => _status = e.key),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color: _status == e.key ? Ux.green : Colors.transparent,
+                          border: Border.all(color: _status == e.key ? Ux.green : t.div),
+                        ),
+                        child: Text(
+                          e.value,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _status == e.key ? Colors.white : t.subText,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ]),
         ),
       ],
     );

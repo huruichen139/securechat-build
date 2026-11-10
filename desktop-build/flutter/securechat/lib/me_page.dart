@@ -216,6 +216,8 @@ class _MePageState extends State<MePage> {
     final extra = card['extra'];
     final signature = extra is Map ? (extra['signature'] ?? '').toString() : '';
     final frame = extra is Map ? (extra['avatarFrame'] ?? 'none').toString() : 'none';
+    final status = extra is Map ? (extra['statusTag'] ?? '').toString() : '';
+    const statusNames = {'online': '在线', 'busy': '忙碌', 'away': '离开', 'dnd': '勿扰'};
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       decoration: BoxDecoration(
@@ -239,6 +241,18 @@ class _MePageState extends State<MePage> {
                       style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: t.text)),
                   const SizedBox(height: 4),
                   Text('聊天号：${uid.isNotEmpty ? uid : '暂未设置'}', style: TextStyle(fontSize: 13, color: t.subText)),
+                  if (statusNames[status] != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Ux.green.withValues(alpha: 0.5)),
+                      ),
+                      child: Text(statusNames[status]!,
+                          style: const TextStyle(fontSize: 11, color: Ux.green)),
+                    ),
+                  ],
                   if (signature.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(signature,
