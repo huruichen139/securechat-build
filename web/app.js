@@ -3731,6 +3731,9 @@ function appendGroupMessage(m, prepend) {
         <span class="time">${fmtTime(m.createdAt)}</span>
         ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       </div>`;
+    applyAvatarFrame(row.querySelector('.row-avatar'), mine
+      ? (state.me && state.me.extra && state.me.extra.avatarFrame)
+      : (m.fromUser && m.fromUser.extra && m.fromUser.extra.avatarFrame));
     if (b64) {
       const vb = row.querySelector('.voice-bubble');
       vb._b64 = b64;
@@ -3797,6 +3800,9 @@ function appendGroupMessage(m, prepend) {
       ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
     </div>`;
+  applyAvatarFrame(row.querySelector('.avatar'), mine
+    ? (state.me && state.me.extra && state.me.extra.avatarFrame)
+    : (m.fromUser && m.fromUser.extra && m.fromUser.extra.avatarFrame));
   bindRedPacket(row);
   if (canGroupRecall) {
     row.querySelector('[data-action="recall"]').onclick = () => recallGroupMessage(m.id);
@@ -4369,6 +4375,13 @@ function appendMessage(m, prepend) {
   if (m.from != null) row.setAttribute('data-from', String(m.from));
   const mergedHtml = mergedCardHtml(m);
   row.innerHTML = `${rowAvatar}<div class="bubble-wrap">${rowName}${mergedHtml || '<div class="bubble">' + quoteBlockHtml(m) + escapeHtml(m.content) + '</div>'}<span class="time" title="${escapeHtml(fullTime)}">${fmtTime(m.createdAt)}</span>${readLabel || ''}<div class="message-actions">${canRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div></div>`;
+  const msgAv = row.querySelector('.row-avatar, .avatar');
+  if (msgAv) {
+    const fu = m.fromUser || {};
+    applyAvatarFrame(msgAv, mine
+      ? (state.me && state.me.extra && state.me.extra.avatarFrame)
+      : (fu.extra && fu.extra.avatarFrame));
+  }
   bindMergedCard(row, m);
   bindQuoteClicks(row);
   if (canRecall) {
