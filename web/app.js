@@ -1374,6 +1374,7 @@ function renderMyInfo() {
   // 账户卡里若子标签后续加了 data-i18n，apply() 会兜底；这里再扫一次。
   if (window.SCI18N && typeof SCI18N.apply === 'function') SCI18N.apply($('myInfo'));
   $('myAvatar').onclick = pickAvatar;
+  applyAvatarFrame($('myAvatar'), extra.avatarFrame);
   $('bgBtn').onclick = pickChatBg;
   $('editUidBtn').onclick = editUid;
   $('editProfileBtn').onclick = editProfile;
@@ -2099,6 +2100,67 @@ function editProfile() {
   builtIn.forEach(f => appendFieldRow(box, f.key, f.label, f.value, f.placeholder, builtInEls));
   const extraInputs = {};
   const extra = state.me.extra || {};
+  // 个性化：内置推荐头像 + 头像框（头像框写入 extra.avatarFrame）
+  const perCat = document.createElement('div');
+  perCat.className = 'field-cat';
+  perCat.textContent = '个性化';
+  box.appendChild(perCat);
+  const presetLabel = document.createElement('div');
+  presetLabel.className = 'field-row';
+  presetLabel.innerHTML = '<label>推荐头像</label><div class="preset-avatar-row"></div>';
+  box.appendChild(presetLabel);
+  const presetRow = presetLabel.querySelector('.preset-avatar-row');
+  for (let i = 1; i <= 12; i++) {
+    const n = String(i).padStart(2, '0');
+    const img = document.createElement('img');
+    img.className = 'preset-avatar';
+    img.src = 'avatars/avatar_' + n + '.png';
+    img.alt = '推荐头像 ' + i;
+    img.title = '点击使用';
+    img.onclick = () => applyPresetAvatar('avatars/avatar_' + n + '.png');
+    presetRow.appendChild(img);
+  }
+  let selectedFrame = extra.avatarFrame || 'none';
+  const frameRow = document.createElement('div');
+  frameRow.className = 'field-row';
+  frameRow.innerHTML = '<label>头像框</label><div class="frame-row"></div>';
+  box.appendChild(frameRow);
+  const frameBox = frameRow.querySelector('.frame-row');
+  [['none', '无', '#d8d4c8'], ['green', '松绿', '#1f6f4a'], ['gold', '鎏金', '#b08a2e'], ['ink', '墨蓝', '#25324d'], ['rose', '陶红', '#b4552d']].forEach(([key, name, color]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'frame-swatch' + (selectedFrame === key ? ' active' : '');
+    b.title = name;
+    b.dataset.frame = key;
+    b.style.background = key === 'none' ? 'transparent' : color;
+    b.style.borderColor = color;
+    if (key === 'none') b.textContent = '无';
+    b.onclick = () => {
+      selectedFrame = key;
+      frameBox.querySelectorAll('.frame-swatch').forEach(x => x.classList.toggle('active', x === b));
+    };
+    frameBox.appendChild(b);
+  });
+  async function applyPresetAvatar(url) {
+    try {
+      const blob = await (await fetch(url)).blob();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const res = await fetch(state.serverHost + '/api/avatar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+          body: JSON.stringify({ avatar: reader.result })
+        });
+        const data = await res.json();
+        if (!res.ok) { toast(data.error || '头像更新失败', 'error'); return; }
+        if (data.user) state.me = data.user;
+        localStorage.setItem('sc_me', JSON.stringify(state.me));
+        renderMyInfo();
+        toast('头像已更新', 'success');
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) { toast('头像更新失败：' + e.message, 'error'); }
+  }
   PROFILE_FIELDS.forEach(group => {
     const h = document.createElement('div');
     h.className = 'field-cat';
@@ -2136,6 +2198,7 @@ function editProfile() {
       const v = (extraInputs[k].value || '').trim();
       if (v) extraOut[k] = v; // 空值不写入（首存省一点）
     }
+    if (selectedFrame && selectedFrame !== 'none') extraOut.avatarFrame = selectedFrame;
     patch.extra = extraOut;
     close();
     saveProfile(patch);
@@ -2171,6 +2234,7 @@ async function saveProfile(patch) {
     if (data.user) state.me = data.user;
     localStorage.setItem('sc_me', JSON.stringify(state.me));
     renderMyInfo();
+    if (typeof renderMePage === 'function') renderMePage();
     toast('资料已更新', 'success');
   } catch (e) {
     toast('保存失败：' + e.message, 'error');
@@ -2331,6 +2395,13 @@ function applyChatBg(uri) {
 function clearChatBg() { setChatBg(null); applyChatBg(null); toast('已恢复默认背景', 'info', 1000); }
 
 function avatarChar(name) { return (name || '?').charAt(0).toUpperCase(); }
+
+const AVATAR_FRAME_COLORS = { green: '#1f6f4a', gold: '#b08a2e', ink: '#25324d', rose: '#b4552d' };
+function applyAvatarFrame(el, frame) {
+  if (!el) return;
+  const color = AVATAR_FRAME_COLORS[frame];
+  el.style.boxShadow = color ? ('0 0 0 3px ' + color) : '';
+}
 (function () {
   function upgradeNavIcons() {
     const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block"><path d="M15 4L7 12l8 8"/></svg>';
@@ -6472,10 +6543,11 @@ function renderMePage() {
     ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
   if (qrBtn) qrBtn.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); showMyCard(); };
-  // 头部（我的名片）点击 → 展示名片二维码
-  header.onclick = () => showMyCard();
+  // 头部点击 → 编辑个人资料（二维码走右侧“码”按钮）
+  header.onclick = () => editProfile();
   header.style.cursor = 'pointer';
-  header.title = '我的名片';
+  header.title = '编辑个人资料';
+  applyAvatarFrame(header.querySelector('.me-avatar'), state.me.extra && state.me.extra.avatarFrame);
 
   const svc = document.getElementById('meServicesCard');
   if (!svc) return;

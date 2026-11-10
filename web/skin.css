@@ -4102,3 +4102,10 @@ html body:not(.dark-mode) #chatView #welcomePanel .welcome-action{background:#fb
 html body:not(.dark-mode) #chatView #welcomePanel .welcome-action:hover{background:#f3f1ea!important;border-color:#171a16!important}
 html body:not(.dark-mode) #chatView #chatDesktopComposer .composer-input-wrap,html body:not(.dark-mode) #chatView #chatMobileComposer .composer-input-wrap{background:#f3f1ea!important;border:1px solid #d8d4c8!important;border-radius:2px!important}
 html body:not(.dark-mode) #chatView #friendsSide.sidebar-tools{background:#fbfaf6!important}
+/* 个性化头像：推荐头像与头像框 */
+.preset-avatar-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0;flex:1}
+.preset-avatar{width:44px;height:44px;border-radius:50%;cursor:pointer;border:1px solid #d8d4c8;flex:0 0 auto;object-fit:cover}
+.preset-avatar:hover{border-color:#1f6f4a;transform:translateY(-1px)}
+.frame-row{display:flex;gap:10px;flex:1;align-items:center;flex-wrap:wrap}
+.frame-swatch{width:30px;height:30px;border-radius:50%;border:2px solid #d8d4c8;cursor:pointer;color:#fff;font-size:11px;line-height:1;padding:0}
+.frame-swatch.active{outline:2px solid #171a16;outline-offset:2px}
