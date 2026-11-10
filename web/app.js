@@ -2141,6 +2141,24 @@ function editProfile() {
     };
     frameBox.appendChild(b);
   });
+  let selectedStatus = extra.statusTag || '';
+  const statusRow = document.createElement('div');
+  statusRow.className = 'field-row';
+  statusRow.innerHTML = '<label>个性状态</label><div class="status-row"></div>';
+  box.appendChild(statusRow);
+  const statusBox = statusRow.querySelector('.status-row');
+  [['', '无'], ['online', '在线'], ['busy', '忙碌'], ['away', '离开'], ['dnd', '勿扰']].forEach(([key, name]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'status-chip' + (selectedStatus === key ? ' active' : '');
+    b.dataset.status = key;
+    b.textContent = name;
+    b.onclick = () => {
+      selectedStatus = key;
+      statusBox.querySelectorAll('.status-chip').forEach(x => x.classList.toggle('active', x === b));
+    };
+    statusBox.appendChild(b);
+  });
   async function applyPresetAvatar(url) {
     try {
       const blob = await (await fetch(url)).blob();
@@ -2199,6 +2217,7 @@ function editProfile() {
       if (v) extraOut[k] = v; // 空值不写入（首存省一点）
     }
     if (selectedFrame && selectedFrame !== 'none') extraOut.avatarFrame = selectedFrame;
+    if (selectedStatus) extraOut.statusTag = selectedStatus;
     patch.extra = extraOut;
     close();
     saveProfile(patch);
@@ -6547,11 +6566,14 @@ function renderMePage() {
   const hasImg = state.me.avatar;
   const avHtml = hasImg ? `<img src="${escapeHtml(state.me.avatar)}">` : avatarChar(state.me.nickname);
   const qrHtml = '<span class="me-qr" id="meQrBtn" title="我的二维码"><span class="wx-ico-sm">码</span></span>';
+  const statusMap = { online: '在线', busy: '忙碌', away: '离开', dnd: '勿扰' };
+  const statusText = statusMap[state.me.extra && state.me.extra.statusTag] || '';
   header.innerHTML = `
     <div class="me-avatar">${avHtml}</div>
     <div class="me-info">
       <div class="me-name">${escapeHtml(state.me.nickname)}</div>
       <div class="me-id">微信号：${escapeHtml(state.me.uid || '')}</div>
+      ${statusText ? '<div class="me-status">' + statusText + '</div>' : ''}
     </div>
     ${qrHtml}`;
   const qrBtn = document.getElementById('meQrBtn');
