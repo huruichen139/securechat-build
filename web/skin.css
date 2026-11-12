@@ -795,7 +795,7 @@ body.dark-mode .system-msg, body.dark-mode .sys-tip { color: #7f7f7f !important;
   display: flex !important;
   align-items: center !important;
   gap: 16px !important;
-  background: #fff !important;
+  background-color: #fff !important;
   padding: 20px 16px !important;
   margin: 0 0 8px !important;
   border-top: 1px solid var(--sk-line) !important;
@@ -1428,7 +1428,7 @@ body.dark-mode .system-msg, body.dark-mode .sys-tip { color: #7f7f7f !important;
 #chatView .wx-group, #chatView .wx-me-group { margin: 8px 0 !important; }
 #chatView .wx-discover-item, #chatView .wx-me-item { height: 56px !important; padding: 0 16px !important; }
 #chatView .wx-discover-name, #chatView .wx-me-name { font-size: 16px !important; }
-#chatView .me-header { padding: 20px 16px !important; margin: 0 0 8px !important; background: #fff !important; }
+#chatView .me-header { padding: 20px 16px !important; margin: 0 0 8px !important; background-color: #fff !important; }
 #chatView .me-avatar { width: 64px !important; height: 64px !important; flex: 0 0 64px !important; border-radius: 6px !important; }
 #chatView .me-name { font-size: 20px !important; font-weight: 500 !important; }
 #chatView .page-body .contact-section .contact { height: 56px !important; min-height: 56px !important; padding: 0 16px !important; }
@@ -1650,7 +1650,7 @@ body.dark-mode #chatView .wx-me-item::before { background: #2a2a2a !important; }
 body.dark-mode #chatView .wx-discover-name,
 body.dark-mode #chatView .wx-me-name,
 body.dark-mode #chatView .ai-banner-name { color: #d6d6d6 !important; }
-body.dark-mode #chatView .me-header { background: #191919 !important; border-color: #2a2a2a !important; }
+body.dark-mode #chatView .me-header { background-color: #191919 !important; border-color: #2a2a2a !important; }
 body.dark-mode #chatView .me-name { color: #d6d6d6 !important; }
 body.dark-mode #chatView .me-id { color: #7f7f7f !important; }
 body.dark-mode #chatView .page-body .contact-section,
@@ -3416,14 +3416,14 @@ html body .feature-icon svg{fill:#07c160!important;stroke:#07c160!important}
 html body.dark-mode .feature-grid .feature-item .feature-icon,html body.dark-mode .feature-item .feature-icon{background:#1f3a2c!important;color:#4ade80!important}
 html body.dark-mode .feature-icon svg{fill:#4ade80!important;stroke:#4ade80!important}
 
-html body #chatView #contactsPage .page-body,
-html body #chatView #discoverPage .page-body,
-html body #chatView #mePage .page-body {
+html body:not(.dark-mode) #chatView #contactsPage .page-body,
+html body:not(.dark-mode) #chatView #discoverPage .page-body,
+html body:not(.dark-mode) #chatView #mePage .page-body {
   background: #ededed !important;
   background-image: none !important;
   overflow-x: hidden !important;
 }
-html body #chatView #discoverPage #discoverList {
+html body:not(.dark-mode) #chatView #discoverPage #discoverList {
   background: transparent !important;
   background-image: none !important;
   border: 0 !important;
@@ -3431,9 +3431,9 @@ html body #chatView #discoverPage #discoverList {
   box-shadow: none !important;
   padding: 0 !important;
 }
-html body #chatView #contactsPage .contact-section,
-html body #chatView #discoverPage .wx-group,
-html body #chatView #mePage .wx-me-group {
+html body:not(.dark-mode) #chatView #contactsPage .contact-section,
+html body:not(.dark-mode) #chatView #discoverPage .wx-group,
+html body:not(.dark-mode) #chatView #mePage .wx-me-group {
   background: #fff !important;
   background-image: none !important;
   border: 0 !important;
@@ -3443,9 +3443,9 @@ html body #chatView #mePage .wx-me-group {
   padding: 0 !important;
   overflow: hidden !important;
 }
-html body #chatView #contactsPage .contact-section .contact,
-html body #chatView #discoverPage .wx-discover-item,
-html body #chatView #mePage .wx-me-item,
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact,
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item,
 html body #settingsPanel .settings-row {
   display: flex !important;
   align-items: center !important;
@@ -3463,27 +3463,27 @@ html body #settingsPanel .settings-row {
   box-shadow: none !important;
   gap: 12px !important;
 }
-html body #chatView #discoverPage .wx-group .wx-discover-item:last-child,
-html body #chatView #mePage .wx-me-group .wx-me-item:last-child,
+html body:not(.dark-mode) #chatView #discoverPage .wx-group .wx-discover-item:last-child,
+html body:not(.dark-mode) #chatView #mePage .wx-me-group .wx-me-item:last-child,
 html body #settingsPanel .settings-card .settings-row:last-child {
   border-bottom: 0 !important;
 }
-html body #chatView #contactsPage .contact-section .contact:hover,
-html body #chatView #discoverPage .wx-discover-item:hover,
-html body #chatView #mePage .wx-me-item:hover,
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact:hover,
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item:hover,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item:hover,
 html body #settingsPanel .settings-row:hover {
   background: #f5f5f5 !important;
 }
-html body #chatView #contactsPage .contact-section .contact::before,
-html body #chatView #discoverPage .wx-discover-item::before,
-html body #chatView #discoverPage .wx-discover-item::after,
-html body #chatView #mePage .wx-me-item::before,
-html body #chatView #mePage .wx-me-item::after {
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact::before,
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item::before,
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item::after,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item::before,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item::after {
   content: none !important;
   display: none !important;
 }
-html body #chatView #contactsPage .contact-section .contact[data-uid]:not(:has(button))::after,
-html body #chatView #contactsPage .contact-section .contact[data-gid]::after {
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact[data-uid]:not(:has(button))::after,
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact[data-gid]::after {
   content: '\203A' !important;
   display: block !important;
   flex: 0 0 auto !important;
@@ -3492,7 +3492,7 @@ html body #chatView #contactsPage .contact-section .contact[data-gid]::after {
   font-size: 18px !important;
   line-height: 1 !important;
 }
-html body #chatView #contactsPage .contact-group-label,
+html body:not(.dark-mode) #chatView #contactsPage .contact-group-label,
 html body #settingsPanel .settings-section-title {
   font-size: 13px !important;
   font-weight: 400 !important;
@@ -3506,16 +3506,16 @@ html body #settingsPanel .settings-section-title {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-html body #chatView #contactsPage .contact-section .contact .name,
-html body #chatView #discoverPage .wx-discover-item .wx-discover-name,
-html body #chatView #mePage .wx-me-item .wx-me-name,
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact .name,
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-name,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-name,
 html body #settingsPanel .settings-row .settings-info > div:first-child {
   font-size: 15px !important;
   font-weight: 400 !important;
   line-height: 20px !important;
   color: #191919 !important;
 }
-html body #chatView #contactsPage .contact-section .contact .last {
+html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact .last {
   font-size: 12px !important;
   line-height: 16px !important;
   color: #8a8a8a !important;
@@ -3533,8 +3533,8 @@ html body #settingsPanel .settings-row > div:nth-child(2) > div:last-child {
   color: #8a8a8a !important;
   margin-top: 2px !important;
 }
-html body #chatView #discoverPage .wx-discover-arrow,
-html body #chatView #mePage .wx-me-item .wx-discover-arrow,
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-arrow,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-discover-arrow,
 html body #settingsPanel .settings-row .settings-arrow {
   color: #c8c8c8 !important;
   font-size: 18px !important;
@@ -3555,8 +3555,8 @@ html body #settingsPanel .settings-row .settings-ic {
   margin-right: 0 !important;
   box-shadow: none !important;
 }
-html body #chatView #discoverPage .wx-discover-item .wx-discover-icon,
-html body #chatView #mePage .wx-me-item .wx-me-icon {
+html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-icon,
+html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-icon {
   width: 28px !important;
   height: 28px !important;
   flex: 0 0 28px !important;
@@ -3569,9 +3569,8 @@ html body #chatView #mePage .wx-me-item .wx-me-icon {
   margin: 0 !important;
   box-shadow: none !important;
 }
-html body #chatView #mePage .me-header {
-  background: #fff !important;
-  background-image: none !important;
+html body:not(.dark-mode) #chatView #mePage .me-header {
+  background-color: #fbfaf6 !important;
   border: 0 !important;
   border-bottom: 1px solid #f0f0f0 !important;
   border-radius: 0 !important;
@@ -3653,7 +3652,7 @@ html body.dark-mode #settingsPanel .settings-row,
 html body.dark-mode #settingsPanel .settings-profile,
 html body.dark-mode #settingsPanel .settings-logout,
 html body.dark-mode #chatView #mePage .me-header {
-  background: #2c2c2c !important;
+  background-color: #2c2c2c !important;
   border-bottom-color: #3a3a3a !important;
 }
 html body.dark-mode #chatView #contactsPage .contact-section .contact:hover,
@@ -3772,10 +3771,10 @@ button{transition:background-color .15s ease,color .15s ease,opacity .15s ease}
 html{-webkit-tap-highlight-color:transparent}html body .contact .last,html body .contact .name,html body .contact .time{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}@media(min-width:761px){
   #mePage,#discoverPage,#contactsPage,#blocklistPage{background:#ededed!important}
   #mePage .page-header,#discoverPage .page-header,#contactsPage .page-header,#blocklistPage .page-header{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;border-bottom:1px solid #f0f0f0!important}
-  html body #chatView #mePage .page-body,html body #chatView #discoverPage .page-body,html body #chatView #contactsPage .page-body,html body #chatView #blocklistPage .page-body{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important}
+  html body:not(.dark-mode) #chatView #mePage .page-body,html body:not(.dark-mode) #chatView #discoverPage .page-body,html body:not(.dark-mode) #chatView #contactsPage .page-body,html body:not(.dark-mode) #chatView #blocklistPage .page-body{width:680px!important;max-width:680px!important;margin:0 auto!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important}
 }body.dark-mode #chatView #mePage .page-body,body.dark-mode #chatView #discoverPage .page-body,body.dark-mode #chatView #contactsPage .page-body,body.dark-mode #chatView #blocklistPage .page-body{background:#2c2c2c!important;box-shadow:none!important}
 body.dark-mode #mePage .page-header,body.dark-mode #discoverPage .page-header,body.dark-mode #contactsPage .page-header,body.dark-mode #blocklistPage .page-header{background:#2c2c2c!important;border-bottom-color:#3a3a3a!important}
-body.dark-mode #mePage,body.dark-mode #discoverPage,body.dark-mode #contactsPage,body.dark-mode #blocklistPage{background:#191919!important}html body #chatView .messages .bubble,html body #chatView .messages .msg-bubble{max-width:min(62%,560px)!important}html body #chatView .messages .msg-row .bubble-wrap{max-width:min(62%,560px)!important}@media(max-width:760px){html body .modal.live-view{width:calc(100vw - 24px)!important;max-width:366px!important}}html body #authView{background:#f5f6f7!important}
+body.dark-mode #mePage,body.dark-mode #discoverPage,body.dark-mode #contactsPage,body.dark-mode #blocklistPage{background:#191919!important}html body:not(.dark-mode) #chatView .messages .bubble,html body:not(.dark-mode) #chatView .messages .msg-bubble{max-width:min(62%,560px)!important}html body:not(.dark-mode) #chatView .messages .msg-row .bubble-wrap{max-width:min(62%,560px)!important}@media(max-width:760px){html body .modal.live-view{width:calc(100vw - 24px)!important;max-width:366px!important}}html body #authView{background:#f5f6f7!important}
 body.dark-mode #authView{background:#111!important}@keyframes scFadeIn{from{opacity:0}to{opacity:1}}
 .modal-mask,.overlay,.feature-modal{animation:scFadeIn .18s ease-out}
 button:active{opacity:.82}@media(min-width:761px){
@@ -3802,9 +3801,9 @@ body.dark-mode #settingsPanel .settings-hdr{background:#2c2c2c!important;border-
 }
 body.dark-mode .moments-page{background:#191919!important}
 body.dark-mode .moments-page .moments-header,body.dark-mode .moments-page .moments-body{background:#2c2c2c!important}.wechat-page,.kb-panel{animation:scFadeIn .18s ease-out}html body .pwd-eye{display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
-html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}html body #groupAnnounceBanner:empty{display:none!important;margin:0!important;padding:0!important;height:0!important}html body #chatView #friendsSide .section-label,html body #chatView #friendsSide .group-actions{display:none!important}
-html body #chatView #friendsSide .add-friend{display:none!important}
-html body #chatView #friendsSide.show-add .add-friend{display:flex!important;margin-top:8px}html.is-mobile #chatDesktopComposer{display:none!important}@media (min-width: 761px) { #chatView .emoji-panel { width: 420px !important; max-width: calc(100% - 16px) !important; right: auto !important; } }
+html body .pwd-eye svg{width:18px!important;height:18px!important;display:block}html body #groupAnnounceBanner:empty{display:none!important;margin:0!important;padding:0!important;height:0!important}html body:not(.dark-mode) #chatView #friendsSide .section-label,html body:not(.dark-mode) #chatView #friendsSide .group-actions{display:none!important}
+html body:not(.dark-mode) #chatView #friendsSide .add-friend{display:none!important}
+html body:not(.dark-mode) #chatView #friendsSide.show-add .add-friend{display:flex!important;margin-top:8px}html.is-mobile #chatDesktopComposer{display:none!important}@media (min-width: 761px) { #chatView .emoji-panel { width: 420px !important; max-width: calc(100% - 16px) !important; right: auto !important; } }
 #chatDesktopComposer .tool:not(:has(svg)):not(.rp-tool-btn) { display: none !important; }html.is-mobile #chatView .messages .msg-row .bubble-wrap { max-width: 72% !important; }html.is-mobile #friendsSide { padding: 6px 12px 4px !important; }
 html.is-mobile #friendsSide .mobile-list-title { height: 38px !important; line-height: 38px !important; font-size: 17px !important; }
 html.is-mobile #friendsSide #search { margin-top: 6px !important; }
@@ -3821,7 +3820,7 @@ html.is-mobile .settings-row{padding:12px 14px!important}
 html.is-mobile .settings-ic{width:30px!important;height:30px!important}
 body.dark-mode .profile-card{background:#2c2c2c!important;color:#d6d6d6!important}
 body.dark-mode .profile-name,body.dark-mode .profile-member span,body.dark-mode .profile-region{color:#e2e2e2!important}body.dark-mode .vid-ops button,body.dark-mode .live-ops button{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
-.moments-page .moments-header .back-btn::before{content:''!important;display:block!important;width:12px!important;height:12px!important;background-color:currentColor!important;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/contain no-repeat!important;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/contain no-repeat!important}.wechat-page .page-header .back-btn::before,.chat-header .header-back::before,#chatMobileBackBtn::before,#downloadView #downloadBackBtn::before,#settingsPanel .settings-back::before{content:''!important;display:none!important}html body #chatView #contactsPage .contact-section .contact[data-uid]:not(:has(button))::after,html body #chatView #contactsPage .contact-section .contact[data-gid]::after{content:''!important;width:12px!important;height:12px!important;background-color:#c8c8c8!important;font-size:0!important;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") center/contain no-repeat!important;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") center/contain no-repeat!important}
+.moments-page .moments-header .back-btn::before{content:''!important;display:block!important;width:12px!important;height:12px!important;background-color:currentColor!important;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/contain no-repeat!important;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/contain no-repeat!important}.wechat-page .page-header .back-btn::before,.chat-header .header-back::before,#chatMobileBackBtn::before,#downloadView #downloadBackBtn::before,#settingsPanel .settings-back::before{content:''!important;display:none!important}html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact[data-uid]:not(:has(button))::after,html body:not(.dark-mode) #chatView #contactsPage .contact-section .contact[data-gid]::after{content:''!important;width:12px!important;height:12px!important;background-color:#c8c8c8!important;font-size:0!important;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") center/contain no-repeat!important;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") center/contain no-repeat!important}
 body.dark-mode .auth-logo .auth-name{color:#000!important}
 
 /* ---------- 视觉精修：聊天气泡与头像 ---------- */
@@ -3832,17 +3831,17 @@ body.dark-mode .auth-logo .auth-name{color:#000!important}
 
 /* ---------- 视觉精修：桌面聊天 ---------- */
 @media (min-width:761px){
-  html body #chatView .main{background:#f4f5f6!important}
-  html body #chatView .header{height:58px!important;background:#fff!important;border-bottom:1px solid #ececec!important;padding:0 24px!important;box-shadow:none!important}
-  html body #chatView .header #chatHeader{font-size:15px!important;font-weight:600!important;color:#111!important}
-  html body #chatView .messages{background:#f4f5f6!important;padding:20px max(24px,calc((100% - 900px)/2)) 24px!important}
-  html body #chatView .composer{background:#fff!important;border-top:1px solid #ececec!important;padding:12px max(24px,calc((100% - 900px)/2)) 14px!important;gap:8px 12px!important}
-  html body #chatView .composer .composer-input-wrap{background:#f6f7f8!important;border-radius:10px!important;padding:6px 10px!important}
-  html body #chatView .composer textarea{background:transparent!important;font-size:14px!important;line-height:1.6!important}
-  html body #chatView .composer .btn.send{height:38px!important;border-radius:9px!important;font-weight:500!important;box-shadow:0 4px 12px rgba(7,193,96,.22)!important}
-  html body #chatView #friendsSide{background:#fff!important;border-right:1px solid #ececec!important}
-  html body #chatView #contactList .contact{transition:background .12s ease!important}
-  html body #chatView #contactList .contact.active{background:#ececec!important}
+  html body:not(.dark-mode) #chatView .main{background:#f4f5f6!important}
+  html body:not(.dark-mode) #chatView .header{height:58px!important;background:#fff!important;border-bottom:1px solid #ececec!important;padding:0 24px!important;box-shadow:none!important}
+  html body:not(.dark-mode) #chatView .header #chatHeader{font-size:15px!important;font-weight:600!important;color:#111!important}
+  html body:not(.dark-mode) #chatView .messages{background:#f4f5f6!important;padding:20px max(24px,calc((100% - 900px)/2)) 24px!important}
+  html body:not(.dark-mode) #chatView .composer{background:#fff!important;border-top:1px solid #ececec!important;padding:12px max(24px,calc((100% - 900px)/2)) 14px!important;gap:8px 12px!important}
+  html body:not(.dark-mode) #chatView .composer .composer-input-wrap{background:#f6f7f8!important;border-radius:10px!important;padding:6px 10px!important}
+  html body:not(.dark-mode) #chatView .composer textarea{background:transparent!important;font-size:14px!important;line-height:1.6!important}
+  html body:not(.dark-mode) #chatView .composer .btn.send{height:38px!important;border-radius:9px!important;font-weight:500!important;box-shadow:0 4px 12px rgba(7,193,96,.22)!important}
+  html body:not(.dark-mode) #chatView #friendsSide{background:#fff!important;border-right:1px solid #ececec!important}
+  html body:not(.dark-mode) #chatView #contactList .contact{transition:background .12s ease!important}
+  html body:not(.dark-mode) #chatView #contactList .contact.active{background:#ececec!important}
 }
 
 /* ---------- 视觉精修：登录卡片 ---------- */
@@ -3859,24 +3858,24 @@ body[data-bubble-style=""] #chatView .messages .msg-row .bubble{border-radius:10
 body[data-bubble-style=""] #chatView .messages .msg-row.me .bubble{border-top-right-radius:4px!important}
 body[data-bubble-style=""] #chatView .messages .msg-row.other .bubble{border-top-left-radius:4px!important}
 @media (min-width:761px){
-  html body #chatView .main .header{height:58px!important;background:#fff!important;border-bottom:1px solid #ececec!important;padding:0 24px!important;box-shadow:none!important}
-  html body #chatView .main .header #chatHeader{font-size:15px!important;font-weight:600!important;color:#111!important}
-  html body #chatView .main .messages{background:#f4f5f6!important;padding:20px max(24px,calc((100% - 900px)/2)) 24px!important}
-  html body #chatView .main .composer{background:#fff!important;border-top:1px solid #ececec!important;padding:12px max(24px,calc((100% - 900px)/2)) 14px!important;gap:8px 12px!important}
-  html body #chatView .main .composer .composer-input-wrap{background:#f6f7f8!important;border-radius:10px!important;padding:6px 10px!important}
-  html body #chatView .main .composer textarea{background:transparent!important;font-size:14px!important;line-height:1.6!important}
-  html body #chatView .main .composer .btn.send{height:38px!important;border-radius:9px!important;font-weight:500!important;box-shadow:0 4px 12px rgba(7,193,96,.22)!important}
-  html body #chatView #friendsSide{background:#fff!important;border-right:1px solid #ececec!important}
-  html body #chatView #contactList .contact{transition:background .12s ease!important}
-  html body #chatView #contactList .contact.active{background:#ececec!important}
+  html body:not(.dark-mode) #chatView .main .header{height:58px!important;background:#fff!important;border-bottom:1px solid #ececec!important;padding:0 24px!important;box-shadow:none!important}
+  html body:not(.dark-mode) #chatView .main .header #chatHeader{font-size:15px!important;font-weight:600!important;color:#111!important}
+  html body:not(.dark-mode) #chatView .main .messages{background:#f4f5f6!important;padding:20px max(24px,calc((100% - 900px)/2)) 24px!important}
+  html body:not(.dark-mode) #chatView .main .composer{background:#fff!important;border-top:1px solid #ececec!important;padding:12px max(24px,calc((100% - 900px)/2)) 14px!important;gap:8px 12px!important}
+  html body:not(.dark-mode) #chatView .main .composer .composer-input-wrap{background:#f6f7f8!important;border-radius:10px!important;padding:6px 10px!important}
+  html body:not(.dark-mode) #chatView .main .composer textarea{background:transparent!important;font-size:14px!important;line-height:1.6!important}
+  html body:not(.dark-mode) #chatView .main .composer .btn.send{height:38px!important;border-radius:9px!important;font-weight:500!important;box-shadow:0 4px 12px rgba(7,193,96,.22)!important}
+  html body:not(.dark-mode) #chatView #friendsSide{background:#fff!important;border-right:1px solid #ececec!important}
+  html body:not(.dark-mode) #chatView #contactList .contact{transition:background .12s ease!important}
+  html body:not(.dark-mode) #chatView #contactList .contact.active{background:#ececec!important}
 }
 /* ---------- 视觉精修最终覆盖 ---------- */
-html body #chatView .main .header{min-height:58px!important}
-html body #chatView .messages .msg-row .bubble{padding:10px 13px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
-html body #chatView .main .composer textarea{border:0!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .main .header{min-height:58px!important}
+html body:not(.dark-mode) #chatView .messages .msg-row .bubble{padding:10px 13px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
+html body:not(.dark-mode) #chatView .main .composer textarea{border:0!important;box-shadow:none!important}
 /* ---------- 气泡最终覆盖（压过 msg-row.me 复合选择器） ---------- */
-html body #chatView .messages .msg-row.me .bubble,
-html body #chatView .messages .msg-row.other .bubble{padding:10px 13px!important;font-size:14.5px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble,
+html body:not(.dark-mode) #chatView .messages .msg-row.other .bubble{padding:10px 13px!important;font-size:14.5px!important;line-height:1.55!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
 /* ---------- 纸感绿调：与首页/后台统一（仅浅色模式） ---------- */
 body:not(.dark-mode){
   --bg:#fbfaf6;--background:#f3f1ea;--side-bg:#fbfaf6;--surface:#fbfaf6;--card:#fbfaf6;
@@ -3939,7 +3938,7 @@ body:not(.dark-mode) .wechat-page{background:#f3f1ea!important}
 body:not(.dark-mode) .page-header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
 body:not(.dark-mode) .page-header h2{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important;letter-spacing:-.02em!important}
 body:not(.dark-mode) .page-body{background:#f3f1ea!important}
-body:not(.dark-mode) .me-header,body:not(.dark-mode) .me-card,body:not(.dark-mode) .settings-profile{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+body:not(.dark-mode) .me-header,body:not(.dark-mode) .me-card,body:not(.dark-mode) .settings-profile{background-color:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
 body:not(.dark-mode) .me-name,body:not(.dark-mode) .settings-profile div{color:#171a16!important}
 body:not(.dark-mode) .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
 body:not(.dark-mode) .settings-hdr{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
@@ -3970,7 +3969,11 @@ html body:not(.dark-mode) #chatView .btn.send,html body:not(.dark-mode) #chatVie
 html body:not(.dark-mode) #chatView .btn.send:hover,html body:not(.dark-mode) #chatView #desktopSendBtn:hover{background:#155237!important;border-color:#155237!important}
 html body:not(.dark-mode) #chatView .messages .msg-row .bubble{background:#fbfaf6!important;border:1px solid #d8d4c8!important;color:#171a16!important;border-radius:6px!important;box-shadow:none!important}
 html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble{background:#1f6f4a!important;border-color:#1f6f4a!important;color:#fbfaf6!important}
-html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble *{color:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble{color:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .fname,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .fsize,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .file-download,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .vdur,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .vt-btn,html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .quote-block{color:#fbfaf6!important}
+html body:not(.dark-mode) #chatView .messages .msg-row.me .bubble .voice-transcript{background:rgba(255,255,255,.9)!important;color:#171a16!important}
+html body:not(.dark-mode) #chatView .messages .msg-row .bubble.rp-bubble{background:#fa9d3b!important;border-color:#fa9d3b!important}
+html body:not(.dark-mode) #chatView .messages .msg-row .bubble.rp-bubble *{color:#fff!important}
 html body:not(.dark-mode) #chatView .messages .msg-row.other .bubble{background:#fbfaf6!important;border-color:#d8d4c8!important;color:#171a16!important}
 html body:not(.dark-mode) #chatView #contactList .contact{background:transparent!important;border-radius:2px!important}
 html body:not(.dark-mode) #chatView #contactList .contact:hover{background:#f3f1ea!important}
@@ -3980,12 +3983,12 @@ html body:not(.dark-mode) #chatView .head-tool{color:#4f544d!important}
 html body:not(.dark-mode) #chatView .head-tool:hover{background:#f3f1ea!important;color:#155237!important}
 html body:not(.dark-mode) #chatView .wechat-page,html body:not(.dark-mode) #chatView .page-body{background:#f3f1ea!important}
 html body:not(.dark-mode) #chatView .page-header{background:#fbfaf6!important;border-bottom:1px solid #d8d4c8!important}
-html body:not(.dark-mode) #chatView .me-header,html body:not(.dark-mode) #chatView .me-card{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView .me-header,html body:not(.dark-mode) #chatView .me-card{background-color:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
 /* 登录页统一纸感 */
 html body:not(.dark-mode) #authView,html body:not(.dark-mode) #authView.mica-bg{background:#f3f1ea!important;background-image:none!important}
 html body:not(.dark-mode) #authView .auth-card{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:10px 10px 0 rgba(23,26,22,.1)!important}
 html body:not(.dark-mode) #authView .auth-logo,html body:not(.dark-mode) #authView .auth-mark{background:#171a16!important;border-radius:2px!important;color:#fbfaf6!important}
-html body:not(.dark-mode) #authView .auth-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important;letter-spacing:-.03em!important}
+html body:not(.dark-mode) #authView .auth-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#fbfaf6!important;font-weight:600!important;letter-spacing:-.03em!important}
 html body:not(.dark-mode) #authView .input,html body:not(.dark-mode) #authView input{background:#f3f1ea!important;border:1px solid #bcb7a9!important;border-radius:2px!important;color:#171a16!important}
 html body:not(.dark-mode) #authView .input:focus,html body:not(.dark-mode) #authView input:focus{border-color:#1f6f4a!important;box-shadow:none!important}
 html body:not(.dark-mode) #authView .btn,html body:not(.dark-mode) #authView button.primary{background:#171a16!important;border:1px solid #171a16!important;border-radius:2px!important;color:#fbfaf6!important;box-shadow:4px 4px 0 rgba(23,26,22,.14)!important}
@@ -4007,11 +4010,11 @@ html body:not(.dark-mode) #settingsPanel .settings-row .desc,html body:not(.dark
 html body:not(.dark-mode) #settingsPanel .settings-card h4,html body:not(.dark-mode) #settingsPanel .settings-title{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
 /* 我的 / 发现页统一 */
 html body:not(.dark-mode) #mePage .page-body,html body:not(.dark-mode) #discoverPage .page-body,html body:not(.dark-mode) #contactsPage .page-body{background:#f3f1ea!important}
-html body:not(.dark-mode) #mePage .me-header,html body:not(.dark-mode) #mePage .me-card{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #mePage .me-header,html body:not(.dark-mode) #mePage .me-card{background-color:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
 html body:not(.dark-mode) #mePage .wx-me-group,html body:not(.dark-mode) #discoverPage .wx-group{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;overflow:hidden!important;box-shadow:none!important}
 html body:not(.dark-mode) #mePage .wx-me-item,html body:not(.dark-mode) #discoverPage .wx-discover-item{background:#fbfaf6!important;border-bottom:1px solid #e3dfd4!important;color:#171a16!important}
 html body:not(.dark-mode) #mePage .wx-me-item:hover,html body:not(.dark-mode) #discoverPage .wx-discover-item:hover{background:#f3f1ea!important}
-html body:not(.dark-mode) #mePage .wx-me-item *,html body:not(.dark-mode) #discoverPage .wx-discover-item *{color:#171a16!important}
+html body:not(.dark-mode) #mePage .wx-me-item .wx-me-name,html body:not(.dark-mode) #mePage .wx-me-item .wx-me-name *,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-discover-name,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-discover-name *{color:#171a16!important}
 html body:not(.dark-mode) #mePage .wx-me-item .wx-arrow,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-arrow{color:#7c8179!important}
 html body:not(.dark-mode) #mePage .me-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
 html body:not(.dark-mode) #mePage .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
@@ -4020,8 +4023,8 @@ html body:not(.dark-mode) #chatView #mePage .page-body,html body:not(.dark-mode)
 html body:not(.dark-mode) #chatView #mePage .wx-me-group,html body:not(.dark-mode) #chatView #discoverPage .wx-group{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
 html body:not(.dark-mode) #chatView #mePage .wx-me-item,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item{background:#fbfaf6!important;border-bottom:1px solid #e3dfd4!important;color:#171a16!important}
 html body:not(.dark-mode) #chatView #mePage .wx-me-item:hover,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item:hover{background:#f3f1ea!important}
-html body:not(.dark-mode) #chatView #mePage .wx-me-item *,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item *{color:#171a16!important}
-html body:not(.dark-mode) #chatView #mePage .me-header{background:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-name,html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-name *,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-name,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-name *{color:#171a16!important}
+html body:not(.dark-mode) #chatView #mePage .me-header{background-color:#fbfaf6!important;border:1px solid #d8d4c8!important;border-radius:2px!important;box-shadow:none!important}
 html body:not(.dark-mode) #chatView #mePage .me-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important}
 html body:not(.dark-mode) #chatView #mePage .me-id{color:#7c8179!important;font-family:"Cascadia Code",Consolas,monospace!important;font-size:10.5px!important}
 /* 朋友圈 / 钱包统一 */
@@ -4118,3 +4121,38 @@ html body:not(.dark-mode) #chatView #friendsSide.sidebar-tools{background:#fbfaf
 .cover-row{display:flex;gap:8px;flex:1;align-items:center;flex-wrap:wrap}
 .cover-swatch{width:44px;height:28px;border-radius:6px;border:1px solid #d8d4c8;cursor:pointer;color:#5d625b;font-size:11px;padding:0}
 .cover-swatch.active{outline:2px solid #1f6f4a;outline-offset:2px}
+/* ---------- 配色修复：白底白字 / 深色漏配 ---------- */
+body.dark-mode .scan-head{background:#2c2c2c!important;color:#d6d6d6!important}
+body.dark-mode .rp-send-box,body.dark-mode .rp-grab-box{background:#2c2c2c!important}
+body.dark-mode .rp-send-head{color:#d6d6d6!important}
+body.dark-mode .rp-send-field label,body.dark-mode .rp-send-greeting{color:#d6d6d6!important}
+body.dark-mode .rp-send-field input{background:#191919!important;color:#d6d6d6!important}
+body.dark-mode .rp-mode.active{background:#3a3a3a!important;color:#d6d6d6!important}
+body.dark-mode .status-chip{color:#c9cec8!important}
+body.dark-mode .cover-swatch{color:#c9cec8!important}
+body.dark-mode .frame-swatch[data-frame="none"]{color:#d6d6d6!important}
+body.dark-mode .frame-swatch.active,body.dark-mode .cover-swatch.active{outline-color:#e8e4d8!important}
+.frame-swatch[data-frame="none"]{color:#5d625b}
+body.dark-mode #downloadView .download-platform-list .platform{background:#2c2c2c!important;border-color:#3a3a3a!important;color:#d6d6d6!important}
+body.dark-mode #downloadView .download-platform-list .platform h3{color:#d6d6d6!important}
+body.dark-mode .pay-wallet [style*="color:#555"]{color:#b2b2b2!important}
+body.dark-mode .modal-actions .ok,body.dark-mode #desktopSendBtn,body.dark-mode #chatView .btn.send,body.dark-mode #authBtn{background:#0b7a43!important;border-color:#0b7a43!important;color:#fff!important}
+body.dark-mode #chatView .messages .msg-row .bubble.rp-bubble{background:#fa9d3b!important;border-color:#fa9d3b!important}
+body.dark-mode #chatView .messages .msg-row.me .bubble .voice-transcript{background:rgba(0,0,0,.28)!important;color:#fbfaf6!important}
+html body:not(.dark-mode) #mePage .wx-me-item .wx-me-name,html body:not(.dark-mode) #mePage .wx-me-item .wx-me-name *,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-discover-name,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-discover-name *{color:#171a16!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-name,html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-name *,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-name,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-name *{color:#171a16!important}
+html body:not(.dark-mode) #mePage .wx-me-item .wx-me-icon,html body:not(.dark-mode) #discoverPage .wx-discover-item .wx-discover-icon{color:inherit!important}
+html body:not(.dark-mode) #chatView #mePage .wx-me-item .wx-me-icon,html body:not(.dark-mode) #chatView #discoverPage .wx-discover-item .wx-discover-icon{color:inherit!important}
+html body:not(.dark-mode) #mePage .me-status{background:#fbfaf6!important;color:#1f6f4a!important;border-color:#bcb7a9!important}
+body.dark-mode #mePage .me-status{background:#2c2c2c!important;color:#7fd6a4!important;border-color:#3a3a3a!important}body.dark-mode .auth-card .code-btn{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+.login-mode-btn{color:#5f655d!important}
+.login-mode-btn.on{color:#155237!important;background:#e8f8ef!important}
+.auth-card .tab{color:#5f655d!important}
+.auth-card .tab.on{color:#155237!important;background:#e8f8ef!important}
+.auth-card .err{color:#c62828!important}
+.oauth-sep,.auth-card .oauth-btn span{color:#6b6b6b!important}
+html body:not(.dark-mode) #mePage .me-id,html body:not(.dark-mode) #chatView #mePage .me-id{color:#5d625b!important;font-size:12px!important}
+body.dark-mode .auth-card .tab.on{background:#155237!important;color:#fbfaf6!important}html body:not(.dark-mode) #authView .tab.on,html body:not(.dark-mode) #authView .auth-tab.on{background:#e8f8ef!important;color:#155237!important;border-color:#1f6f4a!important}
+body.dark-mode #authView .tab.on,body.dark-mode #authView .auth-tab.on{background:#155237!important;color:#fbfaf6!important;border-color:#155237!important}
+html body:not(.dark-mode) #authView .login-mode-btn.on{background:#e8f8ef!important;color:#155237!important;border-color:#1f6f4a!important}
+body.dark-mode #authView .login-mode-btn.on{background:#1f3a2c!important;color:#7fd6a4!important;border-color:#3a3a3a!important}

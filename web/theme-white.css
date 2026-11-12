@@ -688,7 +688,7 @@ body::before { display: none !important; }
 /* 我 */
 .me-page { background: var(--w-bg) !important; }
 .me-header {
-  background: #fff !important;
+  background-color: #fff !important;
   border: 1px solid var(--w-line) !important;
   border-radius: var(--w-radius) !important;
   padding: 18px 20px !important;
