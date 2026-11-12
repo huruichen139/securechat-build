@@ -3987,8 +3987,8 @@ html body:not(.dark-mode) #chatView .me-header,html body:not(.dark-mode) #chatVi
 /* 登录页统一纸感 */
 html body:not(.dark-mode) #authView,html body:not(.dark-mode) #authView.mica-bg{background:#f3f1ea!important;background-image:none!important}
 html body:not(.dark-mode) #authView .auth-card{background:#fbfaf6!important;border:1px solid #bcb7a9!important;border-radius:2px!important;box-shadow:10px 10px 0 rgba(23,26,22,.1)!important}
-html body:not(.dark-mode) #authView .auth-logo,html body:not(.dark-mode) #authView .auth-mark{background:#171a16!important;border-radius:2px!important;color:#fbfaf6!important}
-html body:not(.dark-mode) #authView .auth-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#fbfaf6!important;font-weight:600!important;letter-spacing:-.03em!important}
+html body:not(.dark-mode) #authView .auth-logo{background:transparent!important;color:#171a16!important}
+html body:not(.dark-mode) #authView .auth-name{font-family:Georgia,"Songti SC","Noto Serif SC",serif!important;color:#171a16!important;font-weight:600!important;letter-spacing:-.03em!important}
 html body:not(.dark-mode) #authView .input,html body:not(.dark-mode) #authView input{background:#f3f1ea!important;border:1px solid #bcb7a9!important;border-radius:2px!important;color:#171a16!important}
 html body:not(.dark-mode) #authView .input:focus,html body:not(.dark-mode) #authView input:focus{border-color:#1f6f4a!important;box-shadow:none!important}
 html body:not(.dark-mode) #authView .btn,html body:not(.dark-mode) #authView button.primary{background:#171a16!important;border:1px solid #171a16!important;border-radius:2px!important;color:#fbfaf6!important;box-shadow:4px 4px 0 rgba(23,26,22,.14)!important}
@@ -4122,7 +4122,7 @@ html body:not(.dark-mode) #chatView #friendsSide.sidebar-tools{background:#fbfaf
 .cover-swatch{width:44px;height:28px;border-radius:6px;border:1px solid #d8d4c8;cursor:pointer;color:#5d625b;font-size:11px;padding:0}
 .cover-swatch.active{outline:2px solid #1f6f4a;outline-offset:2px}
 /* ---------- 配色修复：白底白字 / 深色漏配 ---------- */
-body.dark-mode .scan-head{background:#2c2c2c!important;color:#d6d6d6!important}
+body.dark-mode .scan-head{background:#2c2c2c!important;color:#d6d6d6!important;border-bottom:1px solid #3a3a3a!important}
 body.dark-mode .rp-send-box,body.dark-mode .rp-grab-box{background:#2c2c2c!important}
 body.dark-mode .rp-send-head{color:#d6d6d6!important}
 body.dark-mode .rp-send-field label,body.dark-mode .rp-send-greeting{color:#d6d6d6!important}
@@ -4155,7 +4155,7 @@ html body:not(.dark-mode) #mePage .me-id,html body:not(.dark-mode) #chatView #me
 body.dark-mode .auth-card .tab.on{background:#155237!important;color:#fbfaf6!important}html body:not(.dark-mode) #authView .tab.on,html body:not(.dark-mode) #authView .auth-tab.on{background:#e8f8ef!important;color:#155237!important;border-color:#1f6f4a!important}
 body.dark-mode #authView .tab.on,body.dark-mode #authView .auth-tab.on{background:#155237!important;color:#fbfaf6!important;border-color:#155237!important}
 html body:not(.dark-mode) #authView .login-mode-btn.on{background:#e8f8ef!important;color:#155237!important;border-color:#1f6f4a!important}
-body.dark-mode #authView .login-mode-btn.on{background:#1f3a2c!important;color:#7fd6a4!important;border-color:#3a3a3a!important}body:not(.dark-mode) .scan-head{background:#171a16!important;color:#fbfaf6!important}
+body.dark-mode #authView .login-mode-btn.on{background:#1f3a2c!important;color:#7fd6a4!important;border-color:#3a3a3a!important}body:not(.dark-mode) .scan-head{background:#fbfaf6!important;color:#171a16!important;border-bottom:1px solid #d8d4c8!important}
 body.dark-mode .btn-cn.gray,body.dark-mode #contactsNewFriends .btn-cn.gray{background:#2c2c2c!important;color:#d6d6d6!important;border:1px solid #3a3a3a!important}
 body.dark-mode .sticker-panel button{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
 body.dark-mode .kb-title{color:#d6d6d6!important}
@@ -4176,3 +4176,5 @@ body.dark-mode .wx-ico-sm{background:#0b7a43!important}
 html body:not(.dark-mode) #authView .tab{color:#5f655d!important}
 #hvSwitchBtn{color:#6b6b6b!important}
 body.dark-mode .oauth-sep{color:#9a9a9a!important}
+
+body.dark-mode #capWidget{--cap-background:#2c2c2c;--cap-color:#d6d6d6;--cap-border-color:#3a3a3a}
