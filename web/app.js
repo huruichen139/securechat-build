@@ -597,7 +597,7 @@ function initLoginExtras() {
     link.href = 'javascript:void(0)';
     link.id = 'forgotPwBtn';
     link.textContent = '忘记密码？';
-    link.style.cssText = 'font-size:12px;color:#888;text-decoration:none;cursor:pointer';
+    link.style.cssText = 'font-size:12px;color:#6b6b6b;text-decoration:none;cursor:pointer';
     row.appendChild(link);
     const hint = $('pwLoginHint');
     pw.parentNode.insertBefore(row, hint ? hint.nextSibling : pw.nextSibling);
@@ -2479,7 +2479,7 @@ function applyAvatarFrame(el, frame) {
   else upgradeNavIcons();
 })();
 (function () {
-  const COLORS = ['#4a7dde','#2f9e74','#c08a00','#cf5540','#2f8fae','#6f55b3','#cf6f2f','#1f7f7f','#c25f86','#566b8c'];
+  const COLORS = ['#2b5fb8','#1f6f4a','#8a6200','#a83220','#1f6a83','#513b8f','#9a4a12','#146363','#96375f','#3a4f70'];
   function paint() {
     document.querySelectorAll('.avatar,.row-avatar,.chat-avatar,.msg-avatar,.contact .avatar,.profile-avatar').forEach(function (el) {
       if (el.dataset.avPainted === '1') return;
@@ -2850,7 +2850,7 @@ function renderContacts() {
   if (count) count.textContent = conversations.length + ' 个会话';
   if (!conversations.length) {
     const tip = document.createElement('div');
-    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
+    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#6b6b6b;font-size:13px';
     tip.textContent = kw ? '没有匹配的好友或群聊' : '还没有会话，添加好友或创建群聊开始聊天';
     list.appendChild(tip);
     return;
@@ -3029,7 +3029,7 @@ function renderContactsDirectory() {
 
   if (!sections.length) {
     const tip = document.createElement('div');
-    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
+    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#6b6b6b;font-size:13px';
     tip.textContent = kw ? '没有匹配的联系人' : '还没有联系人，添加好友开始聊天';
     list.appendChild(tip);
     return;
@@ -3074,7 +3074,7 @@ function renderGroupList() {
   if (count) count.textContent = groups.length + ' 个群';
   if (!groups.length) {
     const tip = document.createElement('div');
-    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#aaa;font-size:13px';
+    tip.style.cssText = 'padding:30px 16px;text-align:center;color:#6b6b6b;font-size:13px';
     tip.textContent = kw ? '没有匹配的群' : '还没有加入任何群，点击"创建群"或"加入群"';
     list.appendChild(tip);
     return;
@@ -3470,7 +3470,7 @@ async function openGroupProfile(groupId) {
         ${members.length ? members.map(m => `<div class="profile-member" data-mid="${m.id}">
           <div class="avatar" style="width:34px;height:34px;border-radius:6px">${m.avatar ? '<img src="' + escapeHtml(m.avatar) + '">' : avatarChar(m.myNickname || m.nickname)}</div>
           <span>${escapeHtml(m.myNickname || m.nickname)}</span>${m.id === (g.ownerId) ? '<em style="color:#fa5151;font-style:normal;font-size:11px">群主</em>' : ''}
-        </div>`).join('') : '<div style="padding:12px;color:#aaa;font-size:13px">暂无成员</div>'}
+        </div>`).join('') : '<div style="padding:12px;color:#6b6b6b;font-size:13px">暂无成员</div>'}
       </div>
       <div class="profile-actions">
         <button class="btn-cn" id="groupInviteBtn">邀请成员</button>
@@ -4490,7 +4490,7 @@ function openForwardPicker(msg) {
       <div class="profile-members">
         ${targets.map(t => `<div class="profile-member" data-k="${t.kind}" data-id="${t.id}">
           <div class="avatar" style="width:34px;height:34px;border-radius:6px">${t.avatar ? '<img src="' + escapeHtml(t.avatar) + '">' : avatarChar(t.name)}</div>
-          <span>${escapeHtml(t.name)}</span>${t.kind === 'group' ? '<em style="color:#888;font-style:normal;font-size:11px">群聊</em>' : ''}
+          <span>${escapeHtml(t.name)}</span>${t.kind === 'group' ? '<em style="color:#6b6b6b;font-style:normal;font-size:11px">群聊</em>' : ''}
         </div>`).join('')}
       </div>
     </div>`;
@@ -6676,7 +6676,7 @@ function openLabelPicker(name) {
   const selected = new Set((getLabelMembers()[name] || []).map(String));
   const mask = document.createElement('div');
   mask.className = 'modal-mask';
-  mask.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-head"><span>标签：' + escapeHtml(name) + '</span><button class="modal-x" type="button">×</button></div><div style="padding:8px 14px;max-height:52vh;overflow:auto">' + (friends.length ? friends.map((u) => '<label style="display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:14px"><input type="checkbox" value="' + escapeHtml(String(u.id)) + '"' + (selected.has(String(u.id)) ? ' checked' : '') + '><span>' + escapeHtml(u.nickname || '') + '</span></label>').join('') : '<div style="padding:16px;color:#aaa">暂无好友</div>') + '</div><div class="modal-actions"><button type="button" class="btn-cn gray" data-cancel>取消</button><button type="button" class="btn-cn gray" data-del>删除标签</button><button type="button" class="btn-cn" data-save>保存</button></div></div>';
+  mask.innerHTML = '<div class="modal" style="max-width:420px"><div class="modal-head"><span>标签：' + escapeHtml(name) + '</span><button class="modal-x" type="button">×</button></div><div style="padding:8px 14px;max-height:52vh;overflow:auto">' + (friends.length ? friends.map((u) => '<label style="display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:14px"><input type="checkbox" value="' + escapeHtml(String(u.id)) + '"' + (selected.has(String(u.id)) ? ' checked' : '') + '><span>' + escapeHtml(u.nickname || '') + '</span></label>').join('') : '<div style="padding:16px;color:#6b6b6b">暂无好友</div>') + '</div><div class="modal-actions"><button type="button" class="btn-cn gray" data-cancel>取消</button><button type="button" class="btn-cn gray" data-del>删除标签</button><button type="button" class="btn-cn" data-save>保存</button></div></div>';
   document.body.appendChild(mask);
   const close = () => mask.remove();
   mask.querySelector('.modal-x').onclick = close;
@@ -6753,7 +6753,7 @@ function renderContactsPage() {
       <button class="btn-cn" style="padding:4px 10px;font-size:12px;margin-right:4px" data-accept="${r.from}">接受</button>
       <button class="btn-cn gray" style="padding:4px 10px;font-size:12px" data-reject="${r.from}">拒绝</button>
     </div>`;
-  }).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无新好友请求</div>';
+  }).join('') : '<div class="contact" style="padding:12px 14px;color:#6b6b6b;font-size:14px">暂无新好友请求</div>';
   newFEl.querySelectorAll('[data-accept]').forEach(btn => {
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -6805,7 +6805,7 @@ function renderContactsPage() {
         <div class="name">${escapeHtml(g.name)}</div>
         <div class="last">${(g.members || []).length} 成员</div>
       </div>
-    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">暂无朋友群</div>';
+    </div>`).join('') : '<div class="contact" style="padding:12px 14px;color:#6b6b6b;font-size:14px">暂无朋友群</div>';
   grpEl.querySelectorAll('[data-gid]').forEach(btn => {
     btn.onclick = () => {
       const gid = parseInt(btn.dataset.gid);
@@ -6843,7 +6843,7 @@ function renderContactsPage() {
             <div class="last">${u.online ? '<span class="dot online"></span> 在线' : '离线'}</div>
           </div>
         </div>`).join('')}
-    </div>`).join('') : (kw ? '<div class="contact" style="padding:12px 14px;color:#aaa;font-size:14px">没有匹配的联系人</div>' : '');
+    </div>`).join('') : (kw ? '<div class="contact" style="padding:12px 14px;color:#6b6b6b;font-size:14px">没有匹配的联系人</div>' : '');
   alpEl.querySelectorAll('[data-uid]').forEach(el => {
     el.onclick = () => {
       document.querySelectorAll('#contactsPage .contact.active').forEach(x => x.classList.remove('active'));
