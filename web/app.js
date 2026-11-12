@@ -2159,6 +2159,26 @@ function editProfile() {
     };
     statusBox.appendChild(b);
   });
+  let selectedCover = extra.profileCover || 'none';
+  const coverRow = document.createElement('div');
+  coverRow.className = 'field-row';
+  coverRow.innerHTML = '<label>主页背景</label><div class="cover-row"></div>';
+  box.appendChild(coverRow);
+  const coverBox = coverRow.querySelector('.cover-row');
+  [['none', '无', ''], ['paper', '素纸', 'linear-gradient(135deg,#f7f4ea,#e9e4d6)'], ['sage', '松烟', 'linear-gradient(135deg,#e7f0e8,#cfe0d2)'], ['clay', '陶土', 'linear-gradient(135deg,#f7e9e1,#e8cbb8)'], ['navy', '远山', 'linear-gradient(135deg,#e8edf5,#c8d4e6)'], ['gold', '麦金', 'linear-gradient(135deg,#f7f0d8,#e5d49c)']].forEach(([key, name, bg]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cover-swatch' + (selectedCover === key ? ' active' : '');
+    b.title = name;
+    b.dataset.cover = key;
+    b.style.background = bg || 'transparent';
+    if (key === 'none') b.textContent = '无';
+    b.onclick = () => {
+      selectedCover = key;
+      coverBox.querySelectorAll('.cover-swatch').forEach(x => x.classList.toggle('active', x === b));
+    };
+    coverBox.appendChild(b);
+  });
   async function applyPresetAvatar(url) {
     try {
       const blob = await (await fetch(url)).blob();
@@ -2218,6 +2238,7 @@ function editProfile() {
     }
     if (selectedFrame && selectedFrame !== 'none') extraOut.avatarFrame = selectedFrame;
     if (selectedStatus) extraOut.statusTag = selectedStatus;
+    if (selectedCover && selectedCover !== 'none') extraOut.profileCover = selectedCover;
     patch.extra = extraOut;
     close();
     saveProfile(patch);
@@ -6576,6 +6597,14 @@ function renderMePage() {
       ${statusText ? '<div class="me-status">' + statusText + '</div>' : ''}
     </div>
     ${qrHtml}`;
+  const coverBg = {
+    paper: 'linear-gradient(135deg,#f7f4ea,#e9e4d6)',
+    sage: 'linear-gradient(135deg,#e7f0e8,#cfe0d2)',
+    clay: 'linear-gradient(135deg,#f7e9e1,#e8cbb8)',
+    navy: 'linear-gradient(135deg,#e8edf5,#c8d4e6)',
+    gold: 'linear-gradient(135deg,#f7f0d8,#e5d49c)'
+  }[state.me.extra && state.me.extra.profileCover];
+  header.style.background = coverBg || '';
   const qrBtn = document.getElementById('meQrBtn');
   if (qrBtn) qrBtn.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); showMyCard(); };
   // 头部点击 → 编辑个人资料（二维码走右侧“码”按钮）

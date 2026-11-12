@@ -59,6 +59,25 @@ const Map<String, String> kStatusTags = <String, String>{
   'dnd': '勿扰',
 };
 
+/// 个人主页背景：保存在资料 extra.profileCover
+const Map<String, List<Color>> kProfileCovers = <String, List<Color>>{
+  'none': <Color>[Color(0x00000000), Color(0x00000000)],
+  'paper': <Color>[Color(0xFFF7F4EA), Color(0xFFE9E4D6)],
+  'sage': <Color>[Color(0xFFE7F0E8), Color(0xFFCFE0D2)],
+  'clay': <Color>[Color(0xFFF7E9E1), Color(0xFFE8CBB8)],
+  'navy': <Color>[Color(0xFFE8EDF5), Color(0xFFC8D4E6)],
+  'gold': <Color>[Color(0xFFF7F0D8), Color(0xFFE5D49C)],
+};
+
+const Map<String, String> kProfileCoverNames = <String, String>{
+  'none': '无',
+  'paper': '素纸',
+  'sage': '松烟',
+  'clay': '陶土',
+  'navy': '远山',
+  'gold': '麦金',
+};
+
 /// 把 `data:image/xxx;base64,....` 解成字节。非 data URI 或解码失败返回 null。
 Uint8List? decodeAvatarDataUri(Object? value) {
   if (value is! String || !value.startsWith('data:image/')) return null;
@@ -125,6 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _gender = '';
   String _frame = 'none';
   String _status = '';
+  String _cover = 'none';
   Uint8List? _avatarBytes;
   String _uid = '';
 
@@ -187,6 +207,8 @@ class _ProfilePageState extends State<ProfilePage> {
       _frame = kAvatarFrames.containsKey(fr) ? fr : 'none';
       final st = _extra['statusTag'] ?? '';
       _status = kStatusTags.containsKey(st) ? st : '';
+      final cv = _extra['profileCover'] ?? 'none';
+      _cover = kProfileCovers.containsKey(cv) ? cv : 'none';
     }
     if (card.containsKey('avatar')) _avatarBytes = decodeAvatarDataUri(card['avatar']);
   }
@@ -341,6 +363,11 @@ class _ProfilePageState extends State<ProfilePage> {
       extra['statusTag'] = _status;
     } else {
       extra.remove('statusTag');
+    }
+    if (_cover != 'none') {
+      extra['profileCover'] = _cover;
+    } else {
+      extra.remove('profileCover');
     }
 
     setState(() => _saving = true);
@@ -590,6 +617,42 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: _status == e.key ? Colors.white : t.subText,
                           ),
                         ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ]),
+        ),
+        Divider(height: 1, color: t.div.withValues(alpha: 0.6)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          child: Row(children: [
+            Text('主页背景', style: TextStyle(fontSize: 13, color: t.subText)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  for (final e in kProfileCovers.entries)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => setState(() => _cover = e.key),
+                      child: Container(
+                        width: 40,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          gradient: e.key == 'none'
+                              ? null
+                              : LinearGradient(colors: e.value, begin: Alignment.topLeft, end: Alignment.bottomRight),
+                          color: e.key == 'none' ? Colors.transparent : null,
+                          border: Border.all(color: _cover == e.key ? Ux.green : t.div, width: _cover == e.key ? 2 : 1),
+                        ),
+                        child: e.key == 'none'
+                            ? Icon(Icons.block_rounded, size: 14, color: t.subText.withValues(alpha: 0.6))
+                            : null,
                       ),
                     ),
                 ],

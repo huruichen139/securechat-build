@@ -217,11 +217,16 @@ class _MePageState extends State<MePage> {
     final signature = extra is Map ? (extra['signature'] ?? '').toString() : '';
     final frame = extra is Map ? (extra['avatarFrame'] ?? 'none').toString() : 'none';
     final status = extra is Map ? (extra['statusTag'] ?? '').toString() : '';
+    final cover = extra is Map ? (extra['profileCover'] ?? 'none').toString() : 'none';
+    final coverColors = kProfileCovers[cover];
     const statusNames = {'online': '在线', 'busy': '忙碌', 'away': '离开', 'dnd': '勿扰'};
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       decoration: BoxDecoration(
-        color: t.card.withValues(alpha: 0.85),
+        color: coverColors == null || cover == 'none' ? t.card.withValues(alpha: 0.85) : null,
+        gradient: coverColors == null || cover == 'none'
+            ? null
+            : LinearGradient(colors: coverColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(Ux.cardRadius),
         border: Border.all(color: t.div.withValues(alpha: 0.6)),
       ),

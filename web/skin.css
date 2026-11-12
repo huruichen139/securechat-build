@@ -4114,3 +4114,7 @@ html body:not(.dark-mode) #chatView #friendsSide.sidebar-tools{background:#fbfaf
 .status-chip{border:1px solid #d8d4c8;background:transparent;color:#5d625b;border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer}
 .status-chip.active{background:#1f6f4a;border-color:#1f6f4a;color:#fff}
 .me-status{display:inline-block;margin-top:3px;padding:1px 8px;border:1px solid #bcb7a9;border-radius:999px;font-size:11px;color:#1f6f4a;background:#fbfaf6}
+/* 主页背景 */
+.cover-row{display:flex;gap:8px;flex:1;align-items:center;flex-wrap:wrap}
+.cover-swatch{width:44px;height:28px;border-radius:6px;border:1px solid #d8d4c8;cursor:pointer;color:#5d625b;font-size:11px;padding:0}
+.cover-swatch.active{outline:2px solid #1f6f4a;outline-offset:2px}
