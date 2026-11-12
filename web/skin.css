@@ -4178,3 +4178,16 @@ html body:not(.dark-mode) #authView .tab{color:#5f655d!important}
 body.dark-mode .oauth-sep{color:#9a9a9a!important}
 
 body.dark-mode #capWidget{--cap-background:#2c2c2c;--cap-color:#d6d6d6;--cap-border-color:#3a3a3a}
+html body:not(.dark-mode) #settingsPanel .settings-section-title{color:#5f6360!important}
+html body:not(.dark-mode) #settingsPanel .settings-row>div:nth-child(2)>div:last-child{color:#686d65!important}
+html body:not(.dark-mode) #settingsPanel .settings-logout{color:#c62828!important}
+.modal .modal-x,.modal-x{color:#6b6b6b!important}
+body.dark-mode .modal .modal-x,body.dark-mode .modal-x{color:#b2b2b2!important}
+body.dark-mode .scan-text-view textarea{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+body.dark-mode .scan-text-copy{background:#2c2c2c!important;color:#d6d6d6!important;border-color:#3a3a3a!important}
+body:not(.dark-mode) .moment-like.on{color:#c62828!important}
+body.dark-mode .moment-like.on{color:#ff7a7a!important}
+body.dark-mode .wx-discover-icon{color:#d6d6d6!important}
+body.dark-mode .kb-t,body.dark-mode .kb-b,body.dark-mode .kb-poem,body.dark-mode .kb-title{color:#d6d6d6!important}
+body.dark-mode .miniapp-card,body.dark-mode .nearby-item{background:#2c2c2c!important;border-color:#3a3a3a!important;color:#d6d6d6!important}
+body.dark-mode .miniapp-name,body.dark-mode .nearby-name{color:#d6d6d6!important}
