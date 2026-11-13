@@ -153,6 +153,13 @@ class _LoginPageState extends State<LoginPage> {
   bool useTurnstile = !Platform.isWindows;
 
   @override
+  void initState() {
+    super.initState();
+    gFriendReqs.clear();
+    gFriendReqTick.value++;
+  }
+
+  @override
   void dispose() {
     qrTimer?.cancel();
     codeTimer?.cancel();
@@ -1620,31 +1627,37 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           if (!mounted) return;
           final msgId = p['messageId'];
           if (msgId == null) return;
-          // 私聊撤回事件只能落在当前打开的私聊会话上,防 group/DM 的 id 碰撞
           final fromId = p['from'];
           final toId = p['to'];
           final peerKey = (fromId == myId) ? toId : fromId;
           final convR = selConv;
-          if (convR == null || convR['kind'] == 'group' || convR['id'] != peerKey) return;
-          setState(() {
-            for (int i = messages.length - 1; i >= 0; i--) {
-              if (messages[i]['id'] == msgId) {
-                messages[i]['recalled'] = true;
-                messages[i]['text'] = '';
-                messages[i]['voiceId'] = null;
-                break;
+          final viewing = convR != null && convR['kind'] != 'group' && convR['id'] == peerKey;
+          if (viewing) {
+            setState(() {
+              for (int i = messages.length - 1; i >= 0; i--) {
+                if (messages[i]['id'] == msgId) {
+                  messages[i]['recalled'] = true;
+                  messages[i]['text'] = '';
+                  messages[i]['voiceId'] = null;
+                  break;
+                }
               }
-            }
-          });
-          // 只有当被撤回的消息是该会话的最后一条消息时，才更新 _lastMsg 预览
+            });
+          }
+          // 无论是否停留在该会话，只要撤回的是最后一条消息就更新会话预览
           if (peerKey != null) {
             final ck2 = 'f$peerKey';
             final lastEntry = _lastMsg[ck2];
             if (lastEntry != null && lastEntry['id'] == msgId) {
-              // 被撤回的正好是会话列表里的最后一条消息，需要清除预览
-              _lastMsg.remove(ck2);
+              _lastMsg[ck2] = {
+                'text': fromId == myId ? '你撤回了一条消息' : '对方撤回了一条消息',
+                'mine': fromId == myId,
+                'read': true,
+                'ts': DateTime.now().millisecondsSinceEpoch,
+                'id': msgId,
+              };
+              if (mounted) setState(() {});
             }
-            // 如果不是最后一条，则不需要动 _lastMsg，会话列表保持不变
           }
         } else if (type == 'msg_edit') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
