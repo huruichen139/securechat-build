@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.80.12';
+const PACKAGE_VERSION = '1.80.13';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -4708,8 +4708,12 @@ function markRecalled(msgId, mine) {
 }
 function markConversationRead() {
   document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
-    el.textContent = '已读';
     el.classList.add('read');
+    if (el.querySelector('svg')) {
+      el.querySelectorAll('path').forEach(p => p.setAttribute('stroke', '#07c160'));
+      return;
+    }
+    if (!/^已读/.test(el.textContent)) el.textContent = '已读';
   });
 }
 // 已读回执去重：记录当前群已计入的 userId，避免用户重复进群导致已读人数虚增
@@ -6689,15 +6693,6 @@ function openLabelPicker(name) {
     saveLabelMembers(m);
     close();
     renderContactLabels();
-  try {
-    const nf = document.getElementById('contactsNewFriends');
-    const nfLab = nf && nf.previousElementSibling;
-    if (nfLab && nfLab.classList.contains('contact-group-label')) nfLab.textContent = state.pendingReq.length ? ('新的朋友 (' + state.pendingReq.length + ')') : '新的朋友';
-    const gr = document.getElementById('contactsGroups');
-    const grLab = gr && gr.previousElementSibling;
-    if (grLab && grLab.classList.contains('contact-group-label')) grLab.textContent = state.groups.length ? ('群聊 (' + state.groups.length + ')') : '群聊';
-  } catch (e) {}
-
     toast('已删除标签', 'success');
   };
   mask.querySelector('[data-save]').onclick = () => {
@@ -6740,6 +6735,15 @@ function renderContactsPage() {
   const grpEl = document.getElementById('contactsGroups');
   const alpEl = document.getElementById('contactsAlphabetSection');
   if (!newFEl || !grpEl || !alpEl) return;
+
+  const newFLabel = newFEl.previousElementSibling;
+  if (newFLabel && newFLabel.classList.contains('contact-group-label')) {
+    newFLabel.textContent = state.pendingReq.length ? ('新的朋友 (' + state.pendingReq.length + ')') : '新的朋友';
+  }
+  const grpLabel = grpEl.previousElementSibling;
+  if (grpLabel && grpLabel.classList.contains('contact-group-label')) {
+    grpLabel.textContent = state.groups.length ? ('群聊 (' + state.groups.length + ')') : '群聊';
+  }
 
   // 新好友（pending requests）
   newFEl.innerHTML = state.pendingReq.length ? state.pendingReq.map(r => {
@@ -6795,8 +6799,12 @@ function renderContactsPage() {
 
   // 朋友群
   const friendGroups = state.groups.filter(g => {
+    if (kw && !(g.name || '').toLowerCase().includes(kw) && !String(g.id).includes(kw)) return false;
     const m = (g.members || []);
-    return m.some(mid => state.friends.some(f => f.id === mid));
+    return m.some(mid => {
+      const id = (mid && typeof mid === 'object') ? (mid.id != null ? mid.id : mid.uid) : mid;
+      return state.friends.some(f => String(f.id) === String(id));
+    });
   });
   grpEl.innerHTML = friendGroups.length ? friendGroups.map(g => `
     <div class="contact" data-gid="${g.id}">
