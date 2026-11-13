@@ -4191,3 +4191,12 @@ body.dark-mode .wx-discover-icon{color:#d6d6d6!important}
 body.dark-mode .kb-t,body.dark-mode .kb-b,body.dark-mode .kb-poem,body.dark-mode .kb-title{color:#d6d6d6!important}
 body.dark-mode .miniapp-card,body.dark-mode .nearby-item{background:#2c2c2c!important;border-color:#3a3a3a!important;color:#d6d6d6!important}
 body.dark-mode .miniapp-name,body.dark-mode .nearby-name{color:#d6d6d6!important}
+/* contacts: keep subtitle for new friends / groups, name-only for alphabet list */
+#contactsPage #contactsNewFriends .contact,
+#contactsPage #contactsGroups .contact{height:auto!important;min-height:56px!important;max-height:none!important}
+#contactsPage #contactsNewFriends .contact .last,
+#contactsPage #contactsGroups .contact .last{display:block!important;font-size:12px!important;color:#8a8a8a!important;margin-top:2px!important}
+body.dark-mode #contactsPage #contactsNewFriends .contact .last,
+body.dark-mode #contactsPage #contactsGroups .contact .last{color:#8f8f8f!important}
+#contactsPage .contact-group-label{font-size:12px!important;color:#8a8a8a!important;padding:10px 14px 4px!important}
+body.dark-mode #contactsPage .contact-group-label{color:#8f8f8f!important}
