@@ -822,7 +822,11 @@ class _PayQrShowPageState extends State<PayQrShowPage> {
                     content: const Text('删除后对方将无法再通过此码付款，且不可恢复。'),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
-                      FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('删除', style: TextStyle(color: Colors.red))),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(dctx, true),
+                        child: const Text('删除'),
+                      ),
                     ],
                   ),
                 );

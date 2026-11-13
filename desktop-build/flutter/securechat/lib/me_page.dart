@@ -219,6 +219,9 @@ class _MePageState extends State<MePage> {
     final status = extra is Map ? (extra['statusTag'] ?? '').toString() : '';
     final cover = extra is Map ? (extra['profileCover'] ?? 'none').toString() : 'none';
     final coverColors = kProfileCovers[cover];
+    final hasCover = coverColors != null && cover != 'none';
+    final titleColor = hasCover ? const Color(0xff1f2a24) : t.text;
+    final subColor = hasCover ? const Color(0xff2f4a3b) : t.subText;
     const statusNames = {'online': '在线', 'busy': '忙碌', 'away': '离开', 'dnd': '勿扰'};
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
@@ -243,9 +246,9 @@ class _MePageState extends State<MePage> {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(name.isNotEmpty ? name : 'SecureChat 用户',
-                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: t.text)),
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: titleColor)),
                   const SizedBox(height: 4),
-                  Text('聊天号：${uid.isNotEmpty ? uid : '暂未设置'}', style: TextStyle(fontSize: 13, color: t.subText)),
+                  Text('聊天号：${uid.isNotEmpty ? uid : '暂未设置'}', style: TextStyle(fontSize: 13, color: subColor)),
                   if (statusNames[status] != null) ...[
                     const SizedBox(height: 4),
                     Container(
@@ -263,11 +266,11 @@ class _MePageState extends State<MePage> {
                     Text(signature,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: t.subText)),
+                        style: TextStyle(fontSize: 12, color: subColor)),
                   ],
                 ]),
               ),
-              Icon(Icons.chevron_right_rounded, color: t.subText.withValues(alpha: 0.7), size: 20),
+              Icon(Icons.chevron_right_rounded, color: subColor.withValues(alpha: 0.7), size: 20),
             ]),
           ),
         ),

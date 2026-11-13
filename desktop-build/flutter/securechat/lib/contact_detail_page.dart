@@ -45,7 +45,19 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
 
   Future<void> _loadProfile() async {
     try {
-      final data = await widget.api.userProfile(widget.userId);
+      Map<String, dynamic> data;
+      if (widget.isGroup) {
+        final groups = await widget.api.groups();
+        final g = groups.firstWhere((x) => '${x['id']}' == '${widget.userId}', orElse: () => <String, dynamic>{});
+        data = {
+          'name': (g['name'] ?? widget.name).toString(),
+          'id': widget.userId,
+          'extra': g['extra'] ?? const <String, dynamic>{},
+          'memberCount': g['memberCount'] ?? g['members']?.length,
+        };
+      } else {
+        data = await widget.api.userProfile(widget.userId);
+      }
       if (!mounted) return;
       setState(() { _profile = data; _loading = false; });
     } catch (e) {
@@ -119,6 +131,10 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
               if (uid.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text('ID: $uid', style: TextStyle(color: t.subText, fontSize: 13)),
+              ],
+              if (widget.isGroup && p['memberCount'] != null) ...[
+                const SizedBox(height: 4),
+                Text('${p['memberCount']} 位成员', style: TextStyle(color: t.subText, fontSize: 13)),
               ],
               if (signature.isNotEmpty) ...[
                 const SizedBox(height: 8),

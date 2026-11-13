@@ -469,6 +469,7 @@ class _UsersTabState extends State<_UsersTab> {
               final banned = u['banned'] == true;
               final role = '${u['role'] ?? 'user'}';
               final isAdmin = role == 'admin';
+              final avatarBg = isAdmin ? Ux.green : (banned ? Colors.redAccent : _t.div);
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
                 child: Material(
@@ -482,12 +483,12 @@ class _UsersTabState extends State<_UsersTab> {
                       child: Row(children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: isAdmin ? Ux.green : (banned ? Colors.redAccent : _t.div),
+                          backgroundColor: avatarBg,
                           child: Text(
                             '${u['nickname'] ?? u['username'] ?? '?'}'.isEmpty
                                 ? '?'
                                 : '${u['nickname'] ?? u['username']}'.characters.first.toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                            style: TextStyle(color: avatarBg.computeLuminance() > 0.5 ? Colors.black87 : Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                           ),
                         ),
                         const SizedBox(width: 10),

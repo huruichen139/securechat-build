@@ -489,7 +489,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ] else if (mode == 2) ...[
         Center(child: Column(children: [
-          Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: t.div), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto)),
+          Container(width: 176, height: 176, padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: t.div), borderRadius: BorderRadius.circular(16)), child: qrText == null ? const _QrPlaceholder() : QrImageView(data: qrText!, version: QrVersions.auto, backgroundColor: Colors.white)),
           const SizedBox(height: 14),
           Text('请使用已登录的手机扫描此二维码', style: TextStyle(fontWeight: FontWeight.w600, color: t.text)),
           const SizedBox(height: 4),
@@ -504,7 +504,7 @@ class _LoginPageState extends State<LoginPage> {
           Text('密钥只保存在本地设备，服务器只保存验证凭据', style: TextStyle(color: t.subText, fontSize: 12)),
         ])),
       ],
-      if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12))),
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: TextStyle(color: t.isDark ? const Color(0xffff8a80) : const Color(0xffc0392b), fontSize: 12))),
       const SizedBox(height: 8),
       Align(
         alignment: Alignment.centerLeft,
@@ -1077,12 +1077,19 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           _lastMsg[e.key] = {
             'text': (v['text'] ?? '').toString(),
             'mine': v['mine'] == true,
-            'read': true,
+            'read': v['read'] == true,
+            'id': v['id'],
             'ts': (v['ts'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
           };
           // 以服务端为准同步私聊未读角标（重启后恢复）
           final fu = v['unread'];
-          if (fu is num && e.key.startsWith('f') && fu.toInt() > 0) _unread[e.key] = fu.toInt();
+          if (fu is num && e.key.startsWith('f')) {
+            if (fu.toInt() > 0) {
+              _unread[e.key] = fu.toInt();
+            } else {
+              _unread.remove(e.key);
+            }
+          }
         }
       } catch (_) {}
       if (!mounted) return;
@@ -1201,12 +1208,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
           final sender = (m['fromUser'] is Map) ? (((m['fromUser'] as Map)['nickname'] ?? (m['fromUser'] as Map)['username']) ?? '').toString() : null;
           final voice = RegExp(r'^\[语音消息:([0-9a-f-]{8,})(?::(\d+))?\]$').firstMatch(text);
           final read = mine || m['read'] == true;
-          final readCount = (m['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0);
+          final readCount = (m['readCount'] as num?)?.toInt() ?? 0;
           msgs.add(voice != null
               ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'pinned': m['pinned'] == true, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true}
               : {'text': text, 'mine': mine, 'pinned': m['pinned'] == true, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'sender': sender, 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'read': read, 'readCount': readCount, 'recalled': m['recalled'] == true});
         }
-        final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
+        final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id'], group: true));
         final pinned = dedup.where((m) => m['pinned'] == true).toList();
         _insertUnreadDivider(dedup);
         if (!mounted || seq != _openSeq) return;
@@ -1235,7 +1242,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             ? {'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true}
             : {'text': text, 'mine': mine, 'pinned': m['pinned'] == true, 'time': _fmtTs(m['createdAt']), 'ts': m['createdAt'], 'id': m['id'], 'replyTo': m['replyTo'], 'replyContent': m['replyContent'], 'forwardedFrom': m['forwardedFrom'], 'read': read, 'recalled': m['recalled'] == true});
       }
-      final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id']));
+      final dedup = _dedupById(msgs)..removeWhere((m) => _isDeleted(m['id'], group: false));
       final pinned = dedup.where((m) => m['pinned'] == true).toList();
       _insertUnreadDivider(dedup);
       if (!mounted || seq != _openSeq) return;
@@ -1532,7 +1539,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             }
           }
           if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
-          if (_isDeleted(p['id'])) return;
+          if (_isDeleted(p['id'], group: false)) return;
           final conv = selConv;
           final from = p['from'];
           final to = p['to'];
@@ -1547,7 +1554,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             final isMuted = conversations.any((c) => c['kind'] == 'friend' && c['id'] == from && c['muted'] == true);
             setState(() => _unread[key] = (_unread[key] ?? 0) + 1);
             _updateWindowTitle();
-            _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch};
+            _lastMsg[key] = {'text': text, 'mine': from == myId, 'read': false, 'ts': DateTime.now().millisecondsSinceEpoch, 'id': p['id']};
             if (from != myId && _soundEnabled && !isMuted) _playNotificationSound();
             // 桌面端：弹出 Windows 风格消息通知（免打扰会话不弹）
             if (from != myId && !isMuted && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
@@ -1581,7 +1588,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
               _appendMsg(voice != null
                   ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView}
                   : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'replyTo': p['replyTo'], 'replyContent': p['replyContent'], 'forwardedFrom': p['forwardedFrom'], 'read': mine ? false : inView});
-              _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView, 'ts': DateTime.now().millisecondsSinceEpoch};
+              _lastMsg['f${mine ? to : from}'] = {'text': text, 'mine': mine, 'read': mine ? false : inView, 'ts': DateTime.now().millisecondsSinceEpoch, 'id': p['id']};
             }
           });
         } else if (type == 'msg_read') {
@@ -1679,7 +1686,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
               setState(() {
                 for (final m in messages) {
                   if (m['mine'] == true && m['sender'] != null) {
-                    m['readCount'] = ((m['readCount'] as num?)?.toInt() ?? 1) + 1;
+                    m['readCount'] = ((m['readCount'] as num?)?.toInt() ?? 0) + 1;
                   }
                 }
               });
@@ -1718,9 +1725,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
               return;
             }
           }
-          if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
-          if (_isDeleted(p['id'])) return;
-          // 群消息撤回
+          // 群消息撤回：必须在去重之前处理，否则带原消息 id 的撤回事件会被判重丢弃
           if (p['recalled'] == true) {
             final recalledMsgId = p['id'];
             if (recalledMsgId != null) {
@@ -1734,9 +1739,25 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                   }
                 }
               });
+              final gidR = p['groupId'];
+              if (gidR != null) {
+                final ckR = 'g$gidR';
+                final lastR = _lastMsg[ckR];
+                if (lastR != null && lastR['id'] == recalledMsgId) {
+                  _lastMsg[ckR] = {
+                    'text': p['from'] == myId ? '你撤回了一条消息' : '对方撤回了一条消息',
+                    'mine': p['from'] == myId,
+                    'read': true,
+                    'ts': DateTime.now().millisecondsSinceEpoch,
+                    'id': recalledMsgId,
+                  };
+                }
+              }
             }
             return;
           }
+          if (_isDuplicateMsg(cmid: cmid, id: p['id'])) return;
+          if (_isDeleted(p['id'], group: true)) return;
           final conv = selConv;
           final gid = p['groupId'];
           final content = (p['content'] ?? '').toString();
@@ -1790,9 +1811,9 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
               if (_soundEnabled) _playNotificationSound();
             }
             _appendMsg(voice != null
-                ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)}
-                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? (mine ? 1 : 0)});
-            _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch};
+                ? {'cmid': cmid, 'voiceId': voice[1], 'voiceDur': voice[2] != null ? int.tryParse(voice[2]!) : null, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? 0}
+                : {'cmid': cmid, 'text': text, 'mine': mine, 'time': '现在', 'id': p['id'], 'sender': sender, 'replyTo': p['replyTo'], 'forwardedFrom': p['forwardedFrom'], 'read': mine || true, 'readCount': (p['readCount'] as num?)?.toInt() ?? 0});
+            _lastMsg['g$gid'] = {'text': text, 'mine': mine, 'read': true, 'ts': DateTime.now().millisecondsSinceEpoch, 'id': p['id']};
           });
         } else if (type == 'user_list') {
           final p = (root['payload'] is Map ? (root['payload'] as Map).cast<String, dynamic>() : <String, dynamic>{});
@@ -2212,7 +2233,12 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  bool _isDeleted(dynamic id) => _deletedIds.contains('$id');
+  String _msgKey(dynamic id, {bool? group}) {
+    final g = group ?? (selConv != null && selConv!['kind'] == 'group');
+    return (g ? 'g' : 'f') + '$id';
+  }
+
+  bool _isDeleted(dynamic id, {bool? group}) => _deletedIds.contains(_msgKey(id, group: group));
 
   @override
   Widget build(BuildContext context) {
@@ -2281,6 +2307,23 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     });
   }
 
+  void _markAllRead() {
+    try {
+      for (final c in conversations) {
+        if (c['kind'] == 'friend') {
+          socket?.sink.add(jsonEncode({'type': 'read', 'payload': {'from': c['id']}}));
+        } else if (c['kind'] == 'group') {
+          socket?.sink.add(jsonEncode({'type': 'group_read', 'payload': {'groupId': c['id']}}));
+        }
+      }
+    } catch (_) {}
+    setState(() {
+      _unread.clear();
+      for (final c in conversations) c['unread'] = 0;
+      _updateWindowTitle();
+    });
+  }
+
   Widget _leftPanel(AppConfig config, {bool isMobile = false}) {
     final theme = config.theme;
     final items = conversations.where((c) =>
@@ -2296,7 +2339,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             CircleAvatar(radius: 20, backgroundColor: config.primary, child: Text('S', style: TextStyle(color: theme.onAccent, fontWeight: FontWeight.bold, fontSize: 14))),
             const SizedBox(width: 10),
             Expanded(child: Text('聊天', style: TextStyle(color: theme.text, fontSize: 17, fontWeight: FontWeight.w700))),
-          IconButton(tooltip: '全部已读', onPressed: () { setState(() { _unread.clear(); _updateWindowTitle(); }); }, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
+          IconButton(tooltip: '全部已读', onPressed: _markAllRead, icon: const Icon(Icons.done_all, size: 18), color: _unread.isEmpty ? theme.subText : _wechatGreen),
           if (isMobile) Builder(builder: (btnCtx) => IconButton(tooltip: '附加功能', onPressed: () => _showPlusMenu(btnCtx), icon: const Icon(Icons.add, size: 24), color: theme.text)),
           ]),
         ),
@@ -2619,11 +2662,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   Widget _readIcon(Map<String, dynamic> msg) {
     if (selConv != null && selConv!['kind'] == 'group') {
       final rc = (msg['readCount'] as num?)?.toInt() ?? 0;
-      if (rc <= 1) return const SizedBox.shrink();
+      if (rc <= 0) return const SizedBox.shrink();
       return Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.done_all, size: 13, color: _wechatGreen),
         const SizedBox(width: 1),
-        Text('已读 $rc', style: TextStyle(color: widget.config.theme.subText, fontSize: 10)),
+        Text('已读 $rc 人', style: TextStyle(color: widget.config.theme.subText, fontSize: 10)),
       ]);
     }
     final read = msg['read'] == true;
@@ -2736,11 +2779,11 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.6),
                     decoration: BoxDecoration(
-                      color: mine ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.04),
-                      border: Border(left: BorderSide(color: t.subText.withValues(alpha: 0.4), width: 3)),
+                      color: mine ? Colors.white.withValues(alpha: 0.38) : Colors.black.withValues(alpha: 0.04),
+                      border: Border(left: BorderSide(color: mine ? const Color(0xff2f5a3f).withValues(alpha: 0.5) : t.subText.withValues(alpha: 0.4), width: 3)),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subText, fontSize: 11)),
+                    child: Text(replyPreviewText(msg), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: mine ? const Color(0xff1f4a2a) : t.subText, fontSize: 11)),
                   ),
                 if (isSearchTarget)
                   DecoratedBox(
@@ -3123,7 +3166,8 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     final myId = this.myId;
     final filtered = _groupMemberCache.where((m) {
       final nick = (m['nickname'] ?? m['username'] ?? '').toString();
-      return nick.isNotEmpty && m['userId'] != myId && (_atFilter.isEmpty || nick.toLowerCase().contains(_atFilter.toLowerCase()));
+      final mid = m['userId'] ?? m['id'];
+      return nick.isNotEmpty && mid != myId && (_atFilter.isEmpty || nick.toLowerCase().contains(_atFilter.toLowerCase()));
     }).toList();
     // "所有人" 选项排第一
     final all = <Map<String, dynamic>>[{'nickname': '所有人', 'userId': -1}];
@@ -3823,7 +3867,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   void _deleteLocalMessage(Map<String, dynamic> msg) {
     final id = msg['id'];
     if (id != null) {
-      _deletedIds.add('$id');
+      _deletedIds.add(_msgKey(id));
       SharedPreferences.getInstance().then((prefs) => prefs.setStringList('deletedMsgIds', _deletedIds.toList())).catchError((_) => false);
     }
     setState(() => messages.remove(msg));
@@ -4317,6 +4361,8 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     setState(() {
       for (final msg in _selectedMsgs) {
         final cmid = msg['cmid'] as String?;
+        final mid = msg['id'];
+        if (mid != null) _deletedIds.add(_msgKey(mid));
         if (cmid != null) _deletedIds.add(cmid);
         messages.removeWhere((m) => m['id'] == msg['id'] || (cmid != null && m['cmid'] == cmid));
       }
@@ -4729,7 +4775,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         const SizedBox(height: 14),
         Text(name.isNotEmpty ? name : uid, style: TextStyle(fontSize: 14, color: widget.config.theme.subText)),
         const SizedBox(height: 16),
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: widget.config.theme.div), borderRadius: BorderRadius.circular(16)), child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200)),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: widget.config.theme.div), borderRadius: BorderRadius.circular(16)), child: QrImageView(data: 'securechat://friend?uid=$uid', version: QrVersions.auto, size: 200, backgroundColor: Colors.white)),
         const SizedBox(height: 12),
         Text('让朋友用手机「扫一扫」这个二维码，即可添加我为好友。', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: widget.config.theme.subText)),
         const SizedBox(height: 6),
@@ -4771,6 +4817,15 @@ class _ContactsViewStateState extends State<ContactsView> {
     try {
       final friends = await widget.api.friends();
       final grp = await widget.api.groups();
+      try {
+        final reqs = await widget.api.friendRequests();
+        gFriendReqs.clear();
+        for (final r in reqs) {
+          final id = r['id'];
+          if (id is num) gFriendReqs[id.toInt()] = r;
+        }
+        gFriendReqTick.value++;
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         contacts.clear();
@@ -4900,13 +4955,24 @@ class _ContactsViewStateState extends State<ContactsView> {
                 subtitle: Text('UID: ${(e.value['uid'] ?? '').toString()}'),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   TextButton(onPressed: () async {
-                    try { await api.acceptFriend(e.key); } catch (_) {}
+                    try {
+                      await api.acceptFriend(e.key);
+                    } catch (err) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('接受失败：${err.toString().replaceFirst('Bad state: ', '')}')));
+                      return;
+                    }
                     gFriendReqs.remove(e.key); gFriendReqTick.value++;
                     if (ctx.mounted) Navigator.pop(ctx);
+                    _load();
                     if (mounted) { setState(() {}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已添加好友'))); }
                   }, child: const Text('接受', style: TextStyle(color: _wechatGreen))),
                   TextButton(onPressed: () async {
-                    try { await api.rejectFriend(e.key); } catch (_) {}
+                    try {
+                      await api.rejectFriend(e.key);
+                    } catch (err) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('拒绝失败：${err.toString().replaceFirst('Bad state: ', '')}')));
+                      return;
+                    }
                     gFriendReqs.remove(e.key); gFriendReqTick.value++;
                     if (mounted) setState(() {});
                   }, child: const Text('拒绝', style: TextStyle(color: Colors.red))),
@@ -5243,7 +5309,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
               // 人机验证：默认 Turnstile，可切换图形验证码
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xfff5f6f8), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
                 child: useTurnstile
                     ? Column(children: [
                          turnstileSite == null
@@ -5261,22 +5327,22 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                                    setState(() { turnstileToken = null; error = '人机验证加载失败或已过期，请重试'; });
                                  },
                                ),
-                         Align(alignment: Alignment.centerRight, child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12)))),
+                         Align(alignment: Alignment.centerRight, child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant), child: const Text('改用图形验证码', style: TextStyle(fontSize: 12)))),
                        ])
                      : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                          Row(children: [
                            Flexible(child: GestureDetector(onTap: busy ? null : loadCaptcha, child: SizedBox(width: 120, height: 38, child: captchaSvg == null ? const Center(child: Icon(Icons.refresh, size: 20, color: Color(0xff999999))) : SvgPicture.string(captchaSvg!, fit: BoxFit.contain)))),
                            const SizedBox(width: 10),
-                           IconButton(onPressed: busy ? null : loadCaptcha, tooltip: '刷新', icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xff999999))),
+                           IconButton(onPressed: busy ? null : loadCaptcha, tooltip: '刷新', icon: Icon(Icons.refresh_rounded, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                          ]),
                          const SizedBox(height: 8),
                          TextField(controller: captchaCtrl, enabled: !busy && captchaId != null, maxLength: 6, style: const TextStyle(fontSize: 15, letterSpacing: 4), decoration: const InputDecoration(labelText: '图中数字', counterText: '', isDense: true)),
-                         Align(alignment: Alignment.centerRight, child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: const Color(0xff999999)), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12)))),
+                         Align(alignment: Alignment.centerRight, child: TextButton(onPressed: busy ? null : switchVerifyMode, style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant), child: const Text('改用Turnstile', style: TextStyle(fontSize: 12)))),
                        ]),
               ),
               const SizedBox(height: 12),
               TextField(controller: password, enabled: !busy, obscureText: true, decoration: const InputDecoration(labelText: '新密码')),
-              if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Color(0xffc0392b), fontSize: 13))),
+              if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13))),
                const SizedBox(height: 18),
                SizedBox(width: double.infinity, height: 46, child: FilledButton(onPressed: busy ? null : submit, child: Text(busy ? '提交中…' : '重置密码'))),
              ]),
@@ -5334,12 +5400,12 @@ class _UpdateDialogState extends State<_UpdateDialog> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('当前：v$kAppVersion   最新：v$latest', style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          if (notes.isNotEmpty) Text(notes, style: const TextStyle(color: Color(0xff5b6670), height: 1.4)),
+          if (notes.isNotEmpty) Text(notes, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4)),
           const SizedBox(height: 14),
           if (_downloading) ...[
             LinearProgressIndicator(value: _progress.clamp(0, 1), color: _wechatGreen),
             const SizedBox(height: 6),
-            Text('正在下载安装包… ${(_progress * 100).round()}%', style: const TextStyle(color: Color(0xff5b6670), fontSize: 12)),
+            Text('正在下载安装包… ${(_progress * 100).round()}%', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
           ] else if (_msg.isNotEmpty)
             Text(_msg, style: const TextStyle(color: Color(0xffc0392b), fontSize: 12)),
           if (_savedPath != null)

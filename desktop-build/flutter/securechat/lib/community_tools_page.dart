@@ -264,7 +264,7 @@ class _PollCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(o['content'].toString(), style: TextStyle(color: on ? config.primary : t.text)),
+                    Text(o['content'].toString(), style: TextStyle(color: t.text, fontWeight: on ? FontWeight.w600 : FontWeight.normal)),
                     if (showDetail) ...[
                       const SizedBox(height: 4),
                       LinearProgressIndicator(value: total > 0 ? votes / total : 0, minHeight: 5, color: config.primary, backgroundColor: Ux.cellIconBg(t)),

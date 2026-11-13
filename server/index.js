@@ -5463,9 +5463,9 @@ app.get('/api/conversations/preview', (req, res) => {
     const me = payload.id;
     // 私聊：按 (对端 peer) 分组取每组最新一条。peer = 与我不一样的那方。
     const dp = prepare(
-      `SELECT id, from_id AS "from", to_id AS "to", content, created_at AS createdAt, seq, mine
+      `SELECT id, from_id AS "from", to_id AS "to", content, created_at AS createdAt, seq, mine, read
        FROM (
-         SELECT m.id, m.from_id, m.to_id, CASE WHEN m.recalled=1 THEN '' ELSE m.content END AS content, m.created_at, m.seq,
+         SELECT m.id, m.from_id, m.to_id, CASE WHEN m.recalled=1 THEN '' ELSE m.content END AS content, m.created_at, m.seq, m.read,
                 CASE WHEN m.from_id=? THEN 1 ELSE 0 END AS mine,
                 CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END AS peer,
                 ROW_NUMBER() OVER (PARTITION BY CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END ORDER BY m.id DESC) AS rn
@@ -5476,7 +5476,7 @@ app.get('/api/conversations/preview', (req, res) => {
     );
     const rows = dp.all(me, me, me, me, me, me);
     for (const r of rows) {
-      previews['f' + (r.mine ? r.to : r.from)] = { id: r.id, text: r.content, mine: !!r.mine, ts: r.createdAt, seq: r.seq };
+      previews['f' + (r.mine ? r.to : r.from)] = { id: r.id, text: r.content, mine: !!r.mine, read: !!r.read, ts: r.createdAt, seq: r.seq };
     }
     // 群聊：每个所在群最新一条
     const gp = prepare(

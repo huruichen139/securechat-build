@@ -6,7 +6,7 @@ on:
       version:
         description: 'Build version (must match server version.json latest)'
         required: true
-        default: '1.80.13'
+        default: '1.80.14'
   push:
     tags: ['flutter-all-*']
 
@@ -18,8 +18,8 @@ jobs:
       - id: v
         shell: pwsh
         run: |
-          $ver = "${{ github.event.inputs.version || '1.80.13' }}".Trim()
-          if ($ver -eq '') { $ver = '1.80.13' }
+          $ver = "${{ github.event.inputs.version || '1.80.14' }}".Trim()
+          if ($ver -eq '') { $ver = '1.80.14' }
           "ver=$ver" >> $env:GITHUB_OUTPUT
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -68,8 +68,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: v
         run: |
-          ver="${{ github.event.inputs.version || '1.80.13' }}"
-          [ -z "$ver" ] && ver="1.80.13"
+          ver="${{ github.event.inputs.version || '1.80.14' }}"
+          [ -z "$ver" ] && ver="1.80.14"
           echo "ver=$ver" >> $GITHUB_OUTPUT
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -105,8 +105,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: v
         run: |
-          ver="${{ github.event.inputs.version || '1.80.13' }}"
-          [ -z "$ver" ] && ver="1.80.13"
+          ver="${{ github.event.inputs.version || '1.80.14' }}"
+          [ -z "$ver" ] && ver="1.80.14"
           echo "ver=$ver" >> $GITHUB_OUTPUT
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -157,8 +157,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: v
         run: |
-          ver="${{ github.event.inputs.version || '1.80.13' }}"
-          [ -z "$ver" ] && ver="1.80.13"
+          ver="${{ github.event.inputs.version || '1.80.14' }}"
+          [ -z "$ver" ] && ver="1.80.14"
           echo "ver=$ver" >> $GITHUB_OUTPUT
       - uses: actions/download-artifact@v4
         with:

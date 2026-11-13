@@ -604,7 +604,8 @@ module.exports = function registerGroups(app, db, auth) {
        LEFT JOIN group_member_settings gms ON gms.group_id=m.group_id AND gms.user_id=m.user_id
        WHERE m.group_id=? ORDER BY m.joined_at ASC`, groupId);
     const mine = p.get('SELECT my_nickname FROM group_member_settings WHERE group_id=? AND user_id=?', groupId, req.user.id) || {};
-    res.json({ members: members.map(m => ({ ...publicUser(m), myNickname: m.my_nickname || null })), ownerId: g.owner_id, myNickname: mine.my_nickname || null });
+    const onlineCutoff = Date.now() - 5 * 60 * 1000;
+    res.json({ members: members.map(m => ({ ...publicUser(m), myNickname: m.my_nickname || null, online: (m.last_seen || 0) >= onlineCutoff })), ownerId: g.owner_id, myNickname: mine.my_nickname || null });
   });
 
   // ---------- 群文件：上传 POST /api/groups/:id/files (application/octet-stream) ----------

@@ -106,15 +106,17 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+    final oldPwd = oldC.text.trim();
+    final newPwd = newC.text;
     oldC.dispose();
     newC.dispose();
     if (ok != true || !context.mounted) return;
-    if (oldC.text.isEmpty || newC.text.length < 6) {
+    if (oldPwd.isEmpty || newPwd.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写当前密码且新密码至少6位')));
       return;
     }
     try {
-      await widget.api.changePassword(oldC.text, newC.text);
+      await widget.api.changePassword(oldPwd, newPwd);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('密码已修改，请重新登录'), backgroundColor: Color(0xff07c160)));
       await widget.api.clearSession();
@@ -676,7 +678,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   content: const Text('退出后需要重新输入账号密码登录，确定退出？'),
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('取消')),
-                    FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('退出', style: TextStyle(color: Color(0xffe0533d)))),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xffe0533d), foregroundColor: Colors.white),
+                      onPressed: () => Navigator.pop(dctx, true),
+                      child: const Text('退出'),
+                    ),
                   ],
                 ),
               );

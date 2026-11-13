@@ -121,6 +121,9 @@ class _StatusPageState extends State<StatusPage> {
             : DecorationImage(image: NetworkImage('${widget.api.baseUrl}$bg'), fit: BoxFit.cover),
       ),
       child: Stack(children: [
+        Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)]),
+        ))),
         Positioned(top: 0, child: Text(icon, style: const TextStyle(fontSize: 26))),
         Align(
           alignment: Alignment.bottomLeft,
