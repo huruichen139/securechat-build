@@ -4727,10 +4727,21 @@ function markGroupConversationRead(userId) {
   if (counted.has(userId)) return;
   counted.add(userId);
   document.querySelectorAll('#messages .msg-row.me .read-state').forEach(el => {
-    const cur = el.textContent;
-    const m = /^已读 (\d+)人$/.exec(cur);
-    if (m) el.textContent = '已读 ' + (Number(m[1]) + 1) + '人';
-    else if (cur === '已读') el.textContent = '已读 2人';
+    el.classList.add('read');
+    if (el.querySelector('svg')) {
+      el.querySelectorAll('path').forEach(p => p.setAttribute('stroke', '#07c160'));
+      return;
+    }
+    const cur = el.textContent.trim();
+    const m = /^(?:已读\s*)?(\d+)(?:\s*人)?$/.exec(cur);
+    if (m) {
+      const n = Number(m[1]) + 1;
+      el.textContent = String(n);
+      el.title = n + '人已读';
+    } else if (cur === '已读') {
+      el.textContent = '2';
+      el.title = '2人已读';
+    }
   });
 }
 
