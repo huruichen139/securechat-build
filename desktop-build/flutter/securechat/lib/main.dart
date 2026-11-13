@@ -1062,6 +1062,15 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       final selKind = selConvBefore?['kind'];
       final friends = await widget.api.friends();
       final groups = await widget.api.groups();
+      try {
+        final reqs = await widget.api.friendRequests();
+        gFriendReqs.clear();
+        for (final r in reqs) {
+          final id = r['id'];
+          if (id is num) gFriendReqs[id.toInt()] = r;
+        }
+        gFriendReqTick.value++;
+      } catch (_) {}
       final cs = await widget.api.chatSettings();
       final csMap = <int, Map<String, dynamic>>{};
       for (final s in cs) {
@@ -2239,6 +2248,10 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   }
 
   bool _isDeleted(dynamic id, {bool? group}) => _deletedIds.contains(_msgKey(id, group: group));
+
+  void _persistDeleted() {
+    SharedPreferences.getInstance().then((prefs) => prefs.setStringList('deletedMsgIds', _deletedIds.toList())).catchError((_) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3868,7 +3881,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     final id = msg['id'];
     if (id != null) {
       _deletedIds.add(_msgKey(id));
-      SharedPreferences.getInstance().then((prefs) => prefs.setStringList('deletedMsgIds', _deletedIds.toList())).catchError((_) => false);
+      _persistDeleted();
     }
     setState(() => messages.remove(msg));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除（仅本端）')));
@@ -4369,6 +4382,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
       _selectedMsgs.clear();
       _multiSelectMode = false;
     });
+    _persistDeleted();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已删除 $count 条消息')));
   }
 

@@ -11,7 +11,7 @@ on:
       version:
         description: 'Build version (must match server version.json latest)'
         required: true
-        default: '1.80.14'
+        default: '1.80.15'
   push:
     tags: [ 'flutter-win-*' ]
 
@@ -26,8 +26,8 @@ jobs:
         id: v
         shell: pwsh
         run: |
-          $ver = "${{ github.event.inputs.version || '1.80.14' }}".Trim()
-          if ($ver -eq '') { $ver = '1.80.14' }
+          $ver = "${{ github.event.inputs.version || '1.80.15' }}".Trim()
+          if ($ver -eq '') { $ver = '1.80.15' }
           echo "ver=$ver" >> $env:GITHUB_OUTPUT
 
       - name: Setup Flutter
