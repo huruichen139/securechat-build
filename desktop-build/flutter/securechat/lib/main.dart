@@ -3067,7 +3067,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
             if (!isImage || fileId == null) const SizedBox(width: 8),
             Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: mine ? const Color(0xff1a1a1a) : t.text)),
-              Text(_fmtSize((meta['size'] is num) ? meta['size'] as num : (num.tryParse(meta['size'].toString()) ?? 0)), style: TextStyle(fontSize: 11, color: t.subText)),
+              Text(_fmtSize((meta['size'] is num) ? meta['size'] as num : (num.tryParse(meta['size'].toString()) ?? 0)), style: TextStyle(fontSize: 11, color: mine ? const Color(0xff2f5a3f) : t.subText)),
             ])),
             const SizedBox(width: 8),
             InkWell(onTap: () => _openFile(meta), child: Icon(isImage ? Icons.zoom_in_rounded : Icons.download_rounded, size: 20, color: _wechatGreen)),
@@ -3116,10 +3116,10 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.12 : 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(mine ? Icons.play_arrow_rounded : Icons.play_arrow_rounded, size: 20, color: _wechatGreen),
+        Icon(Icons.play_arrow_rounded, size: 20, color: mine ? const Color(0xff1f6f4a) : _wechatGreen),
         ...List.generate(12, (i) {
           final h = 6.0 + ((i * 7 + (playing ? 3 : 0)) % 16);
-          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? _wechatGreen : t.subText, borderRadius: BorderRadius.circular(2)));
+          return Container(width: 2.5, height: h, margin: const EdgeInsets.only(right: 3), decoration: BoxDecoration(color: playing ? (mine ? const Color(0xff1f6f4a) : _wechatGreen) : (mine ? const Color(0xff2f5a3f) : t.subText), borderRadius: BorderRadius.circular(2)));
         }),
         const SizedBox(width: 8),
         Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(dur != null ? '语音 ${dur}\u2033' : '语音', style: TextStyle(fontSize: 14, color: mine ? const Color(0xff191919) : t.text)), if (playing && _voiceDuration.inMilliseconds > 0) SizedBox(width: 80, child: LinearProgressIndicator(value: _voicePosition.inMilliseconds / _voiceDuration.inMilliseconds, backgroundColor: t.div, valueColor: const AlwaysStoppedAnimation(_wechatGreen), minHeight: 2)),]),
