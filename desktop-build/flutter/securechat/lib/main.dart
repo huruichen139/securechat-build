@@ -2246,12 +2246,14 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
     return preview;
   }
 
+  String get _deletedPrefsKey => 'deletedMsgIds_${widget.api.myId ?? 0}';
+
   Future<void> _ensureDeletedLoaded() async {
     if (_deletedLoaded) return;
     _deletedLoaded = true;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _deletedIds.addAll(prefs.getStringList('deletedMsgIds') ?? const []);
+      _deletedIds.addAll(prefs.getStringList(_deletedPrefsKey) ?? const []);
     } catch (_) {}
   }
 
@@ -2263,7 +2265,7 @@ class _ChatViewStateState extends State<_ChatView> with WidgetsBindingObserver {
   bool _isDeleted(dynamic id, {bool? group}) => _deletedIds.contains(_msgKey(id, group: group));
 
   void _persistDeleted() {
-    SharedPreferences.getInstance().then((prefs) => prefs.setStringList('deletedMsgIds', _deletedIds.toList())).catchError((_) => false);
+    SharedPreferences.getInstance().then((prefs) => prefs.setStringList(_deletedPrefsKey, _deletedIds.toList())).catchError((_) => false);
   }
 
   @override

@@ -583,7 +583,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 try {
                   PaintingBinding.instance.imageCache.clear();
                   PaintingBinding.instance.imageCache.clearLiveImages();
-                  final cacheDir = await getTemporaryDirectory();
+                  final cacheDir = await getApplicationCacheDirectory();
                   if (await cacheDir.exists()) {
                     await for (final entry in cacheDir.list()) {
                       try {
