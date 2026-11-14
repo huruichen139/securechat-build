@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.80.19';
+const kAppVersion = '1.80.20';
 
 /// Android 鍘熺敓瀹夎鍣ㄩ€氶亾锛歁ainActivity.installApk 閫氳繃 FileProvider 鎷夎捣瀹夎鐣岄潰
 const _kInstallerChannel = MethodChannel('securechat/installer');

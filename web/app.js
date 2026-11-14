@@ -1,7 +1,7 @@
 'use strict';
 
 // 客户端打包版本号；与服务端 /api/version.latest 比对，最新版后会弹更新浮层。
-const PACKAGE_VERSION = '1.80.19';
+const PACKAGE_VERSION = '1.80.20';
 
 const P = {
   C_AUTH: 'auth', C_MSG: 'msg', C_READ: 'read', C_TYPING: 'typing',
@@ -1285,6 +1285,8 @@ function logout() {
   if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
   state.wsAuthed = false;
   state.activePeer = null; state.activeGroup = null;
+  shownAnnouncements.clear();
+  for (const k in groupReadCounted) delete groupReadCounted[k];
   state.friends.length = 0; state.groups.length = 0; state.users.length = 0;
   for (const k in state.unread) delete state.unread[k];
   for (const k in state.groupUnread) delete state.groupUnread[k];

@@ -173,6 +173,8 @@ class SecureChatApi {
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_kToken);
     await sp.remove(_kMyId);
+    await sp.remove(_kNickname);
+    await sp.remove(_kUsername);
   }
 
   void _syncGlobal() {
