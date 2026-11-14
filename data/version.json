@@ -1,6 +1,14 @@
 {
-  "latest": "1.80.17",
+  "latest": "1.80.18",
   "releaseNotes": [
+    {
+      "version": "1.80.18",
+      "date": "2026-11-14",
+      "changes": [
+        "修复更新弹窗读取不到 releaseNotes.changes 导致更新说明为空",
+        "Windows/Android/macOS/iOS 同步构建"
+      ]
+    },
     {
       "version": "1.80.17",
       "date": "2026-11-14",

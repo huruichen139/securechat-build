@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'services/securechat_api.dart';
 
-const kAppVersion = '1.80.17';
+const kAppVersion = '1.80.18';
 
 /// Android 鍘熺敓瀹夎鍣ㄩ€氶亾锛歁ainActivity.installApk 閫氳繃 FileProvider 鎷夎捣瀹夎鐣岄潰
 const _kInstallerChannel = MethodChannel('securechat/installer');
@@ -40,7 +40,7 @@ class UpdateService {
     if (releaseNotes is List) {
       final head = releaseNotes.isNotEmpty ? releaseNotes.first : null;
       if (head is Map) {
-        final notes = head['notes'];
+        final notes = head['notes'] ?? head['changes'];
         if (notes is List) {
           return notes.map((n) => n.toString()).where((s) => s.isNotEmpty).join('\n');
         }
@@ -52,7 +52,7 @@ class UpdateService {
       for (final e in releaseNotes) {
         if (e is! Map) continue;
         final v = e['version'];
-        final notes = e['notes'];
+        final notes = e['notes'] ?? e['changes'];
         if (notes is List) {
           lines.add(v == null ? notes.join('\n') : 'v$v\n${notes.join('\n')}');
         } else if (notes is String) {
