@@ -3771,7 +3771,7 @@ function appendGroupMessage(m, prepend) {
         ${nameLine}
         <div class="bubble"><div class="voice-bubble"><span class="play">\u25B6</span>${bars}<span class="vdur">${dur.toFixed(1)}"</span></div></div>
         <span class="time">${fmtTime(m.createdAt)}</span>
-        ${mine ? '<span class="read-state read">' + ((m.readCount > 0) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
+        ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       </div>`;
     applyAvatarFrame(row.querySelector('.row-avatar'), mine
       ? (state.me && state.me.extra && state.me.extra.avatarFrame)
@@ -3839,7 +3839,7 @@ function appendGroupMessage(m, prepend) {
       ${nameLine}
       ${redPacketCardHtml(m, mine) || mergedHtmlG || '<div class="bubble">' + quoteBlockHtml(m) + escapeHtml(m.content) + '</div>'}
       <span class="time">${fmtTime(m.createdAt)}</span>
-      ${mine ? '<span class="read-state read">' + ((m.readCount > 0) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
+      ${mine ? '<span class="read-state read">' + ((m.readCount > 1) ? '已读 ' + m.readCount + '人' : '已读') + '</span>' : ''}
       <div class="message-actions">${canGroupRecall ? '<button type="button" data-action="recall">撤回</button>' : ''}<button type="button" data-action="copy">复制</button><button type="button" data-action="quote">引用</button><button type="button" data-action="forward">转发</button><button type="button" data-action="del">删除</button></div>
     </div>`;
   applyAvatarFrame(row.querySelector('.avatar'), mine
@@ -4738,11 +4738,11 @@ function markGroupConversationRead(userId) {
     const m = /^(?:已读\s*)?(\d+)(?:\s*人)?$/.exec(cur);
     if (m) {
       const n = Number(m[1]) + 1;
-      el.textContent = String(n);
+      el.textContent = n > 1 ? '已读 ' + n + '人' : '已读';
       el.title = n + '人已读';
     } else if (cur === '已读') {
-      el.textContent = '1';
-      el.title = '1人已读';
+      el.textContent = '已读';
+      el.title = '已读';
     }
   });
 }
