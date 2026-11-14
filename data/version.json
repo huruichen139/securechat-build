@@ -1,6 +1,14 @@
 {
-  "latest": "1.80.18",
+  "latest": "1.80.19",
   "releaseNotes": [
+    {
+      "version": "1.80.19",
+      "date": "2026-11-14",
+      "changes": [
+        "清除缓存改为只清理图片与临时文件，不再误删登录态、密钥和隐私设置",
+        "Windows/Android/macOS/iOS 同步构建"
+      ]
+    },
     {
       "version": "1.80.18",
       "date": "2026-11-14",

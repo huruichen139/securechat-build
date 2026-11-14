@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'device_manage_page.dart';
@@ -580,8 +581,16 @@ class _SettingsPageState extends State<SettingsPage> {
               );
               if (confirm == true && mounted) {
                 try {
-                  final sp = await SharedPreferences.getInstance();
-                  await sp.clear();
+                  PaintingBinding.instance.imageCache.clear();
+                  PaintingBinding.instance.imageCache.clearLiveImages();
+                  final cacheDir = await getTemporaryDirectory();
+                  if (await cacheDir.exists()) {
+                    await for (final entry in cacheDir.list()) {
+                      try {
+                        await entry.delete(recursive: true);
+                      } catch (_) {}
+                    }
+                  }
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除')));
                 } catch (e) {
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('清除失败：$e')));
