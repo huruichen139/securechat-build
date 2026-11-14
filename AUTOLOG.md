@@ -266,3 +266,25 @@ shake / miniapp / chat-ext / filehelper / feedback。这些面板全部由
 - Android CI 增加腾讯 Maven 镜像，解决 aliyun POM 解析失败。
 - 五端产物部署完成：windows.exe/zip、android.apk、macos.dmg、ios.ipa 均 HTTP 200，/api/version=1.80.14。
 - 本地服务已重启，groups.js online 与 preview read 字段生效。
+
+## 2026-11-14 1.80.15 - 1.80.19 连续发版
+### 1.80.15
+- 启动即拉取好友申请，未进通讯录也显示角标。
+- 删除消息持久化，批量删除后不再复活。
+- Web 群聊已读人数改为其他成员口径并正确累加。
+- 五端产物部署，/api/version=1.80.15。
+
+### 1.80.16
+- 私聊撤回最后一条消息时，不在该会话也会更新列表预览。
+- 退出登录清空好友申请缓存，换号不再串数据。
+
+### 1.80.17
+- 修复 kAppVersion 长期停留在 1.80.7 导致更新检测异常。
+- 文件大小与语音波形在绿色气泡上对比度提升。
+
+### 1.80.18
+- 修复更新弹窗只读 releaseNotes.notes、读不到 changes 导致更新说明为空。
+
+### 1.80.19
+- 清除缓存改为只清理图片缓存与临时目录，不再 sp.clear() 误删登录态、密钥、隐私设置和字体设置。
+- 五端产物全部 HTTP 200，/api/version=1.80.19；本地 git 已同步到 c7aedc2。
